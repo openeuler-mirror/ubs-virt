@@ -13,4 +13,4 @@
 #ifndef UBS_VIRT_MSG_H
 #define UBS_VIRT_MSG_H
 
-#endif //UBS_VIRT_MSG_H
+#endif // UBS_VIRT_MSG_H
