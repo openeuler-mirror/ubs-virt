@@ -1,0 +1,51 @@
+/*
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * ubs-virt-ovs is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
+#ifndef CONNECTION_H
+#define CONNECTION_H
+
+#include <string>
+#include <cstdint>
+
+namespace virt::ovs::ipc::server {
+class Connection {
+public:
+    enum class State {
+        READ_LEN, // read req head length
+        READ_BODY, // read req body length
+        READY, // read req finish
+        PROCESSING,
+        WRITE_RESP,
+        CLOSED,
+    };
+
+    explicit Connection(int fd);
+
+    bool HandleRead();
+    bool HandleWrite();
+
+    bool HasRequest() const;
+    std::string TakeRequest();
+    void SetResponse(std::string resp, int epollFd);
+
+    bool NeedWrite() const;
+    void ResetAfterWrite();
+
+private:
+    int fd_;
+    State state_{ State::READ_LEN};
+
+    uint32_t expectLen_{ 0 };
+    std::string readBuf_;
+    std::string writeBuf_;
+};
+} // namespace virt::ovs::ipc::server
+#endif

@@ -9,8 +9,12 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#ifndef UBS_VIRT_URMA_SERVICE_H
+#define UBS_VIRT_URMA_SERVICE_H
 
-#ifndef UBS_VIRT_SERVER_H
-#define UBS_VIRT_SERVER_H
 
-#endif //UBS_VIRT_SERVER_H
+class UrmaService {
+};
+
+
+#endif // UBS_VIRT_URMA_SERVICE_H
