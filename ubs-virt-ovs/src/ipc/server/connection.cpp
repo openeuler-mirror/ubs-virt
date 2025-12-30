@@ -12,9 +12,9 @@
 #include "connection.h"
 #include "logger.h"
 
-#include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
+#include <unistd.h>
 
 namespace virt::ovs::ipc::server {
 Connection::Connection(int fd) : fd_(fd) {}
@@ -94,8 +94,8 @@ void Connection::SetResponse(std::string resp, int epollFd)
     ev.events = EPOLLOUT | EPOLLET;
     ev.data.fd = fd_;
     if (epoll_ctl(epollFd, EPOLL_CTL_MOD, fd_, &ev) < 0) {
-        LOG_ERROR << "epoll_ctl MOD failed in SetReaponse, fd=" << fd_ << ", errno=" << errno <<
-            ", errmsg=" << strerror(errno);
+        LOG_ERROR << "epoll_ctl MOD failed in SetReaponse, fd=" << fd_ << ", errno=" << errno
+                  << ", errmsg=" << strerror(errno);
     }
 }
 

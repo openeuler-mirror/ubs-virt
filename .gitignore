@@ -1,5 +1,5 @@
 # Default ignored files
-cmake-build-*
+**/cmake-build-*
 .idea
 .vscode
 .cache

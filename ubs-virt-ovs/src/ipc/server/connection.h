@@ -12,16 +12,16 @@
 #ifndef CONNECTION_H
 #define CONNECTION_H
 
-#include <string>
 #include <cstdint>
+#include <string>
 
 namespace virt::ovs::ipc::server {
 class Connection {
 public:
     enum class State {
-        READ_LEN, // read req head length
+        READ_LEN,  // read req head length
         READ_BODY, // read req body length
-        READY, // read req finish
+        READY,     // read req finish
         PROCESSING,
         WRITE_RESP,
         CLOSED,
@@ -41,9 +41,9 @@ public:
 
 private:
     int fd_;
-    State state_{ State::READ_LEN};
+    State state_{State::READ_LEN};
 
-    uint32_t expectLen_{ 0 };
+    uint32_t expectLen_{0};
     std::string readBuf_;
     std::string writeBuf_;
 };

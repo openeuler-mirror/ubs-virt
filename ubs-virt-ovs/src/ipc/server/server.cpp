@@ -9,9 +9,9 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "server.h"
 #include "logger.h"
 #include "virt_ipc_code.h"
-#include "server.h"
 
 #include <fcntl.h>
 #include <sys/epoll.h>
@@ -68,7 +68,7 @@ bool Server::InitListenSocket()
     std::snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", socketPath_.c_str());
     unlink(socketPath_.c_str());
 
-    if (bind(listenFd_, static_cast<sockaddr*>(static_cast<void*>(&addr)), sizeof(addr)) < 0 ||
+    if (bind(listenFd_, static_cast<sockaddr *>(static_cast<void *>(&addr)), sizeof(addr)) < 0 ||
         listen(listenFd_, LISTEN_BACK_LOG) < 0) {
         LOG_ERROR << "bind/listen failed" << strerror(errno);
         if (listenFd_ >= 0) {
@@ -94,7 +94,7 @@ bool Server::InitEpoll()
         return false;
     }
 
-    epoll_event ev{ EPOLLIN, { .fd = listenFd_ }};
+    epoll_event ev{EPOLLIN, {.fd = listenFd_}};
     if (epoll_ctl(epollFd_, EPOLL_CTL_ADD, listenFd_, &ev) < 0) {
         LOG_ERROR << "epoll_ctl ADD listenFd failed";
         if (listenFd_ >= 0) {
@@ -167,9 +167,7 @@ bool Server::HandleReadEvent(Connection &conn, int fd)
         }
 
         std::string req = conn.TakeRequest();
-        if (!pool_.TryEnqueue([this, fd, req = std::move(req)] {
-            this->HandleBusiness(fd, std::move(req));
-        })) {
+        if (!pool_.TryEnqueue([this, fd, req = std::move(req)] { this->HandleBusiness(fd, std::move(req)); })) {
             LOG_WARN << "ThreadPool full, drop request, fd=" << fd;
             return false;
         }
@@ -216,8 +214,8 @@ void Server::HandleBusiness(int fd, const std::string &req)
         LOG_ERROR << "Failed to deserialize request, fd=" << fd;
         return;
     }
-    LOG_DEBUG << "IpcRequest deserialized, service=" << cr.service_ << ", method=" <<
-        cr.method_ << ", payload_size=" << cr.payload_.size();
+    LOG_DEBUG << "IpcRequest deserialized, service=" << cr.service_ << ", method=" << cr.method_
+              << ", payload_size=" << cr.payload_.size();
 
     IpcResponse resp;
     try {
@@ -241,8 +239,8 @@ void Server::HandleBusiness(int fd, const std::string &req)
 
     it->second.SetResponse(packer.String(), epollFd_);
 
-    LOG_DEBUG << "IpcResponse serialized, fd=" << fd << ", code=" << resp.code_ <<
-        ", payload_size=" << resp.payload_.size();
+    LOG_DEBUG << "IpcResponse serialized, fd=" << fd << ", code=" << resp.code_
+              << ", payload_size=" << resp.payload_.size();
 }
 
 void Server::Loop()

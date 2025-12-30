@@ -38,7 +38,7 @@ std::mutex &LogMutex()
 
 void EnsureLogDir()
 {
-    struct stat st {};
+    struct stat st{};
     if (stat(LOG_DIR, &st) != 0) {
         mkdir(LOG_DIR, LOG_DIR_MODE);
     }
@@ -46,7 +46,7 @@ void EnsureLogDir()
 
 size_t GetFileSize(const char *path)
 {
-    struct stat st {};
+    struct stat st{};
     if (stat(path, &st) != 0) {
         return 0;
     }
@@ -107,9 +107,10 @@ void CleanupOldRotateLogFile()
         std::string name(ent->d_name);
         if (name.find("virt-ovs_")) == 0 &&
             name.size() > 5 &&
-            name.rfind(".tar.gz") == name.size() - 7) {
-            files.emplace_back(name);
-        }
+            name.rfind(".tar.gz") == name.size() - 7)
+            {
+                files.emplace_back(name);
+            }
     }
 
     closedir(dir);
@@ -124,7 +125,6 @@ void CleanupOldRotateLogFile()
         unlink(fullPath.c_str());
     }
 }
-
 
 void RotateLogFile()
 {
@@ -190,8 +190,8 @@ std::string LoggerEntry::FormatTime(const std::chrono::system_clock::time_point 
 
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()) % CHANGE_TO_MS;
     std::ostringstream oss;
-    oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "." <<
-        std::setw(MILLI_WIDTH) << std::setfill('0') << ms.count() << " +08:00";
+    oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "." << std::setw(MILLI_WIDTH) << std::setfill('0') << ms.count()
+        << " +08:00";
     return oss.str();
 }
 
