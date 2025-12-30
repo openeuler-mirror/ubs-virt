@@ -11,14 +11,14 @@
  */
 #ifndef SERVER_H
 #define SERVER_H
-#include <unordered_map>
-#include <thread>
 #include <atomic>
 #include <string>
+#include <thread>
+#include <unordered_map>
 
 #include "connection.h"
-#include "thread_pool.h"
 #include "dispatcher.h"
+#include "thread_pool.h"
 
 namespace virt::ovs::ipc::server {
 
@@ -46,10 +46,10 @@ private:
     void CloseConnection(int fd);
 
     std::string socketPath_;
-    int listenFd_{ -1 };
-    int epollFd_{ -1 };
+    int listenFd_{-1};
+    int epollFd_{-1};
 
-    std::atomic<bool> running_{ false };
+    std::atomic<bool> running_{false};
     std::thread loopThread_;
 
     ThreadPool pool_;
@@ -57,9 +57,9 @@ private:
 
     std::unordered_map<int, Connection> conns_;
 
-    int qpsLimit_{ DEFAULT_QPS_LIMIT };
-    std::atomic<int> reqInCurrentSecond_{ 0 };
-    std::atomic<int64_t> lastSecond_{ 0 };
+    int qpsLimit_{DEFAULT_QPS_LIMIT};
+    std::atomic<int> reqInCurrentSecond_{0};
+    std::atomic<int64_t> lastSecond_{0};
 };
 } // namespace virt::ovs::ipc::server
 #endif

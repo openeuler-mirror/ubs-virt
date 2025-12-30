@@ -12,19 +12,19 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#include <string>
-#include <sstream>
-#include <thread>
-#include <chrono>
-#include <iostream>
-#include <cstring>
-#include <fstream>
-#include <cstdlib>
-#include <iomanip>
-#include <ctime>
-#include <mutex>
-#include <unistd.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <chrono>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <mutex>
+#include <sstream>
+#include <string>
+#include <thread>
 
 namespace virt::logger {
 enum class LoggerLevel {
@@ -38,7 +38,8 @@ class LoggerEntry {
 public:
     LoggerEntry(LogLevel LoggerLevel, const char *file, const char *func, int line);
 
-    template <typename T> LoggerEntry &operator<<(const T &val)
+    template <typename T>
+    LoggerEntry &operator<<(const T &val)
     {
         ss_ << val;
         return *this;
@@ -64,13 +65,12 @@ private:
 
 class Logger {
 public:
-    bool operator == (LoggerEntry &entry)
+    bool operator==(LoggerEntry &entry)
     {
         entry.Submit();
         return true;
     }
 };
-
 
 inline bool LogInternal(LoggerLevel level, const char *file, const char *func, int line)
 {
@@ -81,5 +81,5 @@ inline bool LogInternal(LoggerLevel level, const char *file, const char *func, i
 #define LOG_INFO LogInternal(LoggerLevel::INFO, __FILE__, __FUNCTION__, __LINE__)
 #define LOG_WARN LogInternal(LoggerLevel::WARN, __FILE__, __FUNCTION__, __LINE__)
 #define LOG_ERROR LogInternal(LoggerLevel::ERROR, __FILE__, __FUNCTION__, __LINE__)
-} // namespace virt::log
+} // namespace virt::logger
 #endif

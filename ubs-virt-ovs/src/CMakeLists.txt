@@ -1,0 +1,24 @@
+add_executable(ubs-virt-ovs
+        ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/services
+        ${CMAKE_CURRENT_SOURCE_DIR}/services/urma/urma_service.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/connection.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/server.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/thread_pool.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ipc/core/service_base.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/logger/logger.cpp
+)
+
+target_include_directories(ubs-virt-ovs
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/ipc
+        ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server
+        ${CMAKE_CURRENT_SOURCE_DIR}/ipc/code
+        ${CMAKE_CURRENT_SOURCE_DIR}/ipc/core
+        ${CMAKE_CURRENT_SOURCE_DIR}/ipc/protocol
+        ${CMAKE_CURRENT_SOURCE_DIR}/services
+        ${CMAKE_CURRENT_SOURCE_DIR}/services/urma
+        ${CMAKE_CURRENT_SOURCE_DIR}/logger
+        ${CMAKE_CURRENT_SOURCE_DIR}/serde
+)
