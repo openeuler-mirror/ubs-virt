@@ -30,8 +30,8 @@ esac
 # ============ paths ============
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
-RPMBUILD_DIR=${ROOT_DIR}/build/rpmbuild
-OUTPUT_DIR=${ROOT_DIR}/build/output
+RPMBUILD_DIR="${ROOT_DIR}/build/rpmbuild"
+OUTPUT_DIR="${ROOT_DIR}/build/output"
 SPEC_FILE="${SCRIPT_DIR}/${PROJECT_NAME}.spec"
 
 [[ -f "${SPEC_FILE}" ]] || {
@@ -51,18 +51,24 @@ echo "[INFO] Spec file: ${SPEC_FILE}"
 rm -rf "${RPMBUILD_DIR}"
 mkdir -p "${RPMBUILD_DIR}"/{BUILD,RPMS,SOURCES,SPECS,SRPMS} "${OUTPUT_DIR}"
 
-# ============ source tar ============
-SRC_TAR=${RPMBUILD_DIR}/SOURCES/${PROJECT_NAME}-${VERSION}.tar.gz
+# ============ create source tar ============
+SRC_TAR="${RPMBUILD_DIR}/SOURCES/${PROJECT_NAME}-${VERSION}.tar.gz"
+cp "${ROOT_DIR}/../LICENSE" "${ROOT_DIR}/LICENSE"
+
+# Go to project root
+cd "${ROOT_DIR}"/..
 tar czf "${SRC_TAR}" \
   --exclude=build/rpmbuild \
   --exclude=build/output \
   --exclude=.git \
-  -C "${ROOT_DIR}" \
-  --transform "s,^,${PROJECT_NAME}-${VERSION}/," .
+  --transform "s,^ubs-virt-ovs,${PROJECT_NAME}-${VERSION}," \
+  ubs-virt-ovs
+
+rm "${ROOT_DIR}/LICENSE"
 
 echo "[INFO] Source tar created: ${SRC_TAR}"
 
-# ============ spec ============
+# ============ copy spec file ============
 cp "${SPEC_FILE}" "${RPMBUILD_DIR}/SPECS/${PROJECT_NAME}.spec"
 
 # ============ cross compile options ============
@@ -78,7 +84,7 @@ rpmbuild \
   --define "cross_compile_prefix ${CROSS_COMPILE}" \
   -ba "${RPMBUILD_DIR}/SPECS/${PROJECT_NAME}.spec"
 
-# ============ collect RPMs ============
+# ============ collect built RPMs ============
 find "${RPMBUILD_DIR}/RPMS" -name "*.rpm" -exec cp -v {} "${OUTPUT_DIR}" \;
 
 echo "[INFO] Output RPMs:"

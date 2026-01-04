@@ -23,7 +23,6 @@ UBS Virt OVS Service
 # ==============================================================
 # build
 # ==============================================================
-
 %build
 mkdir -p build
 cd build
@@ -53,14 +52,16 @@ install -D -m 0644 \
  %{_builddir}/%{name}-%{version}/build/ubs-virt-ovs.service \
  %{buildroot}%{_unitdir}/ubs-virt-ovs.service
 
+#install LICENSE
+mkdir -p %{buildroot}/usr/share/licenses/%{name}/
+install -m 0644 %{_builddir}/%{name}-%{version}/LICENSE \
+ %{buildroot}/usr/share/licenses/%{name}/LICENSE
+
 # ==============================================================
 # hooks
 # ==============================================================
-
 %post
-# 调用systemd默认脚本
 %systemd_post ubs-virt-ovs.service
-# 安装后立即enable并启动服务
 systemctl enable ubs-virt-ovs > /dev/null 2>&1 || :
 systemctl start ubs-virt-ovs > /dev/null 2>&1 || :
 
@@ -74,6 +75,6 @@ systemctl start ubs-virt-ovs > /dev/null 2>&1 || :
 # files
 # ==============================================================
 %files
-%license LICENSE
+%license /usr/share/licenses/%{name}/LICENSE
 /usr/bin/ubs-virt-ovs
 %{_unitdir}/ubs-virt-ovs.service
