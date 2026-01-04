@@ -131,7 +131,7 @@ void CleanupOldRotateLogFile()
 
         std::string fullPath = std::string(LOG_DIR) + "/" + name;
         struct stat st{};
-        if (stat(fullPath.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
+        if (stat(fullPath.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) {
             continue;
         }
         files.push_back({name, st.st_mtime});
