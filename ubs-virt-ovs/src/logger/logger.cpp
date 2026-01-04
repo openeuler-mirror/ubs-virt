@@ -11,6 +11,10 @@
  */
 #include "logger.h"
 
+#include <dirent.h>
+#include <algorithm>
+#include <vector>
+
 namespace virt::logger {
 constexpr size_t MAX_LOG_SIZE = 50 * 1024 * 1024;
 constexpr size_t MAX_ROTATE_FILES = 100;
@@ -23,6 +27,11 @@ constexpr mode_t LOG_DIR_MODE = 0750;
 
 const char *LOG_DIR = "/var/log/ubs-virt-ovs";
 const char *LOG_FILE = "/var/log/ubs-virt-ovs/ubs-virt-ovs.log";
+
+struct RotateLogFile {
+    std::string name;
+    time_t mtime;
+};
 
 std::ofstream &LogFile()
 {
@@ -97,7 +106,13 @@ void CleanupOldRotateLogFile()
         return;
     }
 
-    std::vector<std::string> files;
+    constexpr char rotateSuffix[] = ".tar.gz";
+    constexpr char rotatePrefix[] = "virt_ovs_";
+    constexpr size_t prefixLen = sizeof(rotatePrefix) - 1;
+    constexpr size_t suffixLen = sizeof(rotateSuffix) - 1;
+
+
+    std::vector<RotateLogFile> files;
     struct dirent *ent;
 
     while ((ent = readdir(dir)) != nullptr) {
@@ -105,12 +120,22 @@ void CleanupOldRotateLogFile()
             continue;
         }
         std::string name(ent->d_name);
-        if (name.find("virt-ovs_")) == 0 &&
-            name.size() > 5 &&
-            name.rfind(".tar.gz") == name.size() - 7)
-            {
-                files.emplace_back(name);
-            }
+        if (name.size() < prefixLen + suffixLen) {
+            continue;
+        }
+        if (name.compare(0, prefixLen, rotatePrefix) != 0) {
+            continue;
+        }
+        if (name.compare(name.size() - suffixLen, suffixLen, rotateSuffix) != 0) {
+            continue;
+        }
+
+        std::string fullPath = std::string(LOG_DIR) + "/" + name;
+        struct stat st{};
+        if (stat(fullPath.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
+            continue;
+        }
+        files.push_back({name, st.st_mtime});
     }
 
     closedir(dir);
@@ -118,10 +143,12 @@ void CleanupOldRotateLogFile()
         return;
     }
 
-    std::sort(files.begin(), files.end());
-    size_t removeCount = files.size() - MAX_ROTATE_FILES;
-    for (size_t i = 0; i < removeCount; ++i) {
-        std::string fullPath = std::string(LOG_DIR) + "/" + files[i];
+    std::sort(files.begin(), files.end(),
+        [](const auto &a, const auto &b) {
+            return a.mtime < b.mtime;
+        });
+    for (size_t i = 0; i < files.size() - MAX_ROTATE_FILES; ++i) {
+        std::string fullPath = std::string(LOG_DIR) + "/" + files[i].name;
         unlink(fullPath.c_str());
     }
 }
@@ -164,7 +191,7 @@ LoggerEntry::LoggerEntry(LoggerLevel level, const char *file, const char *func, 
       line_(line),
       timestamp_(std::chrono::system_clock::now()),
       pid_(getpid()),
-      tid_(ThreadIdToU64(std::this_thread::get_id())),
+      tid_(ThreadIdToU64(std::this_thread::get_id()))
 {
 }
 

@@ -69,7 +69,7 @@ bool Server::InitListenSocket()
     unlink(socketPath_.c_str());
 
     if (bind(listenFd_, static_cast<sockaddr *>(static_cast<void *>(&addr)), sizeof(addr)) < 0 ||
-        listen(listenFd_, LISTEN_BACK_LOG) < 0) {
+              listen(listenFd_, LISTEN_BACK_LOG) < 0) {
         LOG_ERROR << "bind/listen failed" << strerror(errno);
         if (listenFd_ >= 0) {
             close(listenFd_);
@@ -134,7 +134,7 @@ void Server::AcceptClients()
             const int closeFd = client;
             LOG_WARN << "epoll_ctl ADD client failed: fd=" << closeFd;
             close(client);
-            clien = -1;
+            client = -1;
             conns_.erase(closeFd);
             continue;
         }
@@ -217,7 +217,7 @@ void Server::HandleBusiness(int fd, const std::string &req)
     LOG_DEBUG << "IpcRequest deserialized, service=" << cr.service_ << ", method=" << cr.method_
               << ", payload_size=" << cr.payload_.size();
 
-    IpcResponse resp;
+    IpcResponse resp(static_cast<int32_t>(VirtIPCCode::OK));
     try {
         resp = dispatcher_.Dispatch(cr);
     } catch (const std::exception &e) {

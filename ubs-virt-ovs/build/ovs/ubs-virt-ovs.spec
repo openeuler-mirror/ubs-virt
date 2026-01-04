@@ -49,7 +49,9 @@ cd build
 cmake --install . --prefix=%{buildroot}/usr
 
 # install systemd unit
-install -D -m 0644 %{_specdir}/../../ubs-virt-ovs.service %{buildroot}%{_unitdir}/ubs-virt-ovs.service
+install -D -m 0644 \
+ %{_builddir}/%{name}-%{version}/build/ubs-virt-ovs.service \
+ %{buildroot}%{_unitdir}/ubs-virt-ovs.service
 
 # ==============================================================
 # hooks

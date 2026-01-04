@@ -86,7 +86,7 @@ void Connection::SetResponse(std::string resp, int epollFd)
     uint32_t lenBE = htonl(static_cast<uint32_t>(resp.size()));
 
     writeBuf_.resize(sizeof(lenBE));
-    std::memcpy&writeBuf_.data(), &lenBE, sizeof(lenBE));
+    std::memcpy(writeBuf_.data(), &lenBE, sizeof(lenBE));
     writeBuf_.append(resp);
     state_ = State::WRITE_RESP;
 
