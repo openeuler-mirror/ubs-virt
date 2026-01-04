@@ -111,7 +111,6 @@ void CleanupOldRotateLogFile()
     constexpr size_t prefixLen = sizeof(rotatePrefix) - 1;
     constexpr size_t suffixLen = sizeof(rotateSuffix) - 1;
 
-
     std::vector<RotateLogFile> files;
     struct dirent *ent;
 
