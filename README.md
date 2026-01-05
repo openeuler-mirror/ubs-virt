@@ -8,9 +8,3 @@ Ubs-virt supports virtualization and pooling, live migration policy decision, fa
 
 #### 使用说明
 1. ubs-virt-ovs: [ubs-virt-ovs使用说明](./ubs-virt-ovs/README.md)
-
-#### 参与贡献
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
