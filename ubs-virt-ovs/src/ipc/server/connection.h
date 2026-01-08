@@ -12,10 +12,19 @@
 #ifndef CONNECTION_H
 #define CONNECTION_H
 
+#include <sys/types.h>
+
 #include <cstdint>
 #include <string>
 
 namespace virt::ovs::ipc::server {
+struct PeerIdentity {
+    uid_t uid_;
+    gid_t gid_;
+    pid_t pid_;
+
+    std::string username_;
+};
 class Connection {
 public:
     enum class State {
@@ -26,8 +35,11 @@ public:
         WRITE_RESP,
         CLOSED,
     };
-
+    Connection(int fd, PeerIdentity identity)
+        : fd_(fd), identity_(identity) {};
     explicit Connection(int fd);
+
+    const PeerIdentity& Identity() const { return identity_; }
 
     bool HandleRead();
     bool HandleWrite();
@@ -41,6 +53,7 @@ public:
 
 private:
     int fd_;
+    PeerIdentity identity_;
     State state_{State::READ_LEN};
 
     uint32_t expectLen_{0};

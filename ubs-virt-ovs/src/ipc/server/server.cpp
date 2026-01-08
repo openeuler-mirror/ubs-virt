@@ -20,6 +20,9 @@
 #include <unistd.h>
 #include <atomic>
 #include <chrono>
+#include <sys/types.h>
+#include <pwd.h>
+#include <vector>
 
 using namespace virt::ovs;
 using namespace virt::ovs::msg;
@@ -110,6 +113,23 @@ bool Server::InitEpoll()
     return true;
 }
 
+std::string UidToUsername(uid_t uid)
+{
+    struct passwd pwd;
+    struct passwd* result = nullptr;
+
+    long bufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
+    if (bufSize == -1) {
+        bufSize = 1024;
+    }
+    std:vector<char> buf(bufSize);
+    int ret = getpwuid_r(uid, &pwd, buf.data(), bufSize, &result);
+    if (ret != 0 || result == nullptr) {
+        return {};
+    }
+    return std::string(pwd.pw_name);
+}
+
 void Server::AcceptClients()
 {
     bool keepReading = true;
@@ -125,8 +145,26 @@ void Server::AcceptClients()
             continue;
         }
 
+        PeerIdentity id{};
+        struct ucred cred;
+        socklen_t len = sizeof(cred);
+        if (getsockopt(client, SOL_SOCKET, SO_PEERCRED, &cred, &len) < 0) {
+            LOG_ERROR << "getsockopt() failed";
+            close(client);
+            continue;
+        }
+
+        id.uid_ = cred.uid;
+        id.gid_ = cred.gid;
+        id.pid_ = cred.pid;
+        id.username_ = UidToUsername(id.uid_);
+        if (id.username_.empty()) {
+            LOG_ERROR << "Username is empty for uid " << id.uid_;
+            continue;
+        }
         SetNonBlock(client);
-        conns_.emplace(client, client);
+        conns_.emplace(client, Connection(client, id));
+
         epoll_event cev{};
         cev.events = EPOLLIN | EPOLLET;
         cev.data.fd = client;
@@ -218,11 +256,25 @@ void Server::HandleBusiness(int fd, const std::string &req)
               << ", payload_size=" << cr.payload_.size();
 
     IpcResponse resp(static_cast<int32_t>(VirtIPCCode::OK));
-    try {
-        resp = dispatcher_.Dispatch(cr);
-    } catch (const std::exception &e) {
-        LOG_ERROR << "Dispatch request failed: " << e.what();
-        resp.code_ = static_cast<int32_t>(VirtIPCCode::INTERNAL_ERROR);
+    auto it = conns_.find(fd);
+    if (it == conns_.end()) {
+        LOG_WARN << "Connection not found for fd=" << fd;
+        return;
+    }
+    const auto& identity = it->second.Identity();
+    if (!authManager_.Authorize(identity, cr)) {
+        LOG_ERROR << "Permission denied: uid=" << identity.uid_
+                  << ", fd=" << fd
+                  << ", method=" << cr.method_
+                  << " service=" << cr.service_;
+        resp.code_ = static_cast<int32_t>(VirtIPCCode::PERMISSION_DENIED);
+    } else {
+        try {
+            resp = dispatcher_.Dispatch(cr);
+        } catch (const std::exception &e) {
+            LOG_ERROR << "Dispatch request failed: " << e.what();
+            resp.code_ = static_cast<int32_t>(VirtIPCCode::INTERNAL_ERROR);
+        }
     }
 
     VirtMsgPacker packer;
@@ -231,16 +283,20 @@ void Server::HandleBusiness(int fd, const std::string &req)
         return;
     }
 
-    auto it = conns_.find(fd);
-    if (it == conns_.end()) {
-        LOG_WARN << "Connection not found for fd=" << fd;
-        return;
-    }
-
     it->second.SetResponse(packer.String(), epollFd_);
 
     LOG_DEBUG << "IpcResponse serialized, fd=" << fd << ", code=" << resp.code_
               << ", payload_size=" << resp.payload_.size();
+}
+
+bool AuthManager::Authorize(const PeerIdentity &id, const IpcRequest& req) const
+{
+    auto it = userRules_.find(id.username_);
+    if (it == userRules_.end()) {
+        return false;
+    }
+    const auto& services = it->second.services_;
+    return services.count(req.service_) || services.count("*");
 }
 
 void Server::Loop()

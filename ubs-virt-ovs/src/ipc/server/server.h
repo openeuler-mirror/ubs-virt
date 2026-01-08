@@ -12,9 +12,11 @@
 #ifndef SERVER_H
 #define SERVER_H
 #include <atomic>
+#include <set>
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "connection.h"
 #include "dispatcher.h"
@@ -26,6 +28,16 @@ inline constexpr int DEFAULT_QPS_LIMIT = 100;
 inline constexpr int MAX_EPOLL_EVENTS = 64;
 inline constexpr int EPOLL_WAIT_TIMEOUT = 1000;
 inline constexpr int LISTEN_BACK_LOG = 128;
+
+class AuthManager {
+public:
+    struct UserRule {
+        std::unordered_set<std::string> services_;
+    };
+    bool Authorize(const PeerIdentity &id, const IpcRequest& req) const;
+private:
+    std::unordered_map<std::string, UserRule> userRules_;
+};
 
 class Server {
 public:
@@ -54,6 +66,7 @@ private:
 
     ThreadPool pool_;
     Dispatcher dispatcher_;
+    AuthManager authManager_;
 
     std::unordered_map<int, Connection> conns_;
 
