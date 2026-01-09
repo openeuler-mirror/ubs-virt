@@ -30,7 +30,7 @@ constexpr char LOG_DIR[] = "/var/log/ubs-virt-ovs";
 constexpr char LOG_FILE[] = "/var/log/ubs-virt-ovs/ubs-virt-ovs.log";
 constexpr char TIME_FMT[] = "%Y%m%d_%H%M%S";
 
-struct RotateLogFile {
+struct LogFileInfo {
     std::string name;
     time_t mtime;
 };
@@ -113,7 +113,7 @@ void CleanupOldRotateLogFile()
     constexpr size_t suffixLen = sizeof(rotateSuffix) - 1;
     constexpr size_t prefixLen = sizeof(rotatePrefix) - 1;
 
-    std::vector<RotateLogFile> files;
+    std::vector<LogFileInfo> files;
     struct dirent *ent;
 
     while ((ent = readdir(dir)) != nullptr) {
