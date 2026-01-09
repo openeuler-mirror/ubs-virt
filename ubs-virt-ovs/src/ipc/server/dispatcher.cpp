@@ -10,27 +10,21 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef UBS_VIRT_OVS_URMA_SERVICE_H
-#define UBS_VIRT_OVS_URMA_SERVICE_H
-#include "service_base.h"
-#include "urma_utility.h"
-namespace virt::ovs::service::urma {
+#include "dispatcher.h"
+#include "logger.h"
+#include "protocol.h"
 
 using namespace virt::ovs::msg;
 
-class UrmaService : public Service {
-public:
-    std::string Name() const override;
-    UrmaService();
-
-private:
-    IpcResponse HandleSetBandwidth(const std::string &payload);
-    IpcResponse HandleResetBandwidth(const std::string &payload);
-    IpcResponse HandleUpdateBandwidth(const std::string &payload);
-
-private:
-    UrmaUtility& urmaUtil_;
-};
-
-} // namespace virt::ovs::service::urma
-#endif // UBS_VIRT_OVS_URMA_SERVICE_H
+namespace virt::ovs::ipc::server {
+IpcResponse Dispatcher::Dispatch(const IpcRequest &req) const
+{
+    LOG_INFO << "request: service=" << req.service_ << ",method=" << req.method_;
+    auto svc = ServiceRegistry::Instance().GetService(req.service_);
+    if (!svc) {
+        LOG_ERROR << "dispatch failed,service not found: " << req.service_;
+        return IpcError(VirtIPCCode::SERVICE_NOT_FOUND);
+    }
+    return svc->Handle(req.method_, req.payload_);
+}
+} // namespace virt::ovs::ipc::server

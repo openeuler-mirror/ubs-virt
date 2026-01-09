@@ -209,28 +209,20 @@ void Server::CloseConnection(int fd)
 void Server::HandleBusiness(int fd, const std::string &req)
 {
     IpcRequest cr;
-    VirtMsgUnPacker unpacker(req);
-    if (cr.Deserialize(unpacker) != 0) {
-        LOG_ERROR << "Failed to deserialize request, fd=" << fd;
-        return;
-    }
-    LOG_DEBUG << "IpcRequest deserialized, service=" << cr.service_ << ", method=" << cr.method_
-              << ", payload_size=" << cr.payload_.size();
-
-    IpcResponse resp;
+    IpcResponse resp(static_cast<uint32_t>(VirtIPCCode::OK));
+    VirtMsgPacker packer;
     try {
+        VirtMsgUnPacker unpacker(req);
+        cr.Deserialize(unpacker);
+        LOG_DEBUG << "IpcRequest deserialized, service=" << cr.service_ << ", method=" << cr.method_
+                  << ", payload_size=" << cr.payload_.size();
+
         resp = dispatcher_.Dispatch(cr);
+        resp.Serialize(packer);
     } catch (const std::exception &e) {
         LOG_ERROR << "Dispatch request failed: " << e.what();
-        resp.code_ = static_cast<int32_t>(VirtIPCCode::INTERNAL_ERROR);
+        resp.code_ = static_cast<uint32_t>(VirtIPCCode::INTERNAL_ERROR);
     }
-
-    VirtMsgPacker packer;
-    if (resp.Serialize(packer) != 0) {
-        LOG_ERROR << "Failed to serialize request, fd=" << fd;
-        return;
-    }
-
     auto it = conns_.find(fd);
     if (it == conns_.end()) {
         LOG_WARN << "Connection not found for fd=" << fd;
