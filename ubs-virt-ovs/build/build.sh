@@ -28,26 +28,48 @@ case "${BUILD_TYPE}" in
 esac
 
 # ============ paths ============
-ROOT_DIR=$(cd "$(dirname "$0")/../.." && pwd)
-RPMBUILD_DIR=${ROOT_DIR}/build/ovs/rpmbuild
-OUTPUT_DIR=${ROOT_DIR}/build/ovs/output
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
+RPMBUILD_DIR="${ROOT_DIR}/build/rpmbuild"
+OUTPUT_DIR="${ROOT_DIR}/build/output"
+SPEC_FILE="${SCRIPT_DIR}/${PROJECT_NAME}.spec"
+
+[[ -f "${SPEC_FILE}" ]] || {
+  echo "[ERROR] spec file not found: ${SPEC_FILE}"
+  exit 1
+}
+
+[[ -f "${ROOT_DIR}/CMakeLists.txt" ]] || {
+  echo "[ERROR] not a valid project root: ${ROOT_DIR}"
+  exit 1
+}
 
 echo "[INFO] Build type: ${CMAKE_BUILD_TYPE}"
 echo "[INFO] Project root: ${ROOT_DIR}"
+echo "[INFO] Spec file: ${SPEC_FILE}"
 
 rm -rf "${RPMBUILD_DIR}"
 mkdir -p "${RPMBUILD_DIR}"/{BUILD,RPMS,SOURCES,SPECS,SRPMS} "${OUTPUT_DIR}"
 
-# ============ source tar ============
-tar czf "${RPMBUILD_DIR}/SOURCES/${PROJECT_NAME}-${VERSION}.tar.gz" \
-  --exclude=build \
-  --exclude=.git \
-  -C "${ROOT_DIR}" \
-  --transform "s,^,${PROJECT_NAME}-${VERSION}/," .
+# ============ create source tar ============
+SRC_TAR="${RPMBUILD_DIR}/SOURCES/${PROJECT_NAME}-${VERSION}.tar.gz"
+cp "${ROOT_DIR}/../LICENSE" "${ROOT_DIR}/LICENSE"
 
-# ============ spec ============
-cp "${ROOT_DIR}/build/ovs/ubs-virt-ovs.spec" \
-   "${RPMBUILD_DIR}/SPECS/${PROJECT_NAME}.spec"
+# Go to project root
+cd "${ROOT_DIR}"/..
+tar czf "${SRC_TAR}" \
+  --exclude=build/rpmbuild \
+  --exclude=build/output \
+  --exclude=.git \
+  --transform "s,^ubs-virt-ovs,${PROJECT_NAME}-${VERSION}," \
+  ubs-virt-ovs
+
+rm "${ROOT_DIR}/LICENSE"
+
+echo "[INFO] Source tar created: ${SRC_TAR}"
+
+# ============ copy spec file ============
+cp "${SPEC_FILE}" "${RPMBUILD_DIR}/SPECS/${PROJECT_NAME}.spec"
 
 # ============ cross compile options ============
 # Set the cross-compilation prefix (can be adjusted according to the target platform)
@@ -62,7 +84,7 @@ rpmbuild \
   --define "cross_compile_prefix ${CROSS_COMPILE}" \
   -ba "${RPMBUILD_DIR}/SPECS/${PROJECT_NAME}.spec"
 
-# ============ collect RPMs ============
+# ============ collect built RPMs ============
 find "${RPMBUILD_DIR}/RPMS" -name "*.rpm" -exec cp -v {} "${OUTPUT_DIR}" \;
 
 echo "[INFO] Output RPMs:"

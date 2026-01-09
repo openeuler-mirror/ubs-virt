@@ -11,9 +11,14 @@
  */
 #include "logger.h"
 
+#include <dirent.h>
+#include <sys/syscall.h>
+#include <algorithm>
+#include <vector>
+
 namespace virt::logger {
 constexpr size_t MAX_LOG_SIZE = 50 * 1024 * 1024;
-constexpr size_t MAX_ROTATE_FILES = 100;
+constexpr size_t MAX_ROTATE_FILES = 5;
 constexpr int BUFER_SIZE = 32;
 constexpr int MILLI_WIDTH = 3;
 constexpr int CHANGE_TO_MS = 1000;
@@ -21,8 +26,14 @@ constexpr mode_t CUR_LOG_MODE = 0640;
 constexpr mode_t ROT_LOG_MODE = 0440;
 constexpr mode_t LOG_DIR_MODE = 0750;
 
-const char *LOG_DIR = "/var/log/ubs-virt-ovs";
-const char *LOG_FILE = "/var/log/ubs-virt-ovs/ubs-virt-ovs.log";
+constexpr char LOG_DIR[] = "/var/log/ubs-virt-ovs";
+constexpr char LOG_FILE[] = "/var/log/ubs-virt-ovs/ubs-virt-ovs.log";
+constexpr char TIME_FMT[] = "%Y%m%d_%H%M%S";
+
+struct RotateLogFile {
+    std::string name;
+    time_t mtime;
+};
 
 std::ofstream &LogFile()
 {
@@ -62,7 +73,7 @@ std::string NowFilename()
     localtime_r(&tt, &tm);
 
     char buf[BUFER_SIZE];
-    size_t len = strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", &tm);
+    size_t len = strftime(buf, sizeof(buf), TIME_FMT, &tm);
     if (len == 0) {
         return "00000000_000000";
     }
@@ -97,20 +108,36 @@ void CleanupOldRotateLogFile()
         return;
     }
 
-    std::vector<std::string> files;
+    constexpr char rotateSuffix[] = ".tar.gz";
+    constexpr char rotatePrefix[] = "virt_ovs_";
+    constexpr size_t suffixLen = sizeof(rotateSuffix) - 1;
+    constexpr size_t prefixLen = sizeof(rotatePrefix) - 1;
+
+    std::vector<RotateLogFile> files;
     struct dirent *ent;
 
     while ((ent = readdir(dir)) != nullptr) {
-        if (ent->d_type != DT_REG) {
+        std::string name(ent->d_name);
+        if (name.size() < prefixLen + suffixLen) {
             continue;
         }
-        std::string name(ent->d_name);
-        if (name.find("virt-ovs_")) == 0 &&
-            name.size() > 5 &&
-            name.rfind(".tar.gz") == name.size() - 7)
-            {
-                files.emplace_back(name);
-            }
+        if (name.compare(0, prefixLen, rotatePrefix) != 0) {
+            continue;
+        }
+        if (name.compare(name.size() - suffixLen, suffixLen, rotateSuffix) != 0) {
+            continue;
+        }
+
+        std::string fullPath = std::string(LOG_DIR) + "/" + name;
+        struct tm tm{};
+        if (strptime(name.c_str() + prefixLen, TIME_FMT, &tm) == nullptr) {
+            continue;
+        }
+        const time_t t = mktime(&tm);
+        if (t == -1) {
+            continue;
+        }
+        files.push_back({name, t});
     }
 
     closedir(dir);
@@ -118,12 +145,23 @@ void CleanupOldRotateLogFile()
         return;
     }
 
-    std::sort(files.begin(), files.end());
-    size_t removeCount = files.size() - MAX_ROTATE_FILES;
-    for (size_t i = 0; i < removeCount; ++i) {
-        std::string fullPath = std::string(LOG_DIR) + "/" + files[i];
+    std::sort(files.begin(), files.end(), [](const auto &a, const auto &b) { return a.mtime < b.mtime; });
+    for (size_t i = 0; i < files.size() - MAX_ROTATE_FILES; ++i) {
+        std::string fullPath = std::string(LOG_DIR) + "/" + files[i].name;
         unlink(fullPath.c_str());
     }
+}
+
+void CompressOldLogFile(const std::string &oldLogFile, const std::string &ts)
+{
+    std::string tarFile = std::string(LOG_DIR) + "/virt-ovs_" + ts + ".tar.gz";
+    std::string cmd =
+        "tar -czf" + tarFile + " -C " + LOG_DIR + " " + oldLogFile.substr(oldLogFile.find_last_of('/') + 1);
+    system(cmd.c_str());
+    unlink(oldLogFile.c_str());
+    SetFileMode(tarFile.c_str(), ROT_LOG_MODE);
+
+    CleanupOldRotateLogFile();
 }
 
 void RotateLogFile()
@@ -133,52 +171,48 @@ void RotateLogFile()
     }
 
     auto &ofs = LogFile();
-    ofs.close();
-
     std::string ts = NowFilename();
-    std::string raw = std::string(LOG_DIR) + "/virt-ovs_" + ts + ".log";
-    std::string tar = std::string(LOG_DIR) + "/virt-ovs_" + ts + ".tar.gz";
+    std::string oldLogFile;
 
-    if (rename(LOG_FILE, raw.c_str()) != 0) {
-        return;
-    }
-    std::string cmd = "tar -czf " + tar + " -C " + LOG_DIR + " " + raw.substr(raw.find_last_of('/') + 1);
-    system(cmd.c_str());
+    {
+        std::lock_guard<std::mutex> lock(LogMutex());
 
-    unlink(raw.c_str());
-
-    SetFileMode(tar.c_str(), ROT_LOG_MODE);
-
-    ofs.open(LOG_FILE, std::ios::out | std::ios::app);
-    if (ofs.is_open()) {
+        std::string newLogFile = std::string(LOG_DIR) + "/virt-ovs_" + ts + ".log";
+        std::ofstream newOfs(newLogFile, std::ios::out | std::ios::app);
+        if (!newOfs.is_open()) {
+            return;
+        }
+        std::swap(ofs, newOfs);
+        oldLogFile = LOG_FILE;
         SetFileMode(LOG_FILE, CUR_LOG_MODE);
     }
 
-    CleanupOldRotateLogFile();
+    std::thread(CompressOldLogFile, oldLogFile, ts).detach();
 }
 
-LoggerEntry::LoggerEntry(LoggerLevel level, const char *file, const char *func, int line)
+LoggerEntry::LoggerEntry(LoggerLevel level, const char *file, const char *func, int line) noexcept
     : level_(level),
       file_(Basename(file)),
       func_(func),
       line_(line),
       timestamp_(std::chrono::system_clock::now()),
       pid_(getpid()),
-      tid_(ThreadIdToU64(std::this_thread::get_id())),
+      tid_(GetTid())
 {
 }
 
-std::string LoggerEntry::Basename(const char *path)
+constexpr const char *LoggerEntry::Basename(const char *path) noexcept
 {
+    if (!path) {
+        return "";
+    }
     const char *lastSlash = strrchr(path, '/');
     return lastSlash ? lastSlash + 1 : path;
 }
 
-uint64_t LoggerEntry::ThreadIdToU64(std::thread::id tid)
+inline uint64_t LoggerEntry::GetTid() noexcept
 {
-    std::ostringstream oss;
-    oss << tid;
-    return std::stoull(oss.str());
+    return static_cast<uint64_t>(syscall(SYS_gettid));
 }
 
 std::string LoggerEntry::FormatTime(const std::chrono::system_clock::time_point &tp)
