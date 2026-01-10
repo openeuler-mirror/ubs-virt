@@ -48,7 +48,7 @@ private:
 
     UbsUrmaBandWidthGetFunc urmaBandWidthGet{nullptr};
     UbsUrmaBandWidthSetFunc urmaBandWidthSet{nullptr};
-    UbsUrmaBandWidthDisableFunc urmaBandWidthDisable{nullptr};
+    UbsUrmaBandWidthDisableFunc urmaBandWidthReset{nullptr};
 
     template <class FunctionPtr>
     void LoadSymbols(FunctionPtr &ptr, const std::string &symbolName);
