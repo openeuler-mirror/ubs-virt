@@ -16,7 +16,7 @@ rm -rf "$BUILD_DIR"
 
 if $COVERAGE; then
   log "config with COVERAGE ON"
-  cmake -S "$ROOT_DIR" -B "BUILD_DIR" -DBUILD_TESTS=ON -DCOVERAGE=ON
+  cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DBUILD_TESTS=ON -DCOVERAGE=ON
 fi
 
 log "Building UT"

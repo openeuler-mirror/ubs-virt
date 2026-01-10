@@ -23,7 +23,7 @@ IpcResponse Ok(const RespT &resp)
 {
     VirtMsgPacker packer;
     resp.Serialize(packer);
-    return {static_cast<unt32_t>(VirtIPCCode::OK), packer.String()};
+    return {static_cast<uint32_t>(VirtIPCCode::OK), packer.String()};
 }
 
 template <typename RespT>

@@ -31,7 +31,7 @@ public:
     explicit UrmaUtility();
 
     // get urma bandwidth
-    uint32_t GetBandWidth(const std::string &deviceName, uint32_t *minBandwidth, uint32_t *maxBandwidth);
+    uint32_t GetBandWidth(const std::string &deviceName, uint32_t &minBandwidth, uint32_t &maxBandwidth);
 
     // set urma bandwidth
     uint32_t SetBandWidth(const std::string &deviceName, uint32_t minBandwidth, uint32_t maxBandwidth);

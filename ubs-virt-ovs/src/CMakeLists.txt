@@ -3,6 +3,7 @@ add_library(ubs-virt-ovs-core STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/connection.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/server.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/thread_pool.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/dispatcher.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/core/service_base.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/logger/logger.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ubse/client_library.cpp
@@ -21,6 +22,7 @@ target_include_directories(ubs-virt-ovs-core
         ${CMAKE_CURRENT_SOURCE_DIR}/services/urma
         ${CMAKE_CURRENT_SOURCE_DIR}/logger
         ${CMAKE_CURRENT_SOURCE_DIR}/serde
+        ${CMAKE_CURRENT_SOURCE_DIR}/ubse
 )
 
 add_executable(ubs-virt-ovs
@@ -29,6 +31,10 @@ add_executable(ubs-virt-ovs
 
 target_link_libraries(ubs-virt-ovs
         PRIVATE ubs-virt-ovs-core
+)
+
+install(TARGETS ubs-virt-ovs
+    RUNTIME DESTINATION bin
 )
 
 if (BUILD_TESTS)

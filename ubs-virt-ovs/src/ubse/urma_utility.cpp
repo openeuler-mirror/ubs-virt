@@ -45,14 +45,14 @@ void UrmaUtility::LoadSymbols(FunctionPtr &ptr, const std::string &symbolName)
     ptr = reinterpret_cast<std::decay_t<decltype(ptr)>>(sym);
 }
 
-uint32_t UrmaUtility::GetBandWidth(const std::string &deviceName, uint32_t *minBandwidth, uint32_t *maxBandwidth)
+uint32_t UrmaUtility::GetBandWidth(const std::string &deviceName, uint32_t &minBandwidth, uint32_t &maxBandwidth)
 {
-    auto ret = urmaBandWidthGet(deviceName.data(), minBandwidth, maxBandwidth);
+    auto ret = urmaBandWidthGet(deviceName.data(), &minBandwidth, &maxBandwidth);
     if (ret != 0) {
         LOG_ERROR << "urmaBandWidthQuery failed, ret= " << ret;
     }
-    LOG_DEBUG << "urmaBandWidthQuery device name is " << deviceName << "max bandwidth: " << *maxBandwidth
-              << "min bandwidth: " << *minBandwidth;
+    LOG_DEBUG << "urmaBandWidthQuery device name is " << deviceName << "max bandwidth: " << maxBandwidth
+              << "min bandwidth: " << minBandwidth;
     return ret;
 }
 
