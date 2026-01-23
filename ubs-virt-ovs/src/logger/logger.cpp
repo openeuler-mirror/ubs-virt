@@ -190,7 +190,7 @@ void RotateLogFile()
     std::thread(CompressOldLogFile, oldLogFile, ts).detach();
 }
 
-LoggerEntry::LoggerEntry(LoggerLevel level, const char *file, const char *func, int line) noexcept
+Logger::Logger(LoggerLevel level, const char *file, const char *func, int line) noexcept
     : level_(level),
       file_(Basename(file)),
       func_(func),
@@ -201,7 +201,7 @@ LoggerEntry::LoggerEntry(LoggerLevel level, const char *file, const char *func, 
 {
 }
 
-constexpr const char *LoggerEntry::Basename(const char *path) noexcept
+constexpr const char *Logger::Basename(const char *path) noexcept
 {
     if (!path) {
         return "";
@@ -210,12 +210,12 @@ constexpr const char *LoggerEntry::Basename(const char *path) noexcept
     return lastSlash ? lastSlash + 1 : path;
 }
 
-inline uint64_t LoggerEntry::GetTid() noexcept
+inline uint64_t Logger::GetTid() noexcept
 {
     return static_cast<uint64_t>(syscall(SYS_gettid));
 }
 
-std::string LoggerEntry::FormatTime(const std::chrono::system_clock::time_point &tp)
+std::string Logger::FormatTime(const std::chrono::system_clock::time_point &tp)
 {
     auto tt = std::chrono::system_clock::to_time_t(tp);
 
@@ -229,7 +229,7 @@ std::string LoggerEntry::FormatTime(const std::chrono::system_clock::time_point 
     return oss.str();
 }
 
-void LoggerEntry::Submit()
+void Logger::Submit()
 {
     static const char *levelStr[] = {"DEBUG", "INFO", "WARN", "ERROR"};
 

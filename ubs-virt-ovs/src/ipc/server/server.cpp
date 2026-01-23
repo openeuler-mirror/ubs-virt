@@ -55,21 +55,23 @@ void Server::Stop()
     LOG_INFO << "Server stopped";
 }
 
-void Server::PrepareSocketDir() const
+bool Server::PrepareSocketDir() const
 {
     namespace fs = std::filesystem;
     const fs::path socketPath(socketPath_);
     if (const fs::path dirPath(socketPath.parent_path()); !fs::exists(dirPath)) {
         try {
             if (fs::create_directory(dirPath)) {
-                LOG_INFO<< "Successfully created socket directory: " << dirPath.string();
+                LOG_INFO << "Successfully created socket directory: " << dirPath.string();
+                return true;
             }
-        }catch (const fs::filesystem_error &e) {
-            LOG_ERROR<< "Failed to create socket directory: " << e.what();
+        } catch (const fs::filesystem_error &e) {
+            LOG_ERROR << "Failed to create socket directory: " << e.what();
+            return false;
         }
     }
+    return true;
 }
-
 
 bool Server::InitListenSocket()
 {
@@ -83,11 +85,13 @@ bool Server::InitListenSocket()
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     std::snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", socketPath_.c_str());
-    PrepareSocketDir();
+    if (!PrepareSocketDir()) {
+        return false;
+    }
     unlink(socketPath_.c_str());
 
     if (bind(listenFd_, static_cast<sockaddr *>(static_cast<void *>(&addr)), sizeof(addr)) < 0 ||
-              listen(listenFd_, LISTEN_BACK_LOG) < 0) {
+        listen(listenFd_, LISTEN_BACK_LOG) < 0) {
         LOG_ERROR << "bind/listen failed" << strerror(errno);
         if (listenFd_ >= 0) {
             close(listenFd_);
@@ -175,7 +179,7 @@ bool Server::HandleReadEvent(Connection &conn, int fd)
     }
 
     bool keepReading = true;
-    while (conn.HasRequest()) {
+    while (keepReading) {
         if (!conn.HandleRead()) {
             return false;
         }
