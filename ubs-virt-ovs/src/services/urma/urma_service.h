@@ -17,6 +17,7 @@
 namespace virt::ovs::service::urma {
 
 using namespace virt::ovs::msg;
+using namespace virt::ovs::ubse::urma;
 
 class UrmaService : public Service {
 public:

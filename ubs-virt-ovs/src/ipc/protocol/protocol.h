@@ -23,7 +23,7 @@ IpcResponse Ok(const RespT &resp)
 {
     VirtMsgPacker packer;
     resp.Serialize(packer);
-    return {static_cast<unt32_t>(VirtIPCCode::OK), packer.String()};
+    return {static_cast<uint32_t>(VirtIPCCode::OK), packer.String()};
 }
 
 template <typename RespT>
@@ -39,7 +39,7 @@ inline IpcResponse IpcError(VirtIPCCode code)
 }
 
 template <typename Request>
-VirtIPCCode DeserializeAndValidate(Request req, const std::string &payload, std::string &errMsg)
+VirtIPCCode DeserializeAndValidate(Request &req, const std::string &payload, std::string &errMsg)
 {
     try {
         VirtMsgUnPacker unpacker(payload);

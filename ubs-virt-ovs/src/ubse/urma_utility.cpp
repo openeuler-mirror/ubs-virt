@@ -24,12 +24,12 @@ UrmaUtility::UrmaUtility()
 {
     LoadSymbols(urmaBandWidthGet, "ubs_urma_bandwidth_get");
     LoadSymbols(urmaBandWidthSet, "ubs_urma_bandwidth_set");
-    LoadSymbols(urmaBandWidthDisable, "ubs_urma_bandwidth_disable");
+    LoadSymbols(urmaBandWidthReset, "ubs_urma_bandwidth_reset");
 }
 
 UrmaUtility::~UrmaUtility()
 {
-    urmaBandWidthDisable = nullptr;
+    urmaBandWidthReset = nullptr;
     urmaBandWidthGet = nullptr;
     urmaBandWidthSet = nullptr;
 }
@@ -45,14 +45,14 @@ void UrmaUtility::LoadSymbols(FunctionPtr &ptr, const std::string &symbolName)
     ptr = reinterpret_cast<std::decay_t<decltype(ptr)>>(sym);
 }
 
-uint32_t UrmaUtility::GetBandWidth(const std::string &deviceName, uint32_t *minBandwidth, uint32_t *maxBandwidth)
+uint32_t UrmaUtility::GetBandWidth(const std::string &deviceName, uint32_t &minBandwidth, uint32_t &maxBandwidth)
 {
-    auto ret = urmaBandWidthGet(deviceName.data(), minBandwidth, maxBandwidth);
+    auto ret = urmaBandWidthGet(deviceName.data(), &minBandwidth, &maxBandwidth);
     if (ret != 0) {
         LOG_ERROR << "urmaBandWidthQuery failed, ret= " << ret;
     }
-    LOG_DEBUG << "urmaBandWidthQuery device name is " << deviceName << "max bandwidth: " << *maxBandwidth
-              << "min bandwidth: " << *minBandwidth;
+    LOG_DEBUG << "urmaBandWidthQuery device name is " << deviceName << "max bandwidth: " << maxBandwidth
+              << "min bandwidth: " << minBandwidth;
     return ret;
 }
 
@@ -69,11 +69,11 @@ uint32_t UrmaUtility::SetBandWidth(const std::string &deviceName, uint32_t minBa
 
 uint32_t UrmaUtility::DisableBandWidth(const std::string &deviceName)
 {
-    auto ret = urmaBandWidthDisable(deviceName.data());
+    auto ret = urmaBandWidthReset(deviceName.data());
     if (ret != 0) {
-        LOG_ERROR << "urmaBandWidthDisable failed, ret= " << ret;
+        LOG_ERROR << "urmaBandWidthReset failed, ret= " << ret;
     }
-    LOG_DEBUG << "urmaBandWidthDisable device name is " << deviceName;
+    LOG_DEBUG << "urmaBandWidthReset device name is " << deviceName;
     return ret;
 }
 } // namespace virt::ovs::ubse::urma

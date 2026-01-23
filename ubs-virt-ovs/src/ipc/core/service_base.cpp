@@ -10,7 +10,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "service.h"
+#include "service_base.h"
 #include "protocol.h"
 #include "logger.h"
 
