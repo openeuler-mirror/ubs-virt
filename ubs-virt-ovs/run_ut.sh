@@ -12,7 +12,25 @@ err() {
   echo "[ERROR] $*" >&2
 }
 
+extract_dep(){
+  local archive="$1"
+  local target_dir="$2"
+  log "Extracting $archive -> $target_dir"
+  rm -rf "$target_dir"
+  mkdir -p "$target_dir"
+  tar -xzf "$archive" -C "$target_dir" --strip-components=1 || {
+    err "Falied to extract $archive"
+    exit 1
+  }
+}
+
 rm -rf "$BUILD_DIR"
+
+[[ -f "$ROOT_DIR/deps/mockcpp_aarch64.tar.gz" ]] && {
+  extract_dep "$ROOT_DIR/deps/mockcpp_aarch64.tar.gz" "$ROOT_DIR/deps/mockcpp"
+  extract_dep "$ROOT_DIR/deps/googletest_aarch64.tar.gz" "$ROOT_DIR/deps/googletest"
+}
+
 
 if $COVERAGE; then
   log "config with COVERAGE ON"
@@ -24,21 +42,17 @@ cmake --build "$BUILD_DIR" -j"$(nproc)"
 
 log "Running UT"
 cd "$BUILD_DIR/test"
-ctest --output-on-failure
 
-if $COVERAGE; then
-  log "Gen report"
-  cmake --build "$BUILD_DIR" --target coverage
-  coverageInfo="$BUILD_DIR/src/coverage.info"
-  coverageXml="$BUILD_DIR/src/coverage/test_detail.xml"
-  coverageHtml="$BUILD_DIR/src/coverage_html"
-  REPORT_DIR="$ROOT_DIR/gcover_report"
+log "Gen report"
+cmake --build "$BUILD_DIR" --target coverage
+coverageInfo="$BUILD_DIR/src/coverage.info"
+coverageXml="$BUILD_DIR/src/coverage/test_detail.xml"
+coverageHtml="$BUILD_DIR/src/coverage_html"
+REPORT_DIR="$ROOT_DIR/gcover_report"
 
-  rm -rf "$REPORT_DIR"
-  mkdir -p "$REPORT_DIR"
-  cp "$coverageInfo" "$REPORT_DIR/"
-  cp "$coverageXml" "$REPORT_DIR/"
-  cp "$coverageHtml" "$REPORT_DIR/"
-  log "Coverage and test report files are ready"
-
-fi
+rm -rf "$REPORT_DIR"
+mkdir -p "$REPORT_DIR"
+cp "$coverageInfo" "$REPORT_DIR/"
+cp "$coverageXml" "$REPORT_DIR/"
+cp -r "$coverageHtml" "$REPORT_DIR/"
+log "Coverage and test report files are ready"

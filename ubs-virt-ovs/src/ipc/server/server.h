@@ -44,6 +44,7 @@ private:
     bool HandleReadEvent(Connection &conn, int fd);
     bool HandleWriteEvent(Connection &conn, int fd) const;
     void CloseConnection(int fd);
+    void prepareSocketDir() const;
 
     std::string socketPath_;
     int listenFd_{-1};

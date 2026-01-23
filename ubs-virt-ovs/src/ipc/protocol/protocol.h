@@ -39,7 +39,7 @@ inline IpcResponse IpcError(VirtIPCCode code)
 }
 
 template <typename Request>
-VirtIPCCode DeserializeAndValidate(Request req, const std::string &payload, std::string &errMsg)
+VirtIPCCode DeserializeAndValidate(Request &req, const std::string &payload, std::string &errMsg)
 {
     try {
         VirtMsgUnPacker unpacker(payload);

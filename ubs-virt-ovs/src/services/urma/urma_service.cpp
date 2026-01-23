@@ -33,7 +33,7 @@ UrmaService::UrmaService() : urmaUtil_(UrmaUtility::Instance())
 
 IpcResponse UrmaService::HandleSetBandwidth(const std::string &payload)
 {
-    const UrmaBandwidthSetRequest request;
+    UrmaBandwidthSetRequest request;
     BaseResponse resp;
     std::string errMsg;
     VirtIPCCode ret = DeserializeAndValidate(request, payload, errMsg);
@@ -41,21 +41,7 @@ IpcResponse UrmaService::HandleSetBandwidth(const std::string &payload)
         LOG_ERROR << "HandleSetBandwidth failed: " << errMsg;
         return BizError<BaseResponse>(ret, errMsg);
     }
-    uint32_t minBandwidth = 0;
-    uint32_t maxBandwidth = 0;
-    uint32_t res = urmaUtil_.GetBandWidth(request.name_, minBandwidth, maxBandwidth);
-    if (res == 0) {
-        if (minBandwidth == request.minBandwidth_ && maxBandwidth == request.maxBandwidth_) {
-            return Ok(BaseResponse::Success());
-        }
-        LOG_WARN << "bandwidth already set for urma:" << request.name_;
-        return BizError<BaseResponse>(VirtIPCCode::ALREADY_EXIST, "already exist");
-    }
-    if (res != static_cast<uint32_t>(VirtIPCCode::NOT_EXIST)) {
-        LOG_ERROR << "get bandwidth from ubse failed,name is " << request.name_ << ",res=" << res;
-        return BizError<BaseResponse>(VirtIPCCode::UBSE_ERROR, "call ubse failed");
-    }
-    res = urmaUtil_.SetBandWidth(request.name_, request.minBandwidth_, request.maxBandwidth_);
+    uint32_t res = urmaUtil_.SetBandWidth(request.name_, request.minBandwidth_, request.maxBandwidth_);
     if (res != 0) {
         LOG_ERROR << "set bandwidth failed,name is " << request.name_ << ",res=" << res;
         return BizError<BaseResponse>(VirtIPCCode::UBSE_ERROR, "call ubse failed");
@@ -65,7 +51,7 @@ IpcResponse UrmaService::HandleSetBandwidth(const std::string &payload)
 
 IpcResponse UrmaService::HandleUpdateBandwidth(const std::string &payload)
 {
-    const UrmaBandwidthSetRequest request;
+    UrmaBandwidthSetRequest request;
     BaseResponse resp;
     std::string errMsg;
     VirtIPCCode ret = DeserializeAndValidate(request, payload, errMsg);
@@ -103,7 +89,7 @@ IpcResponse UrmaService::HandleUpdateBandwidth(const std::string &payload)
 
 IpcResponse UrmaService::HandleResetBandwidth(const std::string &payload)
 {
-    const UrmaBandwidthResetRequest request;
+    UrmaBandwidthResetRequest request;
     BaseResponse resp;
     std::string errMsg;
     VirtIPCCode ret = DeserializeAndValidate(request, payload, errMsg);

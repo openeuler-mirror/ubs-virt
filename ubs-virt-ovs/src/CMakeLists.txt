@@ -29,8 +29,8 @@ add_executable(ubs-virt-ovs
         main.cpp
 )
 
-target_link_libraries(ubs-virt-ovs
-        PRIVATE ubs-virt-ovs-core
+target_link_libraries(ubs-virt-ovs PRIVATE
+        -Wl,--whole-archive ubs-virt-ovs-core -Wl,--no-whole-archive
 )
 
 install(TARGETS ubs-virt-ovs

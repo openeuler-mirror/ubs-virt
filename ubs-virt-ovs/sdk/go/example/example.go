@@ -25,7 +25,7 @@ func exampleUbsSetUrmaBandwidth() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	defer cancel()
 
-	err := urma.UbsSetUrmaBandwidth(ctx, "urma1", 1, 1)
+	err := urma.UbsSetUrmaBandwidth(ctx, "urma_1", 1, 1)
 	if err != nil {
 		fmt.Println("[Example] UbsSetUrmaBandwidth err:", err)
 		return
@@ -37,7 +37,7 @@ func exampleUbsResetUrmaBandwidth() {
 	fmt.Println("[Example] UbsResetUrmaBandwidth")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	defer cancel()
-	err := urma.UbsResetUrmaBandwidth(ctx, "urma1")
+	err := urma.UbsResetUrmaBandwidth(ctx, "urma_1")
 	if err != nil {
 		fmt.Println("[Example] UbsResetUrmaBandwidth err:", err)
 		return
@@ -49,7 +49,7 @@ func exampleUbsUpdateUrmaBandwidth() {
 	fmt.Println("[Example] UbsUpdateUrmaBandwidth")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*1)
 	defer cancel()
-	err := urma.UbsUpdateUrmaBandwidth(ctx, "urma1", 1, 1)
+	err := urma.UbsUpdateUrmaBandwidth(ctx, "urma_1", 1, 1)
 	if err != nil {
 		fmt.Println("[Example] UbsUpdateUrmaBandwidth err:", err)
 		return

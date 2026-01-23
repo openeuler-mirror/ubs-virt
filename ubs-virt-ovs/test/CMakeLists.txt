@@ -7,6 +7,12 @@ foreach (dir ${ALL_SRC_DIRS})
     endif ()
 endforeach ()
 
+foreach (file ${TEST_FILES})
+    IF (file MATCHES "cmake-build-debug")
+        list(REMOVE_ITEM TEST_FILES ${file})
+    endif ()
+endforeach ()
+
 configure_file(
         ${CMAKE_SOURCE_DIR}/test/ut_dir.h.in
         ${CMAKE_CURRENT_BINARY_DIR}/ut_dir.h
@@ -20,6 +26,7 @@ include_directories(
         ${CMAKE_SOURCE_DIR}/deps
         ${CMAKE_SOURCE_DIR}/deps/googletest/include
         ${CMAKE_SOURCE_DIR}/deps/mockcpp/include
+        ${CMAKE_CURRENT_BINARY_DIR}/../deps/mockcpp/include
 )
 
 link_directories(
@@ -44,6 +51,5 @@ if (COVERAGE)
     target_link_libraries(virt_ut PUBLIC --coverage)
 endif ()
 
-enable_testing()
 include(GoogleTest)
 add_test(NAME virt_ut COMMAND virt_ut)
