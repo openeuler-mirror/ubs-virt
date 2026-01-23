@@ -55,7 +55,7 @@ void Server::Stop()
     LOG_INFO << "Server stopped";
 }
 
-void Server::prepareSocketDir() const
+void Server::PrepareSocketDir() const
 {
     namespace fs = std::filesystem;
     const fs::path socketPath(socketPath_);
@@ -83,7 +83,7 @@ bool Server::InitListenSocket()
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     std::snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", socketPath_.c_str());
-    prepareSocketDir();
+    PrepareSocketDir();
     unlink(socketPath_.c_str());
 
     if (bind(listenFd_, static_cast<sockaddr *>(static_cast<void *>(&addr)), sizeof(addr)) < 0 ||
