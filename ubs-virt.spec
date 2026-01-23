@@ -1,6 +1,6 @@
 Name:   ubs-virt
-Version:    %{version}
-Release:    %{release}%{?dist}
+Version:    1.0.0
+Release:    1
 Summary:    ubs-virt Test
 
 License:    Proprietary
