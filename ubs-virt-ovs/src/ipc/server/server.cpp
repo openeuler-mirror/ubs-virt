@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <pwd.h>
 #include <vector>
+#include <filesystem>
 
 using namespace virt::ovs;
 using namespace virt::ovs::msg;
@@ -57,6 +58,24 @@ void Server::Stop()
     LOG_INFO << "Server stopped";
 }
 
+bool Server::PrepareSocketDir() const
+{
+    namespace fs = std::filesystem;
+    const fs::path socketPath(socketPath_);
+    if (const fs::path dirPath(socketPath.parent_path()); !fs::exists(dirPath)) {
+        try {
+            if (fs::create_directory(dirPath)) {
+                LOG_INFO << "Successfully created socket directory: " << dirPath.string();
+                return true;
+            }
+        } catch (const fs::filesystem_error &e) {
+            LOG_ERROR << "Failed to create socket directory: " << e.what();
+            return false;
+        }
+    }
+    return true;
+}
+
 bool Server::InitListenSocket()
 {
     listenFd_ = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -69,10 +88,13 @@ bool Server::InitListenSocket()
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     std::snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", socketPath_.c_str());
+    if (!PrepareSocketDir()) {
+        return false;
+    }
     unlink(socketPath_.c_str());
 
     if (bind(listenFd_, static_cast<sockaddr *>(static_cast<void *>(&addr)), sizeof(addr)) < 0 ||
-              listen(listenFd_, LISTEN_BACK_LOG) < 0) {
+        listen(listenFd_, LISTEN_BACK_LOG) < 0) {
         LOG_ERROR << "bind/listen failed" << strerror(errno);
         if (listenFd_ >= 0) {
             close(listenFd_);
@@ -111,23 +133,6 @@ bool Server::InitEpoll()
         return false;
     }
     return true;
-}
-
-std::string UidToUsername(uid_t uid)
-{
-    struct passwd pwd;
-    struct passwd* result = nullptr;
-
-    long bufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
-    if (bufSize == -1) {
-        bufSize = 1024;
-    }
-    std:vector<char> buf(bufSize);
-    int ret = getpwuid_r(uid, &pwd, buf.data(), bufSize, &result);
-    if (ret != 0 || result == nullptr) {
-        return {};
-    }
-    return std::string(pwd.pw_name);
 }
 
 void Server::AcceptClients()
@@ -195,7 +200,7 @@ bool Server::HandleReadEvent(Connection &conn, int fd)
     }
 
     bool keepReading = true;
-    while (conn.HasRequest()) {
+    while (keepReading) {
         if (!conn.HandleRead()) {
             return false;
         }
@@ -247,13 +252,13 @@ void Server::CloseConnection(int fd)
 void Server::HandleBusiness(int fd, const std::string &req)
 {
     IpcRequest cr;
-    VirtMsgUnPacker unpacker(req);
-    if (cr.Deserialize(unpacker) != 0) {
-        LOG_ERROR << "Failed to deserialize request, fd=" << fd;
-        return;
-    }
-    LOG_DEBUG << "IpcRequest deserialized, service=" << cr.service_ << ", method=" << cr.method_
-              << ", payload_size=" << cr.payload_.size();
+    IpcResponse resp(static_cast<uint32_t>(VirtIPCCode::OK));
+    VirtMsgPacker packer;
+    try {
+        VirtMsgUnPacker unpacker(req);
+        cr.Deserialize(unpacker);
+        LOG_DEBUG << "IpcRequest deserialized, service=" << cr.service_ << ", method=" << cr.method_
+                  << ", payload_size=" << cr.payload_.size();
 
     IpcResponse resp(static_cast<int32_t>(VirtIPCCode::OK));
     auto it = conns_.find(fd);
@@ -280,6 +285,11 @@ void Server::HandleBusiness(int fd, const std::string &req)
     VirtMsgPacker packer;
     if (resp.Serialize(packer) != 0) {
         LOG_ERROR << "Failed to serialize request, fd=" << fd;
+        return;
+    }
+    auto it = conns_.find(fd);
+    if (it == conns_.end()) {
+        LOG_WARN << "Connection not found for fd=" << fd;
         return;
     }
 

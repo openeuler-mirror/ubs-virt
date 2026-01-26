@@ -10,28 +10,17 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef UBS_VIRT_OVS_URMA_SERVICE_H
-#define UBS_VIRT_OVS_URMA_SERVICE_H
+#ifndef UBS_VIRT_OVS_DISPATCHER_H
+#define UBS_VIRT_OVS_DISPATCHER_H
+
 #include "service_base.h"
-#include "urma_utility.h"
-namespace virt::ovs::service::urma {
 
 using namespace virt::ovs::msg;
-using namespace virt::ovs::ubse::urma;
 
-class UrmaService : public Service {
+namespace virt::ovs::ipc::server {
+class Dispatcher {
 public:
-    std::string Name() const override;
-    UrmaService();
-
-private:
-    IpcResponse HandleSetBandwidth(const std::string &payload);
-    IpcResponse HandleResetBandwidth(const std::string &payload);
-    IpcResponse HandleUpdateBandwidth(const std::string &payload);
-
-private:
-    UrmaUtility& urmaUtil_;
+    IpcResponse Dispatch(const IpcRequest &request) const;
 };
-
-} // namespace virt::ovs::service::urma
-#endif // UBS_VIRT_OVS_URMA_SERVICE_H
+} // namespace virt::ovs::ipc::server
+#endif // UBS_VIRT_OVS_DISPATCHER_H
