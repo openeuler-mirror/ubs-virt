@@ -16,8 +16,7 @@ struct configItem {
 
 class ConfModule {
 public:
-    uint32_t Start();
-    uint32_t Stop();
+    uint32_t Init();
     /**
     * @brief 读取配置
     * @param [in] section: 配置节
@@ -43,9 +42,8 @@ private:
     std::string confCliDir;
 };
 
-
 template <typename T>
-uint32_t ConfModule::GetConf(const std::string& section, const std::string& configKey, T& configVal)
+uint32_t ConfModule::GetConf(const std::string &section, const std::string &configKey, T &configVal)
 {
     if constexpr (std::is_same_v<T, uint32_t>) {
         return GetUIntConf(section, configKey, configVal);
@@ -68,6 +66,10 @@ uint32_t ConfModule::GetConf(const std::string& section, const std::string& conf
     }
     return 1;
 }
+std::tuple<std::string, std::string, std::string> TrimConf(const std::string &section, const std::string &configKey,
+                                                           const std::string &configVal = "");
+bool IsValidNumber(const std::string &str, bool allowFloating = false);
+
 } // namespace virt::ovs::config
 
-#endif //CONFIG_MODULE_H
+#endif // CONFIG_MODULE_H
