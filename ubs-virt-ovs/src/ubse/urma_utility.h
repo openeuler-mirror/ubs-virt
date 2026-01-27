@@ -37,18 +37,18 @@ public:
     uint32_t SetBandWidth(const std::string &deviceName, uint32_t minBandwidth, uint32_t maxBandwidth);
 
     // clear urma bandwidth config
-    uint32_t DisableBandWidth(const std::string &deviceName);
+    uint32_t ResetBandWidth(const std::string &deviceName);
 
 private:
     ~UrmaUtility();
 
     using UbsUrmaBandWidthGetFunc = uint32_t (*)(const char *name, uint32_t *minBandwidth, uint32_t *maxBandwidth);
     using UbsUrmaBandWidthSetFunc = uint32_t (*)(const char *name, uint32_t minBandwidth, uint32_t maxBandwidth);
-    using UbsUrmaBandWidthDisableFunc = uint32_t (*)(const char *name);
+    using UbsUrmaBandWidthResetFunc = uint32_t (*)(const char *name);
 
     UbsUrmaBandWidthGetFunc urmaBandWidthGet{nullptr};
     UbsUrmaBandWidthSetFunc urmaBandWidthSet{nullptr};
-    UbsUrmaBandWidthDisableFunc urmaBandWidthReset{nullptr};
+    UbsUrmaBandWidthResetFunc urmaBandWidthReset{nullptr};
 
     template <class FunctionPtr>
     void LoadSymbols(FunctionPtr &ptr, const std::string &symbolName);

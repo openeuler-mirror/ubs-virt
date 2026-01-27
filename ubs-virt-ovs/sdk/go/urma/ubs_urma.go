@@ -24,10 +24,10 @@ var newUrmaClientFunc = func() *urmaClient {
 }
 
 const (
-	urmaServiceName    = "ubs.urma"
-	urmaSetBWMethod    = "SetBandwidth"
-	urmaUpdateBWMethod = "UpdateBandwidth"
-	urmaResetBWMethod  = "ResetBandwidth"
+	urmaServiceName   = "ubs.urma"
+	urmaSetBWMethod   = "SetBandwidth"
+	urmaResetBWMethod = "ResetBandwidth"
+	urmaGetBWMethod   = "GetBandwidth"
 
 	minUrmaBandwidth uint32 = 1
 	maxUrmaBandwidth uint32 = 50
@@ -67,23 +67,6 @@ func (c *urmaClient) setBandwidth(
 	name string,
 	minBandwidth, maxBandwidth uint32,
 ) error {
-	return c.BandwidthOp(ctx, name, minBandwidth, maxBandwidth, urmaSetBWMethod)
-}
-
-func (c *urmaClient) updateBandwidth(
-	ctx context.Context,
-	name string,
-	minBandwidth, maxBandwidth uint32,
-) error {
-	return c.BandwidthOp(ctx, name, minBandwidth, maxBandwidth, urmaUpdateBWMethod)
-}
-
-func (c *urmaClient) BandwidthOp(
-	ctx context.Context,
-	name string,
-	minBandwidth, maxBandwidth uint32,
-	method string,
-) error {
 	req := &BandwidthSetRequest{
 		Name:         name,
 		MinBandwidth: minBandwidth,
@@ -91,7 +74,7 @@ func (c *urmaClient) BandwidthOp(
 	}
 	ipcInfo := client.IpcInfo{
 		Service: urmaServiceName,
-		Method:  method,
+		Method:  urmaSetBWMethod,
 	}
 	resp, err := client.Call(ctx, c.ipc, ipcInfo, req, func() *client.BaseResponse {
 		return &client.BaseResponse{}
@@ -100,7 +83,7 @@ func (c *urmaClient) BandwidthOp(
 		return err
 	}
 	if resp.Ret != 0 {
-		return fmt.Errorf("%s %s failed,errCode=%d,reason=%s", method, name, resp.Ret, resp.Message)
+		return fmt.Errorf("setBandwidth %s failed,errCode=%d,reason=%s", name, resp.Ret, resp.Message)
 	}
 	return nil
 }
@@ -123,4 +106,24 @@ func (c *urmaClient) resetBandwidth(ctx context.Context, name string) error {
 		return fmt.Errorf("resetBandwidth %s failed,errCode=%d,reason=%s", name, resp.Ret, resp.Message)
 	}
 	return nil
+}
+
+func (c *urmaClient) getBandwidth(ctx context.Context, name string) (uint32, uint32, error) {
+	req := &BandwidthResetRequest{
+		Name: name,
+	}
+	ipcInfo := client.IpcInfo{
+		Service: urmaServiceName,
+		Method:  urmaGetBWMethod,
+	}
+	resp, err := client.Call(ctx, c.ipc, ipcInfo, req, func() *BandwidthGetResponse {
+		return &BandwidthGetResponse{}
+	})
+	if err != nil {
+		return 0, 0, err
+	}
+	if resp.Ret != 0 {
+		return 0, 0, fmt.Errorf("getBandwidth %s failed,errCode=%d,reason=%s", name, resp.Ret, resp.Message)
+	}
+	return resp.MinBandwidth, resp.MaxBandwidth, nil
 }

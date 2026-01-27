@@ -45,6 +45,23 @@ func judgeCallFunc(tc struct {
 		mockIpc.CallFunc = func(ctx context.Context, req *client.IpcRequest) (*client.IpcResponse, error) {
 			return &client.IpcResponse{Code: 0, Payload: msg}, nil
 		}
+	} else if tc.name == "getBandwidthFail" {
+		resp := BandwidthGetResponse{}
+		resp.Ret = 1
+		msg, _ := serde.SerializeMsg(&resp)
+		mockIpc.CallFunc = func(ctx context.Context, req *client.IpcRequest) (*client.IpcResponse, error) {
+			return &client.IpcResponse{Code: 0, Payload: msg}, nil
+		}
+	} else if tc.name == "getBandwidthSuccess" {
+		resp := BandwidthGetResponse{
+			BaseResponse: client.BaseResponse{Ret: 0},
+			MinBandwidth: 1,
+			MaxBandwidth: 10,
+		}
+		msg, _ := serde.SerializeMsg(&resp)
+		mockIpc.CallFunc = func(ctx context.Context, req *client.IpcRequest) (*client.IpcResponse, error) {
+			return &client.IpcResponse{Code: 0, Payload: msg}, nil
+		}
 	} else {
 		mockIpc.CallFunc = nil
 	}
@@ -71,7 +88,7 @@ func TestUbsSetUrmaBandwidth(t *testing.T) {
 		{"eth0", 10, 1, true, "minBandwidth must be less than or equal to maxBandwidth"},
 		{"connectFail", 1, 10, true, "connectFail"},
 		{"ipcFail", 1, 10, true, "ipc {ubs.urma SetBandwidth} failed,code=1"},
-		{"bizFail", 1, 10, true, "SetBandwidth bizFail failed,errCode=1"},
+		{"bizFail", 1, 10, true, "setBandwidth bizFail failed,errCode=1"},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -92,7 +109,7 @@ func TestUbsSetUrmaBandwidth(t *testing.T) {
 	}
 }
 
-func TestUbsUpdateUrmaBandwidth(t *testing.T) {
+func TestUbsGetUrmaBandwidth(t *testing.T) {
 	ctx := context.Background()
 	mockIpc := &mockIPCClient{}
 	newUrmaClientFunc = func() *urmaClient {
@@ -105,20 +122,17 @@ func TestUbsUpdateUrmaBandwidth(t *testing.T) {
 		expectError bool
 		errContains string
 	}{
-		{"eth0", 1, 10, false, ""},
+		{"getBandwidthSuccess", 1, 10, false, ""},
 		{"", 1, 10, true, "name length must be"},
 		{"this_name_is_way_too_long_for_urma_client", 1, 10, true, "name length must be"},
-		{"eth0", 0, 10, true, "bandwidth must be between"},
-		{"eth0", 1, 100, true, "bandwidth must be between"},
-		{"eth0", 10, 1, true, "minBandwidth must be less than or equal to maxBandwidth"},
 		{"connectFail", 1, 10, true, "connectFail"},
-		{"ipcFail", 1, 10, true, "ipc {ubs.urma UpdateBandwidth} failed,code=1"},
-		{"bizFail", 1, 10, true, "UpdateBandwidth bizFail failed,errCode=1"},
+		{"ipcFail", 1, 10, true, "ipc {ubs.urma GetBandwidth} failed,code=1"},
+		{"getBandwidthFail", 1, 10, true, "getBandwidth getBandwidthFail failed,errCode=1"},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			judgeCallFunc(tc, mockIpc)
-			err := UbsUpdateUrmaBandwidth(ctx, tc.name, tc.min, tc.max)
+			actualMin, actualMax, err := UbsGetUrmaBandwidth(ctx, tc.name)
 			if tc.expectError {
 				if err == nil {
 					t.Errorf("expect error for test case %+v,but got nil", tc)
@@ -128,6 +142,9 @@ func TestUbsUpdateUrmaBandwidth(t *testing.T) {
 			} else {
 				if err != nil {
 					t.Errorf("expect no error, but got error %+v for test case %+v", err, tc)
+				}
+				if actualMin != tc.min || actualMax != tc.max {
+					t.Errorf("expect min %d max %d, but got %d max %d", tc.min, tc.max, actualMin, actualMax)
 				}
 			}
 		})
