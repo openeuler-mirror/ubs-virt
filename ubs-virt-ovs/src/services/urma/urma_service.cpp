@@ -27,7 +27,7 @@ std::string UrmaService::Name() const
 UrmaService::UrmaService() : urmaUtil_(UrmaUtility::Instance())
 {
     Register("SetBandwidth", &UrmaService::HandleSetBandwidth);
-    Register("UpdateBandwidth", &UrmaService::HandleUpdateBandwidth);
+    Register("GetBandwidth", &UrmaService::HandleGetBandwidth);
     Register("ResetBandwidth", &UrmaService::HandleResetBandwidth);
 }
 
@@ -49,42 +49,24 @@ IpcResponse UrmaService::HandleSetBandwidth(const std::string &payload)
     return Ok(BaseResponse::Success());
 }
 
-IpcResponse UrmaService::HandleUpdateBandwidth(const std::string &payload)
+IpcResponse UrmaService::HandleGetBandwidth(const std::string &payload)
 {
-    UrmaBandwidthSetRequest request;
+    UrmaBandwidthGetRequest request;
     BaseResponse resp;
     std::string errMsg;
     VirtIPCCode ret = DeserializeAndValidate(request, payload, errMsg);
     if (ret != VirtIPCCode::OK) {
-        LOG_ERROR << "HandleUpdateBandwidth failed: " << errMsg;
-        return BizError<BaseResponse>(ret, errMsg);
+        LOG_ERROR << "HandleSetBandwidth failed: " << errMsg;
+        return BizError<UrmaBandwidthGetResponse>(ret, errMsg);
     }
     uint32_t minBandwidth = 0;
     uint32_t maxBandwidth = 0;
     uint32_t res = urmaUtil_.GetBandWidth(request.name_, minBandwidth, maxBandwidth);
-    if (res == static_cast<uint32_t>(VirtIPCCode::NOT_EXIST)) {
-        LOG_ERROR << "urma bandwidth config is not exist,name is" << request.name_;
-        return BizError<BaseResponse>(VirtIPCCode::NOT_EXIST, "not exist");
-    }
     if (res != 0) {
         LOG_ERROR << "get bandwidth from ubse failed,name is " << request.name_ << ",res=" << res;
-        return BizError<BaseResponse>(VirtIPCCode::UBSE_ERROR, "call ubse failed");
+        return BizError<UrmaBandwidthGetResponse>(VirtIPCCode::UBSE_ERROR, "call ubse failed");
     }
-    res = urmaUtil_.DisableBandWidth(request.name_);
-    if (res != 0) {
-        LOG_ERROR << "disable bandwidth failed,name is " << request.name_ << ",res=" << res;
-        return BizError<BaseResponse>(VirtIPCCode::UBSE_ERROR, "call ubse failed");
-    }
-    res = urmaUtil_.SetBandWidth(request.name_, request.minBandwidth_, request.maxBandwidth_);
-    if (res != 0) {
-        LOG_ERROR << "set bandwidth failed,name is " << request.name_ << ",res=" << res;
-        res = urmaUtil_.SetBandWidth(request.name_, minBandwidth, maxBandwidth);
-        if (res != 0) {
-            LOG_ERROR << "try rollback bandwidth failed,name is " << request.name_ << ",res=" << res;
-        }
-        return BizError<BaseResponse>(VirtIPCCode::UBSE_ERROR, "call ubse failed");
-    }
-    return Ok(BaseResponse::Success());
+    return Ok(UrmaBandwidthGetResponse(minBandwidth, maxBandwidth));
 }
 
 IpcResponse UrmaService::HandleResetBandwidth(const std::string &payload)
@@ -97,20 +79,13 @@ IpcResponse UrmaService::HandleResetBandwidth(const std::string &payload)
         LOG_ERROR << "HandleResetBandwidth failed: " << errMsg;
         return BizError<BaseResponse>(ret, errMsg);
     }
-    uint32_t minBandwidth = 0;
-    uint32_t maxBandwidth = 0;
-    uint32_t res = urmaUtil_.GetBandWidth(request.name_, minBandwidth, maxBandwidth);
-    if (res == static_cast<uint32_t>(VirtIPCCode::NOT_EXIST)) {
-        LOG_WARN << "urma bandwidth config is already reset,name is" << request.name_;
-        return Ok(BaseResponse::Success());
-    }
+    uint32_t res = urmaUtil_.ResetBandWidth(request.name_);
     if (res != 0) {
-        LOG_ERROR << "get bandwidth from ubse failed,name is " << request.name_ << ",res=" << res;
-        return BizError<BaseResponse>(VirtIPCCode::UBSE_ERROR, "call ubse failed");
-    }
-    res = urmaUtil_.DisableBandWidth(request.name_);
-    if (res != 0) {
-        LOG_ERROR << "disable bandwidth failed,name is " << request.name_ << ",res=" << res;
+        if (res == static_cast<uint32_t>(VirtIPCCode::NOT_EXIST)) {
+            LOG_ERROR << "urma dev is not exist" << request.name_;
+            return BizError<BaseResponse>(VirtIPCCode::NOT_EXIST, "urma dev is not exist");
+        }
+        LOG_ERROR << "reset bandwidth failed,name is " << request.name_ << ",res=" << res;
         return BizError<BaseResponse>(VirtIPCCode::UBSE_ERROR, "call ubse failed");
     }
     return Ok(BaseResponse::Success());
