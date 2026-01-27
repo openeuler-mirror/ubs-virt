@@ -11,6 +11,7 @@
  */
 #include "logger.h"
 #include "server.h"
+#include "config_module.h"
 
 #include <atomic>
 #include <chrono>
@@ -40,6 +41,10 @@ void InstallSignalHandler()
 
 int main()
 {
+    const uint32_t ret = virt::ovs::config::ConfModule::GetInstance().Init();
+    if (ret !=0) {
+        LOG_ERROR<< "config module start failed, ret is :" << ret;
+    }
     InstallSignalHandler();
     LOG_INFO << "Process starting";
     virt::ovs::ipc::server::Server server("/run/ubsvirt/ovs.sock");
@@ -49,7 +54,6 @@ int main()
     while (g_running.load(std::memory_order_relaxed)) {
         std::this_thread::sleep_for(kShutdownPollInterval);
     }
-
     LOG_INFO << "SIGTERM or SIGINT received, stopping service";
     server.Stop();
     LOG_INFO << "Server stopped, exiting";

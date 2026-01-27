@@ -16,6 +16,11 @@ struct configItem {
 
 class ConfModule {
 public:
+    static ConfModule &GetInstance()
+    {
+        static ConfModule instance;
+        return instance;
+    }
     uint32_t Init();
     /**
     * @brief 读取配置

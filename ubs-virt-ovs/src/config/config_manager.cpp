@@ -179,6 +179,7 @@ void ConfigManager::ParseSection(const std::string& filePath, const std::string&
         return;
     }
     // 含有非法字符
+
     if (!CheckNoIllegalChars(section)) {
         std::string message = "Warning: Section has illegal character.";
         parseErrors[filePath].emplace_back(FormatErrorMessage(message, lineCount, section));
@@ -326,26 +327,13 @@ std::string PathJoin(const std::string& baseDir, const std::string& baseName)
 uint32_t CheckParamValidation(const std::string& section, const std::string& configKey, const std::string& configVal,
                                 bool checkValue)
 {
-    // 非法字符检查
-    if (!CheckNoIllegalChars(section)) {
-        LOG_WARN << "Section has invalid character";
-        return 1;
-    }
-    if (!CheckNoIllegalChars(configKey)) {
-        LOG_WARN << "Key has invalid character";
-        return 2;
-    }
-    if (!CheckNoIllegalChars(configVal, true) && checkValue) {
-        LOG_WARN << "The configuration value contains illegal chars";
-        return 3;
-    }
 
     // 长度检查
     if (section.size() > CONFIG_SECTION_MAX_FIELD_LENGTH || section.size() < CONFIG_MIN_FIELD_LENGTH) {
         LOG_WARN << "Section length invalid";
         return 4;
     }
-    if (configKey.size() > CONFIG_KEY_MAX_FIELD_LENGTH || section.size() < CONFIG_MIN_FIELD_LENGTH) {
+    if (configKey.size() > CONFIG_KEY_MAX_FIELD_LENGTH || configKey.size() < CONFIG_MIN_FIELD_LENGTH) {
         LOG_WARN << "Key length invalid";
         return 5;
     }

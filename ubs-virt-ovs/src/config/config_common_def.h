@@ -21,7 +21,7 @@ constexpr int CONFIG_DIR_MAX_DEPTH = 10;
 const uint8_t SUFFIX_SIZE = 5; // .conf后缀长度
 const std::string DELIMITER = "/";
 const std::regex SECTION_CHARS(R"(\[\s*(.*?)\s*\])");
-const std::regex NON_VAL_CHARS(R"(^[a-zA-Z0-9\.\_\-]+$)");
-const std::regex VAL_CHARS(R"(^[a-zA-Z0-9\.\_\-\:\,\/\;]+$)");
+const std::regex NON_VAL_CHARS(R"(^[a-zA-Z0-9._-]+$)");
+const std::regex VAL_CHARS(R"(^[a-zA-Z0-9._:,/;\-]+$)");
 } // namespace virt::ovs::config
 #endif // UBSVIRTOVS_CONFIG_COMMON_DEF_H
