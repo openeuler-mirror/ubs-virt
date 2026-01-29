@@ -32,14 +32,6 @@ inline constexpr int MAX_BUFFER_SIZE = 1024;
 
 using ConnPtr = std::shared_ptr<Connection>;
 
-struct PeerIdentity {
-    uid_t uid;
-    gid_t gid;
-    pid_t pid;
-
-    std::string username;
-};
-
 class AuthManager {
 public:
     struct UserRule {
