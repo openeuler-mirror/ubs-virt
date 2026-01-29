@@ -35,13 +35,15 @@ public:
         WRITE_RESP,
         CLOSED,
     };
-    Connection(int fd, PeerIdentity identity)
-        : fd_(fd), identity_(identity) {};
+    Connection(int fd, PeerIdentity identity) : fd_(fd), identity_(identity) {};
     explicit Connection(int fd);
 
     const PeerIdentity& Identity() const { return identity_; }
+    int Fd() const { return fd_; }
 
     bool HandleRead();
+    bool HandleReadLen();
+    bool HandleReadBody();
     bool HandleWrite();
 
     bool HasRequest() const;
@@ -54,11 +56,12 @@ public:
 private:
     int fd_;
     PeerIdentity identity_;
-    State state_{State::READ_LEN};
+    State state_{ State::READ_LEN };
 
-    uint32_t expectLen_{0};
+    uint32_t expectLen_{ 0 };
     std::string readBuf_;
     std::string writeBuf_;
+    size_t lenRead_{ 0 };
 };
 } // namespace virt::ovs::ipc::server
 #endif

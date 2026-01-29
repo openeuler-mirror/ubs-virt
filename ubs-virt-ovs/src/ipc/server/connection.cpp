@@ -3,7 +3,7 @@
  * ubs-virt-ovs is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
- *          http://license.coscl.org.cn/MulanPSL2
+ * http://license.coscl.org.cn/MulanPSL2
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
  * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
@@ -17,36 +17,82 @@
 #include <unistd.h>
 
 namespace virt::ovs::ipc::server {
-Connection::Connection(int fd) : fd_(fd) {}
+Connection::Connection(int fd) : fd_(fd)
+{
+    LOG_INFO << "Connection created, fd=" << fd_;
+}
 
 bool Connection::HandleRead()
 {
-    if (state_ == State::READ_LEN) {
-        uint32_t lenBE;
-        ssize_t n = read(fd_, &lenBE, sizeof(lenBE));
-        if (n <= 0) {
-            return false;
+    while (true) {
+        if (state_ == State::READ_LEN) {
+            if (!HandleReadLen())
+                return false;
+        }
+        if (state_ == State::READ_BODY) {
+            if (!HandleReadBody()) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+bool Connection::HandleReadLen()
+{
+    uint32_t lenBE;
+    ssize_t n = read(fd_, ((char *) &lenBE) + lenRead_, sizeof(lenBE) - lenRead_);
+
+    if (n > 0) {
+        lenRead_ += n;
+        if (lenRead_ < sizeof(lenBE)) {
+            LOG_DEBUG << "fd= " << fd_ << " READ_LEN partial, lenRead_=" << lenRead_;
+            return true;
         }
 
         expectLen_ = ntohl(lenBE);
         readBuf_.clear();
         state_ = State::READ_BODY;
+        LOG_DEBUG << "fd= " << fd_ << " READ_LEN done, expectLen_=" << expectLen_;
+        return true;
+    }
+    if (n == 0) {
+        LOG_INFO << "fd= " << fd_ << "READ_LEN peer closed";
+        return false;
     }
 
-    if (state_ == State::READ_BODY) {
-        char buf[4096];
-        ssize_t n = read(fd_, buf, sizeof(buf));
-        if (n <= 0) {
-            return false;
-        }
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        LOG_DEBUG << "fd= " << fd_ << " READ_LEN EAGAIN or EWOULDBLOCK， lenRead_= " << lenRead_;
+        return true;
+    }
+    LOG_WARN << "fd= " << fd_ << " READ_LEN error, errno=" << errno << " errMsg=" << strerror(errno);
+    return false;
+}
 
+bool Connection::HandleReadBody()
+{
+    char buf[4096];
+    ssize_t n = read(fd_, buf, sizeof(buf));
+    if (n > 0) {
         readBuf_.append(buf, n);
+        LOG_DEBUG << "fd=" << fd_ << " READ_BODY read n=" << n << " total=" << readBuf_.size() << "/" << expectLen_;
         if (readBuf_.size() >= expectLen_) {
             state_ = State::READY;
+            LOG_DEBUG << "fd=" << fd_ << " READ_BODY done, READY";
         }
+        return true;
+    }
+    if (n == 0) {
+        LOG_INFO << "fd= " << fd_ << "READ_BODY peer closed, current=" << readBuf_.size() << "/" << expectLen_;
+        return false;
     }
 
-    return true;
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        LOG_DEBUG << "fd= " << fd_ << " READ_BODY EAGAIN or EWOULDBLOCK， current= " << readBuf_.size() << "/" << expectLen_;
+        return true;
+    }
+    LOG_WARN << "fd= " << fd_ << " READ_BODY error, errno=" << errno << " errMsg=" << strerror(errno);
+    return false;
 }
 
 bool Connection::HandleWrite()
@@ -78,6 +124,7 @@ bool Connection::HasRequest() const
 std::string Connection::TakeRequest()
 {
     state_ = State::PROCESSING;
+    LOG_DEBUG << "fd=" << fd_ << " TakeRequest, size=" << readBuf_.size();
     return std::move(readBuf_);
 }
 
@@ -97,10 +144,12 @@ void Connection::SetResponse(std::string resp, int epollFd)
         LOG_ERROR << "epoll_ctl MOD failed in SetReaponse, fd=" << fd_ << ", errno=" << errno
                   << ", errmsg=" << strerror(errno);
     }
+    LOG_DEBUG << "fd=" << fd_ << " SetResponse, respSize=" << resp.size();
 }
 
 void Connection::ResetAfterWrite()
 {
     state_ = State::READ_LEN;
+    LOG_INFO << "fd=" << fd_ << " ResetAfterWrite";
 }
 } // namespace virt::ovs::ipc::server

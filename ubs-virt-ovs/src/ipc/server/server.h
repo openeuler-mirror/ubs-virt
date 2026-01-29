@@ -23,18 +23,20 @@
 #include "thread_pool.h"
 
 namespace virt::ovs::ipc::server {
-
 inline constexpr int DEFAULT_QPS_LIMIT = 100;
 inline constexpr int MAX_EPOLL_EVENTS = 64;
 inline constexpr int EPOLL_WAIT_TIMEOUT = 1000;
 inline constexpr int LISTEN_BACK_LOG = 128;
+
+using ConnPtr = std::shared_ptr<Connection>;
 
 class AuthManager {
 public:
     struct UserRule {
         std::unordered_set<std::string> services_;
     };
-    bool Authorize(const PeerIdentity &id, const IpcRequest& req) const;
+    static bool Authorize(const PeerIdentity &id, const IpcRequest &req);
+
 private:
     std::unordered_map<std::string, UserRule> userRules_;
 };
@@ -51,9 +53,9 @@ private:
     void Loop();
     bool InitListenSocket();
     bool InitEpoll();
-    void HandleBusiness(int fd, const std::string &req);
+    void HandleBusiness(const ConnPtr &conn, const std::string &req);
     void AcceptClients();
-    bool HandleReadEvent(Connection &conn, int fd);
+    bool HandleReadEvent(const ConnPtr &conn, int fd);
     bool HandleWriteEvent(Connection &conn, int fd) const;
     void CloseConnection(int fd);
     bool PrepareSocketDir() const;
@@ -69,7 +71,7 @@ private:
     Dispatcher dispatcher_;
     AuthManager authManager_;
 
-    std::unordered_map<int, Connection> conns_;
+    std::unordered_map<int, ConnPtr> conns_;
 
     int qpsLimit_{DEFAULT_QPS_LIMIT};
     std::atomic<int> reqInCurrentSecond_{0};

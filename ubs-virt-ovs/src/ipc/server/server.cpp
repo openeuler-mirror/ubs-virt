@@ -3,27 +3,30 @@
  * ubs-virt-ovs is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
- *          http://license.coscl.org.cn/MulanPSL2
+ * http://license.coscl.org.cn/MulanPSL2
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
  * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
 #include "server.h"
+#include "config_module.h"
 #include "logger.h"
 #include "virt_ipc_code.h"
 
 #include <fcntl.h>
+#include <pwd.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <atomic>
 #include <chrono>
-#include <sys/types.h>
-#include <pwd.h>
-#include <vector>
 #include <filesystem>
+#include <sstream>
+#include <thread>
+#include <vector>
 
 using namespace virt::ovs;
 using namespace virt::ovs::msg;
@@ -93,13 +96,10 @@ bool Server::InitListenSocket()
     }
     unlink(socketPath_.c_str());
 
-    if (bind(listenFd_, static_cast<sockaddr *>(static_cast<void *>(&addr)), sizeof(addr)) < 0 ||
-        listen(listenFd_, LISTEN_BACK_LOG) < 0) {
+    if (bind(listenFd_, (sockaddr *)&addr, sizeof(addr)) < 0 || listen(listenFd_, LISTEN_BACK_LOG) < 0) {
         LOG_ERROR << "bind/listen failed" << strerror(errno);
-        if (listenFd_ >= 0) {
-            close(listenFd_);
-            listenFd_ = -1;
-        }
+        close(listenFd_);
+        listenFd_ = -1;
         return false;
     }
 
@@ -112,27 +112,37 @@ bool Server::InitEpoll()
     epollFd_ = epoll_create1(0);
     if (epollFd_ < 0) {
         LOG_ERROR << "epoll_create1() failed";
-        if (listenFd_ >= 0) {
-            close(listenFd_);
-            listenFd_ = -1;
-        }
+        close(listenFd_);
+        listenFd_ = -1;
         return false;
     }
 
     epoll_event ev{EPOLLIN, {.fd = listenFd_}};
     if (epoll_ctl(epollFd_, EPOLL_CTL_ADD, listenFd_, &ev) < 0) {
         LOG_ERROR << "epoll_ctl ADD listenFd failed";
-        if (listenFd_ >= 0) {
-            close(listenFd_);
-            listenFd_ = -1;
-        }
-        if (epollFd_ >= 0) {
-            close(epollFd_);
-            epollFd_ = -1;
-        }
+        close(listenFd_);
+        close(epollFd_);
+        epollFd_ = -1;
+        listenFd_ = -1;
         return false;
     }
     return true;
+}
+
+std::string UidToUsername(uid_t uid)
+{
+    struct passwd pwd;
+    struct passwd *result = nullptr;
+
+    long bufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
+    if (bufSize < 0) {
+        bufSize = 1024;
+    }
+    std::vector<char> buf(bufSize);
+    if (getpwuid_r(uid, &pwd, buf.data(), bufSize, &result) != 0 || result == nullptr) {
+        return {};
+    }
+    return pwd.pw_name;
 }
 
 void Server::AcceptClients()
@@ -151,10 +161,10 @@ void Server::AcceptClients()
         }
 
         PeerIdentity id{};
-        struct ucred cred;
+        ucred cred{};
         socklen_t len = sizeof(cred);
         if (getsockopt(client, SOL_SOCKET, SO_PEERCRED, &cred, &len) < 0) {
-            LOG_ERROR << "getsockopt() failed";
+            LOG_ERROR << "getsockopt failed";
             close(client);
             continue;
         }
@@ -168,24 +178,23 @@ void Server::AcceptClients()
             continue;
         }
         SetNonBlock(client);
-        conns_.emplace(client, Connection(client, id));
+        auto conn = std::make_shared<Connection>(client, id);
+        conns_[client] = conn;
 
-        epoll_event cev{};
-        cev.events = EPOLLIN | EPOLLET;
-        cev.data.fd = client;
-        if (epoll_ctl(epollFd_, EPOLL_CTL_ADD, client, &cev) < 0) {
-            const int closeFd = client;
-            LOG_WARN << "epoll_ctl ADD client failed: fd=" << closeFd;
+        epoll_event ev{};
+        ev.events = EPOLLIN | EPOLLET;
+        ev.data.fd = client;
+        if (epoll_ctl(epollFd_, EPOLL_CTL_ADD, client, &ev) < 0) {
+            LOG_WARN << "epoll_ctl ADD client failed: fd=" << client;
+            conns_.erase(client);
             close(client);
-            client = -1;
-            conns_.erase(closeFd);
             continue;
         }
-        LOG_INFO << "accepted client, fd=" << client;
+        LOG_INFO << "accepted client, fd=" << client << " uid=" << id.uid_ << " user=" << id.username_;
     }
 }
 
-bool Server::HandleReadEvent(Connection &conn, int fd)
+bool Server::HandleReadEvent(const ConnPtr &conn, int fd)
 {
     auto nowSec =
         std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -201,16 +210,19 @@ bool Server::HandleReadEvent(Connection &conn, int fd)
 
     bool keepReading = true;
     while (keepReading) {
-        if (!conn.HandleRead()) {
+        if (!conn->HandleRead()) {
             return false;
         }
-        if (!conn.HasRequest()) {
+        if (!conn->HasRequest()) {
             keepReading = false;
             continue;
         }
 
-        std::string req = conn.TakeRequest();
-        if (!pool_.TryEnqueue([this, fd, req = std::move(req)] { this->HandleBusiness(fd, std::move(req)); })) {
+        std::string req = conn->TakeRequest();
+        if (!pool_.TryEnqueue([this, conn, req = std::move(req)]() mutable {
+            LOG_DEBUG << "HandleBusiness scheduled fd=" << conn->Fd() << " tid=" << std::this_thread::get_id();
+            this->HandleBusiness(conn, std::move(req));
+        })) {
             LOG_WARN << "ThreadPool full, drop request, fd=" << fd;
             return false;
         }
@@ -234,6 +246,7 @@ bool Server::HandleWriteEvent(Connection &conn, int fd) const
             LOG_ERROR << "epoll_ctl MOD failed in HandleWriteEvent, fd=" << fd;
             return false;
         }
+        LOG_DEBUG << "HandleWriteEvent: write done, fd=" << fd;
         conn.ResetAfterWrite();
     }
     return true;
@@ -241,93 +254,79 @@ bool Server::HandleWriteEvent(Connection &conn, int fd) const
 
 void Server::CloseConnection(int fd)
 {
-    const int closeFd = fd;
+    LOG_INFO << "CloseConnection fd=" << fd;
     epoll_ctl(epollFd_, EPOLL_CTL_DEL, fd, nullptr);
     close(fd);
-    fd = -1;
-    conns_.erase(closeFd);
-    LOG_INFO << "closed fd=" << closeFd;
+    conns_.erase(fd);
 }
 
-void Server::HandleBusiness(int fd, const std::string &req)
+void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
 {
-    IpcRequest cr;
+    LOG_INFO << "HandleBusiness begin fd=" << conn->Fd() << " tid=" << std::this_thread::get_id();
+    IpcRequest ipcReq;
     IpcResponse resp(static_cast<uint32_t>(VirtIPCCode::OK));
     VirtMsgPacker packer;
-    try {
-        VirtMsgUnPacker unpacker(req);
-        cr.Deserialize(unpacker);
-        LOG_DEBUG << "IpcRequest deserialized, service=" << cr.service_ << ", method=" << cr.method_
-                  << ", payload_size=" << cr.payload_.size();
+    VirtMsgUnPacker unpacker(req);
+    ipcReq.Deserialize(unpacker);
+    LOG_DEBUG << "IpcRequest deserialized, service=" << ipcReq.service_ << ", method=" << ipcReq.method_
+              << ", payload_size=" << ipcReq.payload_.size();
 
-    IpcResponse resp(static_cast<int32_t>(VirtIPCCode::OK));
-    auto it = conns_.find(fd);
-    if (it == conns_.end()) {
-        LOG_WARN << "Connection not found for fd=" << fd;
-        return;
-    }
-    const auto& identity = it->second.Identity();
-    if (!authManager_.Authorize(identity, cr)) {
-        LOG_ERROR << "Permission denied: uid=" << identity.uid_
-                  << ", fd=" << fd
-                  << ", method=" << cr.method_
-                  << " service=" << cr.service_;
+    const auto &id = conn->Identity();
+    if (!AuthManager::Authorize(id, ipcReq)) {
+        LOG_ERROR << "Permission denied: uid=" << id.uid_ << ", method=" << ipcReq.method_
+                  << " service=" << ipcReq.service_;
         resp.code_ = static_cast<int32_t>(VirtIPCCode::PERMISSION_DENIED);
     } else {
         try {
-            resp = dispatcher_.Dispatch(cr);
+            resp = dispatcher_.Dispatch(ipcReq);
+            resp.Serialize(packer);
         } catch (const std::exception &e) {
             LOG_ERROR << "Dispatch request failed: " << e.what();
             resp.code_ = static_cast<int32_t>(VirtIPCCode::INTERNAL_ERROR);
         }
     }
 
-    VirtMsgPacker packer;
-    if (resp.Serialize(packer) != 0) {
-        LOG_ERROR << "Failed to serialize request, fd=" << fd;
-        return;
-    }
-    auto it = conns_.find(fd);
-    if (it == conns_.end()) {
-        LOG_WARN << "Connection not found for fd=" << fd;
-        return;
-    }
+    resp.Serialize(packer);
+    conn->SetResponse(packer.String(), epollFd_);
 
-    it->second.SetResponse(packer.String(), epollFd_);
-
-    LOG_DEBUG << "IpcResponse serialized, fd=" << fd << ", code=" << resp.code_
+    LOG_DEBUG << "IpcResponse serialized, fd=" << conn->Fd() << ", code=" << resp.code_
               << ", payload_size=" << resp.payload_.size();
 }
 
-bool AuthManager::Authorize(const PeerIdentity &id, const IpcRequest& req) const
+bool containsString(const std::string &s, const std::string &key)
 {
-    auto it = userRules_.find(id.username_);
-    if (it == userRules_.end()) {
+    std::stringstream ss(s);
+    std::string item;
+    while (std::getline(ss, item, ',')) {
+        if (item == key) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool AuthManager::Authorize(const PeerIdentity &id, const IpcRequest &req)
+{
+    std::string authority;
+    auto ret = config::ConfModule::GetInstance().GetConf("auth", id.username_, authority);
+    if (ret != 0) {
+        LOG_ERROR << "AuthManager::Authorize failed, ret=" << ret;
         return false;
     }
-    const auto& services = it->second.services_;
-    return services.count(req.service_) || services.count("*");
+    LOG_INFO << "AuthManager::Authorize authority=" << authority;
+    return containsString(authority, req.service_);
 }
 
 void Server::Loop()
 {
-    if (!InitListenSocket()) {
-        return;
-    }
-    if (!InitEpoll()) {
+    if (!InitListenSocket() || !InitEpoll()) {
         return;
     }
 
     epoll_event events[MAX_EPOLL_EVENTS];
     while (running_) {
         int n = epoll_wait(epollFd_, events, MAX_EPOLL_EVENTS, EPOLL_WAIT_TIMEOUT);
-        if (n < 0) {
-            if (errno != EINTR) {
-                LOG_ERROR << "epoll_wait failed: " << strerror(errno);
-            }
-            continue;
-        }
-        if (n == 0) {
+        if (n <= 0) {
             continue;
         }
 
@@ -350,21 +349,17 @@ void Server::Loop()
                 CloseConnection(fd);
                 continue;
             }
-            if ((evt & EPOLLOUT) && !HandleWriteEvent(conn, fd)) {
+            if ((evt & EPOLLOUT) && !HandleWriteEvent(*conn, fd)) {
                 CloseConnection(fd);
-                continue;
             }
         }
     }
 
-    if (listenFd_ >= 0) {
-        close(listenFd_);
-        listenFd_ = -1;
-    }
-    if (epollFd_ >= 0) {
-        close(epollFd_);
-        epollFd_ = -1;
-    }
+    close(listenFd_);
+    listenFd_ = -1;
+    close(epollFd_);
+    epollFd_ = -1;
+
     LOG_INFO << "Event loop exited";
 }
 } // namespace virt::ovs::ipc::server
