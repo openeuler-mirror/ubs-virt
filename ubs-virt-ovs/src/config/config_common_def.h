@@ -11,6 +11,8 @@
  */
 #ifndef UBSVIRTOVS_CONFIG_COMMON_DEF_H
 #define UBSVIRTOVS_CONFIG_COMMON_DEF_H
+#include <regex>
+
 namespace virt::ovs::config {
 constexpr int CONFIG_MAX_LINES = 1000;
 constexpr int CONFIG_SECTION_MAX_FIELD_LENGTH = 32;
@@ -23,5 +25,27 @@ const std::string DELIMITER = "/";
 const std::regex SECTION_CHARS(R"(\[\s*(.*?)\s*\])");
 const std::regex NON_VAL_CHARS(R"(^[a-zA-Z0-9._-]+$)");
 const std::regex VAL_CHARS(R"(^[a-zA-Z0-9._:,/;\-]+$)");
+enum class ConfigCode : uint32_t {
+    OK = 0,
+
+    CONFIG_FOLDER_MAX_DEPTH = 1001,
+    CONFIG_FOLDER_OPEN_ERROR = 1002,
+    CONFIG_FILE_READ_ERROR = 1003,
+
+    SECTION_NOT_EXIST = 2001,
+    CONFIG_KEY_NOT_EXIST = 2002,
+    SECTION_LENGTH_INVALID = 2003,
+    KEY_LENGTH_INVALID = 2004,
+    VALUE_LENGTH_INVALID = 2005,
+    VALUE_TYPE_NOT_SUPPORTED = 2006,
+    CONFIG_VALUE_INVALID = 2007,
+    CONFIG_ARGUMENT_INVALID = 2007,
+    CONFIG_OUT_OF_RANGE = 2008,
+
+
+
+    MEM_ALLOCATE_ERROR = 3001,
+
+};
 } // namespace virt::ovs::config
 #endif // UBSVIRTOVS_CONFIG_COMMON_DEF_H

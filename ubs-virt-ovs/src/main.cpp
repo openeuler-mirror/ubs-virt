@@ -41,9 +41,9 @@ void InstallSignalHandler()
 
 int main()
 {
-    const uint32_t ret = virt::ovs::config::ConfModule::GetInstance().Init();
-    if (ret !=0) {
-        LOG_ERROR<< "config module start failed, ret is :" << ret;
+    const virt::ovs::config::ConfigCode ret = virt::ovs::config::ConfModule::GetInstance().Init();
+    if (ret !=virt::ovs::config::ConfigCode::OK) {
+        LOG_ERROR<< "config module start failed, ret is :" << static_cast<uint32_t>(ret);;
     }
     InstallSignalHandler();
     LOG_INFO << "Process starting";

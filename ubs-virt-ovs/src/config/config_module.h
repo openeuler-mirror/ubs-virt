@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <string>
 
+#include "config_common_def.h"
+
 namespace virt::ovs::config {
 struct configItem {
     std::string section{};
@@ -21,7 +23,7 @@ public:
         static ConfModule instance;
         return instance;
     }
-    uint32_t Init();
+    ConfigCode Init();
     /**
     * @brief 读取配置
     * @param [in] section: 配置节
@@ -30,25 +32,25 @@ public:
     * @return UbseResult, 成功返回0, 失败返回非0
     */
     template <typename T>
-    uint32_t GetConf(const std::string &section, const std::string &configKey, T &configVal);
+    ConfigCode GetConf(const std::string &section, const std::string &configKey, T &configVal);
 
 private:
-    uint32_t GetUIntConf(const std::string &section, const std::string &configKey, uint32_t &configVal);
+    ConfigCode GetUIntConf(const std::string &section, const std::string &configKey, uint32_t &configVal);
 
-    uint32_t GetULongConf(const std::string &section, const std::string &configKey, uint64_t &configVal);
+    ConfigCode GetULongConf(const std::string &section, const std::string &configKey, uint64_t &configVal);
 
-    uint32_t GetFloatConf(const std::string &section, const std::string &configKey, float &configVal);
+    ConfigCode GetFloatConf(const std::string &section, const std::string &configKey, float &configVal);
 
-    uint32_t GetStringConf(const std::string &section, const std::string &configKey, std::string &configVal);
+    ConfigCode GetStringConf(const std::string &section, const std::string &configKey, std::string &configVal);
 
-    uint32_t GetBoolConf(const std::string &section, const std::string &configKey, bool &configVal);
+    ConfigCode GetBoolConf(const std::string &section, const std::string &configKey, bool &configVal);
 
     std::string configDefaultDir;
     std::string confCliDir;
 };
 
 template <typename T>
-uint32_t ConfModule::GetConf(const std::string &section, const std::string &configKey, T &configVal)
+ConfigCode ConfModule::GetConf(const std::string &section, const std::string &configKey, T &configVal)
 {
     if constexpr (std::is_same_v<T, uint32_t>) {
         return GetUIntConf(section, configKey, configVal);
@@ -69,7 +71,7 @@ uint32_t ConfModule::GetConf(const std::string &section, const std::string &conf
     if constexpr (std::is_same_v<T, bool>) {
         return GetBoolConf(section, configKey, configVal);
     }
-    return 1;
+    return ConfigCode::VALUE_TYPE_NOT_SUPPORTED;
 }
 std::tuple<std::string, std::string, std::string> TrimConf(const std::string &section, const std::string &configKey,
                                                            const std::string &configVal = "");

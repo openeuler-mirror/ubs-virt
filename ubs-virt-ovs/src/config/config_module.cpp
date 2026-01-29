@@ -12,30 +12,30 @@ namespace virt::ovs::config {
 
 const std::string CONFIG_DEFAULT_DIR = "/etc/ubs-virt-ovs";
 
-uint32_t ConfModule::Init()
+ConfigCode ConfModule::Init()
 {
     auto& confMgrRef = ConfigManager::GetInstance();
-    uint32_t ret = confMgrRef.Init(CONFIG_DEFAULT_DIR);
-    if (ret != 0) {
+    const auto ret = confMgrRef.Init(CONFIG_DEFAULT_DIR);
+    if (ret != ConfigCode::OK) {
         return ret;
     }
-    return 0;
+    return ConfigCode::OK;
 }
 
 
 template <typename T>
-uint32_t GetNumConf(const std::string& section, const std::string& configKey, T& configVal)
+ConfigCode GetNumConf(const std::string& section, const std::string& configKey, T& configVal)
 {
     auto [trimSection, trimConfigKey, configValString] = TrimConf(section, configKey, "");
-    uint32_t ret = ConfigManager::GetInstance().GetConf(trimSection, trimConfigKey, configValString);
-    if (ret != 0) {
-        LOG_WARN << "Unable to find section: " << trimSection << ", configKey: " << trimConfigKey << ",ret is : "<< ret;
+    auto ret = ConfigManager::GetInstance().GetConf(trimSection, trimConfigKey, configValString);
+    if (ret != ConfigCode::OK) {
+        LOG_WARN << "Unable to find section: " << trimSection << ", configKey: " << trimConfigKey << ",ret is : "<< static_cast<uint32_t>(ret);;
         return ret;
     }
 
     if (!IsValidNumber(configValString, !std::is_unsigned_v<T>)) {
         LOG_WARN << "Config is invalid number: " << trimSection << ", configKey: " << trimConfigKey;
-        return 1;
+        return ConfigCode::CONFIG_VALUE_INVALID;
     }
 
     try {
@@ -54,49 +54,49 @@ uint32_t GetNumConf(const std::string& section, const std::string& configKey, T&
         }
     } catch (const std::invalid_argument&) {
         LOG_WARN << "Config is invalid argument: " << trimSection << ", configKey: " << trimConfigKey;
-        return 2;
+        return ConfigCode::CONFIG_ARGUMENT_INVALID;
     } catch (const std::out_of_range&) {
         LOG_WARN << "Config is out of range: " << trimSection << ", configKey: " << trimConfigKey;
-        return 3;
+        return ConfigCode::CONFIG_OUT_OF_RANGE;
     }
 
-    return 0;
+    return ConfigCode::OK;
 }
 
-uint32_t ConfModule::GetUIntConf(const std::string& section, const std::string& configKey, uint32_t& configVal)
+ConfigCode ConfModule::GetUIntConf(const std::string& section, const std::string& configKey, uint32_t& configVal)
 {
     return GetNumConf(section, configKey, configVal);
 }
 
-uint32_t ConfModule::GetULongConf(const std::string& section, const std::string& configKey, uint64_t& configVal)
+ConfigCode ConfModule::GetULongConf(const std::string& section, const std::string& configKey, uint64_t& configVal)
 {
     return GetNumConf(section, configKey, configVal);
 }
 
-uint32_t ConfModule::GetFloatConf(const std::string& section, const std::string& configKey, float& configVal)
+ConfigCode ConfModule::GetFloatConf(const std::string& section, const std::string& configKey, float& configVal)
 {
     return GetNumConf(section, configKey, configVal);
 }
 
-uint32_t ConfModule::GetStringConf(const std::string& section, const std::string& configKey,
+ConfigCode ConfModule::GetStringConf(const std::string& section, const std::string& configKey,
                                          std::string& configVal)
 {
     auto [trimSection, trimConfigKey, configValString] = TrimConf(section, configKey, "");
-    uint32_t ret = ConfigManager::GetInstance().GetConf(trimSection, trimConfigKey, configVal);
-    if (ret != 0) {
-        LOG_WARN << "Unable to find section: " << trimSection << ", configKey: " << trimConfigKey << ",ret is : "<< ret;
+    ConfigCode ret = ConfigManager::GetInstance().GetConf(trimSection, trimConfigKey, configVal);
+    if (ret != ConfigCode::OK) {
+        LOG_WARN << "Unable to find section: " << trimSection << ", configKey: " << trimConfigKey << ",ret is : "<< static_cast<uint32_t>(ret);
         return ret;
     }
 
-    return 0;
+    return ConfigCode::OK;
 }
 
-uint32_t ConfModule::GetBoolConf(const std::string& section, const std::string& configKey, bool& configVal)
+ConfigCode ConfModule::GetBoolConf(const std::string& section, const std::string& configKey, bool& configVal)
 {
     auto [trimSection, trimConfigKey, configValString] = TrimConf(section, configKey, "");
-    uint32_t ret = ConfigManager::GetInstance().GetConf(trimSection, trimConfigKey, configValString);
-    if (ret != 0) {
-        LOG_WARN << "Unable to find section: " << trimSection << ", configKey: " << trimConfigKey << ",ret is : "<< ret;
+    ConfigCode ret = ConfigManager::GetInstance().GetConf(trimSection, trimConfigKey, configValString);
+    if (ret != ConfigCode::OK) {
+        LOG_WARN << "Unable to find section: " << trimSection << ", configKey: " << trimConfigKey << ",ret is : "<< static_cast<uint32_t>(ret);
         return ret;
     }
 
@@ -105,11 +105,11 @@ uint32_t ConfModule::GetBoolConf(const std::string& section, const std::string& 
     } else if (configValString == "false") {
         configVal = false;
     } else {
-        LOG_WARN << "Config is invalid " << trimSection << ", configKey: " << trimConfigKey << ",ret is : "<< ret;
-        return 1;
+        LOG_WARN << "Config is invalid " << trimSection << ", configKey: " << trimConfigKey << ",ret is : "<< static_cast<uint32_t>(ret);
+        return ConfigCode::CONFIG_VALUE_INVALID;
     }
 
-    return 0;
+    return ConfigCode::OK;
 }
 
 bool IsValidNumber(const std::string& str, bool allowFloating)

@@ -24,11 +24,11 @@
 namespace virt::ovs::config {
 
 
-uint32_t ConfigManager::Init(const std::string &confDir, const std::string &filePrefix)
+ConfigCode ConfigManager::Init(const std::string &confDir, const std::string &filePrefix)
 {
     std::vector<std::string> filePaths;
-    uint32_t ret = TravelDepthLimitedFiles(filePaths, confDir, 0);
-    if (ret != 0) {
+    auto ret = TravelDepthLimitedFiles(filePaths, confDir, 0);
+    if (ret != ConfigCode::OK) {
         return ret;
     }
 
@@ -45,7 +45,7 @@ uint32_t ConfigManager::Init(const std::string &confDir, const std::string &file
         }
         ret = ParseFile(filePath);
         // 解析文件失败
-        if (ret != 0) {
+        if (ret != ConfigCode::OK) {
             LOG_ERROR << "Warning: Unable to parse file: " << filePath << ".";
         } else {
             fileSet.emplace(filePath);
@@ -62,16 +62,16 @@ uint32_t ConfigManager::Init(const std::string &confDir, const std::string &file
 }
 
 
-uint32_t TravelDepthLimitedFiles(std::vector<std::string>& filePaths, const std::string& path, int depth)
+ConfigCode TravelDepthLimitedFiles(std::vector<std::string>& filePaths, const std::string& path, int depth)
 {
     if (depth > CONFIG_DIR_MAX_DEPTH) {
-        return 1;
+        return ConfigCode::CONFIG_FOLDER_MAX_DEPTH;
     }
 
     DIR* pd = opendir(path.c_str());
     if (pd == nullptr) {
         LOG_WARN << "Unable to open dir " << path;
-        return 2;
+        return ConfigCode::CONFIG_FOLDER_OPEN_ERROR;
     }
     const dirent* dir;
     struct stat statBuf {};
@@ -87,8 +87,8 @@ uint32_t TravelDepthLimitedFiles(std::vector<std::string>& filePaths, const std:
         }
 
         if (S_ISDIR(statBuf.st_mode)) {
-            uint32_t ret = TravelDepthLimitedFiles(filePaths, subFile, depth + 1);
-            if (ret != 0) {
+            ConfigCode ret = TravelDepthLimitedFiles(filePaths, subFile, depth + 1);
+            if (ret != ConfigCode::OK) {
                 closedir(pd);
                 return ret;
             }
@@ -97,35 +97,35 @@ uint32_t TravelDepthLimitedFiles(std::vector<std::string>& filePaths, const std:
         }
     }
     closedir(pd);
-    return 0;
+    return ConfigCode::OK;
 }
 
 
-uint32_t ConfigManager::ParseFile(const std::string& filePath)
+ConfigCode ConfigManager::ParseFile(const std::string& filePath)
 {
     char* canonicalPath = new (std::nothrow) char[PATH_MAX];
     if (canonicalPath == nullptr) {
         std::cerr << "Warning: Memory allocation failed for canonicalPath" << std::endl;
-        return 1;
+        return ConfigCode::MEM_ALLOCATE_ERROR;
     }
     if (realpath(filePath.c_str(), canonicalPath) == nullptr) {
         std::cerr << "Warning: Could not canonicalize file path " << filePath << " ,err: " << std::strerror(errno)
                   << std::endl;
         delete[] canonicalPath;
-        return 1;
+        return ConfigCode::CONFIG_FILE_READ_ERROR;
     }
     delete[] canonicalPath;
     return ReadConfFile(filePath);
 }
 
 
-uint32_t ConfigManager::ReadConfFile(const std::string &filePath)
+ConfigCode ConfigManager::ReadConfFile(const std::string &filePath)
 {
     std::ifstream fileStream(filePath);
     // 文件无法打开
     if (!fileStream.is_open()) {
         std::cerr << "Warning: Can not open file: " << filePath << " to read." << std::endl;
-        return 1;
+        return ConfigCode::CONFIG_FILE_READ_ERROR;
     }
     std::string defaultSection = filePath.substr(filePath.find_last_of("/\\") + 1,
         filePath.size() - filePath.find_last_of("/\\") - 1 - SUFFIX_SIZE);
@@ -138,7 +138,7 @@ uint32_t ConfigManager::ReadConfFile(const std::string &filePath)
         ParseLine(filePath, line, lineCount++, tempSection);
     }
     fileStream.close();
-    return 0;
+    return ConfigCode::OK;
 }
 
 
@@ -230,26 +230,26 @@ void ConfigManager::ParseConf(const std::string& filePath, const std::string& li
     configMap[tempSection][key] = value;
 }
 
-uint32_t ConfigManager::GetConf(const std::string& section, const std::string& configKey, std::string& configVal)
+ConfigCode ConfigManager::GetConf(const std::string& section, const std::string& configKey, std::string& configVal)
 {
-    uint32_t ret = CheckParamValidation(section, configKey, configVal, false);
-    if (ret != 0) {
+    ConfigCode ret = CheckParamValidation(section, configKey, configVal, false);
+    if (ret != ConfigCode::OK) {
         return ret;
     }
 
     // 不存在该section
     if (configMap.find(section) == configMap.end()) {
         LOG_WARN << "Unable to find section: " << section;
-        return 1;
+        return ConfigCode::SECTION_NOT_EXIST;
     }
 
     // section中不存在该key
     if (configMap[section].find(configKey) == configMap[section].end()) {
         LOG_WARN << "Unable to find key: " << configKey << " in section: " << section;
-        return 2;
+        return ConfigCode::CONFIG_KEY_NOT_EXIST;
     }
     configVal = configMap[section][configKey];
-    return 0;
+    return ConfigCode::OK;
 
 }
 
@@ -324,24 +324,24 @@ std::string PathJoin(const std::string& baseDir, const std::string& baseName)
     result += baseName;
     return result;
 }
-uint32_t CheckParamValidation(const std::string& section, const std::string& configKey, const std::string& configVal,
+ConfigCode CheckParamValidation(const std::string& section, const std::string& configKey, const std::string& configVal,
                                 bool checkValue)
 {
 
     // 长度检查
     if (section.size() > CONFIG_SECTION_MAX_FIELD_LENGTH || section.size() < CONFIG_MIN_FIELD_LENGTH) {
         LOG_WARN << "Section length invalid";
-        return 4;
+        return ConfigCode::SECTION_LENGTH_INVALID;
     }
     if (configKey.size() > CONFIG_KEY_MAX_FIELD_LENGTH || configKey.size() < CONFIG_MIN_FIELD_LENGTH) {
         LOG_WARN << "Key length invalid";
-        return 5;
+        return ConfigCode::KEY_LENGTH_INVALID;
     }
     if ((configVal.empty() || configVal.size() > CONFIG_VALUE_MAX_FIELD_LENGTH) && checkValue) {
         LOG_WARN << "Value length too long or too short";
-        return 6;
+        return ConfigCode::VALUE_LENGTH_INVALID;
     }
-    return 0;
+    return ConfigCode::OK;
 }
 
 } // namespace virt::ovs::config

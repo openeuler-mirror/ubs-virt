@@ -20,6 +20,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "config_common_def.h"
+
 namespace virt::ovs::config {
 
 class Format {
@@ -76,25 +78,21 @@ public:
 
     ConfigManager(const ConfigManager &) = delete;
 
-    uint32_t Init(const std::string &confDir, const std::string &filePrefix = "");
-
-    uint32_t Start();
-
-    void Stop();
+    ConfigCode Init(const std::string &confDir, const std::string &filePrefix = "");
 
     /* *
     * @brief 读取单条配置
     * @param[in] section: 配置节
     * @param[in] configKey: 配置参数key
     * @param[out] configVal: 配置参数值
-    * @return uint32_t, 成功返回0, 失败返回非0
+    * @return ConfigCode, 成功返回0, 失败返回非0
     */
-    uint32_t GetConf(const std::string &section, const std::string &configKey, std::string &configVal);
+    ConfigCode GetConf(const std::string &section, const std::string &configKey, std::string &configVal);
 
 private:
     ConfigManager() {}
 
-    uint32_t ParseFile(const std::string &filePath); // 解析文件, 校验文件并读入内存
+    ConfigCode ParseFile(const std::string &filePath); // 解析文件, 校验文件并读入内存
 
     void ParseLine(const std::string &filePath, std::string line, const size_t &lineCount, std::string &tempSection);
     void ParseSection(const std::string &filePath, const std::string &line, const size_t &lineCount,
@@ -102,7 +100,7 @@ private:
     void ParseConf(const std::string &filePath, const std::string &line, const size_t &lineCount,
                    std::string &tempSection);
 
-    uint32_t ReadConfFile(const std::string &filePath); // 读取文件到内存
+    ConfigCode ReadConfFile(const std::string &filePath); // 读取文件到内存
 
     Format format;
     std::unordered_map<std::string, std::vector<std::string>> parseErrors; // 解析错误信息
@@ -115,11 +113,11 @@ std::string Trim(const std::string &str, const std::locale &loc = std::locale{"C
 std::string CatString(const std::vector<std::string> &infoVec, const std::string &delimiter);
 std::string FormatErrorMessage(const std::string &message, size_t lineCount, const std::string &section = "",
                                const std::string &configKey = "", const std::string &configVal = "");
-uint32_t CheckParamValidation(const std::string &section, const std::string &configKey, const std::string &configVal,
+ConfigCode CheckParamValidation(const std::string &section, const std::string &configKey, const std::string &configVal,
                               bool checkValue = false);
 
 bool IsConfFile(const std::string& filename);  // 是否conf文件
-uint32_t TravelDepthLimitedFiles(std::vector<std::string>& filePaths, const std::string& path, int depth);
+ConfigCode TravelDepthLimitedFiles(std::vector<std::string>& filePaths, const std::string& path, int depth);
 bool CheckNoIllegalChars(const std::string& str, bool isConfigVal = false);
 std::string PathJoin(const std::string& baseDir, const std::string& baseName);  // 获取路径
 } // namespace virt::ovs::config
