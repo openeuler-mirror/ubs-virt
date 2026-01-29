@@ -28,8 +28,17 @@ inline constexpr int DEFAULT_QPS_LIMIT = 100;
 inline constexpr int MAX_EPOLL_EVENTS = 64;
 inline constexpr int EPOLL_WAIT_TIMEOUT = 1000;
 inline constexpr int LISTEN_BACK_LOG = 128;
+inline constexpr int MAX_BUFFER_SIZE = 1024;
 
 using ConnPtr = std::shared_ptr<Connection>;
+
+struct PeerIdentity {
+    uid_t uid;
+    gid_t gid;
+    pid_t pid;
+
+    std::string username;
+};
 
 class AuthManager {
 public:

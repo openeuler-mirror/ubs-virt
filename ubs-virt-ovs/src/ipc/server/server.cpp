@@ -95,7 +95,7 @@ bool Server::InitListenSocket()
     }
     unlink(socketPath_.c_str());
 
-    if (bind(listenFd_, (sockaddr *)&addr, sizeof(addr)) < 0 || listen(listenFd_, LISTEN_BACK_LOG) < 0) {
+    if (bind(listenFd_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0 || listen(listenFd_, LISTEN_BACK_LOG) < 0) {
         LOG_ERROR << "bind/listen failed" << strerror(errno);
         close(listenFd_);
         listenFd_ = -1;
@@ -135,7 +135,7 @@ std::string Server::UidToUsername(uid_t uid)
 
     long bufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
     if (bufSize < 0) {
-        bufSize = 1024;
+        bufSize = MAX_BUFFER_SIZE;
     }
     std::vector<char> buf(bufSize);
     if (getpwuid_r(uid, &pwd, buf.data(), bufSize, &result) != 0 || result == nullptr) {
@@ -168,12 +168,12 @@ void Server::AcceptClients()
             continue;
         }
 
-        id.uid_ = cred.uid;
-        id.gid_ = cred.gid;
-        id.pid_ = cred.pid;
-        id.username_ = UidToUsername(id.uid_);
-        if (id.username_.empty()) {
-            LOG_ERROR << "Username is empty for uid " << id.uid_;
+        id.uid = cred.uid;
+        id.gid = cred.gid;
+        id.pid = cred.pid;
+        id.username = UidToUsername(id.uid);
+        if (id.username.empty()) {
+            LOG_ERROR << "Username is empty for uid " << id.uid;
             continue;
         }
         SetNonBlock(client);
@@ -189,7 +189,7 @@ void Server::AcceptClients()
             close(client);
             continue;
         }
-        LOG_INFO << "accepted client, fd=" << client << " uid=" << id.uid_ << " user=" << id.username_;
+        LOG_INFO << "accepted client, fd=" << client << " uid=" << id.uid << " user=" << id.username;
     }
 }
 
@@ -253,10 +253,12 @@ bool Server::HandleWriteEvent(Connection &conn, int fd) const
 
 void Server::CloseConnection(int fd)
 {
-    LOG_INFO << "CloseConnection fd=" << fd;
+    const int closeFd = fd;
     epoll_ctl(epollFd_, EPOLL_CTL_DEL, fd, nullptr);
     close(fd);
-    conns_.erase(fd);
+    fd = -1;
+    conns_.erase(closeFd);
+    LOG_INFO << "closed fd=" << closeFd;
 }
 
 void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
@@ -273,7 +275,7 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
     const auto &id = conn->Identity();
     config::ConfModule &conf = config::ConfModule::GetInstance();
     if (!AuthManager::Authorize(id, ipcReq, conf)) {
-        LOG_ERROR << "Permission denied: uid=" << id.uid_ << ", method=" << ipcReq.method_
+        LOG_ERROR << "Permission denied: uid=" << id.uid << ", method=" << ipcReq.method_
                   << " service=" << ipcReq.service_;
         resp.code_ = static_cast<int32_t>(VirtIPCCode::PERMISSION_DENIED);
     } else {
@@ -308,7 +310,7 @@ bool AuthManager::ContainsString(const std::string &s, const std::string &key)
 bool AuthManager::Authorize(const PeerIdentity &id, const IpcRequest &req, config::ConfModule &conf)
 {
     std::string authority;
-    auto ret = conf.GetConf("auth", id.username_, authority);
+    auto ret = conf.GetConf("auth", id.username, authority);
     if (ret != config::ConfigCode::OK) {
         LOG_ERROR << "AuthManager::Authorize failed, ret=" << static_cast<uint32_t>(ret);
         return false;

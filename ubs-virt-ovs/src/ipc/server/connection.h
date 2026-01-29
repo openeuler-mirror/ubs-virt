@@ -18,13 +18,6 @@
 #include <string>
 
 namespace virt::ovs::ipc::server {
-struct PeerIdentity {
-    uid_t uid_;
-    gid_t gid_;
-    pid_t pid_;
-
-    std::string username_;
-};
 class Connection {
 public:
     enum class State {

@@ -41,7 +41,7 @@ bool Connection::HandleRead()
 bool Connection::HandleReadLen()
 {
     uint32_t lenBE;
-    ssize_t n = read(fd_, ((char *) &lenBE) + lenRead_, sizeof(lenBE) - lenRead_);
+    ssize_t n = read(fd_, (reinterpret_cast<char *>(&lenBE)) + lenRead_, sizeof(lenBE) - lenRead_);
 
     if (n > 0) {
         lenRead_ += n;
@@ -88,7 +88,8 @@ bool Connection::HandleReadBody()
     }
 
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG_DEBUG << "fd= " << fd_ << " READ_BODY EAGAIN or EWOULDBLOCK， current= " << readBuf_.size() << "/" << expectLen_;
+        LOG_DEBUG << "fd= " << fd_ << " READ_BODY EAGAIN or EWOULDBLOCK， current= "
+                  << readBuf_.size() << "/" << expectLen_;
         return true;
     }
     LOG_WARN << "fd= " << fd_ << " READ_BODY error, errno=" << errno << " errMsg=" << strerror(errno);
