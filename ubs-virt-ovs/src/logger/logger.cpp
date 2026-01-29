@@ -41,9 +41,9 @@ std::ofstream &LogFile()
     return ofs;
 }
 
-std::mutex &LogMutex()
+std::recursive_mutex &LogMutex()
 {
-    static std::mutex m;
+    static std::recursive_mutex m;
     return m;
 }
 
@@ -175,7 +175,7 @@ void RotateLogFile()
     std::string oldLogFile;
 
     {
-        std::lock_guard<std::mutex> lock(LogMutex());
+        std::lock_guard<std::recursive_mutex> lock(LogMutex());
 
         std::string newLogFile = std::string(LOG_DIR) + "/virt-ovs_" + ts + ".log";
         std::ofstream newOfs(newLogFile, std::ios::out | std::ios::app);
@@ -241,7 +241,7 @@ void Logger::Submit()
     oss << "[" << file_ << ":" << func_ << ":" << line_ << "] ";
     oss << ss_.str() << "\n";
 
-    std::lock_guard<std::mutex> lock(LogMutex());
+    std::lock_guard<std::recursive_mutex> lock(LogMutex());
 
     InitLogFile();
     auto &ofs = LogFile();

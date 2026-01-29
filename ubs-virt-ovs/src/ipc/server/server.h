@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "config_module.h"
 #include "connection.h"
 #include "dispatcher.h"
 #include "thread_pool.h"
@@ -35,7 +36,8 @@ public:
     struct UserRule {
         std::unordered_set<std::string> services_;
     };
-    static bool Authorize(const PeerIdentity &id, const IpcRequest &req);
+    static bool Authorize(const PeerIdentity &id, const IpcRequest &req, config::ConfModule &conf);
+    static bool ContainsString(const std::string &s, const std::string &key);
 
 private:
     std::unordered_map<std::string, UserRule> userRules_;
@@ -60,6 +62,7 @@ private:
     void CloseConnection(int fd);
     bool PrepareSocketDir() const;
 
+    static std::string UidToUsername(uid_t uid);
     std::string socketPath_;
     int listenFd_{-1};
     int epollFd_{-1};

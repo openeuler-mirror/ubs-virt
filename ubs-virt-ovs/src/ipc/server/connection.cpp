@@ -100,10 +100,15 @@ bool Connection::HandleWrite()
     if (writeBuf_.empty()) {
         return true;
     }
+
     ssize_t n = write(fd_, writeBuf_.data(), writeBuf_.size());
-    if (n <= 0) {
+    if (n < 0) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            return true;
+        }
         return false;
     }
+    writeBuf_.erase(0, n);
 
     if (writeBuf_.empty()) {
         state_ = State::READ_LEN;

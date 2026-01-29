@@ -10,7 +10,6 @@
  * See the Mulan PSL v2 for more details.
  */
 #include "server.h"
-#include "config_module.h"
 #include "logger.h"
 #include "virt_ipc_code.h"
 
@@ -129,7 +128,7 @@ bool Server::InitEpoll()
     return true;
 }
 
-std::string UidToUsername(uid_t uid)
+std::string Server::UidToUsername(uid_t uid)
 {
     struct passwd pwd;
     struct passwd *result = nullptr;
@@ -220,9 +219,9 @@ bool Server::HandleReadEvent(const ConnPtr &conn, int fd)
 
         std::string req = conn->TakeRequest();
         if (!pool_.TryEnqueue([this, conn, req = std::move(req)]() mutable {
-            LOG_DEBUG << "HandleBusiness scheduled fd=" << conn->Fd() << " tid=" << std::this_thread::get_id();
-            this->HandleBusiness(conn, std::move(req));
-        })) {
+                LOG_DEBUG << "HandleBusiness scheduled fd=" << conn->Fd() << " tid=" << std::this_thread::get_id();
+                this->HandleBusiness(conn, std::move(req));
+            })) {
             LOG_WARN << "ThreadPool full, drop request, fd=" << fd;
             return false;
         }
@@ -272,7 +271,8 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
               << ", payload_size=" << ipcReq.payload_.size();
 
     const auto &id = conn->Identity();
-    if (!AuthManager::Authorize(id, ipcReq)) {
+    config::ConfModule &conf = config::ConfModule::GetInstance();
+    if (!AuthManager::Authorize(id, ipcReq, conf)) {
         LOG_ERROR << "Permission denied: uid=" << id.uid_ << ", method=" << ipcReq.method_
                   << " service=" << ipcReq.service_;
         resp.code_ = static_cast<int32_t>(VirtIPCCode::PERMISSION_DENIED);
@@ -293,7 +293,7 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
               << ", payload_size=" << resp.payload_.size();
 }
 
-bool containsString(const std::string &s, const std::string &key)
+bool AuthManager::ContainsString(const std::string &s, const std::string &key)
 {
     std::stringstream ss(s);
     std::string item;
@@ -305,16 +305,16 @@ bool containsString(const std::string &s, const std::string &key)
     return false;
 }
 
-bool AuthManager::Authorize(const PeerIdentity &id, const IpcRequest &req)
+bool AuthManager::Authorize(const PeerIdentity &id, const IpcRequest &req, config::ConfModule &conf)
 {
     std::string authority;
-    auto ret = config::ConfModule::GetInstance().GetConf("auth", id.username_, authority);
-    if (ret != 0) {
-        LOG_ERROR << "AuthManager::Authorize failed, ret=" << ret;
+    auto ret = conf.GetConf("auth", id.username_, authority);
+    if (ret != config::ConfigCode::OK) {
+        LOG_ERROR << "AuthManager::Authorize failed, ret=" << static_cast<uint32_t>(ret);
         return false;
     }
     LOG_INFO << "AuthManager::Authorize authority=" << authority;
-    return containsString(authority, req.service_);
+    return ContainsString(authority, req.service_);
 }
 
 void Server::Loop()
