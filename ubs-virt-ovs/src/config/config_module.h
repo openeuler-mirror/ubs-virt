@@ -18,17 +18,11 @@
 #include "config_common_def.h"
 
 namespace virt::ovs::config {
-struct configItem {
-    std::string section{};
-    std::string key{};
-    std::string value{};
-};
-
-class ConfModule {
+class ConfigModule {
 public:
-    static ConfModule &GetInstance()
+    static ConfigModule &GetInstance()
     {
-        static ConfModule instance;
+        static ConfigModule instance;
         return instance;
     }
     ConfigCode Init();
@@ -58,7 +52,7 @@ private:
 };
 
 template <typename T>
-ConfigCode ConfModule::GetConf(const std::string &section, const std::string &configKey, T &configVal)
+ConfigCode ConfigModule::GetConf(const std::string &section, const std::string &configKey, T &configVal)
 {
     if constexpr (std::is_same_v<T, uint32_t>) {
         return GetUIntConf(section, configKey, configVal);

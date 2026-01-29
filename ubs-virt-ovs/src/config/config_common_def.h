@@ -42,10 +42,7 @@ enum class ConfigCode : uint32_t {
     CONFIG_ARGUMENT_INVALID = 2007,
     CONFIG_OUT_OF_RANGE = 2008,
 
-
-
     MEM_ALLOCATE_ERROR = 3001,
-
 };
 } // namespace virt::ovs::config
 #endif // UBSVIRTOVS_CONFIG_COMMON_DEF_H

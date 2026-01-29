@@ -23,7 +23,6 @@
 
 namespace virt::ovs::config {
 
-
 ConfigCode ConfigManager::Init(const std::string &confDir, const std::string &filePrefix)
 {
     std::vector<std::string> filePaths;
@@ -61,20 +60,19 @@ ConfigCode ConfigManager::Init(const std::string &confDir, const std::string &fi
     return ret;
 }
 
-
-ConfigCode TravelDepthLimitedFiles(std::vector<std::string>& filePaths, const std::string& path, int depth)
+ConfigCode TravelDepthLimitedFiles(std::vector<std::string> &filePaths, const std::string &path, int depth)
 {
     if (depth > CONFIG_DIR_MAX_DEPTH) {
         return ConfigCode::CONFIG_FOLDER_MAX_DEPTH;
     }
 
-    DIR* pd = opendir(path.c_str());
+    DIR *pd = opendir(path.c_str());
     if (pd == nullptr) {
         LOG_WARN << "Unable to open dir " << path;
         return ConfigCode::CONFIG_FOLDER_OPEN_ERROR;
     }
-    const dirent* dir;
-    struct stat statBuf {};
+    const dirent *dir;
+    struct stat statBuf{};
     while ((dir = readdir(pd)) != nullptr) {
         std::string dName = dir->d_name;
         if (dName == "." || dName == "..") {
@@ -100,10 +98,9 @@ ConfigCode TravelDepthLimitedFiles(std::vector<std::string>& filePaths, const st
     return ConfigCode::OK;
 }
 
-
-ConfigCode ConfigManager::ParseFile(const std::string& filePath)
+ConfigCode ConfigManager::ParseFile(const std::string &filePath)
 {
-    char* canonicalPath = new (std::nothrow) char[PATH_MAX];
+    char *canonicalPath = new (std::nothrow) char[PATH_MAX];
     if (canonicalPath == nullptr) {
         std::cerr << "Warning: Memory allocation failed for canonicalPath" << std::endl;
         return ConfigCode::MEM_ALLOCATE_ERROR;
@@ -118,7 +115,6 @@ ConfigCode ConfigManager::ParseFile(const std::string& filePath)
     return ReadConfFile(filePath);
 }
 
-
 ConfigCode ConfigManager::ReadConfFile(const std::string &filePath)
 {
     std::ifstream fileStream(filePath);
@@ -128,7 +124,7 @@ ConfigCode ConfigManager::ReadConfFile(const std::string &filePath)
         return ConfigCode::CONFIG_FILE_READ_ERROR;
     }
     std::string defaultSection = filePath.substr(filePath.find_last_of("/\\") + 1,
-        filePath.size() - filePath.find_last_of("/\\") - 1 - SUFFIX_SIZE);
+                                                 filePath.size() - filePath.find_last_of("/\\") - 1 - SUFFIX_SIZE);
     std::string tempSection = Trim(defaultSection);
 
     // 逐行读取
@@ -141,9 +137,8 @@ ConfigCode ConfigManager::ReadConfFile(const std::string &filePath)
     return ConfigCode::OK;
 }
 
-
-void ConfigManager::ParseLine(const std::string& filePath, std::string line, const size_t& lineCount,
-                                  std::string& tempSection)
+void ConfigManager::ParseLine(const std::string &filePath, std::string line, const size_t &lineCount,
+                              std::string &tempSection)
 {
     if (lineCount > CONFIG_MAX_LINES) {
         parseErrors[filePath].emplace_back("Warning: Maximum line count exceeded.");
@@ -165,9 +160,8 @@ void ConfigManager::ParseLine(const std::string& filePath, std::string line, con
     }
 }
 
-
-void ConfigManager::ParseSection(const std::string& filePath, const std::string& line, const size_t& lineCount,
-                                     std::string& tempSection)
+void ConfigManager::ParseSection(const std::string &filePath, const std::string &line, const size_t &lineCount,
+                                 std::string &tempSection)
 {
     std::string section = std::regex_replace(line, SECTION_CHARS, R"($1)");
     // 长度不合法
@@ -192,8 +186,8 @@ void ConfigManager::ParseSection(const std::string& filePath, const std::string&
     }
 }
 
-void ConfigManager::ParseConf(const std::string& filePath, const std::string& line, const size_t& lineCount,
-                                  std::string& tempSection)
+void ConfigManager::ParseConf(const std::string &filePath, const std::string &line, const size_t &lineCount,
+                              std::string &tempSection)
 {
     size_t pos = line.find('=');
     std::string key = line.substr(0, pos);
@@ -209,7 +203,7 @@ void ConfigManager::ParseConf(const std::string& filePath, const std::string& li
             " to " + std::to_string(CONFIG_VALUE_MAX_FIELD_LENGTH) + ").";
         parseErrors[filePath].emplace_back(FormatErrorMessage(message, lineCount, "", key, value));
         return;
-        }
+    }
     // 含有非法字符
     if (!CheckNoIllegalChars(key)) {
         std::string message = "Warning: Section's key has illegal character.";
@@ -230,7 +224,7 @@ void ConfigManager::ParseConf(const std::string& filePath, const std::string& li
     configMap[tempSection][key] = value;
 }
 
-ConfigCode ConfigManager::GetConf(const std::string& section, const std::string& configKey, std::string& configVal)
+ConfigCode ConfigManager::GetConf(const std::string &section, const std::string &configKey, std::string &configVal)
 {
     ConfigCode ret = CheckParamValidation(section, configKey, configVal, false);
     if (ret != ConfigCode::OK) {
@@ -250,12 +244,10 @@ ConfigCode ConfigManager::GetConf(const std::string& section, const std::string&
     }
     configVal = configMap[section][configKey];
     return ConfigCode::OK;
-
 }
 
-
-std::string FormatErrorMessage(const std::string& message, size_t lineCount, const std::string& section,
-                               const std::string& configKey, const std::string& configVal)
+std::string FormatErrorMessage(const std::string &message, size_t lineCount, const std::string &section,
+                               const std::string &configKey, const std::string &configVal)
 {
     std::ostringstream oss;
     oss << message << " Line: " << std::to_string(lineCount) << ".";
@@ -270,9 +262,6 @@ std::string FormatErrorMessage(const std::string& message, size_t lineCount, con
     }
     return oss.str();
 }
-
-
-
 
 std::string CatString(const std::vector<std::string> &infoVec, const std::string &delimiter)
 {
@@ -306,11 +295,11 @@ std::string Trim(const std::string &str, const std::locale &loc)
     s.erase(std::find_if(s.rbegin(), s.rend(), [&loc](char ch) { return !std::isspace(ch, loc); }).base(), s.end());
     return s;
 }
-bool IsConfFile(const std::string& filename)
+bool IsConfFile(const std::string &filename)
 {
     return filename.size() > SUFFIX_SIZE && filename.compare(filename.size() - SUFFIX_SIZE, SUFFIX_SIZE, ".conf") == 0;
 }
-std::string PathJoin(const std::string& baseDir, const std::string& baseName)
+std::string PathJoin(const std::string &baseDir, const std::string &baseName)
 {
     if (baseDir.empty()) {
         return baseName;
@@ -324,10 +313,9 @@ std::string PathJoin(const std::string& baseDir, const std::string& baseName)
     result += baseName;
     return result;
 }
-ConfigCode CheckParamValidation(const std::string& section, const std::string& configKey, const std::string& configVal,
+ConfigCode CheckParamValidation(const std::string &section, const std::string &configKey, const std::string &configVal,
                                 bool checkValue)
 {
-
     // 长度检查
     if (section.size() > CONFIG_SECTION_MAX_FIELD_LENGTH || section.size() < CONFIG_MIN_FIELD_LENGTH) {
         LOG_WARN << "Section length invalid";

@@ -11,17 +11,17 @@
  */
 #include <regex>
 
-#include "config_module.h"
 #include "config_manager.h"
+#include "config_module.h"
 #include "logger.h"
 
 namespace virt::ovs::config {
 
 const std::string CONFIG_DEFAULT_DIR = "/etc/ubs-virt-ovs";
 
-ConfigCode ConfModule::Init()
+ConfigCode ConfigModule::Init()
 {
-    auto& confMgrRef = ConfigManager::GetInstance();
+    auto &confMgrRef = ConfigManager::GetInstance();
     const auto ret = confMgrRef.Init(CONFIG_DEFAULT_DIR);
     if (ret != ConfigCode::OK) {
         return ret;
@@ -29,14 +29,15 @@ ConfigCode ConfModule::Init()
     return ConfigCode::OK;
 }
 
-
 template <typename T>
-ConfigCode GetNumConf(const std::string& section, const std::string& configKey, T& configVal)
+ConfigCode GetNumConf(const std::string &section, const std::string &configKey, T &configVal)
 {
     auto [trimSection, trimConfigKey, configValString] = TrimConf(section, configKey, "");
     auto ret = ConfigManager::GetInstance().GetConf(trimSection, trimConfigKey, configValString);
     if (ret != ConfigCode::OK) {
-        LOG_WARN << "Unable to find section: " << trimSection << ", configKey: " << trimConfigKey << ",ret is : "<< static_cast<uint32_t>(ret);;
+        LOG_WARN << "Unable to find section: " << trimSection << ", configKey: " << trimConfigKey
+                 << ",ret is : " << static_cast<uint32_t>(ret);
+        ;
         return ret;
     }
 
@@ -59,10 +60,10 @@ ConfigCode GetNumConf(const std::string& section, const std::string& configKey, 
                 throw std::invalid_argument("Invalid argument: Configuring non-integer types.");
             }
         }
-    } catch (const std::invalid_argument&) {
+    } catch (const std::invalid_argument &) {
         LOG_WARN << "Config is invalid argument: " << trimSection << ", configKey: " << trimConfigKey;
         return ConfigCode::CONFIG_ARGUMENT_INVALID;
-    } catch (const std::out_of_range&) {
+    } catch (const std::out_of_range &) {
         LOG_WARN << "Config is out of range: " << trimSection << ", configKey: " << trimConfigKey;
         return ConfigCode::CONFIG_OUT_OF_RANGE;
     }
@@ -70,40 +71,41 @@ ConfigCode GetNumConf(const std::string& section, const std::string& configKey, 
     return ConfigCode::OK;
 }
 
-ConfigCode ConfModule::GetUIntConf(const std::string& section, const std::string& configKey, uint32_t& configVal)
+ConfigCode ConfigModule::GetUIntConf(const std::string &section, const std::string &configKey, uint32_t &configVal)
 {
     return GetNumConf(section, configKey, configVal);
 }
 
-ConfigCode ConfModule::GetULongConf(const std::string& section, const std::string& configKey, uint64_t& configVal)
+ConfigCode ConfigModule::GetULongConf(const std::string &section, const std::string &configKey, uint64_t &configVal)
 {
     return GetNumConf(section, configKey, configVal);
 }
 
-ConfigCode ConfModule::GetFloatConf(const std::string& section, const std::string& configKey, float& configVal)
+ConfigCode ConfigModule::GetFloatConf(const std::string &section, const std::string &configKey, float &configVal)
 {
     return GetNumConf(section, configKey, configVal);
 }
 
-ConfigCode ConfModule::GetStringConf(const std::string& section, const std::string& configKey,
-                                         std::string& configVal)
+ConfigCode ConfigModule::GetStringConf(const std::string &section, const std::string &configKey, std::string &configVal)
 {
     auto [trimSection, trimConfigKey, configValString] = TrimConf(section, configKey, "");
     ConfigCode ret = ConfigManager::GetInstance().GetConf(trimSection, trimConfigKey, configVal);
     if (ret != ConfigCode::OK) {
-        LOG_WARN << "Unable to find section: " << trimSection << ", configKey: " << trimConfigKey << ",ret is : "<< static_cast<uint32_t>(ret);
+        LOG_WARN << "Unable to find section: " << trimSection << ", configKey: " << trimConfigKey
+                 << ",ret is : " << static_cast<uint32_t>(ret);
         return ret;
     }
 
     return ConfigCode::OK;
 }
 
-ConfigCode ConfModule::GetBoolConf(const std::string& section, const std::string& configKey, bool& configVal)
+ConfigCode ConfigModule::GetBoolConf(const std::string &section, const std::string &configKey, bool &configVal)
 {
     auto [trimSection, trimConfigKey, configValString] = TrimConf(section, configKey, "");
     ConfigCode ret = ConfigManager::GetInstance().GetConf(trimSection, trimConfigKey, configValString);
     if (ret != ConfigCode::OK) {
-        LOG_WARN << "Unable to find section: " << trimSection << ", configKey: " << trimConfigKey << ",ret is : "<< static_cast<uint32_t>(ret);
+        LOG_WARN << "Unable to find section: " << trimSection << ", configKey: " << trimConfigKey
+                 << ",ret is : " << static_cast<uint32_t>(ret);
         return ret;
     }
 
@@ -112,14 +114,15 @@ ConfigCode ConfModule::GetBoolConf(const std::string& section, const std::string
     } else if (configValString == "false") {
         configVal = false;
     } else {
-        LOG_WARN << "Config is invalid " << trimSection << ", configKey: " << trimConfigKey << ",ret is : "<< static_cast<uint32_t>(ret);
+        LOG_WARN << "Config is invalid " << trimSection << ", configKey: " << trimConfigKey
+                 << ",ret is : " << static_cast<uint32_t>(ret);
         return ConfigCode::CONFIG_VALUE_INVALID;
     }
 
     return ConfigCode::OK;
 }
 
-bool IsValidNumber(const std::string& str, bool allowFloating)
+bool IsValidNumber(const std::string &str, bool allowFloating)
 {
     try {
         if (allowFloating) {
@@ -129,13 +132,13 @@ bool IsValidNumber(const std::string& str, bool allowFloating)
 
         std::regex re(R"(^[1-9]\d*$|^0$)");
         return std::regex_match(str, re);
-    } catch (const std::regex_error& e) {
+    } catch (const std::regex_error &e) {
         return false;
     }
 }
-std::tuple<std::string, std::string, std::string> TrimConf(const std::string& section, const std::string& configKey,
-                                                           const std::string& configVal)
+std::tuple<std::string, std::string, std::string> TrimConf(const std::string &section, const std::string &configKey,
+                                                           const std::string &configVal)
 {
     return {Trim(section), Trim(configKey), Trim(configVal)};
 }
-}
+} // namespace virt::ovs::config

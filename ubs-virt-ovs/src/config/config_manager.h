@@ -32,10 +32,10 @@ public:
     const std::string charCommentSemicolon; // 参数注释（分号）
     const std::string charCommentHash;      // 参数注释（警号）
 
-    explicit Format(std::string section_start = "[", std::string section_end = "]", std::string assign = "=",
+    explicit Format(std::string sectionStart = "[", std::string sectionEnd = "]", std::string assign = "=",
                     std::string commentSemicolon = ";", std::string commentHash = "#")
-        : charSectionStart(std::move(section_start)),
-          charSectionEnd(std::move(section_end)),
+        : charSectionStart(std::move(sectionStart)),
+          charSectionEnd(std::move(sectionEnd)),
           charAssign(std::move(assign)),
           charCommentSemicolon(std::move(commentSemicolon)),
           charCommentHash(std::move(commentHash))
@@ -114,12 +114,12 @@ std::string CatString(const std::vector<std::string> &infoVec, const std::string
 std::string FormatErrorMessage(const std::string &message, size_t lineCount, const std::string &section = "",
                                const std::string &configKey = "", const std::string &configVal = "");
 ConfigCode CheckParamValidation(const std::string &section, const std::string &configKey, const std::string &configVal,
-                              bool checkValue = false);
+                                bool checkValue = false);
 
-bool IsConfFile(const std::string& filename);  // 是否conf文件
-ConfigCode TravelDepthLimitedFiles(std::vector<std::string>& filePaths, const std::string& path, int depth);
-bool CheckNoIllegalChars(const std::string& str, bool isConfigVal = false);
-std::string PathJoin(const std::string& baseDir, const std::string& baseName);  // 获取路径
+bool IsConfFile(const std::string &filename); // 是否conf文件
+ConfigCode TravelDepthLimitedFiles(std::vector<std::string> &filePaths, const std::string &path, int depth);
+bool CheckNoIllegalChars(const std::string &str, bool isConfigVal = false);
+std::string PathJoin(const std::string &baseDir, const std::string &baseName); // 获取路径
 } // namespace virt::ovs::config
 
 #endif // UBSVIRTOVS_CONFIG_MANAGER_H

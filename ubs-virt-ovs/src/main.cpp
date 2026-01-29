@@ -9,9 +9,9 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "config_module.h"
 #include "logger.h"
 #include "server.h"
-#include "config_module.h"
 
 #include <atomic>
 #include <chrono>
@@ -41,9 +41,10 @@ void InstallSignalHandler()
 
 int main()
 {
-    const virt::ovs::config::ConfigCode ret = virt::ovs::config::ConfModule::GetInstance().Init();
-    if (ret !=virt::ovs::config::ConfigCode::OK) {
-        LOG_ERROR<< "config module start failed, ret is :" << static_cast<uint32_t>(ret);;
+    const virt::ovs::config::ConfigCode ret = virt::ovs::config::ConfigModule::GetInstance().Init();
+    if (ret != virt::ovs::config::ConfigCode::OK) {
+        LOG_ERROR << "config module start failed, ret is :" << static_cast<uint32_t>(ret);
+        ;
     }
     InstallSignalHandler();
     LOG_INFO << "Process starting";
