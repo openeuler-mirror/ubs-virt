@@ -42,7 +42,8 @@ uint64_t ns_now(void)
 /// The input must be less than 1000000000.
 void ns_sleep(uint64_t ns)
 {
-    struct timespec req, rem;
+    struct timespec req;
+    struct timespec rem;
     req.tv_sec = 0;
     req.tv_nsec = ns;
     while (nanosleep(&req, &rem) == -1) {
@@ -61,8 +62,8 @@ void restore_streams(rtStream_t stream)
     }
 
     if (g_cache_streams.num_streams >= MAX_STREAMS_PER_PROCESS) {
-        LOG_ERROR("Failed to add stream %p to the cache. Maximum capacity (%d) reached.\n",
-        (void*)stream, MAX_STREAMS_PER_PROCESS);
+        LOG_ERROR("Failed to add stream %p to the cache. Maximum capacity (%d) reached.",
+            (void*)stream, MAX_STREAMS_PER_PROCESS);
         return;
     }
 
@@ -266,9 +267,9 @@ void *vnpu_scheduler_thread(void *arg)
         if (owner != g_vnpu_id) {
             if (!is_vnpu_alive(owner)){
                 select_next_owner();
-                }
-                ns_sleep(WAITING_SLEEP_PERIOD);
-                continue;
+            }
+            ns_sleep(WAITING_SLEEP_PERIOD);
+            continue;
         }
 
         uint8_t turn_id = atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]);
@@ -285,7 +286,7 @@ void *vnpu_scheduler_thread(void *arg)
         }
 
         // if (previous scheduler not successed)
-        if (atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]) == turn_id){
+        if (atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]) == turn_id) {
             // Only the slice of the main process is considered.
             // Multi-process in the same vNPU is an unrecommended scenario and should be avoided as much as possible.
             if (flag) {
