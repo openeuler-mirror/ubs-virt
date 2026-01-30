@@ -100,18 +100,12 @@ ConfigCode TravelDepthLimitedFiles(std::vector<std::string> &filePaths, const st
 
 ConfigCode ConfigManager::ParseFile(const std::string &filePath)
 {
-    char *canonicalPath = new (std::nothrow) char[PATH_MAX];
-    if (canonicalPath == nullptr) {
-        std::cerr << "Warning: Memory allocation failed for canonicalPath" << std::endl;
-        return ConfigCode::MEM_ALLOCATE_ERROR;
-    }
-    if (realpath(filePath.c_str(), canonicalPath) == nullptr) {
+    std::vector<char> buffer(PATH_MAX);
+    if (realpath(filePath.c_str(), buffer.data()) == nullptr) {
         std::cerr << "Warning: Could not canonicalize file path " << filePath << " ,err: " << std::strerror(errno)
                   << std::endl;
-        delete[] canonicalPath;
         return ConfigCode::CONFIG_FILE_READ_ERROR;
     }
-    delete[] canonicalPath;
     return ReadConfFile(filePath);
 }
 
@@ -163,6 +157,7 @@ void ConfigManager::ParseLine(const std::string &filePath, std::string line, con
 void ConfigManager::ParseSection(const std::string &filePath, const std::string &line, const size_t &lineCount,
                                  std::string &tempSection)
 {
+    const std::regex SECTION_CHARS(R"(\[\s*(.*?)\s*\])");
     std::string section = std::regex_replace(line, SECTION_CHARS, R"($1)");
     // 长度不合法
     if (section.size() < CONFIG_MIN_FIELD_LENGTH || section.size() > CONFIG_SECTION_MAX_FIELD_LENGTH) {
@@ -280,6 +275,8 @@ std::string CatString(const std::vector<std::string> &infoVec, const std::string
 
 bool CheckNoIllegalChars(const std::string &str, bool isConfigVal)
 {
+    const std::regex NON_VAL_CHARS(R"(^[a-zA-Z0-9._-]+$)");
+    const std::regex VAL_CHARS(R"(^[a-zA-Z0-9._:,/;\-]+$)");
     const std::regex &legalChars = isConfigVal ? VAL_CHARS : NON_VAL_CHARS;
 
     if (str.empty()) {

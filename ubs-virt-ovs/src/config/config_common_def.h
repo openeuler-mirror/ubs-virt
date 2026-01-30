@@ -11,7 +11,6 @@
  */
 #ifndef UBSVIRTOVS_CONFIG_COMMON_DEF_H
 #define UBSVIRTOVS_CONFIG_COMMON_DEF_H
-#include <regex>
 
 namespace virt::ovs::config {
 constexpr int CONFIG_MAX_LINES = 1000;
@@ -20,11 +19,7 @@ constexpr int CONFIG_KEY_MAX_FIELD_LENGTH = 32;
 constexpr int CONFIG_VALUE_MAX_FIELD_LENGTH = 255;
 constexpr int CONFIG_MIN_FIELD_LENGTH = 1;
 constexpr int CONFIG_DIR_MAX_DEPTH = 10;
-const uint8_t SUFFIX_SIZE = 5; // .conf后缀长度
-const std::string DELIMITER = "/";
-const std::regex SECTION_CHARS(R"(\[\s*(.*?)\s*\])");
-const std::regex NON_VAL_CHARS(R"(^[a-zA-Z0-9._-]+$)");
-const std::regex VAL_CHARS(R"(^[a-zA-Z0-9._:,/;\-]+$)");
+const uint8_t SUFFIX_SIZE = 5; // .conf suffix size
 enum class ConfigCode : uint32_t {
     OK = 0,
 

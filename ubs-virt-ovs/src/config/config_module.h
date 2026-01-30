@@ -25,7 +25,7 @@ public:
         static ConfigModule instance;
         return instance;
     }
-    ConfigCode Init();
+    ConfigCode Init(const std::string &CONFIG_DIR);
     /**
     * @brief 读取配置
     * @param [in] section: 配置节
@@ -48,7 +48,6 @@ private:
     ConfigCode GetBoolConf(const std::string &section, const std::string &configKey, bool &configVal);
 
     std::string configDefaultDir;
-    std::string confCliDir;
 };
 
 template <typename T>

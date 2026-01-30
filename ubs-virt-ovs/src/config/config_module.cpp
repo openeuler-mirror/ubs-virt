@@ -11,18 +11,16 @@
  */
 #include <regex>
 
-#include "config_manager.h"
-#include "config_module.h"
 #include "logger.h"
+#include "config_module.h"
+#include "config_manager.h"
 
 namespace virt::ovs::config {
 
-const std::string CONFIG_DEFAULT_DIR = "/etc/ubs-virt-ovs";
-
-ConfigCode ConfigModule::Init()
+ConfigCode ConfigModule::Init(const std::string &CONFIG_DIR)
 {
     auto &confMgrRef = ConfigManager::GetInstance();
-    const auto ret = confMgrRef.Init(CONFIG_DEFAULT_DIR);
+    const auto ret = confMgrRef.Init(CONFIG_DIR);
     if (ret != ConfigCode::OK) {
         return ret;
     }

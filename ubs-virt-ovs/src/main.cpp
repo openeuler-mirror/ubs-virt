@@ -41,10 +41,10 @@ void InstallSignalHandler()
 
 int main()
 {
-    const virt::ovs::config::ConfigCode ret = virt::ovs::config::ConfigModule::GetInstance().Init();
-    if (ret != virt::ovs::config::ConfigCode::OK) {
-        LOG_ERROR << "config module start failed, ret is :" << static_cast<uint32_t>(ret);
-        ;
+    namespace config = virt::ovs::config;
+    const config::ConfigCode ret = config::ConfigModule::GetInstance().Init("/etc/ubs-virt-ovs");
+    if (ret != config::ConfigCode::OK) {
+        LOG_ERROR << "Config module start failed, ret is :" << static_cast<uint32_t>(ret);
     }
     InstallSignalHandler();
     LOG_INFO << "Process starting";
