@@ -26,8 +26,9 @@ bool Connection::HandleRead()
 {
     while (true) {
         if (state_ == State::READ_LEN) {
-            if (!HandleReadLen())
+            if (!HandleReadLen()) {
                 return false;
+            }
         }
         if (state_ == State::READ_BODY) {
             if (!HandleReadBody()) {
@@ -41,8 +42,8 @@ bool Connection::HandleRead()
 bool Connection::HandleReadLen()
 {
     uint32_t lenBE;
-    ssize_t n = read(fd_, (reinterpret_cast<char *>(&lenBE)) + lenRead_, sizeof(lenBE) - lenRead_);
-
+    char* buf = static_cast<char *>(static_cast<void*>(&lenBE));
+    ssize_t n = read(fd_, buf + lenRead_, sizeof(lenBE) - lenRead_);
     if (n > 0) {
         lenRead_ += n;
         if (lenRead_ < sizeof(lenBE)) {

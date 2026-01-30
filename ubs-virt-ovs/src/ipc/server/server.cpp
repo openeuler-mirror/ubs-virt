@@ -95,7 +95,8 @@ bool Server::InitListenSocket()
     }
     unlink(socketPath_.c_str());
 
-    if (bind(listenFd_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0 || listen(listenFd_, LISTEN_BACK_LOG) < 0) {
+    if (bind(listenFd_, static_cast<sockaddr*>(static_cast<void*>(&addr)), sizeof(addr)) < 0 ||
+            listen(listenFd_, LISTEN_BACK_LOG) < 0) {
         LOG_ERROR << "bind/listen failed" << strerror(errno);
         close(listenFd_);
         listenFd_ = -1;
