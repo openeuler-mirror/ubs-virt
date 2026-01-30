@@ -1,0 +1,85 @@
+/*
+* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* ubs-virt-ovs is licensed under Mulan PSL v2.
+* You can use this software according to the terms and conditions of the Mulan PSL v2.
+* You may obtain a copy of Mulan PSL v2 at:
+*          http://license.coscl.org.cn/MulanPSL2
+* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+* See the Mulan PSL v2 for more details.
+*/
+
+#include "log.h"
+#include "runtime_hook.h"
+#include "mem_limiter.h"
+
+RUNTIME_HOOK_DEFINE(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t modelueId)
+{
+    LOG_DEBUG("hook mem rtMalloc size:%" PRIu64, size);
+    int ret = guard_memory(size);
+    if (ret != ENPU_SUCCESS) {
+        return ret;
+    }
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtMalloc, devPtr, size, type, moduleId);
+}
+
+RUNTIME_HOOK_DEFINE(rtMallocCached, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t modelueId)
+{
+    LOG_DEBUG("hook mem rtMallocCached size:%" PRIu64, size);
+    int ret = guard_memory(size);
+    if (ret != ENPU_SUCCESS) {
+        return ret;
+    }
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtMallocCached, devPtr, size, type, moduleId);
+}
+
+RUNTIME_HOOK_DEFINE(rtDvppMalloc, void **devPtr, uint64_t size, uint16_t modelueId)
+{
+    LOG_DEBUG("hook mem rtDvppMalloc size:%" PRIu64, size);
+    int ret = guard_memory(size);
+    if (ret != ENPU_SUCCESS) {
+        return ret;
+    }
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtDvppMalloc, devPtr, size, moduleId);
+}
+
+RUNTIME_HOOK_DEFINE(rtDvppMallocWithFlag, void **devPtr, uint64_t size, uint32_t flag, const uint16_t modelueId)
+{
+    LOG_DEBUG("hook mem rtDvppMallocWithFlag size:%" PRIu64, size);
+    int ret = guard_memory(size);
+    if (ret != ENPU_SUCCESS) {
+        return ret;
+    }
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtDvppMallocWithFlag, devPtr, size, flag, moduleId);
+}
+
+RUNTIME_HOOK_DEFINE(rtMemAlloc, void **devPtr, uint64_t size, rtMallocPolicy policy, rtMallocAdvise advise, rtMallocConfig_t *cfg)
+{
+    LOG_DEBUG("hook mem rtMemAlloc size:%" PRIu64, size);
+    int ret = guard_memory(size);
+    if (ret != ENPU_SUCCESS) {
+        return ret;
+    }
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtMemAlloc, devPtr, size, policy, advise, cfg);
+}
+
+RUNTIME_HOOK_DEFINE(rtMemAllocManaged, void **ptr, uint64_t size, uint32_t flag, const uint16_t modelueId)
+{
+    LOG_DEBUG("hook mem rtMemAllocManaged size:%" PRIu64, size);
+    int ret = guard_memory(size);
+    if (ret != ENPU_SUCCESS) {
+        return ret;
+    }
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtMemAllocManaged, ptr, size, flag, modelueId);
+}
+
+RUNTIME_HOOK_DEFINE(rtMallocPhysical, rtDrvMemHandle *handle, size_t size, rtDrvMemProp_t *prop, uint32_t flags)
+{
+    LOG_DEBUG("hook mem rtMallocPhysical size:%zd", size);
+    int ret = guard_memory(size);
+    if (ret != ENPU_SUCCESS) {
+        return ret;
+    }
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtMallocPhysical, handle, size, prop, flags);
+}
