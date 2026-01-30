@@ -32,7 +32,7 @@ void load_rt_libraries(void)
 RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
 {
     LOG_DEBUG("hook init rtSetDevice devId:%" PRIi32, devId);
-    LOG_DEBUG("hook modify cur VNPU_SCHEDULE_PERIOD is: %zd, limit is %zd.", VNPU_SCHEDULE_PERIOD / NS_PER_MS, get_core_limit_quota());
+    LOG_DEBUG("hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.", VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
     enpu_global_init();
     return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDevice, devId);

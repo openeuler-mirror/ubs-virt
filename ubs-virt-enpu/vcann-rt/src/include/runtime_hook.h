@@ -25,7 +25,7 @@ typedef struct {
 
 typedef rtError_t (*rt_symbol_t)();
 
-#define RUNTIME_HOOK_ENUM(x) HOOK_##_M_X64
+#define RUNTIME_HOOK_ENUM(x) HOOK_##x
 
 #define RUNTIME_HOOK_DEFINE(func_name, ...) \
     __attribute__((visibility("default"))) \
@@ -33,9 +33,9 @@ typedef rtError_t (*rt_symbol_t)();
 
 #define RUNTIME_FIND_ENTRY(table, symbol) ({ (table)[RUNTIME_HOOK_ENUM(symbol)].func_ptr;})
 
-#define RUNTIME_HOOK_CALL(table, symbol, ...)
+#define RUNTIME_HOOK_CALL(table, symbol, ...)                             \
 ({     \
-    rt_symbol_t _entry = (rt_symbol_t)RUNTIME_FIND_ENTRY(table, symbol);
+    rt_symbol_t _entry = (rt_symbol_t)RUNTIME_FIND_ENTRY(table, symbol);            \
     if (!_entry) { \
         fprintf(stderr, "HOOK ERROR: %s - %s\n", #symbol, dlerror()); \
     } \
@@ -65,6 +65,7 @@ typedef enum {
     RUNTIME_HOOK_ENUM(rtKernelLaunchEx),
     RUNTIME_HOOK_ENUM(rtKernelLaunchFwk),
     RUNTIME_HOOK_ENUM(rtCpuKernelLaunch),
+    RUNTIME_HOOK_ENUM(rtAicpuKernelLaunch),
     RUNTIME_HOOK_ENUM(rtCpuKernelLaunchWithFlag),
     RUNTIME_HOOK_ENUM(rtAicpuKernelLaunchWithFlag),
     RUNTIME_HOOK_ENUM(rtAicpuKernelLaunchExWithArgs),

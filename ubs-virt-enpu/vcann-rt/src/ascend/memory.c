@@ -14,7 +14,7 @@
 #include "runtime_hook.h"
 #include "mem_limiter.h"
 
-RUNTIME_HOOK_DEFINE(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t modelueId)
+RUNTIME_HOOK_DEFINE(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
 {
     LOG_DEBUG("hook mem rtMalloc size:%" PRIu64, size);
     int ret = guard_memory(size);
@@ -24,7 +24,7 @@ RUNTIME_HOOK_DEFINE(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, co
     return RUNTIME_HOOK_CALL(rt_library_entry, rtMalloc, devPtr, size, type, moduleId);
 }
 
-RUNTIME_HOOK_DEFINE(rtMallocCached, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t modelueId)
+RUNTIME_HOOK_DEFINE(rtMallocCached, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
 {
     LOG_DEBUG("hook mem rtMallocCached size:%" PRIu64, size);
     int ret = guard_memory(size);
@@ -44,7 +44,7 @@ RUNTIME_HOOK_DEFINE(rtDvppMalloc, void **devPtr, uint64_t size, uint16_t modelue
     return RUNTIME_HOOK_CALL(rt_library_entry, rtDvppMalloc, devPtr, size, moduleId);
 }
 
-RUNTIME_HOOK_DEFINE(rtDvppMallocWithFlag, void **devPtr, uint64_t size, uint32_t flag, const uint16_t modelueId)
+RUNTIME_HOOK_DEFINE(rtDvppMallocWithFlag, void **devPtr, uint64_t size, uint32_t flag, const uint16_t moduleId)
 {
     LOG_DEBUG("hook mem rtDvppMallocWithFlag size:%" PRIu64, size);
     int ret = guard_memory(size);
@@ -64,17 +64,17 @@ RUNTIME_HOOK_DEFINE(rtMemAlloc, void **devPtr, uint64_t size, rtMallocPolicy pol
     return RUNTIME_HOOK_CALL(rt_library_entry, rtMemAlloc, devPtr, size, policy, advise, cfg);
 }
 
-RUNTIME_HOOK_DEFINE(rtMemAllocManaged, void **ptr, uint64_t size, uint32_t flag, const uint16_t modelueId)
+RUNTIME_HOOK_DEFINE(rtMemAllocManaged, void **ptr, uint64_t size, uint32_t flag, const uint16_t moduleId)
 {
     LOG_DEBUG("hook mem rtMemAllocManaged size:%" PRIu64, size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
     }
-    return RUNTIME_HOOK_CALL(rt_library_entry, rtMemAllocManaged, ptr, size, flag, modelueId);
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtMemAllocManaged, ptr, size, flag, moduleId);
 }
 
-RUNTIME_HOOK_DEFINE(rtMallocPhysical, rtDrvMemHandle *handle, size_t size, rtDrvMemProp_t *prop, uint32_t flags)
+RUNTIME_HOOK_DEFINE(rtMallocPhysical, rtDrvMemHandle *handle, size_t size, rtDrvMemProp_t *prop, uint64_t flags)
 {
     LOG_DEBUG("hook mem rtMallocPhysical size:%zd", size);
     int ret = guard_memory(size);

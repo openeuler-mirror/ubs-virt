@@ -34,6 +34,7 @@ rt_entry_t rt_library_entry[] = {
     {.name = "rtKernelLaunchEx"},
     {.name = "rtKernelLaunchFwk"},
     {.name = "rtCpuKernelLaunch"},
+    {.name = "rtAicpuKernelLaunch"},
     {.name = "rtCpuKernelLaunchWithFlag"},
     {.name = "rtAicpuKernelLaunchWithFlag"},
     {.name = "rtAicpuKernelLaunchExWithArgs"},
@@ -42,7 +43,6 @@ rt_entry_t rt_library_entry[] = {
     {.name = "rtLaunchKernelByFuncHandleV3"},
     {.name = "rtVectorCoreKernelLaunchWithHandle"},
     {.name = "rtVectorCoreKernelLaunch"},
-
     {.name = "rtFftsPlusTaskLaunch"},
     {.name = "rtFftsPlusTaskLaunchWithFlag"},
     {.name = "rtFftsTaskLaunch"},
