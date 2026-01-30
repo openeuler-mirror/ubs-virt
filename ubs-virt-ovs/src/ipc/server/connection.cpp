@@ -41,14 +41,21 @@ bool Connection::HandleRead()
 
 bool Connection::HandleReadLen()
 {
-    uint32_t lenBE;
-    char* buf = static_cast<char *>(static_cast<void*>(&lenBE));
-    ssize_t n = read(fd_, buf + lenRead_, sizeof(lenBE) - lenRead_);
+    static constexpr size_t kLenSize = sizeof(uint32_t);
+    if (readBuf_.empty()) {
+        readBuf_.resize(kLenSize, '\0');
+    }
+    ssize_t n = read(fd_, readBuf_.data() + lenRead_, kLenSize - lenRead_);
     if (n > 0) {
         lenRead_ += n;
-        if (lenRead_ < sizeof(lenBE)) {
+        if (lenRead_ < kLenSize) {
             LOG_DEBUG << "fd= " << fd_ << " READ_LEN partial, lenRead_=" << lenRead_;
             return true;
+        }
+        uint32_t lenBE = 0;
+        errno_t rc  = memcpy_s(&lenBE, sizeof(lenBE), readBuf_.data(), sizeof(lenBE));
+        if (rc != EOK) {
+            LOG_WARN << "fd=" << fd_ << " READ_LEN error, rc=" << rc;
         }
 
         expectLen_ = ntohl(lenBE);
