@@ -19,6 +19,8 @@ namespace virt::ovs::service::urma {
 using namespace virt::ovs::msg;
 using namespace virt::ovs::ubse::urma;
 
+constexpr uint32_t GB_TO_MB = 1024;
+
 class UrmaService : public Service {
 public:
     std::string Name() const override;
@@ -31,6 +33,16 @@ private:
 
 private:
     UrmaUtility &urmaUtil_;
+
+    static uint32_t GbToMb(uint32_t bw)
+    {
+        return bw * GB_TO_MB;
+    }
+
+    static uint32_t MbToGb(uint32_t bw)
+    {
+        return bw / GB_TO_MB;
+    }
 };
 
 struct UrmaBandwidthSetRequest : MsgBase {

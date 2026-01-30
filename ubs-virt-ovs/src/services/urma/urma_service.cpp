@@ -41,7 +41,7 @@ IpcResponse UrmaService::HandleSetBandwidth(const std::string &payload)
         LOG_ERROR << "HandleSetBandwidth failed: " << errMsg;
         return BizError<BaseResponse>(ret, errMsg);
     }
-    uint32_t res = urmaUtil_.SetBandWidth(request.name_, request.minBandwidth_, request.maxBandwidth_);
+    uint32_t res = urmaUtil_.SetBandWidth(request.name_, GbToMb(request.minBandwidth_), GbToMb(request.maxBandwidth_));
     if (res != 0) {
         LOG_ERROR << "set bandwidth failed,name is " << request.name_ << ",res=" << res;
         return BizError<BaseResponse>(VirtIPCCode::UBSE_ERROR, "call ubse failed");
@@ -66,7 +66,7 @@ IpcResponse UrmaService::HandleGetBandwidth(const std::string &payload)
         LOG_ERROR << "get bandwidth from ubse failed,name is " << request.name_ << ",res=" << res;
         return BizError<UrmaBandwidthGetResponse>(VirtIPCCode::UBSE_ERROR, "call ubse failed");
     }
-    return Ok(UrmaBandwidthGetResponse(minBandwidth, maxBandwidth));
+    return Ok(UrmaBandwidthGetResponse(MbToGb(minBandwidth), MbToGb(maxBandwidth)));
 }
 
 IpcResponse UrmaService::HandleResetBandwidth(const std::string &payload)

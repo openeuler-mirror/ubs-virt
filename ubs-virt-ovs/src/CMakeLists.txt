@@ -34,22 +34,25 @@ target_link_libraries(ubs-virt-ovs PRIVATE
 )
 
 install(TARGETS ubs-virt-ovs
-    RUNTIME DESTINATION bin
+        RUNTIME DESTINATION bin
 )
 
 if (BUILD_TESTS)
     SET(TEST_BIN_DIR "${CMAKE_BINARY_DIR}/test")
+    target_compile_definitions(ubs-virt-ovs-core
+            PRIVATE DISABLE_SERVICE_AUTO_REGISTER
+    )
     target_compile_options(ubs-virt-ovs-core PRIVATE --coverage -O0 -g)
     target_link_libraries(ubs-virt-ovs-core PUBLIC --coverage)
     set_target_properties(ubs-virt-ovs-core PROPERTIES OUTPUT_NAME "ubs-virt-ovs-core")
     if (COVERAGE)
         add_custom_target(coverage
-            COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}
-            COMMAND ${TEST_BIN_DIR}/virt_ut --gtest_output=xml:${CMAKE_CURRENT_BINARY_DIR}/coverage/test_detail.xml
-            COMMAND lcov --capture --directory ${CMAKE_BINARY_DIR} --directory ${CMAKE_CURRENT_BINARY_DIR} --output-file coverage.info
-            COMMAND lcov --remove coverage.info '/usr/*' '*/deps/*' '*/test/*' --output-file coverage.info
-            COMMAND genhtml coverage.info --output-directory coverage_html
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}
+                COMMAND ${TEST_BIN_DIR}/virt_ut --gtest_output=xml:${CMAKE_CURRENT_BINARY_DIR}/coverage/test_detail.xml
+                COMMAND lcov --capture --directory ${CMAKE_BINARY_DIR} --directory ${CMAKE_CURRENT_BINARY_DIR} --output-file coverage.info
+                COMMAND lcov --remove coverage.info '/usr/*' '*/deps/*' '*/test/*' --output-file coverage.info
+                COMMAND genhtml coverage.info --output-directory coverage_html
+                WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         )
     endif ()
 
