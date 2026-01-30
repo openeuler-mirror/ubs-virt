@@ -1,0 +1,484 @@
+/*
+* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* ubs-virt-ovs is licensed under Mulan PSL v2.
+* You can use this software according to the terms and conditions of the Mulan PSL v2.
+* You may obtain a copy of Mulan PSL v2 at:
+*          http://license.coscl.org.cn/MulanPSL2
+* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+* See the Mulan PSL v2 for more details.
+*/
+#include "common.h"
+#include "dcmi_wrapper.h"
+#include "runtime_hook.h"
+#include "npu_manager.h"
+#include "utils.h"
+#include "hash_map.h"
+#include "core_limiter.h"
+
+vnpu_time_slice_sched_t *g_vnpu_sched_context = NULL;
+uint8_t g_vnpu_id = 0;
+volatile int g_terminate = 0;
+atomic_bool g_sched_locking = false;
+atomic_int hasModelExecuteSync = 0;
+pthread_mutex_t g_sched_mutex;
+
+cache_streams_t g_cache_streams = {
+    .num_streams = 0,
+    .streams = {NULL}
+};
+
+HashMap *stream_map = NULL;
+HashMap *event_map = NULL;
+
+uint64_t ns_now(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * NS_PER_S + (uint64_t)ts.tv_nsec;
+}
+
+/// The input must be less than 1000000000.
+void ns_sleep(uint64_t ns)
+{
+    struct timespec req, rem;
+    req.tv_sec = 0;
+    req.tv_nsec = ns;
+    while (nanosleep(&req, &rem) == -1) {
+        if (errno == EINTR) {
+            req = rem;
+        } else {
+            break;
+        }
+    }
+}
+
+void restore_streams(rtStream_t stream)
+{
+    if (hashmap_contains(stream_map, (void*)stream)) {
+        return;
+    }
+
+    if (g_cache_streams.num_streams >= MAX_STREAMS_PER_PROCESS) {
+        LOG_ERROR("Failed to add stream %p to the cache. Maximum capacity (%d) reached.\n",
+        (void*)stream, MAX_STREAMS_PER_PROCESS);
+        return;
+    }
+
+    g_cache_streams.streams[g_cache_streams.num_streams++] = stream;
+    if (hashmap_put(stream_map, (void*)stream, NULL, 0, false) == -1) {
+        LOG_ERROR("Failed to put stream %p to the hash map.\n", (void*)stream);
+        return;
+    }
+    LOG_DEBUG("Stream %p is added in stream hash map.", (void*)stream);
+    return;
+}
+
+void core_limiter(rtStream_t stream, core_function func, void* param)
+{
+    if (!is_core_limit()) {
+        return;
+    }
+    while (!g_terminate) {
+        if (atomic_load(&g_sched_locking)) {
+            ns_sleep(WAITING_SLEEP_PERIOD);
+            continue;
+        }
+        LOG_DEBUG("Core limiter is waiting for the mutex lock.");
+        int rc = pthread_mutex_lock(&g_sched_mutex);
+        if (rc != 0) {
+            LOG_ERROR("Failed to lock mutex, error code=%d", rc);
+            return;
+        }
+        LOG_DEBUG("The mutex lock is successfully obtained.");
+        restore_streams(stream);
+        if (func != NULL) {
+            func(param, stream);
+        }
+        pthread_mutex_unlock(&g_sched_mutex);
+        atomic_store(&g_vnpu_sched_context->last_kernel_time_ns[g_vnpu_id], ns_now());
+        return;
+    }
+
+    return;
+}
+
+bool check_timeout(atomic_uint_fast64_t* timestamp, uint64_t timeout_period)
+{
+    uint64_t last = atomic_load(timestamp);
+    uint64_t now = ns_now();
+    return (now < last) || (now - last < timeout_period);
+}
+
+inline bool is_vnpu_alive(int vnpu_id)
+{
+    return check_timeout(&g_vnpu_sched_context->last_alive_time_ns[vnpu_id], VNPU_TIMEOUT_PERIOD);
+}
+
+inline bool vnpu_has_work(int vnpu_id)
+{
+    return check_timeout(&g_vnpu_sched_context->last_kernel_time_ns[vnpu_id], VNPU_NO_TASK_TIMEOUT_PERIOD);
+}
+
+bool vnpu_sched_need_skip(void)
+{
+    schedule_policy_t sched_policy = get_sched_policy();
+    if (sched_policy != SCHED_POLICY_ELASTIC) {
+        return false;
+    }
+
+    if (vnpu_has_work(g_vnpu_id)) {
+        return false;
+    }
+
+    return true;
+}
+
+void vnpu_idling(void)
+{
+    if (get_sched_policy() != SCHED_POLICY_FIXED_SHARE) {
+        return;
+    }
+
+    int npu_core_limit_quota = 0;
+    for (int i = 0; i < MAX_VNPU; ++i) {
+        if (is_vnpu_alive(i)) {
+            npu_core_limit_quota += atomic_load(&g_vnpu_sched_context->vnpu_core_limit_quota[i]);
+        }
+        if (npu_core_limit_quota > HUNDRED_PERCENT) {
+            return;
+        }
+    }
+    ns_sleep((HUNDRED_PERCENT - npu_core_limit_quota) * VNPU_SCHEULE_PERIOD / HUNDRED_PERCENT);
+}
+
+void select_next_owner(void)
+{
+    int next_vnpu_id = -1;
+    int vnpu_id = atomic_load(&g_vnpu_sched_context->owner);
+
+    for (int i = 1; i <= MAX_VNPU; ++i) {
+        if (is_vnpu_alive((vnpu_id + i) % MAX_VNPU)) {
+            next_vnpu_id = (vnpu_id + i) % MAX_VNPU;
+            break;
+        }
+    }
+
+    if (next_vnpu_id != -1) {
+        if (next_vnpu_id <= vnpu_id) {
+            vnpu_idling();
+        }
+        atomic_store(&g_vnpu_sched_context->owner, next_vnpu_id);
+    }
+
+    return;
+}
+
+void clear_streams(void)
+{
+    int remaining_count = 0;
+    for (int i = 0; i < g_cache_streams.num_streams; ++i) {
+        rtStream_t stm = g_cache_streams.streams[i];
+        bool capture = 0;
+        int rc = hashmap_get_runtime_status(stream_map, (void*)stm, &capture);
+        if (capture) {
+            LOG_DEBUG("Stream %p is in capture, keep in stream cache.", (void*)stm);
+            if (remaining_count < i) {
+                g_cache_streams.streams[remaining_count] = stm;
+                g_cache_streams.streams[i] = NULL;
+            }
+            remaining_count++;
+            continue;
+        }
+        g_cache_streams.streams[i] = NULL;
+        rc = hashmap_remove(stream_map, (void*)stm);
+    }
+    g_cache_streams.num_streams = remaining_count;
+}
+
+void synchronize_all_streams(void)
+{
+    LOG_DEBUG("Stream synchronization num is %d.", g_cache_streams.num_streams);
+    for (int i = 0; i < g_cache_streams.num_streams; ++i) {
+        rtStream_t stm = g_cache_streams.streams[i];
+        bool capture = 0;
+        int rc = hashmap_get_runtime_status(stream_map, (void*)stm, &capture);
+        if (capture) {
+            LOG_DEBUG("Stream %p is in capture, skip synchronization.", (void*)stm);
+            continue;
+        }
+        RUNTIME_HOOK_CALL(rt_library_entry, rtStreamSynchronize, stm);
+        LOG_DEBUG("Stream synchronization end.");
+    }
+}
+
+void compensate_delta_time(void)
+{
+    uint64_t begin = ns_now();
+    synchronize_all_streams();
+    set_core_cur_timeslice(get_core_cur_timeslice() - (ns_now() - begin));
+    clear_streams();
+}
+
+bool add_and_consume_time_slice(void)
+{
+    uint64_t now = ns_now();
+    uint64_t timeslice = get_core_cur_timeslice() + get_core_quota_timeslice();
+    set_core_cur_timeslice(timeslice);
+    if (timeslice <= 0) {
+        return false;
+    }
+
+    uint64_t end = now + timeslice;
+    set_core_cur_timeslice(0ULL);
+    pthread_mutex_unlock(&g_sched_mutex);
+    while (end > now) {
+        now = ns_now();
+        if (vnpu_sched_need_skip()) {
+            break;
+        }
+        ns_sleep(WAITING_SLEEP_PERIOD);
+    }
+
+    atomic_store(&g_sched_locking, true);
+    pthread_mutex_lock(&g_sched_mutex);
+    atomic_store(&g_sched_locking, false);
+    return true;
+}
+
+void *vnpu_scheduler_flush_thread(void *arg)
+{
+    (void)arg;
+    while (!g_terminate) {
+        uint64_t now = ns_now();
+        atomic_store(&g_vnpu_sched_context->last_alive_time_ns[g_vnpu_id], now);
+        ns_sleep(VNPU_FLUSH_PERIOD);
+    }
+}
+
+void *vnpu_scheduler_thread(void *arg)
+{
+    (void)arg;
+    pthread_mutex_lock(&g_sched_mutex);
+    while (!g_terminate) {
+        int owner = atomic_load(&g_vnpu_sched_context->owner);
+        if (owner != g_vnpu_id) {
+            if (!is_vnpu_alive(owner)){
+                select_next_owner();
+                }
+                ns_sleep(WAITING_SLEEP_PERIOD);
+                continue;
+        }
+
+        uint8_t turn_id = atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]);
+        bool flag = add_and_consume_time_slice();
+
+        // Only one thread is accepted.
+        int rc = pthread_mutex_lock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
+        if (rc == EOWNERDEAD) {
+            LOG_INFO("The scheduling process has been detected to exit, and the scheduling is being taken over.")
+            pthread_mutex_consistent(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
+        } else if (rc != 0) {
+            LOG_WARN("Failed to obtain mutex lock, error code=%d.", rc);
+            continue;
+        }
+
+        // if (previous scheduler not successed)
+        if (atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]) == turn_id){
+            // Only the slice of the main process is considered.
+            // Multi-process in the same vNPU is an unrecommended scenario and should be avoided as much as possible.
+            if (flag) {
+                compensate_delta_time();
+            }
+            select_next_owner();
+            atomic_store(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id], turn_id + 1);
+        }
+        pthread_mutex_unlock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
+    }
+    hashmap_destroy(stream_map);
+    hashmap_destroy(event_map);
+}
+
+void share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
+{
+    g_vnpu_sched_context = vnpu_sched_shm;
+    uint64_t begin = ns_now();
+
+    while (!g_terminate) {
+        if (atomic_load(&g_vnpu_sched_context->magic_number) == MAGIC_INITIALIZED) {
+            return;
+        }
+
+        if (atomic_load(&g_vnpu_sched_context->magic_number) == MAGIC_INITIALIZING) {
+            uint64_t now = ns_now();
+            if (now - begin > VNPU_TIMEOUT_PERIOD) {
+                atomic_store(&g_vnpu_sched_context->magic_number, MAGIC_UNINITIALIZED);
+                begin = now;
+            }
+            sched_yield();
+            continue;
+        }
+
+        atomic_store(&g_vnpu_sched_context->magic_number, MAGIC_INITIALIZING);
+        atomic_store(&g_vnpu_sched_context->owner, -1);
+
+        pthread_mutexattr_t attr;
+        pthread_mutexattr_init(&attr);
+        pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+        pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST);
+
+        for (int i = 0; i < MAX_VNPU; ++i) {
+            atomic_store(&g_vnpu_sched_context->last_alive_time_ns[i], 0ULL);
+            atomic_store(&g_vnpu_sched_context->last_kernel_time_ns[i], 0ULL);
+            atomic_store(&g_vnpu_sched_context->vnpu_core_limit_quota[i], 0);
+            atomic_store(&g_vnpu_sched_context->vnpu_schedule_turn[i], 0);
+            pthread_mutex_init(&g_vnpu_sched_context->vnpu_schedule_mutex[i], &attr);
+        }
+
+        pthread_mutexattr_destroy(&attr);
+        atomic_store(&g_vnpu_sched_context->magic_number, MAGIC_INITIALIZED);
+        return;
+    }
+}
+
+int vnpu_scheduler_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
+{
+    g_vnpu_sched_context = vnpu_sched_shm;
+    g_vnpu_id = get_vnpu_id();
+
+    uint8_t aicore_limit_percent = get_core_limit_quota();
+    atomic_store(&g_vnpu_sched_context->vnpu_core_limit_quota[g_vnpu_id], aicore_limit_percent);
+    uint64_t aicore_cur_timesilice = aicore_limit_percent * VNPU_SCHEULE_PERIOD / HUNDRED_PERCENT;
+    set_core_cur_timeslice(aicore_cur_timesilice);
+    set_core_quota_timeslice(aicore_cur_timesilice);
+
+    pthread_t vnpu_scheduler_tid;
+    int rc = pthread_create(&vnpu_scheduler_tid, NULL, vnpu_scheduler_thread, NULL);
+    if (rc != 0) {
+        LOG_ERROR("Failed to create vnpu scheduler thread.");
+        return ENPU_FAIL;
+    }
+
+    pthread_t vnpu_alive_tid;
+    rc = pthread_create(&vnpu_alive_tid, NULL, vnpu_scheduler_flush_thread, NULL);
+    if (rc != 0) {
+        LOG_ERROR("Failed to create vnpu alive thread.")
+        return ENPU_FAIL;
+    }
+    pthread_detach(vnpu_scheduler_tid);
+    pthread_detach(vnpu_alive_tid);
+    return ENPU_SUCCESS;
+}
+
+int aicore_limiter_initialize(void)
+{
+    int rc = ENPU_FAIL;
+    vnpu_time_slice_sched_t *vnpu_sched_shm = NULL;
+    vnpu_sched_shm = map_share_mem(get_vnpu_shm_id(), sizeof(*g_vnpu_sched_context));
+    if (vnpu_sched_shm == NULL) {
+        LOG_ERROR("share memory mmap failed");
+        return ENPU_FAIL;
+    }
+
+    share_mem_init(vnpu_sched_shm);
+    pthread_mutex_init(&g_sched_mutex, NULL);
+
+    rc = vnpu_scheduler_init(vnpu_sched_shm);
+    if (rc != ENPU_SUCCESS) {
+        LOG_ERROR("Failed to initialize vnpu scheduler.");
+        return ENPU_FAIL;
+    }
+
+    stream_map = hashmap_create(MAX_STREAMS_PER_PROCESS);
+    if (!stream_map) {
+        LOG_ERROR("Stream hash map init failed.");
+        return ENPU_FAIL;
+    }
+
+    event_map = hashmap_create(MAX_EVENT_PER_PROCESS);
+    if (!event_map) {
+        LOG_ERROR("Stream hash map init failed.");
+        return ENPU_FAIL;
+    }
+    return rc;
+}
+
+void set_stream_capture(void* param, rtStream_t stream)
+{
+    bool capture = *(bool*)param;
+    if (!capture) {
+        for (int i = 0; i < g_cache_streams.num_streams; ++i) {
+            rtStream_t stm = g_cache_streams.streams[i];
+            void* head_stream = NULL;
+            int rc = hashmap_get_ptr(stream_map, (void*)stm, &head_stream);
+            if (head_stream == (void*)stream) {
+                LOG_DEBUG("Stream %p capture state set to: 0.", (void*)stream);
+                rc = hashmap_put(stream_map, (void*)stm, NULL, 0, false);
+            }
+        }
+    } else {
+        int rc = hashmap_put(stream_map, (void*)stream, (void*)stream, 0, capture);
+    }
+    LOG_DEBUG("Stream %p capture state set to: %d.", (void*)stream, capture ? 1 : 0);
+}
+
+void set_event_wait_status(void* evt, rtStream_t stm)
+{
+    MapValue event_status;
+    int rc = hashmap_get(event_map, evt, &event_status);
+    if (rc == -1) {
+        LOG_ERROR("Error: Event hash map get event %p failed.\n", evt);
+        return;
+    }
+
+    // not capture stream
+    if (event_status.ptr != NULL) {
+        // update capture status by event
+        rc = hashmap_put(stream_map, (void*)stm, event_status.ptr, 0, true);
+        LOG_DEBUG("Stream %p capture state set to: true, because of event.", (void*)stm);
+    }
+}
+
+void set_event_create_status(rtEvent_t evt)
+{
+    int rc = hashmap_put(event_map, (void*)evt, NULL, 0, false);
+    if (rc == -1) {
+        LOG_ERROR("Error: Event hash map put event %p failed.\n", (void*)evt);
+        return;
+    }
+}
+
+void set_event_record_status(rtEvent_t evt, rtStream_t stm)
+{
+    MapValue event_status;
+    int rc = hashmap_get(event_map, (void*)evt, &event_status);
+    void* head_stream = NULL;
+    rc = hashmap_get_ptr(stream_map, (void*)stm, &head_stream);
+    // capture
+    if (head_stream != NULL) {
+        ret = hashmap_put(event_map, (void*)evt, head_stream, 0, true);
+        LOG_DEBUG("Event %p capture status is updated to true in recording.", (void*)evt);
+    }
+}
+
+void remove_stream(void* unused, rtStream_t stm)
+{
+    LOG_DEBUG("Remove stream %p", stm);
+    for (int i = 0; i < g_cache_streams.num_streams; ++i) {
+        if (stm == g_cache_streams.streams[i]) {
+            for (int j = i+1; j < g_cache_streams.num_streams; ++j) {
+                g_cache_streams.streams[j-1] = g_cache_streams.streams[j];
+            }
+            g_cache_streams.num_streams -= 1;
+            hashmap_remove(stream_map, (void*)stm);
+            LOG_DEBUG("Stream position %d removed.", i);
+            break;
+        }
+    }
+}
+
+void set_event_destroy_status(rtEvent_t evt)
+{
+    (void)hashmap_remove(event_map, (void*)evt);
+}
