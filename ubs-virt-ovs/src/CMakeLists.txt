@@ -30,6 +30,7 @@ add_executable(ubs-virt-ovs
 )
 
 target_link_libraries(ubs-virt-ovs PRIVATE
+        securec
         -Wl,--whole-archive ubs-virt-ovs-core -Wl,--no-whole-archive
 )
 

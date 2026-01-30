@@ -15,6 +15,7 @@
 #include <arpa/inet.h>
 #include <sys/epoll.h>
 #include <unistd.h>
+#include <securec.h>
 
 namespace virt::ovs::ipc::server {
 Connection::Connection(int fd) : fd_(fd)
