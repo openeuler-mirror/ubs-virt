@@ -11,18 +11,35 @@
 */
 
 #include "hash_map.h"
+#include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "log.h"
 
-static size_t hash_ptr(void *ptr, size_t capacity) {
+static size_t hash_ptr(void *ptr, size_t capacity)
+{
+    if (capacity == 0) {
+        return 0;
+    }
     uintptr_t addr = (uintptr_t)ptr;
     addr = addr * MOD;
     return addr % capacity;
 }
 
-HashMap* hashmap_create(size_t capacity) {
+HashMap* hashmap_create(size_t capacity)
+{
+    if (capacity == 0) {
+        LOG_ERROR("Hashmap capacity must be greater than 0.");
+        return NULL;
+    }
+    if (capacity > SIZE_MAX / sizeof(HashNode*)) {
+        LOG_ERROR("HashMap capacity too large.");
+        return NULL;
+    }
     HashMap *map = (HashMap*)malloc(sizeof(HashMap));
-    if (!map) return NULL;
+    if (!map) {
+        return NULL;
+    }
 
     map->capacity = capacity;
     map->size = 0;
@@ -36,8 +53,11 @@ HashMap* hashmap_create(size_t capacity) {
     return map;
 }
 
-int hashmap_put(HashMap *map, void *key, void *ptr, bool capture_status) {
-    if (!map || !key) return -1;
+int hashmap_put(HashMap *map, void *key, void *ptr, bool capture_status)
+{
+    if (!map || !key) {
+        return -1;
+    }
 
     size_t idx = hash_ptr(key, map->capacity);
     HashNode *node = map->buckets[idx];
@@ -53,7 +73,9 @@ int hashmap_put(HashMap *map, void *key, void *ptr, bool capture_status) {
     }
 
     HashNode *new_node = (HashNode*)malloc(sizeof(HashNode));
-    if (!new_node) return -1;
+    if (!new_node) {
+        return -1;
+    }
 
     new_node->key = key;
     new_node->value.ptr = ptr;
@@ -65,8 +87,11 @@ int hashmap_put(HashMap *map, void *key, void *ptr, bool capture_status) {
     return 0;
 }
 
-int hashmap_get(HashMap *map, void *key, MapValue *value) {
-    if (!map || !key || !value) return -1;
+int hashmap_get(HashMap *map, void *key, MapValue *value)
+{
+    if (!map || !key || !value) {
+        return -1;
+    }
 
     size_t idx = hash_ptr(key, map->capacity);
     HashNode *node = map->buckets[idx];
@@ -82,8 +107,11 @@ int hashmap_get(HashMap *map, void *key, MapValue *value) {
     return -1;
 }
 
-int hashmap_get_ptr(HashMap *map, void *key, void **ptr) {
-    if (!map || !key || !ptr) return -1;
+int hashmap_get_ptr(HashMap *map, void *key, void **ptr)
+{
+    if (!map || !key || !ptr) {
+        return -1;
+    }
 
     size_t idx = hash_ptr(key, map->capacity);
     HashNode *node = map->buckets[idx];
@@ -99,8 +127,11 @@ int hashmap_get_ptr(HashMap *map, void *key, void **ptr) {
     return -1;
 }
 
-int hashmap_get_capture_status(HashMap *map, void *key, bool *capture_status) {
-    if (!map || !key || !capture_status) return -1;
+int hashmap_get_capture_status(HashMap *map, void *key, bool *capture_status)
+{
+    if (!map || !key || !capture_status) {
+        return -1;
+    }
 
     size_t idx = hash_ptr(key, map->capacity);
     HashNode *node = map->buckets[idx];
@@ -116,8 +147,11 @@ int hashmap_get_capture_status(HashMap *map, void *key, bool *capture_status) {
     return -1;
 }
 
-int hashmap_remove(HashMap *map, void *key) {
-    if (!map || !key) return -1;
+int hashmap_remove(HashMap *map, void *key)
+{
+    if (!map || !key) {
+        return -1;
+    }
 
     size_t idx = hash_ptr(key, map->capacity);
     HashNode *node = map->buckets[idx];
@@ -141,8 +175,11 @@ int hashmap_remove(HashMap *map, void *key) {
     return -1;
 }
 
-int hashmap_contains(HashMap *map, void *key) {
-    if (!map || !key) return 0;
+int hashmap_contains(HashMap *map, void *key)
+{
+    if (!map || !key) {
+        return 0;
+    }
 
     size_t idx = hash_ptr(key, map->capacity);
     HashNode *node = map->buckets[idx];
@@ -157,12 +194,16 @@ int hashmap_contains(HashMap *map, void *key) {
     return 0;
 }
 
-size_t hashmap_size(HashMap *map) {
+size_t hashmap_size(HashMap *map)
+{
     return map ? map->size : 0;
 }
 
-void hashmap_destroy(HashMap *map) {
-    if (!map) return;
+void hashmap_destroy(HashMap *map)
+{
+    if (!map) {
+        return;
+    }
 
     for (size_t i = 0; i < map->capacity; i++) {
         HashNode *node = map->buckets[i];
