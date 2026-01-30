@@ -34,7 +34,7 @@ RUNTIME_HOOK_DEFINE(rtMallocCached, void **devPtr, uint64_t size, rtMemType_t ty
     return RUNTIME_HOOK_CALL(rt_library_entry, rtMallocCached, devPtr, size, type, moduleId);
 }
 
-RUNTIME_HOOK_DEFINE(rtDvppMalloc, void **devPtr, uint64_t size, uint16_t modelueId)
+RUNTIME_HOOK_DEFINE(rtDvppMalloc, void **devPtr, uint64_t size, uint16_t moduleId)
 {
     LOG_DEBUG("hook mem rtDvppMalloc size:%" PRIu64, size);
     int ret = guard_memory(size);
