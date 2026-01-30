@@ -9,10 +9,11 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "config_module.h"
+
 #include <regex>
 
 #include "config_manager.h"
-#include "config_module.h"
 #include "logger.h"
 
 namespace virt::ovs::config {

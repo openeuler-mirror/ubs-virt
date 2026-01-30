@@ -100,7 +100,7 @@ ConfigCode TravelDepthLimitedFiles(std::vector<std::string> &filePaths, const st
 
 ConfigCode ConfigManager::ParseFile(const std::string &filePath)
 {
-    std::vector<char> buffer(PATH_MAX + NO_1);
+    std::vector<char> buffer(PATH_MAX + NO_1, '\0');
     if (realpath(filePath.c_str(), buffer.data()) == nullptr) {
         std::cerr << "Warning: Could not canonicalize file path " << filePath << " ,err: " << std::strerror(errno)
                   << std::endl;
