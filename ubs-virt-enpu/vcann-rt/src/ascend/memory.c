@@ -83,3 +83,18 @@ RUNTIME_HOOK_DEFINE(rtMallocPhysical, rtDrvMemHandle *handle, size_t size, rtDrv
     }
     return RUNTIME_HOOK_CALL(rt_library_entry, rtMallocPhysical, handle, size, prop, flags);
 }
+
+RUNTIME_HOOK_DEFINE(rtMemGetInfoEx, rtMemInfoType_t memInfoType, size_t *freeSize, size_t *totalSize)
+{
+    size_t quota = get_mem_limit_quota();
+    size_t used;
+    int ret = get_mem_used(&used);
+    if (ret != 0) {
+        LOG_ERROR("get mem used failed");
+        return RT_ERROR_INVALID_VALUE;
+    }
+    size_t remain = quota - used;
+    *freeSize = remain;
+    *totalSize = quota;
+    return RT_ERROR_NONE;
+}

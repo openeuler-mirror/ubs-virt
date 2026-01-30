@@ -25,6 +25,7 @@ rt_entry_t rt_library_entry[] = {
     {.name = "rtMemAlloc"},
     {.name = "rtMemAllocManaged"},
     {.name = "rtMallocPhysical"},
+    {.name = "rtMemGetInfoEx"},
     /* Kernel Part */
     {.name = "rtKernelLaunch"},
     {.name = "rtKernelLaunchWithHandle"},

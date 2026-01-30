@@ -55,6 +55,7 @@ typedef enum {
     RUNTIME_HOOK_ENUM(rtMemAlloc),
     RUNTIME_HOOK_ENUM(rtMemAllocManaged),
     RUNTIME_HOOK_ENUM(rtMallocPhysical),
+    RUNTIME_HOOK_ENUM(rtMemGetInfoEx),
     /* Kernel Part */
     RUNTIME_HOOK_ENUM(rtKernelLaunch),
     RUNTIME_HOOK_ENUM(rtKernelLaunchWithHandle),
