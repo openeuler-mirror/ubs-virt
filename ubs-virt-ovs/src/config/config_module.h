@@ -25,13 +25,13 @@ public:
         static ConfigModule instance;
         return instance;
     }
-    ConfigCode Init(const std::string &CONFIG_DIR);
+    ConfigCode Init(const std::string &configDir);
     /**
-    * @brief 读取配置
-    * @param [in] section: 配置节
-    * @param [in] configKey: 配置参数key
-    * @param [out] configVal: 配置参数值
-    * @return UbseResult, 成功返回0, 失败返回非0
+    * @brief read config file
+    * @param [in] section: config session
+    * @param [in] configKey: config key
+    * @param [out] configVal: config value
+    * @return ConfigCode, return ConfigCode::OK when success
     */
     template <typename T>
     ConfigCode GetConf(const std::string &section, const std::string &configKey, T &configVal);

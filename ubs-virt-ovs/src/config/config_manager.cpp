@@ -33,17 +33,17 @@ ConfigCode ConfigManager::Init(const std::string &confDir, const std::string &fi
 
     std::unique_lock<std::shared_mutex> guard(rwLock);
     for (const auto &filePath : filePaths) {
-        // 文件已加载, 不可重复加载
+        // file is loaded
         if (fileSet.count(filePath)) {
             LOG_ERROR << "Warning: File: " << filePath << "has already been loaded.";
             continue;
         }
-        // 文件前缀非空且与文件名不匹配
+        // file prefix is not null and file name not match
         if (!filePrefix.empty() && filePath.substr(filePath.rfind('/') + 1).find(filePrefix) != 0) {
             continue;
         }
         ret = ParseFile(filePath);
-        // 解析文件失败
+        // parse file failed
         if (ret != ConfigCode::OK) {
             LOG_ERROR << "Warning: Unable to parse file: " << filePath << ".";
         } else {
@@ -100,7 +100,7 @@ ConfigCode TravelDepthLimitedFiles(std::vector<std::string> &filePaths, const st
 
 ConfigCode ConfigManager::ParseFile(const std::string &filePath)
 {
-    std::vector<char> buffer(PATH_MAX);
+    std::vector<char> buffer(PATH_MAX + NO_1);
     if (realpath(filePath.c_str(), buffer.data()) == nullptr) {
         std::cerr << "Warning: Could not canonicalize file path " << filePath << " ,err: " << std::strerror(errno)
                   << std::endl;
@@ -112,7 +112,7 @@ ConfigCode ConfigManager::ParseFile(const std::string &filePath)
 ConfigCode ConfigManager::ReadConfFile(const std::string &filePath)
 {
     std::ifstream fileStream(filePath);
-    // 文件无法打开
+    // failed to open file
     if (!fileStream.is_open()) {
         std::cerr << "Warning: Can not open file: " << filePath << " to read." << std::endl;
         return ConfigCode::CONFIG_FILE_READ_ERROR;
@@ -121,8 +121,8 @@ ConfigCode ConfigManager::ReadConfFile(const std::string &filePath)
                                                  filePath.size() - filePath.find_last_of("/\\") - 1 - SUFFIX_SIZE);
     std::string tempSection = Trim(defaultSection);
 
-    // 逐行读取
-    std::string line; // 存储当前行内容
+    // read by line
+    std::string line; // store current line
     size_t lineCount = 1;
     while (std::getline(fileStream, line) && (lineCount <= (CONFIG_MAX_LINES + 1))) {
         ParseLine(filePath, line, lineCount++, tempSection);
@@ -141,7 +141,7 @@ void ConfigManager::ParseLine(const std::string &filePath, std::string line, con
 
     line = Trim(line);
     size_t equalPos = line.find('=');
-    // 处理注释
+    // ignore annotation
     if (line.empty() || format.IsComment(std::string(1, line.front()))) {
         return;
     }
@@ -159,7 +159,7 @@ void ConfigManager::ParseSection(const std::string &filePath, const std::string 
 {
     const std::regex SECTION_CHARS(R"(\[\s*(.*?)\s*\])");
     std::string section = std::regex_replace(line, SECTION_CHARS, R"($1)");
-    // 长度不合法
+    // length illegal
     if (section.size() < CONFIG_MIN_FIELD_LENGTH || section.size() > CONFIG_SECTION_MAX_FIELD_LENGTH) {
         std::string message = "Warning: The length of section is out of range( " +
                               std::to_string(CONFIG_MIN_FIELD_LENGTH) + " to " +
@@ -167,7 +167,7 @@ void ConfigManager::ParseSection(const std::string &filePath, const std::string 
         parseErrors[filePath].emplace_back(FormatErrorMessage(message, lineCount, section));
         return;
     }
-    // 含有非法字符
+    // illegal char
 
     if (!CheckNoIllegalChars(section)) {
         std::string message = "Warning: Section has illegal character.";
@@ -175,7 +175,7 @@ void ConfigManager::ParseSection(const std::string &filePath, const std::string 
         return;
     }
     tempSection = section;
-    // 首次遇到该section
+    // add key to map when section appears for the first time
     if (configMap.find(tempSection) == configMap.end()) {
         configMap[tempSection];
     }
@@ -189,7 +189,7 @@ void ConfigManager::ParseConf(const std::string &filePath, const std::string &li
     std::string value = line.substr(pos + 1);
     key = Trim(key);
     value = Trim(value);
-    // 长度不合法
+    // illegal length
     if (key.size() > CONFIG_KEY_MAX_FIELD_LENGTH || key.size() < CONFIG_MIN_FIELD_LENGTH ||
         value.size() > CONFIG_VALUE_MAX_FIELD_LENGTH) {
         std::string message =
@@ -199,7 +199,7 @@ void ConfigManager::ParseConf(const std::string &filePath, const std::string &li
         parseErrors[filePath].emplace_back(FormatErrorMessage(message, lineCount, "", key, value));
         return;
     }
-    // 含有非法字符
+    // illegal chars
     if (!CheckNoIllegalChars(key)) {
         std::string message = "Warning: Section's key has illegal character.";
         parseErrors[filePath].emplace_back(FormatErrorMessage(message, lineCount, tempSection, key));
@@ -210,7 +210,7 @@ void ConfigManager::ParseConf(const std::string &filePath, const std::string &li
         parseErrors[filePath].emplace_back(FormatErrorMessage(message, lineCount, tempSection, key, value));
         return;
     }
-    // 重复配置项
+    // duplicate configuration item
     if (configMap[tempSection].find(key) != configMap[tempSection].end()) {
         std::string message = "Warning: Duplicate key in section.";
         parseErrors[filePath].emplace_back(FormatErrorMessage(message, lineCount, tempSection, key));
@@ -226,13 +226,13 @@ ConfigCode ConfigManager::GetConf(const std::string &section, const std::string 
         return ret;
     }
 
-    // 不存在该section
+    // section not exist
     if (configMap.find(section) == configMap.end()) {
         LOG_WARN << "Unable to find section: " << section;
         return ConfigCode::SECTION_NOT_EXIST;
     }
 
-    // section中不存在该key
+    // key not exist in section
     if (configMap[section].find(configKey) == configMap[section].end()) {
         LOG_WARN << "Unable to find key: " << configKey << " in section: " << section;
         return ConfigCode::CONFIG_KEY_NOT_EXIST;
@@ -313,7 +313,7 @@ std::string PathJoin(const std::string &baseDir, const std::string &baseName)
 ConfigCode CheckParamValidation(const std::string &section, const std::string &configKey, const std::string &configVal,
                                 bool checkValue)
 {
-    // 长度检查
+    // length check
     if (section.size() > CONFIG_SECTION_MAX_FIELD_LENGTH || section.size() < CONFIG_MIN_FIELD_LENGTH) {
         LOG_WARN << "Section length invalid";
         return ConfigCode::SECTION_LENGTH_INVALID;

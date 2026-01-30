@@ -26,12 +26,11 @@ namespace virt::ovs::config {
 
 class Format {
 public:
-    const std::string charSectionStart;     // 配置节首字符 [
-    const std::string charSectionEnd;       // 配置节尾字符 [
-    const std::string charAssign;           // 等号
-    const std::string charCommentSemicolon; // 参数注释（分号）
-    const std::string charCommentHash;      // 参数注释（警号）
-
+    const std::string charSectionStart;     // first character for session [
+    const std::string charSectionEnd;       // last character for session [
+    const std::string charAssign;           // equal sign
+    const std::string charCommentSemicolon; // param comment (semicolon)
+    const std::string charCommentHash;      // param comment (hash)
     explicit Format(std::string sectionStart = "[", std::string sectionEnd = "]", std::string assign = "=",
                     std::string commentSemicolon = ";", std::string commentHash = "#")
         : charSectionStart(std::move(sectionStart)),
@@ -81,18 +80,18 @@ public:
     ConfigCode Init(const std::string &confDir, const std::string &filePrefix = "");
 
     /* *
-    * @brief 读取单条配置
-    * @param[in] section: 配置节
-    * @param[in] configKey: 配置参数key
-    * @param[out] configVal: 配置参数值
-    * @return ConfigCode, 成功返回0, 失败返回非0
+    * @brief read single config
+    * @param[in] section: config section
+    * @param[in] configKey: config param key
+    * @param[out] configVal: config param value
+    * @return ConfigCode, success return ConfigCode::OK
     */
     ConfigCode GetConf(const std::string &section, const std::string &configKey, std::string &configVal);
 
 private:
     ConfigManager() {}
 
-    ConfigCode ParseFile(const std::string &filePath); // 解析文件, 校验文件并读入内存
+    ConfigCode ParseFile(const std::string &filePath); // parse file and check, store in memory
 
     void ParseLine(const std::string &filePath, std::string line, const size_t &lineCount, std::string &tempSection);
     void ParseSection(const std::string &filePath, const std::string &line, const size_t &lineCount,
@@ -100,12 +99,12 @@ private:
     void ParseConf(const std::string &filePath, const std::string &line, const size_t &lineCount,
                    std::string &tempSection);
 
-    ConfigCode ReadConfFile(const std::string &filePath); // 读取文件到内存
+    ConfigCode ReadConfFile(const std::string &filePath); // read config file to memory
 
     Format format;
-    std::unordered_map<std::string, std::vector<std::string>> parseErrors; // 解析错误信息
+    std::unordered_map<std::string, std::vector<std::string>> parseErrors; // parse error message
     std::shared_mutex rwLock;
-    ConfigMap configMap; // 全部配置
+    ConfigMap configMap; // store all config
     std::unordered_set<std::string> fileSet;
 };
 
@@ -116,10 +115,10 @@ std::string FormatErrorMessage(const std::string &message, size_t lineCount, con
 ConfigCode CheckParamValidation(const std::string &section, const std::string &configKey, const std::string &configVal,
                                 bool checkValue = false);
 
-bool IsConfFile(const std::string &filename); // 是否conf文件
+bool IsConfFile(const std::string &filename); // judge is conf file
 ConfigCode TravelDepthLimitedFiles(std::vector<std::string> &filePaths, const std::string &path, int depth);
 bool CheckNoIllegalChars(const std::string &str, bool isConfigVal = false);
-std::string PathJoin(const std::string &baseDir, const std::string &baseName); // 获取路径
+std::string PathJoin(const std::string &baseDir, const std::string &baseName); // get confile path
 } // namespace virt::ovs::config
 
 #endif // UBSVIRTOVS_CONFIG_MANAGER_H

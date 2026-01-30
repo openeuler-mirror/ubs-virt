@@ -11,16 +11,16 @@
  */
 #include <regex>
 
-#include "logger.h"
-#include "config_module.h"
 #include "config_manager.h"
+#include "config_module.h"
+#include "logger.h"
 
 namespace virt::ovs::config {
 
-ConfigCode ConfigModule::Init(const std::string &CONFIG_DIR)
+ConfigCode ConfigModule::Init(const std::string &configDir)
 {
     auto &confMgrRef = ConfigManager::GetInstance();
-    const auto ret = confMgrRef.Init(CONFIG_DIR);
+    const auto ret = confMgrRef.Init(configDir);
     if (ret != ConfigCode::OK) {
         return ret;
     }

@@ -19,6 +19,7 @@ constexpr int CONFIG_KEY_MAX_FIELD_LENGTH = 32;
 constexpr int CONFIG_VALUE_MAX_FIELD_LENGTH = 255;
 constexpr int CONFIG_MIN_FIELD_LENGTH = 1;
 constexpr int CONFIG_DIR_MAX_DEPTH = 10;
+constexpr int16_t NO_1 = 1;
 const uint8_t SUFFIX_SIZE = 5; // .conf suffix size
 enum class ConfigCode : uint32_t {
     OK = 0,
