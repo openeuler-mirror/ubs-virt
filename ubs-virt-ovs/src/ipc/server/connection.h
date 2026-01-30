@@ -18,6 +18,7 @@
 #include <string>
 
 namespace virt::ovs::ipc::server {
+inline constexpr int MAX_BODY_BUFFER_SIZE = 4096;
 struct PeerIdentity {
     uid_t uid;
     gid_t gid;

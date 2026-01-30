@@ -80,7 +80,7 @@ bool Connection::HandleReadLen()
 
 bool Connection::HandleReadBody()
 {
-    char buf[4096];
+    char buf[MAX_BODY_BUFFER_SIZE];
     ssize_t n = read(fd_, buf, sizeof(buf));
     if (n > 0) {
         readBuf_.append(buf, n);

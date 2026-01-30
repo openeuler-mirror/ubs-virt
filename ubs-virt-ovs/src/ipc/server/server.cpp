@@ -131,14 +131,14 @@ bool Server::InitEpoll()
 
 std::string Server::UidToUsername(uid_t uid)
 {
-    struct passwd pwd;
-    struct passwd *result = nullptr;
-
     long bufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
     if (bufSize < 0) {
         bufSize = MAX_BUFFER_SIZE;
     }
     std::vector<char> buf(bufSize);
+
+    struct passwd pwd;
+    struct passwd *result = nullptr;
     if (getpwuid_r(uid, &pwd, buf.data(), bufSize, &result) != 0 || result == nullptr) {
         return {};
     }
@@ -160,7 +160,6 @@ void Server::AcceptClients()
             continue;
         }
 
-        PeerIdentity id{};
         ucred cred{};
         socklen_t len = sizeof(cred);
         if (getsockopt(client, SOL_SOCKET, SO_PEERCRED, &cred, &len) < 0) {
@@ -169,6 +168,7 @@ void Server::AcceptClients()
             continue;
         }
 
+        PeerIdentity id{};
         id.uid = cred.uid;
         id.gid = cred.gid;
         id.pid = cred.pid;
@@ -266,8 +266,6 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
 {
     LOG_INFO << "HandleBusiness begin fd=" << conn->Fd() << " tid=" << std::this_thread::get_id();
     IpcRequest ipcReq;
-    IpcResponse resp(static_cast<uint32_t>(VirtIPCCode::OK));
-    VirtMsgPacker packer;
     VirtMsgUnPacker unpacker(req);
     ipcReq.Deserialize(unpacker);
     LOG_DEBUG << "IpcRequest deserialized, service=" << ipcReq.service_ << ", method=" << ipcReq.method_
@@ -275,6 +273,8 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
 
     const auto &id = conn->Identity();
     config::ConfModule &conf = config::ConfModule::GetInstance();
+    IpcResponse resp(static_cast<uint32_t>(VirtIPCCode::OK));
+    VirtMsgPacker packer;
     if (!AuthManager::Authorize(id, ipcReq, conf)) {
         LOG_ERROR << "Permission denied: uid=" << id.uid << ", method=" << ipcReq.method_
                   << " service=" << ipcReq.service_;
@@ -289,7 +289,6 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
         }
     }
 
-    resp.Serialize(packer);
     conn->SetResponse(packer.String(), epollFd_);
 
     LOG_DEBUG << "IpcResponse serialized, fd=" << conn->Fd() << ", code=" << resp.code_
