@@ -100,6 +100,7 @@ int enpu_dcmi_get_device_resource_info(int card_id, int device_id, size_t *used)
         .device_id = device_id,
         .proc_info = proc_info,
         .proc_num = &proc_num,
+        .proc_num = &proc_num,
         .result = ENPU_FAIL};
     
     pthread_t thread;
