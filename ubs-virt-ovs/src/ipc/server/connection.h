@@ -45,7 +45,7 @@ public:
 
     bool HandleRead();
     bool HandleReadLen();
-    bool HandleReadBody();
+    bool HandleReadBody(bool &blocked);
     bool HandleWrite();
 
     bool HasRequest() const;

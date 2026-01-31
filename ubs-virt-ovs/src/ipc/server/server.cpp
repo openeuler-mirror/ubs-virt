@@ -175,6 +175,7 @@ void Server::AcceptClients()
         id.username = UidToUsername(id.uid);
         if (id.username.empty()) {
             LOG_ERROR << "Username is empty for uid " << id.uid;
+            close(client);
             continue;
         }
         SetNonBlock(client);
@@ -279,14 +280,14 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
         LOG_ERROR << "Permission denied: uid=" << id.uid << ", method=" << ipcReq.method_
                   << " service=" << ipcReq.service_;
         resp.code_ = static_cast<int32_t>(VirtIPCCode::PERMISSION_DENIED);
-    } else {
-        try {
-            resp = dispatcher_.Dispatch(ipcReq);
-            resp.Serialize(packer);
-        } catch (const std::exception &e) {
-            LOG_ERROR << "Dispatch request failed: " << e.what();
-            resp.code_ = static_cast<int32_t>(VirtIPCCode::INTERNAL_ERROR);
-        }
+        return;
+    }
+    try {
+        resp = dispatcher_.Dispatch(ipcReq);
+        resp.Serialize(packer);
+    } catch (const std::exception &e) {
+        LOG_ERROR << "Dispatch request failed: " << e.what();
+        resp.code_ = static_cast<int32_t>(VirtIPCCode::INTERNAL_ERROR);
     }
 
     conn->SetResponse(packer.String(), epollFd_);

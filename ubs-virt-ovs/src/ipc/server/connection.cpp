@@ -26,17 +26,30 @@ Connection::Connection(int fd) : fd_(fd)
 bool Connection::HandleRead()
 {
     while (true) {
+        bool progressed = false;
         if (state_ == State::READ_LEN) {
             if (!HandleReadLen()) {
                 return false;
             }
+            progressed = true;
         }
         if (state_ == State::READ_BODY) {
-            if (!HandleReadBody()) {
+            bool blocked = false;
+            if (!HandleReadBody(blocked)) {
                 return false;
             }
+            if (blocked) {
+                return true;
+            }
+            progressed = true;
         }
-        return true;
+        if (!progressed) {
+            LOG_DEBUG << "fd= " << fd_ << " READ_LEN ready";
+            return true;
+        }
+        if (state_ == State::READY) {
+            return true;
+        }
     }
 }
 
@@ -57,6 +70,7 @@ bool Connection::HandleReadLen()
         errno_t rc  = memcpy_s(&lenBE, sizeof(lenBE), readBuf_.data(), sizeof(lenBE));
         if (rc != EOK) {
             LOG_WARN << "fd=" << fd_ << " READ_LEN error, rc=" << rc;
+            return false;
         }
 
         expectLen_ = ntohl(lenBE);
@@ -78,8 +92,9 @@ bool Connection::HandleReadLen()
     return false;
 }
 
-bool Connection::HandleReadBody()
+bool Connection::HandleReadBody(bool &blocked)
 {
+    blocked = false;
     char buf[MAX_BODY_BUFFER_SIZE];
     ssize_t n = read(fd_, buf, sizeof(buf));
     if (n > 0) {
@@ -99,6 +114,7 @@ bool Connection::HandleReadBody()
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
         LOG_DEBUG << "fd= " << fd_ << " READ_BODY EAGAIN or EWOULDBLOCK， current= "
                   << readBuf_.size() << "/" << expectLen_;
+        blocked = true;
         return true;
     }
     LOG_WARN << "fd= " << fd_ << " READ_BODY error, errno=" << errno << " errMsg=" << strerror(errno);
