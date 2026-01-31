@@ -1,5 +1,182 @@
-//
-// Created by h30046606 on 2026/1/29.
-//
+/*
+* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * ubs-virt-ovs is licensed under Mulan PSL v2.
+ * You can use this software according to the terms and conditions of the Mulan PSL v2.
+ * You may obtain a copy of Mulan PSL v2 at:
+ *          http://license.coscl.org.cn/MulanPSL2
+ * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+ * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+ * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ * See the Mulan PSL v2 for more details.
+ */
 
 #include "test_connection.h"
+
+#include <arpa/inet.h>
+#include <io.h>
+#include <sys/socket.h>
+#include <uinstd.h>
+
+using namespace virt::ovs::ipc::server;
+namespace ovs::ut {
+void TestConnection::SetUp()
+{
+    Test::SetUp();
+}
+
+void TestConnection::TearDown()
+{
+    Test::TearDown();
+}
+
+TEST_F(TestConnection, ConstructorAndInitialState)
+{
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+    Connection conn(fds[1]);
+
+    EXPECT_FALSE(conn.HasRequest());
+    EXPECT_FALSE(conn.NeedWrite());
+
+    close(fds[0]);
+    close(fds[1]);
+}
+
+TEST_F(TestConnection, HandleReadLenComplete)
+{
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+    Connection conn(fds[1]);
+
+    uint32_t len = htonl(4);
+    write(fds[0], &len, sizeof(len));
+
+    EXPECT_TRUE(conn.HandleRead());
+    EXPECT_FALSE(conn.HasRequest());
+
+    close(fds[0]);
+    close(fds[1]);
+}
+
+TEST_F(TestConnection, HandleReadBodyComplete)
+{
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+    Connection conn(fds[1]);
+
+    uint32_t len = htonl(4);
+    write(fds[0], &len, sizeof(len));
+    conn.HandleRead();
+
+    write(fds[0], "hallo", 5);
+    EXPECT_TRUE(conn.HasRequest());
+    EXPECT_TRUE(conn.HandleRead());
+
+    std::string req = conn.TakeRequest();
+    EXPECT_EQ("hallo", req);
+
+    close(fds[0]);
+    close(fds[1]);
+}
+
+TEST_F(TestConnection, HandleWriteAndSetResponse)
+{
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+    Connection conn(fds[1]);
+
+    std::string resp = "world";
+    conn.SetResponse(resp, -1);
+    EXPECT_TRUE(conn.NeedWrite());
+
+    while (conn.NeedWrite()) {
+        conn.HandleWrite();
+    }
+
+    EXPECT_FALSE(coon.NeedWrite());
+    conn.ResetAfterWrite();
+
+    close(fds[0]);
+    close(fds[1]);
+}
+
+TEST_F(TestConnection, PartialReadLen)
+{
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+    Connection conn(fds[1]);
+
+    uint32_t len = htonl(6);
+    write(fds[0], reinterpret_cast<char *>(&len), 2);
+    EXPECT_TRUE(conn.HandleRead());
+    EXPECT_FALSE(conn.HasRequest());
+
+    write(fds[0], reinterpret_cast<char *>(&len) + 2, 2);
+    EXPECT_TRUE(conn.HandleRead());
+    EXPECT_FALSE(conn.HasRequest());
+
+    close(fds[0]);
+    close(fds[1]);
+}
+
+TEST_F(TestConnection, PartialReadBody)
+{
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+    Connection conn(fds[1]);
+
+    uint32_t len = htonl(5);
+    write(fds[0], &len, sizeof(len));
+    conn.HandleRead();
+
+    write(fds[0], "he", 2);
+    EXPECT_TRUE(coon.HandleRead());
+    EXPECT_FALSE(conn.HasRequest());
+
+    write(fds[0], "llo", 3);
+    EXPECT_TRUE(coon.HandleRead());
+    EXPECT_TRUE(coon.HasRequest());
+    EXPECT_EQ(conn.TakeRequest(), "hello");
+
+    close(fds[0]);
+    close(fds[1]);
+}
+
+TEST_F(TestConnection, HandleReadLenSpecialBranches)
+{
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNINX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+    Connection conn(fds[1]);
+
+    close(fds[0]);
+    EXPECT_FALSE(conn.HandleReadLen());
+
+    ASSERT_EQ(socketpair(AF_UNINX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+    conn = Connection(fds[1]);
+    EXPECT_TRUE(conn.HandleReadLen());
+
+    close(fds[0]);
+    close(fds[1]);
+    conn = Connection(-1);
+    EXPECT_FALSE(conn.HandleReadLen());
+}
+
+TEST_F(TestConnection, HandleWrite_AllBrabchs_SocketPair)
+{
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNINX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+
+    Connection conn(fds[0]);
+    conn.writeBuf_.clear();
+    EXPECT_TRUE(conn.HandleWrite());
+
+    conn.writeBuf_ = std::string(65536, 'x');
+
+    EXPECT_TRUE(conn.HandleWrite());
+
+    close(fds[0]);
+    conn.writeBuf_ = "data";
+    EXPECT_FALSE(conn.HandleWrite());
+    close(fds[1]);
+}
+}
