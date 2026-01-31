@@ -158,8 +158,8 @@ void ConfigManager::ParseLine(const std::string &filePath, std::string line, con
 void ConfigManager::ParseSection(const std::string &filePath, const std::string &line, const size_t &lineCount,
                                  std::string &tempSection)
 {
-    const std::regex SECTION_CHARS(R"(\[\s*(.*?)\s*\])");
-    std::string section = std::regex_replace(line, SECTION_CHARS, R"($1)");
+    const std::regex sectionChars(R"(\[\s*(.*?)\s*\])");
+    std::string section = std::regex_replace(line, sectionChars, R"($1)");
     // length illegal
     if (section.size() < CONFIG_MIN_FIELD_LENGTH || section.size() > CONFIG_SECTION_MAX_FIELD_LENGTH) {
         std::string message = "Warning: The length of section is out of range( " +
@@ -276,9 +276,9 @@ std::string CatString(const std::vector<std::string> &infoVec, const std::string
 
 bool CheckNoIllegalChars(const std::string &str, bool isConfigVal)
 {
-    const std::regex NON_VAL_CHARS(R"(^[a-zA-Z0-9._-]+$)");
-    const std::regex VAL_CHARS(R"(^[a-zA-Z0-9._:,/;\-]+$)");
-    const std::regex &legalChars = isConfigVal ? VAL_CHARS : NON_VAL_CHARS;
+    const std::regex nonValChars(R"(^[a-zA-Z0-9._-]+$)");
+    const std::regex valChars(R"(^[a-zA-Z0-9._:,/;\-]+$)");
+    const std::regex &legalChars = isConfigVal ? valChars : nonValChars;
 
     if (str.empty()) {
         return true;
