@@ -13,6 +13,7 @@
 
 #include <dirent.h>
 #include <sys/stat.h>
+#include <filesystem>
 #include <fstream>
 #include <mutex>
 #include <regex>
@@ -100,13 +101,13 @@ ConfigCode TravelDepthLimitedFiles(std::vector<std::string> &filePaths, const st
 
 ConfigCode ConfigManager::ParseFile(const std::string &filePath)
 {
-    std::vector<char> buffer(PATH_MAX + NO_1, '\0');
-    if (realpath(filePath.c_str(), buffer.data()) == nullptr) {
-        std::cerr << "Warning: Could not canonicalize file path " << filePath << " ,err: " << std::strerror(errno)
-                  << std::endl;
+    std::error_code ec;
+    const std::filesystem::path canonicalPath = std::filesystem::canonical(filePath, ec);
+    if (ec) {
+        std::cerr << "Warning: Could not canonicalize file path " << filePath << " ,err: " << ec.message() << std::endl;
         return ConfigCode::CONFIG_FILE_READ_ERROR;
     }
-    return ReadConfFile(filePath);
+    return ReadConfFile(canonicalPath.string());
 }
 
 ConfigCode ConfigManager::ReadConfFile(const std::string &filePath)
