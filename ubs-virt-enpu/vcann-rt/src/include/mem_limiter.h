@@ -13,11 +13,11 @@
 #ifndef __MEMORY_LIMITER_H__
 #define __MEMORY_LIMITER_H__
 
+#include <inttypes.h>
 #include <stddef.h>
 #include "common.h"
 #include "utils.h"
 #include "npu_manager.h"
-#include <inttypes.h>
 
 
 #define file_lock_BASE_DIR "/run/xpu/"

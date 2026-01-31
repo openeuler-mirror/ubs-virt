@@ -27,7 +27,7 @@ int enpu_dcmi_get_card_info(int logic_id, int *card_id, int *device_id)
 {
     int ret;
     LOG_DEBUG("Enpu_dcmi_get_card_info begin\n");
-    if (!card_id || !device_id){
+    if(!card_id || !device_id) {
         LOG_ERROR("Invalid param\n");
         return ENPU_FAIL;
     }
@@ -40,7 +40,7 @@ int enpu_dcmi_get_card_info(int logic_id, int *card_id, int *device_id)
     LOG_DEBUG("dcmi_init success\n");
 
     ret = dcmi_get_card_id_device_id_from_logicid(card_id, device_id, logic_id);
-    if (ret){
+    if (ret) {
         LOG_ERROR("get card info failed\n");
         return ENPU_FAIL;
     }
@@ -55,7 +55,7 @@ static void *enpu_get_resource_info_thread(void *arg)
 
     args->result = dcmi_get_device_resource_info(args->card_id, args->device_id, args->proc_info, &proc_num_temp);
 
-    if (args->proc_num != NULL){
+    if (args->proc_num != NULL) {
         *(args->proc_num) = proc_num_temp;
     }
     return NULL;
@@ -63,22 +63,21 @@ static void *enpu_get_resource_info_thread(void *arg)
 
 static int enpu_get_mem_used(struct dcmi_proc_mem_info *proc_info, int proc_num, size_t *used)
 {
-    if (proc_info == NULL || used == NULL){
+    if (proc_info == NULL || used == NULL) {
         LOG_ERROR("Invalid parameters");
         return ENPU_FAIL;
     }
 
-    if (proc_num > MAX_PIDS){
+    if (proc_num > MAX_PIDS) {
         LOG_ERROR("dcmi get device resource too many processes, count is %d", proc_num);
         return DCMI_ERR_CODE_INNER_ERR;
     }
 
     *used = 0;
 
-    for (int i = 0; i < proc_num; i++){
+    for (int i = 0; i < proc_num; i++) {
         *used += proc_info[i].proc_mem_usage;
-        LOG_DEBUG("Normal Container: Container PID %d, mem usage:%zd", proc_info[i].proc_id,
-        proc_info[i].proc_mem_usage);
+        LOG_DEBUG("Normal Container: Container PID %d, mem usage:%zd", proc_info[i].proc_id, proc_info[i].proc_mem_usage);
     }
     LOG_DEBUG("dcmi get mem used as %zd", *used);
     return ENPU_SUCCESS;
@@ -90,7 +89,7 @@ int enpu_dcmi_get_device_resource_info(int card_id, int device_id, size_t *used)
     int proc_num = 0;
     struct dcmi_proc_mem_info proc_info[MAX_PIDS];
 
-    if(used == NULL){
+    if(used == NULL) {
         LOG_ERROR("Invalid parameters");
         return ENPU_FAIL;
     }
@@ -104,23 +103,23 @@ int enpu_dcmi_get_device_resource_info(int card_id, int device_id, size_t *used)
     
     pthread_t thread;
 
-    if(pthread_create(&thread, NULL, enpu_get_resource_info_thread, &args) != 0){
+    if(pthread_create(&thread, NULL, enpu_get_resource_info_thread, &args) != 0) {
         LOG_ERROR("create thread failed");
         return ENPU_FAIL;
     }
 
-    if (pthread_join(thread, NULL) != 0){
+    if (pthread_join(thread, NULL) != 0) {
         LOG_ERROR("join thread failed");
         return ENPU_FAIL;
     }
 
-    if (args.result != 0){
-        LOG_ERROR("get device resource info failed card-id:%d device_id:%d result:%d", card_id, device_id, args.result);
+    if (args.result != 0) {
+        LOG_ERROR("get info failed card:%d device:%d result:%d", card_id, device_id, args.result);
         return ENPU_FAIL;
     }
 
     int ret = enpu_get_mem_used(proc_info, proc_num, used);
-    if(ret != ENPU_SUCCESS){
+    if(ret != ENPU_SUCCESS) {
         LOG_ERROR("get device mem info failed card-id:%d device_id:%d", card_id, device_id);
         return ENPU_FAIL;
     }
