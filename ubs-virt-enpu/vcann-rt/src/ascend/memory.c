@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 * ubs-virt-ovs is licensed under Mulan PSL v2.
 * You can use this software according to the terms and conditions of the Mulan PSL v2.
 * You may obtain a copy of Mulan PSL v2 at:
@@ -16,7 +16,7 @@
 
 RUNTIME_HOOK_DEFINE(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
 {
-    LOG_DEBUG("hook mem rtMalloc size:%" PRIu64, size);
+    LOG_INFO("hook mem rtMalloc size:%" PRIu64, size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -26,7 +26,7 @@ RUNTIME_HOOK_DEFINE(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, co
 
 RUNTIME_HOOK_DEFINE(rtMallocCached, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
 {
-    LOG_DEBUG("hook mem rtMallocCached size:%" PRIu64, size);
+    LOG_INFO("hook mem rtMallocCached size:%" PRIu64, size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -36,7 +36,7 @@ RUNTIME_HOOK_DEFINE(rtMallocCached, void **devPtr, uint64_t size, rtMemType_t ty
 
 RUNTIME_HOOK_DEFINE(rtDvppMalloc, void **devPtr, uint64_t size, uint16_t moduleId)
 {
-    LOG_DEBUG("hook mem rtDvppMalloc size:%" PRIu64, size);
+    LOG_INFO("hook mem rtDvppMalloc size:%" PRIu64, size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -46,7 +46,7 @@ RUNTIME_HOOK_DEFINE(rtDvppMalloc, void **devPtr, uint64_t size, uint16_t moduleI
 
 RUNTIME_HOOK_DEFINE(rtDvppMallocWithFlag, void **devPtr, uint64_t size, uint32_t flag, const uint16_t moduleId)
 {
-    LOG_DEBUG("hook mem rtDvppMallocWithFlag size:%" PRIu64, size);
+    LOG_INFO("hook mem rtDvppMallocWithFlag size:%" PRIu64, size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -56,7 +56,7 @@ RUNTIME_HOOK_DEFINE(rtDvppMallocWithFlag, void **devPtr, uint64_t size, uint32_t
 
 RUNTIME_HOOK_DEFINE(rtMemAlloc, void **devPtr, uint64_t size, rtMallocPolicy policy, rtMallocAdvise advise, rtMallocConfig_t *cfg)
 {
-    LOG_DEBUG("hook mem rtMemAlloc size:%" PRIu64, size);
+    LOG_INFO("hook mem rtMemAlloc size:%" PRIu64, size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -66,7 +66,7 @@ RUNTIME_HOOK_DEFINE(rtMemAlloc, void **devPtr, uint64_t size, rtMallocPolicy pol
 
 RUNTIME_HOOK_DEFINE(rtMemAllocManaged, void **ptr, uint64_t size, uint32_t flag, const uint16_t moduleId)
 {
-    LOG_DEBUG("hook mem rtMemAllocManaged size:%" PRIu64, size);
+    LOG_INFO("hook mem rtMemAllocManaged size:%" PRIu64, size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -76,7 +76,7 @@ RUNTIME_HOOK_DEFINE(rtMemAllocManaged, void **ptr, uint64_t size, uint32_t flag,
 
 RUNTIME_HOOK_DEFINE(rtMallocPhysical, rtDrvMemHandle *handle, size_t size, rtDrvMemProp_t *prop, uint64_t flags)
 {
-    LOG_DEBUG("hook mem rtMallocPhysical size:%zd", size);
+    LOG_INFO("hook mem rtMallocPhysical size:%zd", size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -91,6 +91,10 @@ RUNTIME_HOOK_DEFINE(rtMemGetInfoEx, rtMemInfoType_t memInfoType, size_t *freeSiz
     int ret = get_mem_used(&used);
     if (ret != 0) {
         LOG_ERROR("get mem used failed");
+        return RT_ERROR_INVALID_VALUE;
+    }
+    if (used > quota) {
+        LOG_ERROR("mem used is abnormally high, exceeding the quota");
         return RT_ERROR_INVALID_VALUE;
     }
     size_t remain = quota - used;

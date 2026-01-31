@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
 * ubs-virt-ovs is licensed under Mulan PSL v2.
 * You can use this software according to the terms and conditions of the Mulan PSL v2.
 * You may obtain a copy of Mulan PSL v2 at:
@@ -31,8 +31,8 @@ void load_rt_libraries(void)
 
 RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
 {
-    LOG_DEBUG("hook init rtSetDevice devId:%" PRIi32, devId);
-    LOG_DEBUG("hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.", VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
+    LOG_INFO("hook init rtSetDevice devId:%" PRIi32, devId);
+    LOG_INFO("hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.", VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
     enpu_global_init();
     return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDevice, devId);
@@ -40,7 +40,8 @@ RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
 
 RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
 {
-    LOG_DEBUG("hook init rtSetDeviceEx devId:%" PRIi32, devId);
+    LOG_INFO("hook init rtSetDeviceEx devId:%" PRIi32, devId);
+    LOG_INFO("hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.", VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
     enpu_global_init();
     return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceEx, devId);
@@ -48,7 +49,8 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
 
 RUNTIME_HOOK_DEFINE(rtSetDeviceWithFlags, int32_t devId, uint64_t flags)
 {
-    LOG_DEBUG("hook init rtSetDeviceWithFlags devId:%" PRIi32, devId);
+    LOG_INFO("hook init rtSetDeviceWithFlags devId:%" PRIi32, devId);
+    LOG_INFO("hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.", VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
     enpu_global_init();
     return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceWithFlags, devId, flags);
