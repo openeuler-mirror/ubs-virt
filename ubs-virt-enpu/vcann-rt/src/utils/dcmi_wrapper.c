@@ -115,13 +115,13 @@ int enpu_dcmi_get_device_resource_info(int card_id, int device_id, size_t *used)
     }
 
     if (args.result != 0){
-        LOG_ERROR("get device resource info failed card_id:%d, device_id:%d, result:%d", card_id, device_id, args.result);
+        LOG_ERROR("get device resource info failed card-id:%d device_id:%d result:%d", card_id, device_id, args.result);
         return ENPU_FAIL;
     }
 
     int ret = enpu_get_mem_used(proc_info, proc_num, used);
     if(ret != ENPU_SUCCESS){
-        LOG_ERROR("get device mem info failed card_id:%d, device_id:%d", card_id, device_id);
+        LOG_ERROR("get device mem info failed card-id:%d device_id:%d", card_id, device_id);
         return ENPU_FAIL;
     }
 

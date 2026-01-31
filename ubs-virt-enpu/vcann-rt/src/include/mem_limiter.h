@@ -20,11 +20,11 @@
 #include <inttypes.h>
 
 
-#define FILE_LOCK_BASE_DIR "/run/xpu/"
+#define file_lock_BASE_DIR "/run/xpu/"
 #define MEMCTL_LOCK_PATH "/run/xpu/memctl.lock"
 
 typedef int32_t rtError_t;
-static const int32_t RT_ERROR_INVALID_VALUE = 0x07110001
+static const int32_t RT_ERROR_INVALID_VALUE = 0x07110001;
 
 extern int guard_memory(size_t requested);
 extern int memory_limiter_init();

@@ -64,13 +64,13 @@ const char *lock_path()
 
 int create_file_lock_base_dir()
 {
-    int ret = mkdir(FILE_LOCK_BASE_DIR, S_IRWXU | S_IRGRP | S_IXGRP);
+    int ret = mkdir(file_lock_BASE_DIR, S_IRWXU | S_IRGRP | S_IXGRP);
     if (ret < 0 && errno != EEXIST){
-        LOG_ERROR("mkdir %s failed, err is %d", FILE_LOCK_BASE_DIR, strerror(errno));
+        LOG_ERROR("mkdir %s failed, err is %d", file_lock_BASE_DIR, strerror(errno));
         return ENPU_FAIL;
     }
 
-    LOG_INFO("mkdir %s success", FILE_LOCK_BASE_DIR);
+    LOG_INFO("mkdir %s success", file_lock_BASE_DIR);
     return ENPU_SUCCESS;
 }
 
