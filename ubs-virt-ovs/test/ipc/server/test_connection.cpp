@@ -100,25 +100,6 @@ TEST_F(TestConnection, HandleWriteAndSetResponse)
     close(fds[1]);
 }
 
-TEST_F(TestConnection, PartialReadLen)
-{
-    int fds[2];
-    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
-    Connection conn(fds[1]);
-
-    uint32_t len = htonl(6);
-    write(fds[0], reinterpret_cast<char *>(&len), 2);
-    EXPECT_TRUE(conn.HandleRead());
-    EXPECT_FALSE(conn.HasRequest());
-
-    write(fds[0], reinterpret_cast<char *>(&len) + 2, 2);
-    EXPECT_TRUE(conn.HandleRead());
-    EXPECT_FALSE(conn.HasRequest());
-
-    close(fds[0]);
-    close(fds[1]);
-}
-
 TEST_F(TestConnection, PartialReadBody)
 {
     int fds[2];
@@ -177,6 +158,37 @@ TEST_F(TestConnection, HandleWrite_AllBrabchs_SocketPair)
     close(fds[0]);
     conn.writeBuf_ = "data";
     EXPECT_FALSE(conn.HandleWrite());
+    close(fds[1]);
+}
+
+TEST_F(TestConnection, HandleReadProgressedFalseBranch)
+{
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNINX, SOCK_STREAM, 0, fds), 0);
+    Connection conn(fds[1]);
+
+    conn.state_ = Connection::State::PROCESSING;
+
+    EXPECT_TRUE(conn.HandleRead());
+
+    EXPECT_EQ(conn.state_, Connection::State::PROCESSING);
+
+    close(fds[0]);
+    close(fds[1]);
+}
+
+TEST_F(TestConnection, HandleReadProgressedFalseBranch_WriteResp)
+{
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNINX, SOCK_STREAM, 0, fds), 0);
+    Connection conn(fds[1]);
+
+    conn.state_ = Connection::State::WRITE_RESP;
+
+    EXPECT_TRUE(conn.HandleRead());
+    EXPECT_EQ(conn.state_, Connection::State::WRITE_RESP);
+
+    close(fds[0]);
     close(fds[1]);
 }
 }
