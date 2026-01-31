@@ -118,7 +118,7 @@ int compress_file() {
         return ENPU_FAIL;
     }
     int rm_exe_result = system(rm_cmd);
-    if (rrm_exe_result != 0) {
+    if (rm_exe_result != 0) {
         perror("Failed to execute rm command");
         return ENPU_FAIL;
     }
@@ -243,7 +243,7 @@ void log_print(EnpuLogLevel level, int pid, pthread_t tid, const char* filename,
         return;
     }
 
-    File* fp = fopen(g_log_config.log_path, "a");
+    FILE* fp = fopen(g_log_config.log_path, "a");
     if(!fp) {
         if (flock(lock_fd, LOCK_UN) == -1) {
             perror("flock");
