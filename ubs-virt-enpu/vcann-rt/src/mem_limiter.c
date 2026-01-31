@@ -58,7 +58,7 @@ int guard_memory(size_t requested)
 const char *lock_path()
 {
     return MEMCTL_LOCK_PATH;
-}  
+}
 
 int create_file_lock_base_dir()
 {
