@@ -18,7 +18,7 @@
 
 bool memory_check(size_t requested)
 {
-    if(!is_mem_limit()) {
+    if (!is_mem_limit()) {
         return true;
     }
     size_t used;
@@ -28,7 +28,7 @@ bool memory_check(size_t requested)
         return false;
     }
     size_t quota = get_mem_limit_quota();
-    if(requested + used > quota) {
+    if (requested + used > quota) {
         LOG_ERROR("out of memory, request %zd B, used %zd B, quota %zd B", requested, used, quota);
         return false;
     }
@@ -37,7 +37,7 @@ bool memory_check(size_t requested)
 
 int guard_memory(size_t requested)
 {
-    //创建文件锁
+    // 创建文件锁
 
     file_lock lock = file_lock_create(lock_path(), LOCK_EX);
     if (!file_lock_isvalid(&lock)) {
