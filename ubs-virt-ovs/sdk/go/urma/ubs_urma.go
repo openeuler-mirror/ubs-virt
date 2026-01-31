@@ -44,7 +44,7 @@ func validateUrmaName(name string) error {
 func validateUrmaBandwidth(min, max uint32) error {
 	if min < minUrmaBandwidth || max < minUrmaBandwidth ||
 		min > maxUrmaBandwidth || max > maxUrmaBandwidth {
-		return fmt.Errorf("bandwidth must be between %d and %d", maxUrmaNameLen, maxUrmaBandwidth)
+		return fmt.Errorf("bandwidth must be between %d and %d", minUrmaBandwidth, maxUrmaBandwidth)
 	}
 	if min > max {
 		return fmt.Errorf("minBandwidth must be less than or equal to maxBandwidth")
