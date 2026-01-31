@@ -62,8 +62,8 @@ public:
     }
 };
 
-using SECTION = std::map<std::string, std::string>;
-using ConfigMap = std::map<std::string, SECTION>;
+using Section = std::map<std::string, std::string>;
+using ConfigMap = std::map<std::string, Section>;
 
 class ConfigManager {
 public:
