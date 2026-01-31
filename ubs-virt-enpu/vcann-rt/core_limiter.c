@@ -63,12 +63,12 @@ void restore_streams(rtStream_t stream)
 
     if (g_cache_streams.num_streams >= MAX_STREAMS_PER_PROCESS) {
         LOG_ERROR("Failed to add stream %p to the cache. Maximum capacity (%d) reached.",
-            (void*)stream, MAX_STREAMS_PER_PROCESS);
+                  (void*)stream, MAX_STREAMS_PER_PROCESS);
         return;
     }
 
     g_cache_streams.streams[g_cache_streams.num_streams++] = stream;
-    if (hashmap_put(stream_map, (void*)stream, NULL, 0, false) == -1) {
+    if (hashmap_put(stream_map, (void*)stream, NULL, false) == -1) {
         LOG_ERROR("Failed to put stream %p to the hash map.\n", (void*)stream);
         return;
     }
@@ -182,7 +182,7 @@ void clear_streams(void)
     for (int i = 0; i < g_cache_streams.num_streams; ++i) {
         rtStream_t stm = g_cache_streams.streams[i];
         bool capture = 0;
-        int rc = hashmap_get_runtime_status(stream_map, (void*)stm, &capture);
+        int rc = hashmap_get_capture_status(stream_map, (void*)stm, &capture);
         if (capture) {
             LOG_DEBUG("Stream %p is in capture, keep in stream cache.", (void*)stm);
             if (remaining_count < i) {
@@ -204,7 +204,7 @@ void synchronize_all_streams(void)
     for (int i = 0; i < g_cache_streams.num_streams; ++i) {
         rtStream_t stm = g_cache_streams.streams[i];
         bool capture = 0;
-        int rc = hashmap_get_runtime_status(stream_map, (void*)stm, &capture);
+        int rc = hashmap_get_capture_status(stream_map, (void*)stm, &capture);
         if (capture) {
             LOG_DEBUG("Stream %p is in capture, skip synchronization.", (void*)stm);
             continue;
@@ -278,7 +278,7 @@ void *vnpu_scheduler_thread(void *arg)
         // Only one thread is accepted.
         int rc = pthread_mutex_lock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
         if (rc == EOWNERDEAD) {
-            LOG_INFO("The scheduling process has been detected to exit, and the scheduling is being taken over.")
+            LOG_INFO("The scheduling process has been detected to exit, and the scheduling is being taken over.");
             pthread_mutex_consistent(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
         } else if (rc != 0) {
             LOG_WARN("Failed to obtain mutex lock, error code=%d.", rc);
@@ -364,7 +364,7 @@ int vnpu_scheduler_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
     pthread_t vnpu_alive_tid;
     rc = pthread_create(&vnpu_alive_tid, NULL, vnpu_scheduler_flush_thread, NULL);
     if (rc != 0) {
-        LOG_ERROR("Failed to create vnpu alive thread.")
+        LOG_ERROR("Failed to create vnpu alive thread.");
         return ENPU_FAIL;
     }
     pthread_detach(vnpu_scheduler_tid);
@@ -399,7 +399,7 @@ int aicore_limiter_initialize(void)
 
     event_map = hashmap_create(MAX_EVENT_PER_PROCESS);
     if (!event_map) {
-        LOG_ERROR("Stream hash map init failed.");
+        LOG_ERROR("Event hash map init failed.");
         return ENPU_FAIL;
     }
     return rc;
@@ -415,11 +415,11 @@ void set_stream_capture(void* param, rtStream_t stream)
             int rc = hashmap_get_ptr(stream_map, (void*)stm, &head_stream);
             if (head_stream == (void*)stream) {
                 LOG_DEBUG("Stream %p capture state set to: 0.", (void*)stream);
-                rc = hashmap_put(stream_map, (void*)stm, NULL, 0, false);
+                rc = hashmap_put(stream_map, (void*)stm, NULL, false);
             }
         }
     } else {
-        int rc = hashmap_put(stream_map, (void*)stream, (void*)stream, 0, capture);
+        int rc = hashmap_put(stream_map, (void*)stream, (void*)stream, capture);
     }
     LOG_DEBUG("Stream %p capture state set to: %d.", (void*)stream, capture ? 1 : 0);
 }
@@ -436,14 +436,14 @@ void set_event_wait_status(void* evt, rtStream_t stm)
     // not capture stream
     if (event_status.ptr != NULL) {
         // update capture status by event
-        rc = hashmap_put(stream_map, (void*)stm, event_status.ptr, 0, true);
+        rc = hashmap_put(stream_map, (void*)stm, event_status.ptr, true);
         LOG_DEBUG("Stream %p capture state set to: true, because of event.", (void*)stm);
     }
 }
 
 void set_event_create_status(rtEvent_t evt)
 {
-    int rc = hashmap_put(event_map, (void*)evt, NULL, 0, false);
+    int rc = hashmap_put(event_map, (void*)evt, NULL, false);
     if (rc == -1) {
         LOG_ERROR("Error: Event hash map put event %p failed.\n", (void*)evt);
         return;
@@ -458,7 +458,7 @@ void set_event_record_status(rtEvent_t evt, rtStream_t stm)
     rc = hashmap_get_ptr(stream_map, (void*)stm, &head_stream);
     // capture
     if (head_stream != NULL) {
-        ret = hashmap_put(event_map, (void*)evt, head_stream, 0, true);
+        rc = hashmap_put(event_map, (void*)evt, head_stream, true);
         LOG_DEBUG("Event %p capture status is updated to true in recording.", (void*)evt);
     }
 }

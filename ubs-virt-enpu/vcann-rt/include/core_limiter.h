@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
 * ubs-virt-ovs is licensed under Mulan PSL v2.
 * You can use this software according to the terms and conditions of the Mulan PSL v2.
 * You may obtain a copy of Mulan PSL v2 at:
@@ -27,7 +27,7 @@
 #define NS_PER_MS 1000000ULL
 #define NS_PER_S  1000000000ULL
 
-#define VNPU_SCHEULE_PERIOD             (400ULL * NS_PER_MS) // 100 ms
+#define VNPU_SCHEULE_PERIOD             (400ULL * NS_PER_MS) // 400 ms
 #define VNPU_FLUSH_PERIOD               (1ULL * NS_PER_MS)   // 1ms
 #define VNPU_TIMEOUT_PERIOD             (3ULL * NS_PER_MS)   // 3ms
 #define VNPU_NO_TASK_TIMEOUT_PERIOD     (5ULL * NS_PER_MS)   // 5ms
