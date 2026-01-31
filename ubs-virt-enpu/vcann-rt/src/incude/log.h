@@ -55,30 +55,30 @@ extern LogConfig g_log_config;
 #define LOG_DEBUG(msg, ...) do { \
     if (g_log_config.min_log_level >= 4) { \
         log_print(ENPU_LOG_DEBUG, getpid(), pthread_self(), __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-        fprint(stderr, msg"\n", ##__VA_ARGS__); \
+        fprintf(stderr, msg"\n", ##__VA_ARGS__); \
     } \
 } while (false)
 #define LOG_INFO(msg, ...) do { \
     if (g_log_config.min_log_level >= 3) { \
         log_print(ENPU_LOG_INFO, getpid(), pthread_self(), __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-        fprint(stderr, msg"\n", ##__VA_ARGS__); \
+        fprintf(stderr, msg"\n", ##__VA_ARGS__); \
     } \
 } while (false)
 #define LOG_WARN(msg, ...) do { \
     if (g_log_config.min_log_level >= 2) { \
         log_print(ENPU_LOG_WARN, getpid(), pthread_self(), __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-        fprint(stderr, msg"\n", ##__VA_ARGS__); \
+        fprintf(stderr, msg"\n", ##__VA_ARGS__); \
     } \
 } while (false)
 #define LOG_ERROR(msg, ...) do { \
     if (g_log_config.min_log_level >= 1) { \
         log_print(ENPU_LOG_ERROR, getpid(), pthread_self(), __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-        fprint(stderr, msg"\n", ##__VA_ARGS__); \
+        fprintf(stderr, msg"\n", ##__VA_ARGS__); \
     } \
 } while (false)
 #define LOG_FATAL(msg, ...) do { \
     log_print(ENPU_LOG_FATAL, getpid(), pthread_self(), __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-    fprint(stderr, msg"\n", ##__VA_ARGS__); \
+    fprintf(stderr, msg"\n", ##__VA_ARGS__); \
 } while (false)
 
 #endif

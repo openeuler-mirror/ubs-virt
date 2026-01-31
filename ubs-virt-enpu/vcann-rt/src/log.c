@@ -139,7 +139,7 @@ int update_log_file() {
     strncpy(g_log_config.log_path, log_path, sizeof(g_log_config.log_path) - 1);
 
     umask(0000); // 规避系统默认文件权限不一致问题
-    if (create(g_log_config.log_path, 0640) < 0) {
+    if (creat(g_log_config.log_path, 0640) < 0) {
         perror("Create new log file");
         return ENPU_FAIL;
     }
