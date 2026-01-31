@@ -13,6 +13,7 @@
 #include "log.h"
 #include "runtime_hook.h"
 #include "mem_limiter.h"
+#include "npu_manager.h"
 
 RUNTIME_HOOK_DEFINE(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
 {
