@@ -139,9 +139,10 @@ int compress_file()
     snprintf_s(zip_file + strlen(zip_file), sizeof(zip_file) - strlen(zip_file), "%s", ZIP_EXT);
     
     umask(SET_UMASK_FOR_440); // 默认权限440
-    snprintf_s(tar_cmd, sizeof(tar_cmd), "%s%s %s%s", TAR_CMD_PREFIX, zip_file, 
-        g_log_config.log_dir, "*.log");
-    snprintf_s(rm_cmd, sizeof(rm_cmd), "%s%s%s", RM_CMD_PREFIX, g_log_config.log_dir, "*.log");
+    snprintf_s(tar_cmd, sizeof(tar_cmd), "%s%s %s%s %s%s", TAR_CMD_PREFIX, zip_file, "--exclude=", 
+        g_log_config.log_path, g_log_config.log_dir, "*.log");
+    snprintf_s(rm_cmd, sizeof(rm_cmd), "%s%s %s%s%s", "find ", g_log_config.log_dir, 
+        "-type f -iname \"*.log\" ! -iwholename \"", g_log_config.log_path, "\" -exec rm -f {} \\;");
     int tar_exe_result = system(tar_cmd);
     if (tar_exe_result != 0) {
         perror("Compress files error, failed to execute tar command");
