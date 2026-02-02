@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
 * ubs-virt-ovs is licensed under Mulan PSL v2.
 * You can use this software according to the terms and conditions of the Mulan PSL v2.
 * You may obtain a copy of Mulan PSL v2 at:
@@ -33,11 +33,12 @@ HashMap* hashmap_create(size_t capacity)
         return NULL;
     }
     if (capacity > SIZE_MAX / sizeof(HashNode*)) {
-        LOG_ERROR("HashMap capacity too large.");
+        LOG_ERROR("Hashmap capacity too large.");
         return NULL;
     }
     HashMap *map = (HashMap*)malloc(sizeof(HashMap));
     if (!map) {
+        LOG_ERROR("Map malloc failed when hashmap was created.");
         return NULL;
     }
 
@@ -47,6 +48,7 @@ HashMap* hashmap_create(size_t capacity)
 
     if (!map->buckets) {
         free(map);
+        LOG_ERROR("Buckets calloc failed when hashmap was created.");
         return NULL;
     }
 
@@ -56,6 +58,7 @@ HashMap* hashmap_create(size_t capacity)
 int hashmap_put(HashMap *map, void *key, void *ptr, bool capture_status)
 {
     if (!map || !key) {
+        LOG_ERROR("Hashmap put map or key is null.");
         return -1;
     }
 
@@ -74,6 +77,7 @@ int hashmap_put(HashMap *map, void *key, void *ptr, bool capture_status)
 
     HashNode *new_node = (HashNode*)malloc(sizeof(HashNode));
     if (!new_node) {
+        LOG_ERROR("Hashmap put malloc node failed.");
         return -1;
     }
 
@@ -90,6 +94,7 @@ int hashmap_put(HashMap *map, void *key, void *ptr, bool capture_status)
 int hashmap_get(HashMap *map, void *key, MapValue *value)
 {
     if (!map || !key || !value) {
+        LOG_ERROR("Param of hashmap get is null.");
         return -1;
     }
 
@@ -103,13 +108,14 @@ int hashmap_get(HashMap *map, void *key, MapValue *value)
         }
         node = node->next;
     }
-
+    LOG_ERROR("Hashmap get failed.");
     return -1;
 }
 
 int hashmap_get_ptr(HashMap *map, void *key, void **ptr)
 {
     if (!map || !key || !ptr) {
+        LOG_ERROR("Param of hashmap get ptr is null.");
         return -1;
     }
 
@@ -123,13 +129,14 @@ int hashmap_get_ptr(HashMap *map, void *key, void **ptr)
         }
         node = node->next;
     }
-
+    LOG_ERROR("Hashmap get ptr failed.");
     return -1;
 }
 
 int hashmap_get_capture_status(HashMap *map, void *key, bool *capture_status)
 {
     if (!map || !key || !capture_status) {
+        LOG_ERROR("Param of hashmap get capture status is null.");
         return -1;
     }
 
@@ -143,13 +150,14 @@ int hashmap_get_capture_status(HashMap *map, void *key, bool *capture_status)
         }
         node = node->next;
     }
-
+    LOG_ERROR("Hashmap get capture status failed.");
     return -1;
 }
 
 int hashmap_remove(HashMap *map, void *key)
 {
     if (!map || !key) {
+        LOG_ERROR("Param of hashmap remove is null.");
         return -1;
     }
 
@@ -171,13 +179,14 @@ int hashmap_remove(HashMap *map, void *key)
         prev = node;
         node = node->next;
     }
-
+    LOG_ERROR("Hashmap remove failed.");
     return -1;
 }
 
 int hashmap_contains(HashMap *map, void *key)
 {
     if (!map || !key) {
+        LOG_ERROR("Param of hashmap contains is null.");
         return 0;
     }
 
@@ -190,7 +199,6 @@ int hashmap_contains(HashMap *map, void *key)
         }
         node = node->next;
     }
-
     return 0;
 }
 
@@ -202,6 +210,7 @@ size_t hashmap_size(HashMap *map)
 void hashmap_destroy(HashMap *map)
 {
     if (!map) {
+        LOG_ERROR("Param of hashmap destroy is null.");
         return;
     }
 
