@@ -52,7 +52,7 @@ struct IpcRequest : MsgBase {
 };
 
 struct IpcResponse : MsgBase {
-    int32_t code_{};
+    uint32_t code_{};
     std::string payload_{};
 
     IpcResponse(const int32_t code, std::string payload) : code_(code), payload_(std::move(payload)) {};

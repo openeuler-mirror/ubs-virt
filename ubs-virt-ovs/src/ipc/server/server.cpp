@@ -272,7 +272,7 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
     std::string authority;
     if (!AuthManager::AuthorizeUser(id.username, authority, conf)) {
         LOG_ERROR << "Permission denied: username=" << id.username ;
-        resp.code_ = static_cast<int32_t>(VirtIPCCode::PERMISSION_DENIED);
+        resp.code_ = static_cast<uint32_t>(VirtIPCCode::PERMISSION_DENIED);
         return;
     }
 
@@ -286,7 +286,7 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
     if (!AuthManager::AuthorizeService(authority, ipcReq.service_)) {
         LOG_ERROR << "Permission denied: uid=" << id.uid << ", method=" << ipcReq.method_
                   << " service=" << ipcReq.service_;
-        resp.code_ = static_cast<int32_t>(VirtIPCCode::PERMISSION_DENIED);
+        resp.code_ = static_cast<uint32_t>(VirtIPCCode::PERMISSION_DENIED);
         return;
     }
     try {
@@ -294,7 +294,7 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
         resp.Serialize(packer);
     } catch (const std::exception &e) {
         LOG_ERROR << "Dispatch request failed: " << e.what();
-        resp.code_ = static_cast<int32_t>(VirtIPCCode::INTERNAL_ERROR);
+        resp.code_ = static_cast<uint32_t>(VirtIPCCode::INTERNAL_ERROR);
     }
 
     conn->SetResponse(packer.String(), epollFd_);
