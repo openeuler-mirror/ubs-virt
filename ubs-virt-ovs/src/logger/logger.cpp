@@ -164,7 +164,7 @@ void CompressOldLogFile(const std::string &oldLogFile, const std::string &ts)
     CleanupOldRotateLogFile();
 }
 
-void RotateLogFile()
+void Logger::RotateLogFile()
 {
     if (GetFileSize(LOG_FILE) < MAX_LOG_SIZE) {
         return;
@@ -175,8 +175,6 @@ void RotateLogFile()
     std::string oldLogFile;
 
     {
-        std::lock_guard<std::mutex> lock(LogMutex());
-
         std::string newLogFile = std::string(LOG_DIR) + "/virt-ovs_" + ts + ".log";
         std::ofstream newOfs(newLogFile, std::ios::out | std::ios::app);
         if (!newOfs.is_open()) {

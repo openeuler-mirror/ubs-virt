@@ -25,6 +25,7 @@ enum class VirtIPCCode : uint32_t {
     ALREADY_EXIST = 1006,
     NOT_EXIST = 1007,
     UBSE_ERROR = 1008,
+    PERMISSION_DENIED = 1009,
 };
 } // namespace virt::ovs
 #endif // UBS_VIRT_IPC_CODE_H
