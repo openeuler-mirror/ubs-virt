@@ -283,9 +283,9 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
     int ret3 = vfprintf(fp, format, args);
     va_end(args);
     int ret4 = fprintf(fp, "\n");
-    int ret 5 = fflush(fp);
-    int ret 6 = fclose(fp);
-    if ((ret1 < 0) || (ret2 < 0) || (ret3 < 0) || 
+    int ret5 = fflush(fp);
+    int ret6 = fclose(fp);
+    if ((ret1 < 0) || (ret2 < 0) || (ret3 < 0) ||
         (ret4 < 0) || (ret5 < 0) || (ret6 < 0)) {
         return;
     }
