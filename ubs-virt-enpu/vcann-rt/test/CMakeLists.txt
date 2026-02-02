@@ -2,6 +2,7 @@ add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=1)
 
 include(${PROJECT_SOURCE_DIR}/scripts/cmake/gtest.cmake)
 include(${PROJECT_SOURCE_DIR}/scripts/cmake/mockcpp.cmake)
+include(${PROJECT_SOURCE_DIR}/scripts/cmake/securec.cmake)
 
 set(VNPU_SRC_FILES
     ${PROJECT_SOURCE_DIR}/src/core_limiter.c
@@ -48,6 +49,7 @@ target_link_libraries(vnpu_test PRIVATE
     pthread
     rt
     dl
+    securec
 )
 
 target_compile_definitions(vnpu_test

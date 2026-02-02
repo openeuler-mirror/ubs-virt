@@ -3,6 +3,7 @@ project(vnpu)
 
 message([DEBUG] "CMakeLists.txt start ${CMAKE_CURRENT_SOURCE_DIR}")
 
+# include(${PROJECT_SOURCE_DIR}/scripts/cmake/securec.cmake)
 # add_subdirectory(src)
 
 option(BUILD_TESTS "Build tests" OFF)
