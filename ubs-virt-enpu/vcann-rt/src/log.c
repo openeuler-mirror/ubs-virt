@@ -19,6 +19,7 @@
 
 #include "common.h"
 #include "log.h"
+#include "secure.h"
 
 LogConfig g_log_config = {
     .log_dir = "/var/log/enpu/vcann-rt/",
@@ -106,7 +107,7 @@ int count_log_files()
             continue;
         }
         char full_path[FILE_PATH_LEN];
-        snprintf(full_path, sizeof(full_path), "%s%s", g_log_config.log_dir, entry->d_name);
+        snprintf_s(full_path, sizeof(full_path), "%s%s", g_log_config.log_dir, entry->d_name);
         if (stat(full_path, &statbuf) != 0) {
             continue;
         }
@@ -134,13 +135,13 @@ int compress_file()
         perror("Compress files error, failed to format timestamp");
         return ENPU_FAIL;
     }
-    snprintf(zip_file, sizeof(zip_file), "%s%s_%s", g_log_config.log_dir, SUB_MODULE_NAME, timestamp);
-    snprintf(zip_file + strlen(zip_file), sizeof(zip_file) - strlen(zip_file), "%s", ZIP_EXT);
+    snprintf_s(zip_file, sizeof(zip_file), "%s%s_%s", g_log_config.log_dir, SUB_MODULE_NAME, timestamp);
+    snprintf_s(zip_file + strlen(zip_file), sizeof(zip_file) - strlen(zip_file), "%s", ZIP_EXT);
     
     umask(SET_UMASK_FOR_440); // 默认权限440
-    snprintf(tar_cmd, sizeof(tar_cmd), "%s%s %s%s", TAR_CMD_PREFIX, zip_file, 
+    snprintf_s(tar_cmd, sizeof(tar_cmd), "%s%s %s%s", TAR_CMD_PREFIX, zip_file, 
         g_log_config.log_dir, "*.log");
-    snprintf(rm_cmd, sizeof(rm_cmd), "%s%s%s", RM_CMD_PREFIX, g_log_config.log_dir, "*.log");
+    snprintf_s(rm_cmd, sizeof(rm_cmd), "%s%s%s", RM_CMD_PREFIX, g_log_config.log_dir, "*.log");
     int tar_exe_result = system(tar_cmd);
     if (tar_exe_result != 0) {
         perror("Compress files error, failed to execute tar command");
@@ -164,7 +165,7 @@ int update_log_file()
     strftime(time_str, sizeof(time_str), "%Y%m%d%H%M%S", &tm_now);
 
     char log_path[FILE_PATH_LEN];
-    snprintf(log_path, sizeof(log_path), "%s%s_%s_%d_%s%s", g_log_config.log_dir, 
+    snprintf_s(log_path, sizeof(log_path), "%s%s_%s_%d_%s%s", g_log_config.log_dir, 
         MODULE_NAME, SUB_MODULE_NAME, getpid(), time_str, LOG_FILE_SUFFIX);
     strncpy(g_log_config.log_path, log_path, sizeof(g_log_config.log_path) - 1);
 
@@ -199,7 +200,7 @@ int log_init()
 
     printf("dir_path: %s\n", g_log_config.log_dir);
     char mkdir_cmd[MAX_CMD_LEN];
-    snprintf(mkdir_cmd, sizeof(mkdir_cmd), "%s%s", MKDIR_CMD_PREFIX, g_log_config.log_dir);
+    snprintf_s(mkdir_cmd, sizeof(mkdir_cmd), "%s%s", MKDIR_CMD_PREFIX, g_log_config.log_dir);
     system(mkdir_cmd);
 
     int ret = is_current_process(g_log_config.log_path);
