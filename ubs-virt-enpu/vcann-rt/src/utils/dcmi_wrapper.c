@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
  * ubs-virt-ovs is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -26,29 +26,29 @@ typedef struct {
 int enpu_dcmi_get_card_info(int logic_id, int *card_id, int *device_id)
 {
     int ret;
-    LOG_DEBUG("Enpu_dcmi_get_card_info begin\n");
+    LOG_DEBUG("Enpu_dcmi_get_card_info begin");
     if (!card_id || !device_id) {
-        LOG_ERROR("Invalid param\n");
+        LOG_ERROR("Invalid param");
         return ENPU_FAIL;
     }
 
     ret = dcmi_init();
     if (ret) {
-        LOG_ERROR("dcmi init failed\n");
+        LOG_ERROR("dcmi init failed");
         return ENPU_FAIL;
     }
-    LOG_DEBUG("dcmi_init success\n");
+    LOG_DEBUG("dcmi_init success");
 
     ret = dcmi_get_card_id_device_id_from_logicid(card_id, device_id, logic_id);
     if (ret) {
-        LOG_ERROR("get card info failed\n");
+        LOG_ERROR("get card info failed");
         return ENPU_FAIL;
     }
-    LOG_DEBUG("enpu_dcmi_get_card_info success\n");
+    LOG_DEBUG("enpu_dcmi_get_card_info success");
     return ENPU_SUCCESS;
 }
 
-static void *enpu_get_resource_info_thread(void *arg)
+static void *enpu_get_resource_info_thread(void *arg)    // 
 {
     mem_info_args *args = (mem_info_args *)arg;
     int proc_num_temp = 0;
@@ -94,7 +94,7 @@ int enpu_dcmi_get_device_resource_info(int card_id, int device_id, size_t *used)
         return ENPU_FAIL;
     }
 
-    memset(proc_info, 0, sizeof(proc_info));
+    memset_s(proc_info, sizeof(proc_info), 0, sizeof(proc_info))
     mem_info_args args = { .card_id = card_id,
         .device_id = device_id,
         .proc_info = proc_info,

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
 * ubs-virt-ovs is licensed under Mulan PSL v2.
 * You can use this software according to the terms and conditions of the Mulan PSL v2.
 * You may obtain a copy of Mulan PSL v2 at:
@@ -20,10 +20,10 @@
 #include "npu_manager.h"
 
 
-#define file_lock_BASE_DIR "/run/xpu/"
-#define MEMCTL_LOCK_PATH "/run/xpu/memctl.lock"
+#define file_lock_BASE_DIR "/run/enpu/vcann-rt/"
+#define MEMCTL_LOCK_PATH "/run/enpu/vcann-rt/memctl.lock"
 
-typedef int32_t rtError_t;
+typedef int32_t rtError_t;    // 兼容 runtime 接口
 static const int32_t RT_ERROR_INVALID_VALUE = 0x07110001;
 
 extern int guard_memory(size_t requested);
