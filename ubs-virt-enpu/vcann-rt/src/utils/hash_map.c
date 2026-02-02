@@ -33,7 +33,7 @@ HashMap* hashmap_create(size_t capacity)
         return NULL;
     }
     if (capacity > SIZE_MAX / sizeof(HashNode*)) {
-        LOG_ERROR("Hashmap capacity too large.");
+        LOG_ERROR("Hashmap capacity is too large.");
         return NULL;
     }
     HashMap *map = (HashMap*)malloc(sizeof(HashMap));
