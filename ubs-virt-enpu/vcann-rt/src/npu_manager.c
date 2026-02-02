@@ -115,7 +115,10 @@ static int enpu_config_info_init()
     g_npu_manager.npu_info.vnpu_id = config.vnpu_id;
     g_npu_manager.npu_info.sched_policy = config.scheduling_policy;
 
-    (void)strcpy_s(g_npu_manager.npu_info.shm_id, sizeof(g_npu_manager.npu_info.shm_id), config.shm_id);
+    if (strcpy_s(g_npu_manager.npu_info.shm_id, sizeof(g_npu_manager.npu_info.shm_id), config.shm_id) != 0) {
+        LOG_ERROR("Failed to copy the shm_id from the config to the npu manager.");
+        return ENPU_FAIL;
+    }
 
     LOG_INFO("Successfully to initialize vnpu device.");
     return ENPU_SUCCESS;
