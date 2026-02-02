@@ -37,8 +37,8 @@ public:
     struct UserRule {
         std::unordered_set<std::string> services_;
     };
-    static bool Authorize(const PeerIdentity &id, const IpcRequest &req, config::ConfModule &conf);
-    static bool ContainsString(const std::string &s, const std::string &key);
+    static bool AuthorizeUser(std::string username, std::string &authority, config::ConfModule &conf);
+    static bool AuthorizeService(const std::string &s, const std::string &key);
 
 private:
     std::unordered_map<std::string, UserRule> userRules_;

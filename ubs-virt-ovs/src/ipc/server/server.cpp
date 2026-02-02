@@ -266,17 +266,24 @@ void Server::CloseConnection(int fd)
 void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
 {
     LOG_INFO << "HandleBusiness begin fd=" << conn->Fd() << " tid=" << std::this_thread::get_id();
+    config::ConfModule &conf = config::ConfModule::GetInstance();
+    const auto &id = conn->Identity();
+    IpcResponse resp(static_cast<uint32_t>(VirtIPCCode::OK));
+    std::string authority;
+    if (!AuthManager::AuthorizeUser(id.username, authority, conf)) {
+        LOG_ERROR << "Permission denied: username=" << id.username ;
+        resp.code_ = static_cast<int32_t>(VirtIPCCode::PERMISSION_DENIED);
+        return;
+    }
+
     IpcRequest ipcReq;
     VirtMsgUnPacker unpacker(req);
     ipcReq.Deserialize(unpacker);
     LOG_DEBUG << "IpcRequest deserialized, service=" << ipcReq.service_ << ", method=" << ipcReq.method_
               << ", payload_size=" << ipcReq.payload_.size();
 
-    const auto &id = conn->Identity();
-    config::ConfModule &conf = config::ConfModule::GetInstance();
-    IpcResponse resp(static_cast<uint32_t>(VirtIPCCode::OK));
     VirtMsgPacker packer;
-    if (!AuthManager::Authorize(id, ipcReq, conf)) {
+    if (!AuthManager::AuthorizeService(authority, ipcReq.service_)) {
         LOG_ERROR << "Permission denied: uid=" << id.uid << ", method=" << ipcReq.method_
                   << " service=" << ipcReq.service_;
         resp.code_ = static_cast<int32_t>(VirtIPCCode::PERMISSION_DENIED);
@@ -296,7 +303,7 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
               << ", payload_size=" << resp.payload_.size();
 }
 
-bool AuthManager::ContainsString(const std::string &s, const std::string &key)
+bool AuthManager::AuthorizeService(const std::string &s, const std::string &key)
 {
     std::stringstream ss(s);
     std::string item;
@@ -308,16 +315,15 @@ bool AuthManager::ContainsString(const std::string &s, const std::string &key)
     return false;
 }
 
-bool AuthManager::Authorize(const PeerIdentity &id, const IpcRequest &req, config::ConfModule &conf)
+bool AuthManager::AuthorizeUser(const std::string username, std::string &authority, config::ConfModule &conf)
 {
-    std::string authority;
-    auto ret = conf.GetConf("auth", id.username, authority);
+    auto ret = conf.GetConf("auth", username, authority);
     if (ret != config::ConfigCode::OK) {
-        LOG_ERROR << "AuthManager::Authorize failed, ret=" << static_cast<uint32_t>(ret);
+        LOG_ERROR << "Get auth conf failed, ret=" << static_cast<uint32_t>(ret);
         return false;
     }
-    LOG_INFO << "AuthManager::Authorize authority=" << authority;
-    return ContainsString(authority, req.service_);
+    LOG_INFO << "Get auth conf success, username=" << username << " authority=" << authority;
+    return true;
 }
 
 void Server::Loop()

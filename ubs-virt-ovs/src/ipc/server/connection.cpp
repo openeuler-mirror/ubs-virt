@@ -181,6 +181,5 @@ void Connection::SetResponse(std::string resp, int epollFd)
 void Connection::ResetAfterWrite()
 {
     state_ = State::READ_LEN;
-    LOG_INFO << "fd=" << fd_ << " ResetAfterWrite";
 }
 } // namespace virt::ovs::ipc::server
