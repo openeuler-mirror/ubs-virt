@@ -88,9 +88,7 @@ int is_log_file(const char* filename)
         return ENPU_FAIL;
     }
 
-    int ret = is_current_process(filename);
-
-    return ret;
+    return ENPU_SUCCESS;
 }
 
 int count_log_files()
@@ -136,13 +134,13 @@ int compress_file()
         perror("Compress files error, failed to format timestamp");
         return ENPU_FAIL;
     }
-    snprintf(zip_file, sizeof(zip_file), "%s%s_%d_%s", g_log_config.log_dir, SUB_MODULE_NAME, getpid(), timestamp);
+    snprintf(zip_file, sizeof(zip_file), "%s%s_%s", g_log_config.log_dir, SUB_MODULE_NAME, timestamp);
     snprintf(zip_file + strlen(zip_file), sizeof(zip_file) - strlen(zip_file), "%s", ZIP_EXT);
     
     umask(SET_UMASK_FOR_440); // 默认权限440
-    snprintf(tar_cmd, sizeof(tar_cmd), "%s%s %s%s%d%s", TAR_CMD_PREFIX, zip_file, 
-        g_log_config.log_dir, "*", getpid(), "*.log");
-    snprintf(rm_cmd, sizeof(rm_cmd), "%s%s%s%d%s", RM_CMD_PREFIX, g_log_config.log_dir, "*", getpid(), "*.log");
+    snprintf(tar_cmd, sizeof(tar_cmd), "%s%s %s%s", TAR_CMD_PREFIX, zip_file, 
+        g_log_config.log_dir, "*.log");
+    snprintf(rm_cmd, sizeof(rm_cmd), "%s%s%s", RM_CMD_PREFIX, g_log_config.log_dir, "*.log");
     int tar_exe_result = system(tar_cmd);
     if (tar_exe_result != 0) {
         perror("Compress files error, failed to execute tar command");
@@ -153,7 +151,7 @@ int compress_file()
         perror("Compress files error, failed to execute rm command");
         return ENPU_FAIL;
     }
-    printf("Compressed %d .log files into %s and deleted the original files.\n", file_count, g_log_config.log_dir);
+    printf("Compressed .log files into %s and deleted the original files.\n", g_log_config.log_dir);
     return ENPU_SUCCESS;
 }
 
@@ -228,13 +226,13 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
 
     int ret = rotate_log_by_size();
     if (ret != ENPU_SUCCESS) {
-        pthread_mutex_unlock(&g_log_config.mutex);
+        pthread_mutex_unlock(&g_log_config.print_mutex);
         return;
     }
 
     FILE* fp = fopen(g_log_config.log_path, "a");
     if (!fp) {
-        pthread_mutex_unlock(&g_log_config.mutex);
+        pthread_mutex_unlock(&g_log_config.print_mutex);
         return;
     }
     time_t now = time(NULL);
