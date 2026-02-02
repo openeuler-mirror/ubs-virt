@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
 * ubs-virt-ovs is licensed under Mulan PSL v2.
 * You can use this software according to the terms and conditions of the Mulan PSL v2.
 * You may obtain a copy of Mulan PSL v2 at:
@@ -28,26 +28,25 @@
 #define ENPU_SUCCESS 0
 #define ENPU_FAIL 1
 
-#define CHECK_RANGE_INT(val, min, max)                                                     \
-    do {                                                                                   \
-        if (((val) < (min)) || ((val) > (max))) {                                          \
-            LOG_ERROR("Failed to load param [%s]: [%d] must be in range of [%d] and [%d]", \
-                #val, (val), (min), (max));                                                \
-            return ENPU_FAIL;                                                              \
-        }                                                                                  \
+#define CHECK_RETURN_RANGE_INT(val, min, max)                                                     \
+    do {                                                                                          \
+        if (((val) < (min)) || ((val) > (max))) {                                                 \
+            LOG_ERROR("Failed to load param [%s]: [%d] must be in range of [%d] and [%d]",        \
+                #val, (val), (min), (max));                                                       \
+            return ENPU_FAIL;                                                                     \
+        }                                                                                         \
     } while (false)
 
 /// DO NOT PASS FUNCTION IN
-#define CHECK_ERROR_CODE(err, error_msg, ...)    \
-    do {                                         \
-        if ((err) != ENPU_SUCCESS) {             \
-            LOG_ERROR(error_msg, ##__VA_ARGS__); \
-            return (err);                        \
-        }                                        \
+#define CHECK_RETURN_ERROR_CODE(err, error_msg, ...)    \
+    do {                                                \
+        if ((err) != ENPU_SUCCESS) {                    \
+            LOG_ERROR(error_msg, ##__VA_ARGS__);        \
+            return (err);                               \
+        }                                               \
     } while (false)
 
-/// DO NOT PASS FUNCTION IN
-#define CHECK_ERROR_CODE_NORETURN(err, error_msg, ...)    \
+#define CHECK_ERROR_CODE(err, error_msg, ...)             \
     do {                                                  \
         if ((err) != ENPU_SUCCESS) {                      \
             LOG_ERROR(error_msg, ##__VA_ARGS__);          \

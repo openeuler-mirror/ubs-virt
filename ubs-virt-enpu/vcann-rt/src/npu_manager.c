@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
 * ubs-virt-ovs is licensed under Mulan PSL v2.
 * You can use this software according to the terms and conditions of the Mulan PSL v2.
 * You may obtain a copy of Mulan PSL v2 at:
@@ -15,7 +15,6 @@
 #include "mem_limiter.h"
 #include "utils.h"
 #include "config.h"
-
 #include "npu_manager.h"
 
 pthread_once_t once_init = PTHREAD_ONCE_INIT;
@@ -85,22 +84,22 @@ int get_mem_used(size_t *used)
 
     npu_info *npu = &g_npu_manager.npu_info;
     int rc = enpu_dcmi_get_device_resource_info(npu->card_id, npu->device_id, used);
-    CHECK_ERROR_CODE(rc, "Failed to get device resource info.");
+    CHECK_RETURN_ERROR_CODE(rc, "Failed to get device resource info.");
     return ENPU_SUCCESS;
 }
 
 static int enpu_config_info_init()
 {
-    CHECK_RANGE_INT(config.phy_npu_id, 0, MAX_NPU_COUNT);
-    CHECK_RANGE_INT(config.vnpu_id, 0, MAX_VNPU);
+    CHECK_RETURN_RANGE_INT(config.phy_npu_id, 0, MAX_NPU_COUNT);
+    CHECK_RETURN_RANGE_INT(config.vnpu_id, 0, MAX_VNPU);
 
     if (config.scheduling_policy == SCHED_POLICY_FIXED_SHARE ||
         config.scheduling_policy == SCHED_POLICY_ELASTIC) {
-        CHECK_RANGE_INT(config.aicore_quota, 1, 100);
-        CHECK_RANGE_INT(config.memory_quota, 1, INT32_MAX);
+        CHECK_RETURN_RANGE_INT(config.aicore_quota, 1, MAX_CORE_QUOTA);
+        CHECK_RETURN_RANGE_INT(config.memory_quota, 1, INT32_MAX);
 
         g_npu_manager.npu_info.core_limit_quota = (uint8_t)config.aicore_quota;
-        g_npu_manager.npu_info.mem_limit_quota = (size_t)config.memory_quota * 1024 * 1024;
+        g_npu_manager.npu_info.mem_limit_quota = (size_t)config.memory_quota * KB_TO_GB;
         g_npu_manager.npu_info.is_core_limit = true;
         g_npu_manager.npu_info.is_mem_limit = true;
     } else if (config.scheduling_policy == SCHED_POLICY_BEST_EFFORT) {
@@ -116,7 +115,7 @@ static int enpu_config_info_init()
     g_npu_manager.npu_info.vnpu_id = config.vnpu_id;
     g_npu_manager.npu_info.sched_policy = config.scheduling_policy;
 
-    strcpy(g_npu_manager.npu_info.shm_id, config.shm_id);
+    (void)strcpy_s(g_npu_manager.npu_info.shm_id, sizeof(g_npu_manager.npu_info.shm_id), config.shm_id);
 
     LOG_INFO("Successfully to initialize vnpu device.");
     return ENPU_SUCCESS;
@@ -125,16 +124,17 @@ static int enpu_config_info_init()
 int enpu_load_config(void)
 {
     int rc = load_config(NPU_CONFIG_PATH);
-    CHECK_ERROR_CODE(rc, "Failed to initialize npu manager.");
+    CHECK_RETURN_ERROR_CODE(rc, "Failed to initialize npu manager.");
     return enpu_config_info_init(config);
 }
 
 int enpu_device_init(void)
 {
-    int card_id, device_id;
+    int card_id = -1;
+    int device_id = -1;
     int logic_id = g_npu_manager.npu_info.pnpu_id;
     int rc = enpu_dcmi_get_card_info(0, &card_id, &device_id);
-    CHECK_ERROR_CODE(rc, "Failed to get card info by enpu_device_init, err:%d npu:%d", rc, logic_id);
+    CHECK_RETURN_ERROR_CODE(rc, "Failed to get card info by enpu_device_init, err:%d npu:%d", rc, logic_id);
 
     g_npu_manager.npu_info.card_id = card_id;
     g_npu_manager.npu_info.device_id = device_id;
@@ -143,18 +143,20 @@ int enpu_device_init(void)
 
 static void __enpu_global_init(void)
 {
-    log_init();
-    int rc = enpu_load_config();
-    CHECK_ERROR_CODE_NORETURN(rc, "Failed to load npu config.");
+    int rc = log_init();
+    CHECK_ERROR_CODE(rc, "Failed to init log module.");
+
+    rc = enpu_load_config();
+    CHECK_ERROR_CODE(rc, "Failed to load npu config.");
 
     rc = enpu_device_init();
-    CHECK_ERROR_CODE_NORETURN(rc, "Failed to initialize enpu device.");
+    CHECK_ERROR_CODE(rc, "Failed to initialize enpu device.");
 
     rc = memory_limiter_init();
-    CHECK_ERROR_CODE_NORETURN(rc, "Failed to initialize memory limiter");
+    CHECK_ERROR_CODE(rc, "Failed to initialize memory limiter");
 
     rc = aicore_limiter_initialize();
-    CHECK_ERROR_CODE_NORETURN(rc, "Failed to initialize aicore limiter");
+    CHECK_ERROR_CODE(rc, "Failed to initialize aicore limiter");
 
     LOG_INFO("Successfully to initialize all module.");
 }
