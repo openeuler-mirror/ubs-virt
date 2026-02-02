@@ -51,6 +51,8 @@ public:
     void Submit();
 
 private:
+    static void RotateLogFile();
+
     LoggerLevel level_;
     const char *file_;
     const char *func_;

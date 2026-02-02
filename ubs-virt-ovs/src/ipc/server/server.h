@@ -28,6 +28,7 @@ inline constexpr int DEFAULT_QPS_LIMIT = 100;
 inline constexpr int MAX_EPOLL_EVENTS = 64;
 inline constexpr int EPOLL_WAIT_TIMEOUT = 1000;
 inline constexpr int LISTEN_BACK_LOG = 128;
+inline constexpr int MAX_BUFFER_SIZE = 1024;
 
 using ConnPtr = std::shared_ptr<Connection>;
 
@@ -36,8 +37,8 @@ public:
     struct UserRule {
         std::unordered_set<std::string> services_;
     };
-    static bool Authorize(const PeerIdentity &id, const IpcRequest &req, config::ConfModule &conf);
-    static bool ContainsString(const std::string &s, const std::string &key);
+    static bool AuthorizeUser(std::string username, std::string &authority, config::ConfModule &conf);
+    static bool AuthorizeService(const std::string &s, const std::string &key);
 
 private:
     std::unordered_map<std::string, UserRule> userRules_;

@@ -29,27 +29,64 @@ add_executable(ubs-virt-ovs
         main.cpp
 )
 
+# -----------------------------
+# Find libboundscheck header files and libraries
+# -----------------------------
+find_path(LIBBOUNDCHECK_INCLUDE_DIR
+        NAMES securec.h
+        PATHS /usr/include
+        NO_DEFAULT_PATH
+)
+
+find_library(LIBBOUNDCHECK_SHARED_LIBRARY
+        NAMES libboundscheck.so boundscheck
+        PATHS /usr/lib64 /usr/lib
+        NO_DEFAULT_PATH
+)
+
+# -----------------------------
+# Verify if found
+# -----------------------------
+if(NOT LIBBOUNDCHECK_INCLUDE_DIR OR NOT LIBBOUNDCHECK_SHARED_LIBRARY)
+    message(FATAL_ERROR
+            "libboundscheck not found! Please install the RPM package:\n"
+            "  sudo rpm -ivh libboundscheck-v1.1.11-6.oe2403.aarch64.rpm\n"
+            "Or via yum/dnf:\n"
+            "  sudo yum install libboundscheck\n"
+            "Expected:\n"
+            "  Header: /usr/include/securec.h\n"
+            "  Shared: /usr/lib64/libboundscheck.so"
+    )
+endif()
+
+message(STATUS "Found libboundscheck headers: ${LIBBOUNDCHECK_INCLUDE_DIR}")
+message(STATUS "Found libboundscheck shared: ${LIBBOUNDCHECK_SHARED_LIBRARY}")
+
 target_link_libraries(ubs-virt-ovs PRIVATE
+        boundscheck
         -Wl,--whole-archive ubs-virt-ovs-core -Wl,--no-whole-archive
 )
 
 install(TARGETS ubs-virt-ovs
-    RUNTIME DESTINATION bin
+        RUNTIME DESTINATION bin
 )
 
 if (BUILD_TESTS)
     SET(TEST_BIN_DIR "${CMAKE_BINARY_DIR}/test")
+    target_compile_definitions(ubs-virt-ovs-core
+            PRIVATE DISABLE_SERVICE_AUTO_REGISTER
+    )
     target_compile_options(ubs-virt-ovs-core PRIVATE --coverage -O0 -g)
     target_link_libraries(ubs-virt-ovs-core PUBLIC --coverage)
     set_target_properties(ubs-virt-ovs-core PROPERTIES OUTPUT_NAME "ubs-virt-ovs-core")
     if (COVERAGE)
         add_custom_target(coverage
-            COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}
-            COMMAND ${TEST_BIN_DIR}/virt_ut --gtest_output=xml:${CMAKE_CURRENT_BINARY_DIR}/coverage/test_detail.xml
-            COMMAND lcov --capture --directory ${CMAKE_BINARY_DIR} --directory ${CMAKE_CURRENT_BINARY_DIR} --output-file coverage.info
-            COMMAND lcov --remove coverage.info '/usr/*' '*/deps/*' '*/test/*' --output-file coverage.info
-            COMMAND genhtml coverage.info --output-directory coverage_html
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+                COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}
+                COMMAND ${TEST_BIN_DIR}/virt_ut --gtest_output=xml:${CMAKE_CURRENT_BINARY_DIR}/coverage/test_detail.xml
+                COMMAND lcov --capture --directory ${CMAKE_BINARY_DIR} --directory ${CMAKE_CURRENT_BINARY_DIR} --output-file coverage.info
+                COMMAND lcov --remove coverage.info '/usr/*' '*/deps/*' '*/test/*' --output-file coverage.info
+                COMMAND genhtml coverage.info --output-directory coverage_html
+                WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         )
     endif ()
 

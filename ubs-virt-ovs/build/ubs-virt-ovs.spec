@@ -8,6 +8,8 @@ Source0:    %{name}-%{version}.tar.gz
 
 BuildRequires:  cmake
 BuildRequires:  gcc-c++
+BuildRequires: libboundscheck
+Requires: libboundscheck
 Requires(post): systemd
 Requires(preun):    systemd
 

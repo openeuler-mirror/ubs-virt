@@ -44,6 +44,7 @@ target_link_libraries(virt_ut
         PRIVATE gmock gmock_main
         PRIVATE mockcpp
         PRIVATE pthread
+        PRIVATE securec
 )
 
 if (COVERAGE)

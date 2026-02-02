@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  * ubs-virt-ovs is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -22,6 +22,7 @@ namespace virt::ovs {
 //
 // Usage:
 //    REGISTER_SERVICE(MyService)
+#ifndef DISABLE_SERVICE_AUTO_REGISTER
 #define REGISTER_SERVICE(SERVICE_CLASS)                                                     \
     namespace {                                                                             \
     struct SERVICE_CLASS##Registrar {                                                       \
@@ -32,6 +33,8 @@ namespace virt::ovs {
     };                                                                                      \
     static SERVICE_CLASS##Registrar global_##SERVICE_CLASS##_Registrar;                     \
     } // namespace
-
+#else
+#define REGISTER_SERVICE(...) /* auto registration disabled for UT */
+#endif
 } // namespace virt::ovs
 #endif // UBS_VIRT_MACROS_H

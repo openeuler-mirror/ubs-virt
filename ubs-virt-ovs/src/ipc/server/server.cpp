@@ -95,7 +95,8 @@ bool Server::InitListenSocket()
     }
     unlink(socketPath_.c_str());
 
-    if (bind(listenFd_, (sockaddr *)&addr, sizeof(addr)) < 0 || listen(listenFd_, LISTEN_BACK_LOG) < 0) {
+    if (bind(listenFd_, static_cast<sockaddr*>(static_cast<void*>(&addr)), sizeof(addr)) < 0 ||
+            listen(listenFd_, LISTEN_BACK_LOG) < 0) {
         LOG_ERROR << "bind/listen failed" << strerror(errno);
         close(listenFd_);
         listenFd_ = -1;
@@ -130,14 +131,14 @@ bool Server::InitEpoll()
 
 std::string Server::UidToUsername(uid_t uid)
 {
-    struct passwd pwd;
-    struct passwd *result = nullptr;
-
     long bufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
     if (bufSize < 0) {
-        bufSize = 1024;
+        bufSize = MAX_BUFFER_SIZE;
     }
     std::vector<char> buf(bufSize);
+
+    struct passwd pwd;
+    struct passwd *result = nullptr;
     if (getpwuid_r(uid, &pwd, buf.data(), bufSize, &result) != 0 || result == nullptr) {
         return {};
     }
@@ -159,7 +160,6 @@ void Server::AcceptClients()
             continue;
         }
 
-        PeerIdentity id{};
         ucred cred{};
         socklen_t len = sizeof(cred);
         if (getsockopt(client, SOL_SOCKET, SO_PEERCRED, &cred, &len) < 0) {
@@ -168,12 +168,14 @@ void Server::AcceptClients()
             continue;
         }
 
-        id.uid_ = cred.uid;
-        id.gid_ = cred.gid;
-        id.pid_ = cred.pid;
-        id.username_ = UidToUsername(id.uid_);
-        if (id.username_.empty()) {
-            LOG_ERROR << "Username is empty for uid " << id.uid_;
+        PeerIdentity id{};
+        id.uid = cred.uid;
+        id.gid = cred.gid;
+        id.pid = cred.pid;
+        id.username = UidToUsername(id.uid);
+        if (id.username.empty()) {
+            LOG_ERROR << "Username is empty for uid " << id.uid;
+            close(client);
             continue;
         }
         SetNonBlock(client);
@@ -189,7 +191,7 @@ void Server::AcceptClients()
             close(client);
             continue;
         }
-        LOG_INFO << "accepted client, fd=" << client << " uid=" << id.uid_ << " user=" << id.username_;
+        LOG_INFO << "accepted client, fd=" << client << " uid=" << id.uid << " user=" << id.username;
     }
 }
 
@@ -253,47 +255,55 @@ bool Server::HandleWriteEvent(Connection &conn, int fd) const
 
 void Server::CloseConnection(int fd)
 {
-    LOG_INFO << "CloseConnection fd=" << fd;
+    const int closeFd = fd;
     epoll_ctl(epollFd_, EPOLL_CTL_DEL, fd, nullptr);
     close(fd);
-    conns_.erase(fd);
+    fd = -1;
+    conns_.erase(closeFd);
+    LOG_INFO << "closed fd=" << closeFd;
 }
 
 void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
 {
     LOG_INFO << "HandleBusiness begin fd=" << conn->Fd() << " tid=" << std::this_thread::get_id();
-    IpcRequest ipcReq;
+    config::ConfModule &conf = config::ConfModule::GetInstance();
+    const auto &id = conn->Identity();
     IpcResponse resp(static_cast<uint32_t>(VirtIPCCode::OK));
-    VirtMsgPacker packer;
+    std::string authority;
+    if (!AuthManager::AuthorizeUser(id.username, authority, conf)) {
+        LOG_ERROR << "Permission denied: username=" << id.username ;
+        resp.code_ = static_cast<uint32_t>(VirtIPCCode::PERMISSION_DENIED);
+        return;
+    }
+
+    IpcRequest ipcReq;
     VirtMsgUnPacker unpacker(req);
     ipcReq.Deserialize(unpacker);
     LOG_DEBUG << "IpcRequest deserialized, service=" << ipcReq.service_ << ", method=" << ipcReq.method_
               << ", payload_size=" << ipcReq.payload_.size();
 
-    const auto &id = conn->Identity();
-    config::ConfModule &conf = config::ConfModule::GetInstance();
-    if (!AuthManager::Authorize(id, ipcReq, conf)) {
-        LOG_ERROR << "Permission denied: uid=" << id.uid_ << ", method=" << ipcReq.method_
+    VirtMsgPacker packer;
+    if (!AuthManager::AuthorizeService(authority, ipcReq.service_)) {
+        LOG_ERROR << "Permission denied: uid=" << id.uid << ", method=" << ipcReq.method_
                   << " service=" << ipcReq.service_;
-        resp.code_ = static_cast<int32_t>(VirtIPCCode::PERMISSION_DENIED);
-    } else {
-        try {
-            resp = dispatcher_.Dispatch(ipcReq);
-            resp.Serialize(packer);
-        } catch (const std::exception &e) {
-            LOG_ERROR << "Dispatch request failed: " << e.what();
-            resp.code_ = static_cast<int32_t>(VirtIPCCode::INTERNAL_ERROR);
-        }
+        resp.code_ = static_cast<uint32_t>(VirtIPCCode::PERMISSION_DENIED);
+        return;
+    }
+    try {
+        resp = dispatcher_.Dispatch(ipcReq);
+        resp.Serialize(packer);
+    } catch (const std::exception &e) {
+        LOG_ERROR << "Dispatch request failed: " << e.what();
+        resp.code_ = static_cast<uint32_t>(VirtIPCCode::INTERNAL_ERROR);
     }
 
-    resp.Serialize(packer);
     conn->SetResponse(packer.String(), epollFd_);
 
     LOG_DEBUG << "IpcResponse serialized, fd=" << conn->Fd() << ", code=" << resp.code_
               << ", payload_size=" << resp.payload_.size();
 }
 
-bool AuthManager::ContainsString(const std::string &s, const std::string &key)
+bool AuthManager::AuthorizeService(const std::string &s, const std::string &key)
 {
     std::stringstream ss(s);
     std::string item;
@@ -305,16 +315,15 @@ bool AuthManager::ContainsString(const std::string &s, const std::string &key)
     return false;
 }
 
-bool AuthManager::Authorize(const PeerIdentity &id, const IpcRequest &req, config::ConfModule &conf)
+bool AuthManager::AuthorizeUser(const std::string username, std::string &authority, config::ConfModule &conf)
 {
-    std::string authority;
-    auto ret = conf.GetConf("auth", id.username_, authority);
+    auto ret = conf.GetConf("auth", username, authority);
     if (ret != config::ConfigCode::OK) {
-        LOG_ERROR << "AuthManager::Authorize failed, ret=" << static_cast<uint32_t>(ret);
+        LOG_ERROR << "Get auth conf failed, ret=" << static_cast<uint32_t>(ret);
         return false;
     }
-    LOG_INFO << "AuthManager::Authorize authority=" << authority;
-    return ContainsString(authority, req.service_);
+    LOG_INFO << "Get auth conf success, username=" << username << " authority=" << authority;
+    return true;
 }
 
 void Server::Loop()

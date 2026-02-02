@@ -52,7 +52,7 @@ struct IpcRequest : MsgBase {
 };
 
 struct IpcResponse : MsgBase {
-    int32_t code_{};
+    uint32_t code_{};
     std::string payload_{};
 
     IpcResponse(const int32_t code, std::string payload) : code_(code), payload_(std::move(payload)) {};
@@ -98,85 +98,5 @@ struct BaseResponse : MsgBase {
     }
 };
 
-struct UrmaBandwidthSetRequest : MsgBase {
-    std::string name_;
-    uint32_t minBandwidth_{};
-    uint32_t maxBandwidth_{};
-
-    UrmaBandwidthSetRequest() = default;
-
-    UrmaBandwidthSetRequest(const std::string &name, const uint32_t minBandwidth, const uint32_t maxBandwidth)
-        : name_(name),
-          minBandwidth_(minBandwidth),
-          maxBandwidth_(maxBandwidth)
-    {
-    }
-
-    void Serialize(VirtMsgPacker &packer) const override
-    {
-        packer.Serialize(name_);
-        packer.Serialize(minBandwidth_);
-        packer.Serialize(maxBandwidth_);
-    }
-
-    void Deserialize(VirtMsgUnPacker &unpacker) override
-    {
-        unpacker.Deserialize(name_);
-        unpacker.Deserialize(minBandwidth_);
-        unpacker.Deserialize(maxBandwidth_);
-    }
-
-    VirtIPCCode Validate(std::string &errMsg) override
-    {
-        constexpr uint32_t nameMaxLength = 31;
-        constexpr uint32_t minMaxLength = 1;
-        constexpr uint32_t maxBandwidth = 50;
-        if (name_.empty() || name_.size() > nameMaxLength) {
-            errMsg = "Invalid bandwidth name,length must be 1~31 characters";
-            return VirtIPCCode::INVALID_PARAM;
-        }
-        if (minBandwidth_ < minMaxLength || minBandwidth_ > maxBandwidth) {
-            errMsg = "Invalid bandwidth minimum,must be in range[1,50]";
-            return VirtIPCCode::INVALID_PARAM;
-        }
-        if (maxBandwidth_ < minMaxLength || maxBandwidth_ > maxBandwidth) {
-            errMsg = "Invalid bandwidth maximum,must be in range[1,50]";
-            return VirtIPCCode::INVALID_PARAM;
-        }
-        if (minBandwidth_ > maxBandwidth_) {
-            errMsg = "minBandwidth cannot be greater than maxBandwidth";
-            return VirtIPCCode::INVALID_PARAM;
-        }
-        return VirtIPCCode::OK;
-    }
-};
-
-struct UrmaBandwidthResetRequest : MsgBase {
-    std::string name_;
-
-    UrmaBandwidthResetRequest() = default;
-
-    UrmaBandwidthResetRequest(const std::string &name) : name_(name) {}
-
-    void Serialize(VirtMsgPacker &packer) const override
-    {
-        packer.Serialize(name_);
-    }
-
-    void Deserialize(VirtMsgUnPacker &unpacker) override
-    {
-        unpacker.Deserialize(name_);
-    }
-
-    VirtIPCCode Validate(std::string &errMsg) override
-    {
-        constexpr uint32_t nameMaxLength = 31;
-        if (name_.empty() || name_.size() > nameMaxLength) {
-            errMsg = "Invalid bandwidth name,length must be 1~31 characters";
-            return VirtIPCCode::INVALID_PARAM;
-        }
-        return VirtIPCCode::OK;
-    }
-};
 } // namespace virt::ovs::msg
 #endif // UBS_VIRT_OVS_MSG_H

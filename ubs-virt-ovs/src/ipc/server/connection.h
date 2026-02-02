@@ -13,18 +13,19 @@
 #define CONNECTION_H
 
 #include <sys/types.h>
-
 #include <cstdint>
 #include <string>
 
 namespace virt::ovs::ipc::server {
+inline constexpr int MAX_BODY_BUFFER_SIZE = 4096;
 struct PeerIdentity {
-    uid_t uid_;
-    gid_t gid_;
-    pid_t pid_;
+    uid_t uid;
+    gid_t gid;
+    pid_t pid;
 
-    std::string username_;
+    std::string username;
 };
+
 class Connection {
 public:
     enum class State {
@@ -43,7 +44,7 @@ public:
 
     bool HandleRead();
     bool HandleReadLen();
-    bool HandleReadBody();
+    bool HandleReadBody(bool &blocked);
     bool HandleWrite();
 
     bool HasRequest() const;
@@ -62,6 +63,7 @@ private:
     std::string readBuf_;
     std::string writeBuf_;
     size_t lenRead_{ 0 };
+    bool running_{ false };
 };
 } // namespace virt::ovs::ipc::server
 #endif

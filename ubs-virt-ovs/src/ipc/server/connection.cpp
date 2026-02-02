@@ -15,6 +15,7 @@
 #include <arpa/inet.h>
 #include <sys/epoll.h>
 #include <unistd.h>
+#include <securec.h>
 
 namespace virt::ovs::ipc::server {
 Connection::Connection(int fd) : fd_(fd)
@@ -24,30 +25,56 @@ Connection::Connection(int fd) : fd_(fd)
 
 bool Connection::HandleRead()
 {
-    while (true) {
+    running_ = true;
+    while (running_) {
+        bool progressed = false;
         if (state_ == State::READ_LEN) {
-            if (!HandleReadLen())
-                return false;
-        }
-        if (state_ == State::READ_BODY) {
-            if (!HandleReadBody()) {
+            if (!HandleReadLen()) {
                 return false;
             }
+            progressed = true;
         }
-        return true;
+        if (state_ == State::READ_BODY) {
+            bool blocked = false;
+            if (!HandleReadBody(blocked)) {
+                return false;
+            }
+            if (blocked) {
+                return true;
+            }
+            progressed = true;
+        }
+        if (!progressed) {
+            LOG_DEBUG << "fd= " << fd_ << " READ_LEN ready";
+            running_ = false;
+            return true;
+        }
+        if (state_ == State::READY) {
+            running_ = false;
+            return true;
+        }
     }
+    return true;
 }
 
 bool Connection::HandleReadLen()
 {
-    uint32_t lenBE;
-    ssize_t n = read(fd_, ((char *) &lenBE) + lenRead_, sizeof(lenBE) - lenRead_);
-
+    static constexpr size_t kLenSize = sizeof(uint32_t);
+    if (readBuf_.empty()) {
+        readBuf_.resize(kLenSize, '\0');
+    }
+    ssize_t n = read(fd_, readBuf_.data() + lenRead_, kLenSize - lenRead_);
     if (n > 0) {
         lenRead_ += n;
-        if (lenRead_ < sizeof(lenBE)) {
+        if (lenRead_ < kLenSize) {
             LOG_DEBUG << "fd= " << fd_ << " READ_LEN partial, lenRead_=" << lenRead_;
             return true;
+        }
+        uint32_t lenBE = 0;
+        errno_t rc  = memcpy_s(&lenBE, sizeof(lenBE), readBuf_.data(), sizeof(lenBE));
+        if (rc != EOK) {
+            LOG_WARN << "fd=" << fd_ << " READ_LEN error, rc=" << rc;
+            return false;
         }
 
         expectLen_ = ntohl(lenBE);
@@ -69,9 +96,10 @@ bool Connection::HandleReadLen()
     return false;
 }
 
-bool Connection::HandleReadBody()
+bool Connection::HandleReadBody(bool &blocked)
 {
-    char buf[4096];
+    blocked = false;
+    char buf[MAX_BODY_BUFFER_SIZE];
     ssize_t n = read(fd_, buf, sizeof(buf));
     if (n > 0) {
         readBuf_.append(buf, n);
@@ -88,7 +116,9 @@ bool Connection::HandleReadBody()
     }
 
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG_DEBUG << "fd= " << fd_ << " READ_BODY EAGAIN or EWOULDBLOCK， current= " << readBuf_.size() << "/" << expectLen_;
+        LOG_DEBUG << "fd= " << fd_ << " READ_BODY EAGAIN or EWOULDBLOCK， current= "
+                  << readBuf_.size() << "/" << expectLen_;
+        blocked = true;
         return true;
     }
     LOG_WARN << "fd= " << fd_ << " READ_BODY error, errno=" << errno << " errMsg=" << strerror(errno);
@@ -155,6 +185,5 @@ void Connection::SetResponse(std::string resp, int epollFd)
 void Connection::ResetAfterWrite()
 {
     state_ = State::READ_LEN;
-    LOG_INFO << "fd=" << fd_ << " ResetAfterWrite";
 }
 } // namespace virt::ovs::ipc::server

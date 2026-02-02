@@ -67,7 +67,7 @@ uint32_t UrmaUtility::SetBandWidth(const std::string &deviceName, uint32_t minBa
     return ret;
 }
 
-uint32_t UrmaUtility::DisableBandWidth(const std::string &deviceName)
+uint32_t UrmaUtility::ResetBandWidth(const std::string &deviceName)
 {
     auto ret = urmaBandWidthReset(deviceName.data());
     if (ret != 0) {
