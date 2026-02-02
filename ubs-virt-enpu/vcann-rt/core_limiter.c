@@ -265,7 +265,7 @@ void *vnpu_scheduler_thread(void *arg)
     while (!g_terminate) {
         int owner = atomic_load(&g_vnpu_sched_context->owner);
         if (owner != g_vnpu_id) {
-            if (!is_vnpu_alive(owner)){
+            if (!is_vnpu_alive(owner)) {
                 select_next_owner();
             }
             ns_sleep(WAITING_SLEEP_PERIOD);
