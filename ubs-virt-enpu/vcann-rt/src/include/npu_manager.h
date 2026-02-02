@@ -1,5 +1,5 @@
 /*
-* Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+* Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
 * ubs-virt-ovs is licensed under Mulan PSL v2.
 * You can use this software according to the terms and conditions of the Mulan PSL v2.
 * You may obtain a copy of Mulan PSL v2 at:
@@ -15,11 +15,12 @@
 #include <stdatomic.h>
 #include "config.h"
 
+#define NPU_CONFIG_PATH  "/etc/enpu/npu_info.config"
 #define MAX_PIDS 1024
 #define MAX_NPU_COUNT 16
-#define NPU_CONFIG_PATH  "/etc/enpu/npu_info.config"
-
 #define MAX_VNPU 100
+#define MAX_CORE_QUOTA 100
+#define KB_TO_GB (1024 * 1024)
 
 typedef enum {
     SCHED_POLICY_FIXED_SHARE = 1,
@@ -76,4 +77,4 @@ extern schedule_policy_t get_sched_policy(void);
 extern int enpu_load_config(void);
 extern int enpu_device_init(void);
 
-#endif /* __NPU_MANAGER_H__ */*/
+#endif
