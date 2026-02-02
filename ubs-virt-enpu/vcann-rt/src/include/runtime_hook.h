@@ -31,7 +31,8 @@ typedef rtError_t (*rt_symbol_t)();
     __attribute__((visibility("default"))) \
     rtError_t func_name(__VA_ARGS__)
 
-#define RUNTIME_FIND_ENTRY(table, symbol) ({ (table)[RUNTIME_HOOK_ENUM(symbol)].func_ptr; })
+#define RUNTIME_FIND_ENTRY(table, symbol) \
+({ (table)[RUNTIME_HOOK_ENUM(symbol)].func_ptr; })
 
 #define RUNTIME_HOOK_CALL(table, symbol, ...)                             \
 ({     \

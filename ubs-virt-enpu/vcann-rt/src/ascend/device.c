@@ -31,8 +31,9 @@ void load_rt_libraries(void)
 
 RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
 {
-    LOG_INFO("hook init rtSetDevice devId:%" PRIi32, devId);
-    LOG_INFO("hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.", VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
+    LOG_INFO("Hook init rtSetDevice devId:%" PRIi32, devId);
+    LOG_INFO("Hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.", 
+        VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
     enpu_global_init();
     return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDevice, devId);
@@ -40,8 +41,9 @@ RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
 
 RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
 {
-    LOG_INFO("hook init rtSetDeviceEx devId:%" PRIi32, devId);
-    LOG_INFO("hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.", VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
+    LOG_INFO("Hook init rtSetDeviceEx devId:%" PRIi32, devId);
+    LOG_INFO("Hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.", 
+        VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
     enpu_global_init();
     return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceEx, devId);
@@ -49,8 +51,9 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
 
 RUNTIME_HOOK_DEFINE(rtSetDeviceWithFlags, int32_t devId, uint64_t flags)
 {
-    LOG_INFO("hook init rtSetDeviceWithFlags devId:%" PRIi32, devId);
-    LOG_INFO("hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.", VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
+    LOG_INFO("Hook init rtSetDeviceWithFlags devId:%" PRIi32, devId);
+    LOG_INFO("Hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.", 
+        VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
     enpu_global_init();
     return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceWithFlags, devId, flags);
