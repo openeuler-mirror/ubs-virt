@@ -107,7 +107,7 @@ int count_log_files()
             continue;
         }
         char full_path[FILE_PATH_LEN];
-        int ret = snprintf_s(full_path, sizeof(full_path), "%s%s", g_log_config.log_dir, entry->d_name);
+        int ret = snprintf_s(full_path, sizeof(full_path), sizeof(full_path), "%s%s", g_log_config.log_dir, entry->d_name);
         if (ret < 0) {
             if (closedir(dir) == -1) {
                 return -1;
@@ -144,21 +144,21 @@ int compress_file()
         perror("Compress files error, failed to format timestamp");
         return ENPU_FAIL;
     }
-    int ret = snprintf_s(zip_file, sizeof(zip_file), "%s%s_%s", g_log_config.log_dir, SUB_MODULE_NAME, timestamp);
+    int ret = snprintf_s(zip_file, sizeof(zip_file), sizeof(zip_file), "%s%s_%s", g_log_config.log_dir, SUB_MODULE_NAME, timestamp);
     if (ret < 0) {
         return ENPU_FAIL;
     }
-    ret = snprintf_s(zip_file + strlen(zip_file), sizeof(zip_file) - strlen(zip_file), "%s", ZIP_EXT);
+    ret = snprintf_s(zip_file + strlen(zip_file), sizeof(zip_file), sizeof(zip_file) - strlen(zip_file), "%s", ZIP_EXT);
     if (ret < 0) {
         return ENPU_FAIL;
     }
     umask(SET_UMASK_FOR_440); // 默认权限440
-    ret = snprintf_s(tar_cmd, sizeof(tar_cmd), "%s%s %s%s %s%s", TAR_CMD_PREFIX, zip_file, "--exclude=",
+    ret = snprintf_s(tar_cmd, sizeof(tar_cmd), sizeof(tar_cmd), "%s%s %s%s %s%s", TAR_CMD_PREFIX, zip_file, "--exclude=",
         g_log_config.log_path, g_log_config.log_dir, "*.log");
     if (ret < 0) {
         return ENPU_FAIL;
     }
-    ret = snprintf_s(rm_cmd, sizeof(rm_cmd), "%s%s %s%s%s", "find ", g_log_config.log_dir,
+    ret = snprintf_s(rm_cmd, sizeof(rm_cmd), sizeof(rm_cmd), "%s%s %s%s%s", "find ", g_log_config.log_dir,
         "-type f -iname \"*.log\" ! -iwholename \"", g_log_config.log_path, "\" -exec rm -f {} \\;");
     if (ret < 0) {
         return ENPU_FAIL;
@@ -189,7 +189,7 @@ int update_log_file()
     }
 
     char log_path[FILE_PATH_LEN];
-    ret = snprintf_s(log_path, sizeof(log_path), "%s%s_%s_%d_%s%s", g_log_config.log_dir,
+    ret = snprintf_s(log_path, sizeof(log_path), sizeof(log_path), "%s%s_%s_%d_%s%s", g_log_config.log_dir,
         MODULE_NAME, SUB_MODULE_NAME, getpid(), time_str, LOG_FILE_SUFFIX);
     if (ret < 0) {
         return ENPU_FAIL;
@@ -230,7 +230,7 @@ int log_init()
 
     printf("dir_path: %s\n", g_log_config.log_dir);
     char mkdir_cmd[MAX_CMD_LEN];
-    int ret = snprintf_s(mkdir_cmd, sizeof(mkdir_cmd), "%s%s", MKDIR_CMD_PREFIX, g_log_config.log_dir);
+    int ret = snprintf_s(mkdir_cmd, sizeof(mkdir_cmd), sizeof(mkdir_cmd), "%s%s", MKDIR_CMD_PREFIX, g_log_config.log_dir);
     if (ret < 0) {
         return ENPU_FAIL;
     }
