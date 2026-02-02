@@ -17,9 +17,9 @@
 #include <fcntl.h>
 #include <sys/file.h>
 
+#include "secure.h"
 #include "common.h"
 #include "log.h"
-#include "secure.h"
 
 LogConfig g_log_config = {
     .log_dir = "/var/log/enpu/vcann-rt/",
@@ -97,7 +97,7 @@ int count_log_files()
     DIR* dir = opendir(g_log_config.log_dir);
     if (dir == NULL) {
         printf("Count log files error, failed to open directory %s\n", g_log_config.log_dir);
-        return ENPU_FAIL;
+        return -1;
     }
     int file_count = 0;
     struct dirent* entry;
@@ -107,13 +107,23 @@ int count_log_files()
             continue;
         }
         char full_path[FILE_PATH_LEN];
-        snprintf_s(full_path, sizeof(full_path), "%s%s", g_log_config.log_dir, entry->d_name);
+        int ret = snprintf_s(full_path, sizeof(full_path), "%s%s", g_log_config.log_dir, entry->d_name);
+        if (ret < 0) {
+            if (closedir(dir) == -1) {
+                return -1;
+            }
+            return -1;
+        }
         if (stat(full_path, &statbuf) != 0) {
             continue;
         }
         if (S_ISREG(statbuf.st_mode) && (is_log_file(entry->d_name) == ENPU_SUCCESS)) {
             file_count++;
         }
+    }
+
+    if (closedir(dir) == -1) {
+        return -1;
     }
     return file_count;
 }
@@ -123,7 +133,6 @@ int compress_file()
     char zip_file[FILE_PATH_LEN];
     char tar_cmd[MAX_CMD_LEN];
     char rm_cmd[MAX_CMD_LEN];
-    
     time_t now = time(NULL);
     struct tm* tm_info = localtime(&now);
     if (tm_info == NULL) {
@@ -135,14 +144,25 @@ int compress_file()
         perror("Compress files error, failed to format timestamp");
         return ENPU_FAIL;
     }
-    snprintf_s(zip_file, sizeof(zip_file), "%s%s_%s", g_log_config.log_dir, SUB_MODULE_NAME, timestamp);
-    snprintf_s(zip_file + strlen(zip_file), sizeof(zip_file) - strlen(zip_file), "%s", ZIP_EXT);
-    
+    int ret = snprintf_s(zip_file, sizeof(zip_file), "%s%s_%s", g_log_config.log_dir, SUB_MODULE_NAME, timestamp);
+    if (ret < 0) {
+        return ENPU_FAIL;
+    }
+    ret = snprintf_s(zip_file + strlen(zip_file), sizeof(zip_file) - strlen(zip_file), "%s", ZIP_EXT);
+    if (ret < 0) {
+        return ENPU_FAIL;
+    }
     umask(SET_UMASK_FOR_440); // 默认权限440
-    snprintf_s(tar_cmd, sizeof(tar_cmd), "%s%s %s%s %s%s", TAR_CMD_PREFIX, zip_file, "--exclude=", 
+    ret = snprintf_s(tar_cmd, sizeof(tar_cmd), "%s%s %s%s %s%s", TAR_CMD_PREFIX, zip_file, "--exclude=",
         g_log_config.log_path, g_log_config.log_dir, "*.log");
-    snprintf_s(rm_cmd, sizeof(rm_cmd), "%s%s %s%s%s", "find ", g_log_config.log_dir, 
+    if (ret < 0) {
+        return ENPU_FAIL;
+    }
+    ret = snprintf_s(rm_cmd, sizeof(rm_cmd), "%s%s %s%s%s", "find ", g_log_config.log_dir,
         "-type f -iname \"*.log\" ! -iwholename \"", g_log_config.log_path, "\" -exec rm -f {} \\;");
+    if (ret < 0) {
+        return ENPU_FAIL;
+    }
     int tar_exe_result = system(tar_cmd);
     if (tar_exe_result != 0) {
         perror("Compress files error, failed to execute tar command");
@@ -163,12 +183,21 @@ int update_log_file()
     struct tm tm_now;
     localtime_r(&now, &tm_now);
     char time_str[64];
-    strftime(time_str, sizeof(time_str), "%Y%m%d%H%M%S", &tm_now);
+    int ret = strftime(time_str, sizeof(time_str), "%Y%m%d%H%M%S", &tm_now);
+    if (ret == 0) {
+        return ENPU_FAIL;
+    }
 
     char log_path[FILE_PATH_LEN];
-    snprintf_s(log_path, sizeof(log_path), "%s%s_%s_%d_%s%s", g_log_config.log_dir, 
+    ret = snprintf_s(log_path, sizeof(log_path), "%s%s_%s_%d_%s%s", g_log_config.log_dir,
         MODULE_NAME, SUB_MODULE_NAME, getpid(), time_str, LOG_FILE_SUFFIX);
-    strncpy(g_log_config.log_path, log_path, sizeof(g_log_config.log_path) - 1);
+    if (ret < 0) {
+        return ENPU_FAIL;
+    }
+    ret = strncpy_s(g_log_config.log_path, log_path, sizeof(g_log_config.log_path) - 1);
+    if (ret == NULL) {
+        return ENPU_FAIL;
+    }
 
     umask(SET_UMASK_FOR_666); // 规避系统默认文件权限不一致问题
     if (creat(g_log_config.log_path, LOG_FILE_RIGHT) < 0) {
@@ -201,7 +230,10 @@ int log_init()
 
     printf("dir_path: %s\n", g_log_config.log_dir);
     char mkdir_cmd[MAX_CMD_LEN];
-    snprintf_s(mkdir_cmd, sizeof(mkdir_cmd), "%s%s", MKDIR_CMD_PREFIX, g_log_config.log_dir);
+    int ret = snprintf_s(mkdir_cmd, sizeof(mkdir_cmd), "%s%s", MKDIR_CMD_PREFIX, g_log_config.log_dir);
+    if (ret < 0) {
+        return ENPU_FAIL;
+    }
     system(mkdir_cmd);
 
     int ret = is_current_process(g_log_config.log_path);
@@ -223,15 +255,12 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
     if (level > g_log_config.min_log_level) {
         return;
     }
-
     pthread_mutex_lock(&g_log_config.print_mutex);
-
     int ret = rotate_log_by_size();
     if (ret != ENPU_SUCCESS) {
         pthread_mutex_unlock(&g_log_config.print_mutex);
         return;
     }
-
     FILE* fp = fopen(g_log_config.log_path, "a");
     if (!fp) {
         pthread_mutex_unlock(&g_log_config.print_mutex);
@@ -241,23 +270,26 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
     struct tm tm_now;
     localtime_r(&now, &tm_now);
     char time_str[64];
-    strftime(time_str, sizeof(time_str), "%Y%m%d%H%M%S", &tm_now);
-    fprintf(fp, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level], 
+    ret = strftime(time_str, sizeof(time_str), "%Y%m%d%H%M%S", &tm_now);
+    if (ret == 0) {
+        return;
+    }
+    int ret1 = fprintf(fp, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level],
         MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), filename, line);
-    fprintf(stderr, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level], 
+    int ret2 = fprintf(stderr, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level],
         MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), filename, line);
-
     va_list args;
     va_start(args, format);
-    vfprintf(fp, format, args);
+    int ret3 = vfprintf(fp, format, args);
     va_end(args);
-
-    fprintf(fp, "\n");
-    fflush(fp);
-    fclose(fp);
-
+    int ret4 = fprintf(fp, "\n");
+    int ret 5 = fflush(fp);
+    int ret 6 = fclose(fp);
+    if ((ret1 != 0) || (ret2 != 0) || (ret3 != 0) || 
+        (ret4 != 0) || (ret5 != 0) || (ret6 != 0)) {
+        return;
+    }
     pthread_mutex_unlock(&g_log_config.print_mutex);
-
     pthread_mutex_lock(&g_log_config.compress_mutex);
     int log_file_count = count_log_files();
     if (log_file_count > g_log_config.max_backup_count) {
