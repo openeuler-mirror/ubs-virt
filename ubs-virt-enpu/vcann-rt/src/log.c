@@ -32,7 +32,8 @@ static const char* log_level_str[] = {
     "FATAL", "ERROR", "WARN", "INFO", "DEBUG"
 };
 
-static long get_file_size(const char* filepath) // bytes
+// bytes
+static long get_file_size(const char* filepath)
 {
     struct stat st;
     if (stat(filepath, &st) < 0) {
@@ -41,7 +42,7 @@ static long get_file_size(const char* filepath) // bytes
     return st.st_size;
 }
 
-int is_current_process(const char* filename) 
+int is_current_process(const char* filename)
 {
     char* token;
     char* temp = strdup(filename);
@@ -79,7 +80,7 @@ int is_current_process(const char* filename)
     }
 }
 
-int is_log_file(const char* filename) 
+int is_log_file(const char* filename)
 {
     size_t len = strlen(filename);
     size_t suffix_len = strlen(LOG_FILE_SUFFIX);
@@ -118,7 +119,7 @@ int count_log_files()
     return file_count;
 }
 
-int compress_file() 
+int compress_file()
 {
     char zip_file[FILE_PATH_LEN];
     char tar_cmd[MAX_CMD_LEN];
@@ -139,7 +140,8 @@ int compress_file()
     snprintf(zip_file + strlen(zip_file), sizeof(zip_file) - strlen(zip_file), "%s", ZIP_EXT);
     
     umask(SET_UMASK_FOR_440); // 默认权限440
-    snprintf(tar_cmd, sizeof(tar_cmd), "%s%s %s%s%d%s", TAR_CMD_PREFIX, zip_file, g_log_config.log_dir, "*", getpid(), "*.log");
+    snprintf(tar_cmd, sizeof(tar_cmd), "%s%s %s%s%d%s", TAR_CMD_PREFIX, zip_file, 
+        g_log_config.log_dir, "*", getpid(), "*.log");
     snprintf(rm_cmd, sizeof(rm_cmd), "%s%s%s%d%s", RM_CMD_PREFIX, g_log_config.log_dir, "*", getpid(), "*.log");
     int tar_exe_result = system(tar_cmd);
     if (tar_exe_result != 0) {
@@ -155,7 +157,7 @@ int compress_file()
     return ENPU_SUCCESS;
 }
 
-int update_log_file() 
+int update_log_file()
 {
     time_t now = time(NULL);
     struct tm tm_now;
@@ -176,7 +178,7 @@ int update_log_file()
     return ENPU_SUCCESS;
 }
 
-static int rotate_log_by_size() 
+static int rotate_log_by_size()
 {
     long file_size = get_file_size(g_log_config.log_path);
     if (file_size < g_log_config.max_file_size) {
@@ -191,7 +193,7 @@ static int rotate_log_by_size()
     return ENPU_SUCCESS;
 }
 
-int log_init() 
+int log_init()
 {
     printf("log init\n");
     pthread_mutex_init(&g_log_config.print_mutex, NULL);
@@ -216,7 +218,7 @@ int log_init()
     return ENPU_SUCCESS;
 }
 
-void log_print(EnpuLogLevel level, const char* filename, int line, const char* format, ...) 
+void log_print(EnpuLogLevel level, const char* filename, int line, const char* format, ...)
 {
     if (level > g_log_config.min_log_level) {
         return;
@@ -240,13 +242,13 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
     localtime_r(&now, &tm_now);
     char time_str[64];
     strftime(time_str, sizeof(time_str), "%Y%m%d%H%M%S", &tm_now);
-    fprintf(fp, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str,log_level_str[level], 
+    fprintf(fp, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level], 
         MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), filename, line);
-    fprintf(stderr, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str,log_level_str[level], 
+    fprintf(stderr, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level], 
         MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), filename, line);
 
     va_list args;
-    va_start(args,format);
+    va_start(args, format);
     vfprintf(fp, format, args);
     va_end(args);
 
@@ -259,7 +261,7 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
     pthread_mutex_lock(&g_log_config.compress_mutex);
     int log_file_count = count_log_files();
     if (log_file_count > g_log_config.max_backup_count) {
-        int ret = compress_file();
+        ret = compress_file();
         if (ret != ENPU_SUCCESS) {
             printf("Failed to compress log files, log_dir is %s\n", g_log_config.log_dir);
         }
