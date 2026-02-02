@@ -48,7 +48,7 @@ int enpu_dcmi_get_card_info(int logic_id, int *card_id, int *device_id)
     return ENPU_SUCCESS;
 }
 
-static void *enpu_get_resource_info_thread(void *arg)    // 
+static void *enpu_get_resource_info_thread(void *arg) 
 {
     mem_info_args *args = (mem_info_args *)arg;
     int proc_num_temp = 0;

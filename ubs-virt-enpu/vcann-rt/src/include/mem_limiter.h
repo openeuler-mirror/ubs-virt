@@ -20,7 +20,7 @@
 #include "npu_manager.h"
 
 
-#define file_lock_BASE_DIR "/run/enpu/vcann-rt/"
+#define FILE_LOCK_BASE_DIR "/run/enpu/vcann-rt/"
 #define MEMCTL_LOCK_PATH "/run/enpu/vcann-rt/memctl.lock"
 
 typedef int32_t rtError_t;    // 兼容 runtime 接口
