@@ -196,7 +196,7 @@ int update_log_file()
     if (ret < 0) {
         return ENPU_FAIL;
     }
-    ret = strncpy_s(g_log_config.log_path, log_path, sizeof(g_log_config.log_path) - 1);
+    ret = strncpy_s(g_log_config.log_path, sizeof(g_log_config.log_path), log_path, sizeof(g_log_config.log_path) - 1);
     if (ret != 0) {
         return ENPU_FAIL;
     }
