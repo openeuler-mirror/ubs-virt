@@ -1,0 +1,129 @@
+/*
+* Copyright (c) Huawei Technologies Co., Ltd. 2025-2026. All rights reserved.
+* ubs-virt-ovs is licensed under Mulan PSL v2.
+* You can use this software according to the terms and conditions of the Mulan PSL v2.
+* You may obtain a copy of Mulan PSL v2 at:
+*          http://license.coscl.org.cn/MulanPSL2
+* THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+* EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+* MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+* See the Mulan PSL v2 for more details.
+*/
+#include <sys/mman.h>
+#include "../include/common.h"
+#include "../include/utils.h"
+
+void *map_share_mem(const char *shmID, size_t size)
+{
+    int fd = 0;
+    void *addr_ = NULL;
+    if (shmID == NULL) {
+        LOG_ERROR("shmID is NULL");
+        return NULL;
+    }
+    fd = shm_open(shmID, O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
+    if (ftruncate(fd, size)) {
+        LOG_ERROR("ftruncate failed");
+        return NULL;
+    }
+    addr_ = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (addr_ == MAP_FAILED) {
+        LOG_ERROR("failed to get shared memory error");
+        return NULL;
+    }
+
+    return addr_;
+}
+
+static bool file_lock_acquire(file_lock *lock, int operation)
+{
+    if (!lock) {
+        LOG_ERROR("file_lock_acquire: lock is NULL");
+        return false;
+    }
+
+    if (lock->fd == -1) {
+        LOG_ERROR("file_lock_acquire: invalid file descriptor");
+        return false;
+    }
+
+    if (lock->held) {
+        LOG_ERROR("file_lock_acquire: lock already held");
+        return false;
+    }
+
+    int ret = flock(lock->fd, operation);
+    if (ret != 0) {
+        LOG_ERROR("lock failed, fd %d, errno %s", lock->fd, strerror(errno));
+        return false;
+    }
+
+    lock->held = true;
+    return true;
+}
+
+file_lock file_lock_create(const char *path, int operation)
+{
+    file_lock lock = {-1, false};
+
+    if (!path) {
+        LOG_ERROR("file_lock_create: path is NULL");
+        return lock;
+    }
+
+    lock.fd = open(path, O_CREAT | O_RDONLY, 0);
+    if (lock.fd == -1) {
+        LOG_ERROR("file_lock_create: open file failed, path: %s", path);
+        return lock;
+    }
+
+    if (operation != 0) {
+        lock.held = file_lock_acquire(&lock, operation);
+    }
+
+    return lock;
+}
+
+static bool file_lock_release(file_lock *lock)
+{
+    if (!lock) {
+        LOG_ERROR("file_lock_release: lock is NULL");
+        return false;
+    }
+
+    if (!lock->held) {
+        LOG_ERROR("file_lock_release: lock not held");
+        return false;
+    }
+
+    int ret = flock(lock->fd, LOCK_UN);
+    if (ret != 0) {
+        LOG_ERROR("unlock failed, fd %d, errno %s", lock->fd, strerror(errno));
+        return false;
+    }
+
+    lock->held = false;
+    return true;
+}
+
+void file_lock_destroy(file_lock *lock)
+{
+    if (!lock) {
+        return;
+    }
+
+    if (lock->fd == -1) {
+        return;
+    }
+
+    if (lock->held) {
+        file_lock_release(lock);
+    }
+
+    if (close(lock->fd) == -1) {
+        LOG_ERROR("close file failed, fd %d, errno is %s", lock->fd, strerror(errno));
+    }
+
+    lock->fd = -1;
+    lock->held = false;
+}
