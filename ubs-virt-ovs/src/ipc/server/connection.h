@@ -64,6 +64,7 @@ private:
     std::string readBuf_;
     std::string writeBuf_;
     size_t lenRead_{ 0 };
+    bool running_{ false };
 };
 } // namespace virt::ovs::ipc::server
 #endif

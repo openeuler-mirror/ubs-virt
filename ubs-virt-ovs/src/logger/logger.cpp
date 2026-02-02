@@ -164,7 +164,7 @@ void CompressOldLogFile(const std::string &oldLogFile, const std::string &ts)
     CleanupOldRotateLogFile();
 }
 
-void rotateLogFile()
+void Logger::RotateLogFile()
 {
     if (GetFileSize(LOG_FILE) < MAX_LOG_SIZE) {
         return;
@@ -252,6 +252,6 @@ void Logger::Submit()
     ofs << oss.str();
     ofs.flush();
 
-    rotateLogFile();
+    RotateLogFile();
 }
 } // namespace virt::logger

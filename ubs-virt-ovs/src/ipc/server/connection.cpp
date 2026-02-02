@@ -25,7 +25,8 @@ Connection::Connection(int fd) : fd_(fd)
 
 bool Connection::HandleRead()
 {
-    while (true) {
+    running_ = true;
+    while (running_) {
         bool progressed = false;
         if (state_ == State::READ_LEN) {
             if (!HandleReadLen()) {
@@ -45,12 +46,15 @@ bool Connection::HandleRead()
         }
         if (!progressed) {
             LOG_DEBUG << "fd= " << fd_ << " READ_LEN ready";
+            running_ = false;
             return true;
         }
         if (state_ == State::READY) {
+            running_ = false;
             return true;
         }
     }
+    return true;
 }
 
 bool Connection::HandleReadLen()
