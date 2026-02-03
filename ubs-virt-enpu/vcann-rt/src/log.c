@@ -17,7 +17,7 @@
 #include <fcntl.h>
 #include <sys/file.h>
 
-#include "secure.h"
+#include "securec.h"
 #include "common.h"
 #include "log.h"
 
@@ -239,7 +239,7 @@ int log_init()
     }
     system(mkdir_cmd);
 
-    int ret = is_current_process(g_log_config.log_path);
+    ret = is_current_process(g_log_config.log_path);
     if (ret != ENPU_SUCCESS) {
         ret = update_log_file();
         if (ret != ENPU_SUCCESS) {
