@@ -23,7 +23,8 @@ void load_rt_libraries(void)
     for (i = 0; i < RUNTIME_ENTRY_END; i++) {
         rt_library_entry[i].func_ptr = dlsym(RTLD_NEXT, rt_library_entry[i].name);
         if (rt_library_entry[i].func_ptr == NULL) {
-            LOG_ERROR("can't find function %s", rt_library_entry[i].name);
+            LOG_INFO("Failed to find function %s, because the runtime version you are using is different "
+            "from our preset version.", rt_library_entry[i].name);
         }
     }
     return;
