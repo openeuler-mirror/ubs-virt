@@ -99,10 +99,11 @@ static int enpu_config_info_init()
         CHECK_RETURN_RANGE_INT(config.memory_quota, 1, INT32_MAX);
 
         g_npu_manager.npu_info.core_limit_quota = (uint8_t)config.aicore_quota;
-        g_npu_manager.npu_info.mem_limit_quota = (size_t)config.memory_quota * KB_TO_GB;
+        g_npu_manager.npu_info.mem_limit_quota = (size_t)config.memory_quota * MB_TO_B;
         g_npu_manager.npu_info.is_core_limit = true;
         g_npu_manager.npu_info.is_mem_limit = true;
     } else if (config.scheduling_policy == SCHED_POLICY_BEST_EFFORT) {
+        g_npu_manager.npu_info.mem_limit_quota = (size_t)config.memory_quota * MB_TO_B;
         g_npu_manager.npu_info.is_core_limit = false;
         g_npu_manager.npu_info.is_mem_limit = false;
     } else {

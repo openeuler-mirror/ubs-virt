@@ -20,7 +20,7 @@
 #define MAX_NPU_COUNT 16
 #define MAX_VNPU 100
 #define MAX_CORE_QUOTA 100
-#define KB_TO_GB (1024 * 1024)
+#define MB_TO_B (1024 * 1024)
 
 typedef enum {
     SCHED_POLICY_FIXED_SHARE = 1,
