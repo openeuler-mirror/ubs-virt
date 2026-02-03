@@ -10,6 +10,8 @@
 * See the Mulan PSL v2 for more details.
 */
 
+#define _GNU_SOURCE
+#include <dlfcn.h>
 #include "log.h"
 #include "runtime_hook.h"
 #include "core_limiter.h"

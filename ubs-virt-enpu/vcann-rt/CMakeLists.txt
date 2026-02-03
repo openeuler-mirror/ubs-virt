@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.15)
-project(vnpu)
+project(vcann-runtime)
 
 message(STATUS "CMakeList start ${CMAKE_CURRENT_SOURCE_DIR}")
 
 file(GLOB SRC_LIST
-   src/*.c
-   src/ascend/*.c
-   src/tools/*.c
-   src/utils/*.c
+    src/*.c
+    src/ascend/*.c
+    src/tools/*.c
+    src/utils/*.c
 )
 
 add_compile_options(
@@ -51,8 +51,8 @@ message(STATUS "CMakeList build start")
 add_library(vruntime SHARED src/ascend/hook.c ${SRC_LIST})
 
 target_link_options(vruntime PRIVATE
-   -Wl,-z,relro,-z,now,-z,noexecstack
-   -s
+    -Wl,-z,relro,-z,now,-z,noexecstack
+    -s
 )
 
 target_include_directories(vruntime PRIVATE ${INCLUDE_DIRS})
@@ -62,8 +62,8 @@ target_link_libraries(vruntime PRIVATE securec ${LINK_LIBS})
 add_executable(enpu-monitor src/tools/monitor.c ${SRC_LIST})
 
 target_link_options(enpu-monitor PRIVATE
-   -Wl,-z,relro,-z,now,-z,noexecstack
-   -s
+    -Wl,-z,relro,-z,now,-z,noexecstack
+    -s
 )
 
 target_include_directories(enpu-monitor PRIVATE ${INCLUDE_DIRS})
@@ -74,8 +74,8 @@ option(BUILD_TESTS "Build tests" OFF)
 option(ENABLE_COVERAGE "Enable coverage reporting" OFF)
 
 if(BUILD_TESTS)
- 	enable_testing()
- 	add_subdirectory(test)
+    enable_testing()
+    add_subdirectory(test)
 endif()
 
 message(STATUS "CMakeList end")

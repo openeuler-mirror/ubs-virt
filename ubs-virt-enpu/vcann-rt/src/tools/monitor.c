@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Huawei Technologies Co., Ltd. 2026-2026. All rights reserved.
+ * Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
  * ubs-virt-ovs is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
 
     ret = log_init();
     if (ret != ENPU_SUCCESS) {
+        LOG_ERROR("log init failed");
         return ENPU_FAIL;
     }
 
