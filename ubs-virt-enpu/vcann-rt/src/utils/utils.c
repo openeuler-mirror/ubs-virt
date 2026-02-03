@@ -38,7 +38,7 @@ void *map_share_mem(const char *shmID, size_t size)
     close(fd);
 
     if (addr_ == MAP_FAILED) {
-        LOG_ERROR("Failed to get shared memory");    
+        LOG_ERROR("Failed to get shared memory");
         return NULL;
     }
 

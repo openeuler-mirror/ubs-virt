@@ -273,7 +273,7 @@ void *vnpu_scheduler_thread(void *arg)
     //     release mutex: user can launch task by core_limiter
     pthread_mutex_lock(&g_sched_mutex);
     while (!g_terminate) {
-        // Distributed thread scheduling. 
+        // Distributed thread scheduling.
         // Scheduling is performed only when the owner is the current vnpu or the owner is disabled.
         int owner = atomic_load(&g_vnpu_sched_context->owner);
         if (owner != g_vnpu_id) {
