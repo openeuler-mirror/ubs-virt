@@ -18,6 +18,10 @@
 #include <acl/acl.h>
 #include <runtime/rt.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef struct {
     void *func_ptr;
     char *name;
@@ -113,4 +117,9 @@ typedef enum {
 }rt_hook_enum_t;
 
 extern rt_entry_t rt_library_entry[];
+
+#if defined(__cplusplus)
+}
+#endif
+
 #endif 

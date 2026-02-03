@@ -14,6 +14,10 @@
 #include <sys/file.h>
 #include "common.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define MAX_SIZE 1024
 
 typedef struct file_lock {
@@ -41,5 +45,9 @@ static inline bool file_lock_isvalid(const file_lock *lock)
 }
 
 extern void *map_share_mem(const char *shmID, size_t size);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

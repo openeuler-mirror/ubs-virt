@@ -12,8 +12,23 @@
 #ifndef __NPU_MANAGER_H__
 #define __NPU_MANAGER_H__
 
+#if defined(__cplusplus)
+#include <atomic>
+#define _STDATOMIC_H
+#define __CLANG_STDATOMIC_H
+typedef std::atomic<int> atomic_int;
+typedef std::atomic<uint_fast8_t> atomic_uint_fast8_t;
+typedef std::atomic<uint_fast32_t> atomic_uint_fast32_t;
+typedef std::atomic<uint_fast64_t> atomic_uint_fast64_t;
+#else
 #include <stdatomic.h>
+#endif
+
 #include "config.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define NPU_CONFIG_PATH  "/etc/enpu/npu_info.config"
 #define MAX_PIDS 1024
@@ -76,5 +91,9 @@ extern schedule_policy_t get_sched_policy(void);
 
 extern int enpu_load_config(void);
 extern int enpu_device_init(void);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif
