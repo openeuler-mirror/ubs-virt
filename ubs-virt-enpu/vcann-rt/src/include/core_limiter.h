@@ -17,8 +17,8 @@
 #include <stdatomic.h>
 #include <inttypes.h>
 
-#define MAGIC_INITIALIZED 0x214377aaU
-#define MAGIC_INITIALIZING 0x5A494E47
+#define MAGIC_INITIALIZED 0x495A4544U // IZED
+#define MAGIC_INITIALIZING 0x5A494E47U // ZING
 #define MAGIC_UNINITIALIZED 0x0
 #define MAX_STREAMS_PER_PROCESS 128
 #define MAX_EVENT_PER_PROCESS 65000
@@ -31,7 +31,7 @@
 #define VNPU_FLUSH_PERIOD               (1ULL * NS_PER_MS)   // 1ms
 #define VNPU_TIMEOUT_PERIOD             (3ULL * NS_PER_MS)   // 3ms
 #define VNPU_NO_TASK_TIMEOUT_PERIOD     (5ULL * NS_PER_MS)   // 5ms
-#define WAITING_SLEEP_PERIOD            (500ULL * NS_PER_US)  // 500 us
+#define WAITING_SLEEP_PERIOD            (100ULL * NS_PER_US)  // 100 us
 
 typedef struct cache_streams {
     int num_streams;

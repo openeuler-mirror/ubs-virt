@@ -77,7 +77,7 @@ int load_str(const char *key, const char *value, char *ret_value, size_t ret_len
         return ENPU_FAIL;
     }
 
-    if (strcpy_s(ret_value, sizeof(ret_value), value) != 0) {
+    if (strcpy_s(ret_value, ret_len, value) != 0) {
         LOG_ERROR("Failed to load config: %s, string copy failed.", key);
         return ENPU_FAIL;
     } else {

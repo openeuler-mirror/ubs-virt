@@ -69,7 +69,7 @@ void restore_streams(rtStream_t stream)
 
     g_cache_streams.streams[g_cache_streams.num_streams++] = stream;
     if (hashmap_put(stream_map, (void*)stream, NULL, false) == -1) {
-        LOG_ERROR("Failed to put stream %p to the hash map.\n", (void*)stream);
+        LOG_ERROR("Failed to put stream %p to the hash map.", (void*)stream);
         return;
     }
     LOG_DEBUG("Stream %p is added in stream hash map.", (void*)stream);
@@ -78,26 +78,31 @@ void restore_streams(rtStream_t stream)
 
 void core_limiter(rtStream_t stream, core_function func, void* param)
 {
+    // when schedule policy is 3
     if (!is_core_limit()) {
         return;
     }
     while (!g_terminate) {
+        // g_sched_locking is a atomic_int for scheduler thread obtain lock with high priority
         if (atomic_load(&g_sched_locking)) {
             ns_sleep(WAITING_SLEEP_PERIOD);
             continue;
         }
         LOG_DEBUG("Core limiter is waiting for the mutex lock.");
+        // waiting for mutex == waiting for launch task
         int rc = pthread_mutex_lock(&g_sched_mutex);
         if (rc != 0) {
             LOG_ERROR("Failed to lock mutex, error code=%d", rc);
             return;
         }
         LOG_DEBUG("The mutex lock is successfully obtained.");
+        // The delivered stream needs to be recorded because the execution time needs to be collected later.
         restore_streams(stream);
         if (func != NULL) {
             func(param, stream);
         }
         pthread_mutex_unlock(&g_sched_mutex);
+        // Recording time when the last task was delivered, which is used for schedule policy 2.
         atomic_store(&g_vnpu_sched_context->last_kernel_time_ns[g_vnpu_id], ns_now());
         return;
     }
@@ -209,6 +214,7 @@ void synchronize_all_streams(void)
             LOG_DEBUG("Stream %p is in capture, skip synchronization.", (void*)stm);
             continue;
         }
+        LOG_DEBUG("Stream %p is being synchronized.", (void*)stm);
         RUNTIME_HOOK_CALL(rt_library_entry, rtStreamSynchronize, stm);
         LOG_DEBUG("Stream synchronization end.");
     }
@@ -258,11 +264,17 @@ void *vnpu_scheduler_flush_thread(void *arg)
     }
 }
 
+// Scheduling main thread
 void *vnpu_scheduler_thread(void *arg)
 {
     (void)arg;
+    // For scheduler thread:
+    //     holding mutex: user can not launch task by core_limiter
+    //     release mutex: user can launch task by core_limiter
     pthread_mutex_lock(&g_sched_mutex);
     while (!g_terminate) {
+        // Distributed thread scheduling.
+        // Scheduling is performed only when the owner is the current vnpu or the owner is disabled.
         int owner = atomic_load(&g_vnpu_sched_context->owner);
         if (owner != g_vnpu_id) {
             if (!is_vnpu_alive(owner)) {
@@ -272,7 +284,10 @@ void *vnpu_scheduler_thread(void *arg)
             continue;
         }
 
+        // For Determining whether the current round of scheduling is complete for a container with multiple threads.
         uint8_t turn_id = atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]);
+
+        // Consumption time slice. The lock is released to the user process within the specified time.
         bool flag = add_and_consume_time_slice();
 
         // Only one thread is accepted.
@@ -317,7 +332,7 @@ void share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
                 atomic_store(&g_vnpu_sched_context->magic_number, MAGIC_UNINITIALIZED);
                 begin = now;
             }
-            sched_yield();
+            ns_sleep(WAITING_SLEEP_PERIOD);
             continue;
         }
 
@@ -378,7 +393,7 @@ int aicore_limiter_initialize(void)
     vnpu_time_slice_sched_t *vnpu_sched_shm = NULL;
     vnpu_sched_shm = map_share_mem(get_vnpu_shm_id(), sizeof(*g_vnpu_sched_context));
     if (vnpu_sched_shm == NULL) {
-        LOG_ERROR("share memory mmap failed");
+        LOG_ERROR("Failed to mmap share memory.");
         return ENPU_FAIL;
     }
 
@@ -429,7 +444,7 @@ void set_event_wait_status(void* evt, rtStream_t stm)
     MapValue event_status;
     int rc = hashmap_get(event_map, evt, &event_status);
     if (rc == -1) {
-        LOG_ERROR("Error: Event hash map get event %p failed.\n", evt);
+        LOG_ERROR("Error: Event hash map get event %p failed.", evt);
         return;
     }
 
@@ -445,7 +460,7 @@ void set_event_create_status(rtEvent_t evt)
 {
     int rc = hashmap_put(event_map, (void*)evt, NULL, false);
     if (rc == -1) {
-        LOG_ERROR("Error: Event hash map put event %p failed.\n", (void*)evt);
+        LOG_ERROR("Error: Event hash map put event %p failed.", (void*)evt);
         return;
     }
 }

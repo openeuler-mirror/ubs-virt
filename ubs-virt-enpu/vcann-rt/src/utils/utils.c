@@ -15,20 +15,30 @@
 
 void *map_share_mem(const char *shmID, size_t size)
 {
-    int fd = 0;
-    void *addr_ = NULL;
-    if (shmID == NULL) {
-        LOG_ERROR("shmID is NULL");
+    if (shmID == NULL || size == 0) {
+        LOG_ERROR("shmID or size is NULL");
         return NULL;
     }
-    fd = shm_open(shmID, O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
-    if (ftruncate(fd, size)) {
-        LOG_ERROR("ftruncate failed");
+    int fd = shm_open(shmID, O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
+    if (fd == -1) {
+        LOG_ERROR("Failed to shm_open, fd = %d", fd);
         return NULL;
     }
-    addr_ = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+
+    struct stat st;
+    if (fstat(fd, &st) == 0 && st.st_size < size) {
+        if (ftruncate(fd, size) == -1) {
+            LOG_ERROR("Failed to ftruncate");
+            close(fd);
+            return NULL;
+        }
+    }
+
+    void *addr_ = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    close(fd);
+
     if (addr_ == MAP_FAILED) {
-        LOG_ERROR("failed to get shared memory error");
+        LOG_ERROR("Failed to get shared memory");
         return NULL;
     }
 
