@@ -18,15 +18,6 @@
 
 using namespace virt::ovs::ipc::server;
 namespace ovs::ut {
-void TestConnection::SetUp()
-{
-    Test::SetUp();
-}
-
-void TestConnection::TearDown()
-{
-    Test::TearDown();
-}
 
 TEST_F(TestConnection, ConstructorAndInitialState)
 {

@@ -24,15 +24,6 @@
 using namespace virt::ovs::ipc::server;
 using namespace virt::ovs;
 namespace ovs::ut {
-void TestServer::SetUp()
-{
-    Test::SetUp();
-}
-
-void TestServer::TearDown()
-{
-    Test::TearDown();
-}
 
 static void SetNonBlock(int fd)
 {
@@ -214,6 +205,16 @@ TEST_F(TestServer, AcceptFailErrnoOtherThanEAGAIN)
     MOCKER(accept).reset();
 }
 
+TEST_F(TestServer, AcceptEagain)
+{
+    Server s("/tmp/ubs_test/socket", 1);
+    MOCKER(accept).stubs().will(returnValue(-1));
+    errno = EAGAIN;
+    s.AcceptClients();
+
+    MOCKER(accept).reset();
+}
+
 TEST_F(TestServer, GetsockoptFail)
 {
     Server s("/tmp/ubs_test/socket", 1);
@@ -265,6 +266,21 @@ TEST_F(TestServer, HandleBusiness_AuthorizeServiceFail)
     MOCKER(AuthManager::AuthorizeService).reset();
 }
 
+TEST_F(TestServer, HandleBusiness_DispatchOk)
+{
+    Server server("/tmp/ubs_test/socket");
+    auto conn = std::make_shared<Connection>(42);
+
+    auto rewReq = MakeTestRequest();
+    MOCKER(AuthManager::AuthorizeUser).stubs().will(returnValue(true));
+    MOCKER(AuthManager::AuthorizeService).stubs().will(returnValue(true));
+
+    EXPECT_NO_THROW(server.HandleBusiness(conn, rewReq));
+
+    MOCKER(AuthManager::AuthorizeUser).reset();
+    MOCKER(AuthManager::AuthorizeService).reset();
+}
+
 class MockerServer: public Server {
     public:
     using Server::Server;
@@ -302,6 +318,19 @@ TEST_F(TestServer, PrepareSocketDir_DirAlreadyExists)
 
     EXPECT_TRUE(server.PrepareSocketDir());
 
+    MOCKER(std::filesystem::exists).reset();
+}
+
+TEST_F(TestServer, PrepareSocketDir_CreateDirSuccess)
+{
+    Server server("/tmp/ubs_test/socket");
+
+    MOCKER(std::filesystem::exists).stubs().will(returnValue(false));
+    MOCKER(std::filesystem::create_directory).stubs().will(returnValue(true));
+
+    EXPECT_TRUE(server.PrepareSocketDir());
+
+    MOCKER(std::filesystem::create_directory).reset();
     MOCKER(std::filesystem::exists).reset();
 }
 

@@ -16,15 +16,6 @@
 using namespace virt::logger;
 using mockcpp::atLeast;
 namespace ovs::ut {
-void TestLogger::SetUp()
-{
-    Test::SetUp();
-}
-
-void TestLogger::TearDown()
-{
-    Test::TearDown();
-}
 
 TEST_F(TestLogger, NowFilename_ReturnNonEmptyString)
 {

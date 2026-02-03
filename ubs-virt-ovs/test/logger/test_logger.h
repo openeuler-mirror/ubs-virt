@@ -21,10 +21,6 @@ namespace ovs::ut {
 class TestLogger: public testing::Test {
 public:
     TestLogger() = default;
-
-    void SetUp() override;
-
-    void TearDown() override;
 }; // ovs::ut
 }
 

@@ -21,10 +21,6 @@ namespace ovs::ut {
 class TestServer: public testing::Test {
 public:
     TestServer() = default;
-
-    void SetUp() override;
-
-    void TearDown() override;
 }; // ovs::ut
 }
 

@@ -15,15 +15,6 @@
 using namespace virt::ovs::ipc::server;
 using namespace virt::ovs;
 namespace ovs::ut {
-void TestThreadPool::SetUp()
-{
-    Test::SetUp();
-}
-
-void TestThreadPool::TearDown()
-{
-    Test::TearDown();
-}
 
 TEST_F(TestThreadPool, StartAndStop)
 {

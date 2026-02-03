@@ -21,10 +21,6 @@ namespace ovs::ut {
 class TestThreadPool: public testing::Test {
 public:
     TestThreadPool() = default;
-
-    void SetUp() override;
-
-    void TearDown() override;
 }; // ovs::ut
 }
 

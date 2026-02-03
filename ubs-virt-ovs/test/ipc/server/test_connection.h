@@ -20,10 +20,6 @@ namespace ovs::ut {
 class TestConnection: public testing::Test {
     public:
     TestConnection() = default;
-
-    void SetUp() override;
-
-    void TearDown() override;
 }; // ovs::ut
 }
 
