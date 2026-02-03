@@ -13,6 +13,19 @@
 #ifndef UBSVIRTOVS_TEST_SERVER_H
 #define UBSVIRTOVS_TEST_SERVER_H
 
-class test_server {};
+#include "gtest/gtest.h"
+#include "mockcpp/mockcpp.hpp"
+#include "server.h"
+
+namespace ovs::ut {
+class TestServer: public testing::Test {
+public:
+    TestServer() = default;
+
+    void SetUp() override;
+
+    void TearDown() override;
+}; // ovs::ut
+}
 
 #endif //UBSVIRTOVS_TEST_SERVER_H

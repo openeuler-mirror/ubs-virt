@@ -13,6 +13,19 @@
 #ifndef UBSVIRTOVS_TEST_THREAD_POOL_H
 #define UBSVIRTOVS_TEST_THREAD_POOL_H
 
-class test_thread_pool {};
+#include "gtest/gtest.h"
+#include "mockcpp/mockcpp.hpp"
+#include "thread_pool.h"
+
+namespace ovs::ut {
+class TestThreadPool: public testing::Test {
+public:
+    TestThreadPool() = default;
+
+    void SetUp() override;
+
+    void TearDown() override;
+}; // ovs::ut
+}
 
 #endif //UBSVIRTOVS_TEST_THREAD_POOL_H

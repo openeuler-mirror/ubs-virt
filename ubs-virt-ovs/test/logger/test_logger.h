@@ -13,6 +13,19 @@
 #ifndef UBSVIRTOVS_TEST_LOGGER_H
 #define UBSVIRTOVS_TEST_LOGGER_H
 
-class test_logger {};
+#include "gtest/gtest.h"
+#include "mockcpp/mockcpp.hpp"
+#include "logger.h"
+
+namespace ovs::ut {
+class TestLogger: public testing::Test {
+public:
+    TestLogger() = default;
+
+    void SetUp() override;
+
+    void TearDown() override;
+}; // ovs::ut
+}
 
 #endif //UBSVIRTOVS_TEST_LOGGER_H

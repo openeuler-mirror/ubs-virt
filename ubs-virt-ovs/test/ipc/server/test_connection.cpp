@@ -13,9 +13,8 @@
 #include "test_connection.h"
 
 #include <arpa/inet.h>
-#include <io.h>
 #include <sys/socket.h>
-#include <uinstd.h>
+#include <unistd.h>
 
 using namespace virt::ovs::ipc::server;
 namespace ovs::ut {
@@ -64,16 +63,16 @@ TEST_F(TestConnection, HandleReadBodyComplete)
     ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
     Connection conn(fds[1]);
 
-    uint32_t len = htonl(4);
+    uint32_t len = htonl(5);
     write(fds[0], &len, sizeof(len));
     conn.HandleRead();
 
-    write(fds[0], "hallo", 5);
-    EXPECT_TRUE(conn.HasRequest());
+    write(fds[0], "hello", 5);
     EXPECT_TRUE(conn.HandleRead());
+    EXPECT_TRUE(conn.HasRequest());
 
     std::string req = conn.TakeRequest();
-    EXPECT_EQ("hallo", req);
+    EXPECT_EQ(req, "hello");
 
     close(fds[0]);
     close(fds[1]);
@@ -93,7 +92,7 @@ TEST_F(TestConnection, HandleWriteAndSetResponse)
         conn.HandleWrite();
     }
 
-    EXPECT_FALSE(coon.NeedWrite());
+    EXPECT_FALSE(conn.NeedWrite());
     conn.ResetAfterWrite();
 
     close(fds[0]);
@@ -111,12 +110,12 @@ TEST_F(TestConnection, PartialReadBody)
     conn.HandleRead();
 
     write(fds[0], "he", 2);
-    EXPECT_TRUE(coon.HandleRead());
+    EXPECT_TRUE(conn.HandleRead());
     EXPECT_FALSE(conn.HasRequest());
 
     write(fds[0], "llo", 3);
-    EXPECT_TRUE(coon.HandleRead());
-    EXPECT_TRUE(coon.HasRequest());
+    EXPECT_TRUE(conn.HandleRead());
+    EXPECT_TRUE(conn.HasRequest());
     EXPECT_EQ(conn.TakeRequest(), "hello");
 
     close(fds[0]);
@@ -126,13 +125,13 @@ TEST_F(TestConnection, PartialReadBody)
 TEST_F(TestConnection, HandleReadLenSpecialBranches)
 {
     int fds[2];
-    ASSERT_EQ(socketpair(AF_UNINX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
     Connection conn(fds[1]);
 
     close(fds[0]);
     EXPECT_FALSE(conn.HandleReadLen());
 
-    ASSERT_EQ(socketpair(AF_UNINX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
     conn = Connection(fds[1]);
     EXPECT_TRUE(conn.HandleReadLen());
 
@@ -145,7 +144,7 @@ TEST_F(TestConnection, HandleReadLenSpecialBranches)
 TEST_F(TestConnection, HandleWrite_AllBrabchs_SocketPair)
 {
     int fds[2];
-    ASSERT_EQ(socketpair(AF_UNINX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
 
     Connection conn(fds[0]);
     conn.writeBuf_.clear();
@@ -164,7 +163,7 @@ TEST_F(TestConnection, HandleWrite_AllBrabchs_SocketPair)
 TEST_F(TestConnection, HandleReadProgressedFalseBranch)
 {
     int fds[2];
-    ASSERT_EQ(socketpair(AF_UNINX, SOCK_STREAM, 0, fds), 0);
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
     Connection conn(fds[1]);
 
     conn.state_ = Connection::State::PROCESSING;
@@ -180,7 +179,7 @@ TEST_F(TestConnection, HandleReadProgressedFalseBranch)
 TEST_F(TestConnection, HandleReadProgressedFalseBranch_WriteResp)
 {
     int fds[2];
-    ASSERT_EQ(socketpair(AF_UNINX, SOCK_STREAM, 0, fds), 0);
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
     Connection conn(fds[1]);
 
     conn.state_ = Connection::State::WRITE_RESP;
