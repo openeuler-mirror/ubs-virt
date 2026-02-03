@@ -94,7 +94,7 @@ int enpu_dcmi_get_device_resource_info(int card_id, int device_id, size_t *used)
         return ENPU_FAIL;
     }
 
-    memset_s(proc_info, sizeof(proc_info), 0, sizeof(proc_info))
+    memset_s(proc_info, sizeof(proc_info), 0, sizeof(proc_info));
     mem_info_args args = { .card_id = card_id,
         .device_id = device_id,
         .proc_info = proc_info,

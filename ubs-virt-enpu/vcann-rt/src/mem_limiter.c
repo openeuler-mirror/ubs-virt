@@ -62,13 +62,19 @@ const char *lock_path()
 
 int create_file_lock_base_dir()
 {
-    int ret = mkdir(FILE_LOCK_BASE_DIR, S_IRWXU | S_IRGRP | S_IXGRP);
+    char cmd[128];
+    int ans = snprintf_s(cmd, sizeof(cmd), sizeof(cmd), "mkdir -p -m 750 %s", FILE_LOCK_BASE_DIR);
+    if (ans < 0) {
+        LOG_ERROR("Can not concatenate string to create dir");
+        return ENPU_FAIL;
+    }
+    int ret = system(cmd);
     if (ret < 0 && errno != EEXIST) {
-        LOG_ERROR("mkdir %s failed, err is %d", FILE_LOCK_BASE_DIR, strerror(errno));
+        LOG_ERROR("create %s failed, err is %s", FILE_LOCK_BASE_DIR, strerror(errno));
         return ENPU_FAIL;
     }
 
-    LOG_INFO("mkdir %s success", FILE_LOCK_BASE_DIR);
+    LOG_INFO("create %s success", FILE_LOCK_BASE_DIR);
     return ENPU_SUCCESS;
 }
 
