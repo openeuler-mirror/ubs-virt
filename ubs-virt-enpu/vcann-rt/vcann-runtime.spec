@@ -49,14 +49,17 @@ fi
 %install
 rm -rf %{buildroot}
 
+mkdir -p %{buildroot}/opt/enpu/vcann-rt/{lib,tools}
 install -d %{buildroot}"/opt/enpu/vcann-rt/lib/"
 cp -ar %{_topdir}/../build/libvruntime.so* %{buildroot}"/opt/enpu/vcann-rt/lib/"
+install -m 500 %{_topdir}/../build/enpu-monitor %{buildroot}"/opt/enpu/vcann-rt/tools/"
 
 # ==============================================================
 # clean
 # ==============================================================
 %clean
 rm -rf %{_topdir}/../build/libvruntime.so*
+rm -rf %{_topdir}/../build/enpu-monitor
 
 # ==============================================================
 # files
@@ -64,3 +67,4 @@ rm -rf %{_topdir}/../build/libvruntime.so*
 %files
 %defattr(-,root,root,-)
 %attr(400, root, root) /opt/enpu/vcann-rt/lib/libvruntime.so*
+%attr(500, root, root) /opt/enpu/vcann-rt/tools/enpu-monitor

@@ -44,6 +44,5 @@ function make_lib_original() {
 
 echo "make lib runtime end ${patched_file}"
 
-
 make_lib_backup $1
 make_lib_original $1

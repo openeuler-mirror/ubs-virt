@@ -24,8 +24,8 @@ tar czf "${RPMBUILD_DIR}/SOURCES/${PROJECT_NAME}-${VERSION}.tar.gz" \
     --transform "s,^,${PROJECT_NAME}-${VERSION}/," .
 
 # ========== spec =========
-cp "${ROOT_DIR}/vruntime.spec" \
-   "${RPMBUILD_DIR}/SPECS/${PROJECT_NAME}.spec"
+cp "${ROOT_DIR}/vcann-runtime.spec" \
+    "${RPMBUILD_DIR}/SPECS/${PROJECT_NAME}.spec"
 
 # ========== build RPM =========
 echo "Building RPM package..."
