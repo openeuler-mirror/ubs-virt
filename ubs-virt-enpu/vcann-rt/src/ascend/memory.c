@@ -87,8 +87,8 @@ RUNTIME_HOOK_DEFINE(rtMallocPhysical, rtDrvMemHandle *handle, size_t size, rtDrv
 
 RUNTIME_HOOK_DEFINE(rtMemGetInfoEx, rtMemInfoType_t memInfoType, size_t *freeSize, size_t *totalSize)
 {
-    LOG_INFO("Hook mem rtMemGetInfoEx.");
     enpu_global_init();
+    LOG_INFO("Hook mem rtMemGetInfoEx.");
     size_t quota = get_mem_limit_quota();
     size_t used;
     int ret = get_mem_used(&used);
