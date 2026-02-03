@@ -7,7 +7,9 @@ Ubs-virt supports virtualization and pooling, live migration policy decision, fa
 ## 涉及组件
 
 1. ubs-virt-ovs: ubs-virt提供网络的能力的服务，支持配置指定urma设备的带宽。
+2. ubs-virt-enpu: ubs-virt提供NPU算力软切分的服务，支持根据算力和显存资源配额信息，进行算力控制和显存控制。
 
 ## 使用说明
 
 1. ubs-virt-ovs: [ubs-virt-ovs使用说明](./ubs-virt-ovs/README.md)
+2. ubs-virt-enpu: [ubs-virt-enpu使用说明](./ubs-virt-enpu/vcann-rt/README.md)
