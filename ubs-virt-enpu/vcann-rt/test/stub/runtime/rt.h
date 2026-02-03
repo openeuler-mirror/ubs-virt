@@ -36,6 +36,7 @@ typedef void *rtFftsPlusTaskInfo_t;
 typedef void *rtFftsTaskInfo_t;
 typedef void *rtKernelLaunchNames_t;
 typedef void *rtMemType_t;
+typedef void *rtMemInfoType_t;
 typedef void *rtModel_t;
 typedef void *rtNotify_t;
 typedef void *rtSmDesc_t;
@@ -116,6 +117,7 @@ typedef struct {
                            const uint16_t moduleid)                                                          \
     RUNTIME_FUNCTION_ENTRY(rtMallocPhysical, rtDrvMemHandle *handle, size_t size, rtDrvMemProp_t *prop,      \
                            uint64_t flags)                                                                   \
+    RUNTIME_FUNCTION_ENTRY(rtMemGetInfoEx, rtMemInfoType_t memInfoType, size_t *freeSize, size_t *totalSize) \
     RUNTIME_FUNCTION_ENTRY(rtKernelLaunch, const void *stubFunc, uint32_t blockDim, void *args,              \
                            uint32_t argsSize, rtSmDesc_t *smDesc, rtStream_t stm)                            \
     RUNTIME_FUNCTION_ENTRY(rtKernelLaunchWithHandle, void *hdl, const uint64_t tilingKey, uint32_t blockDim, \
