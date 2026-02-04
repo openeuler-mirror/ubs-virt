@@ -58,7 +58,7 @@ TEST_F(TestConnection, HandleReadBodyComplete)
     write(fds[0], &len, sizeof(len));
     conn.HandleRead();
 
-    write(fds[0], "hello", 5);
+    write(fds[0], "hello", 5); // 5 is size of hello
     EXPECT_TRUE(conn.HandleRead());
     EXPECT_TRUE(conn.HasRequest());
 
@@ -100,11 +100,11 @@ TEST_F(TestConnection, PartialReadBody)
     write(fds[0], &len, sizeof(len));
     conn.HandleRead();
 
-    write(fds[0], "he", 2);
+    write(fds[0], "he", 2); // 2 is size of he
     EXPECT_TRUE(conn.HandleRead());
     EXPECT_FALSE(conn.HasRequest());
 
-    write(fds[0], "llo", 3);
+    write(fds[0], "llo", 3); // 3 is size of llo
     EXPECT_TRUE(conn.HandleRead());
     EXPECT_TRUE(conn.HasRequest());
     EXPECT_EQ(conn.TakeRequest(), "hello");
@@ -141,7 +141,7 @@ TEST_F(TestConnection, HandleWrite_AllBrabchs_SocketPair)
     conn.writeBuf_.clear();
     EXPECT_TRUE(conn.HandleWrite());
 
-    conn.writeBuf_ = std::string(65536, 'x');
+    conn.writeBuf_ = std::string(65536, 'x'); // 65536 lang buffer to write
 
     EXPECT_TRUE(conn.HandleWrite());
 

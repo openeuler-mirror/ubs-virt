@@ -18,7 +18,7 @@
 #include "logger.h"
 
 namespace ovs::ut {
-class TestLogger: public testing::Test {
+class TestLogger : public testing::Test {
 public:
     TestLogger() = default;
 }; // ovs::ut

@@ -43,7 +43,7 @@ TEST_F(TestServer, UidToUsername)
     uid_t uid = getuid();
     std::string name = Server::UidToUsername(uid);
     EXPECT_FALSE(name.empty());
-    EXPECT_TRUE(Server::UidToUsername(999999).empty());
+    EXPECT_TRUE(Server::UidToUsername(999999).empty()); // 999999 is a non-existent UID
 }
 
 TEST_F(TestServer, PrepareSocketDir)
@@ -68,8 +68,8 @@ TEST_F(TestServer, AcceptClient)
 
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
-    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path.c_str());
-    ASSERT_EQ(connect(client, (sockaddr *)&addr, sizeof(addr)), 0);
+    ASSERT_GT(snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path.c_str()), 0);
+    ASSERT_EQ(connect(client, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)), 0);
 
     s.AcceptClients();
     close(client);
@@ -88,8 +88,8 @@ TEST_F(TestServer, AcceptClient_UserError)
 
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
-    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path.c_str());
-    ASSERT_EQ(connect(client, (sockaddr *)&addr, sizeof(addr)), 0);
+    ASSERT_GT(snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path.c_str()), 0);
+    ASSERT_EQ(connect(client, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)), 0);
     MOCKER(Server::UidToUsername).stubs().will(returnValue(std::string("")));
     s.AcceptClients();
     MOCKER(Server::UidToUsername).reset();
@@ -155,7 +155,7 @@ TEST_F(TestServer, StartAndStop)
 {
     Server server("/tmp/ubs_test/socket", 1);
     server.Start();
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50)); // sleep 50 ms
     server.Stop();
     SUCCEED();
 }
@@ -219,7 +219,7 @@ TEST_F(TestServer, GetsockoptFail)
 {
     Server s("/tmp/ubs_test/socket", 1);
 
-    MOCKER(accept).stubs().will(returnValue(100)).then(returnValue(-1));
+    MOCKER(accept).stubs().will(returnValue(100)).then(returnValue(-1)); // mock accept return 100
     errno = EAGAIN;
 
     MOCKER(getsockopt).stubs().will(returnValue(-1));
@@ -344,11 +344,11 @@ TEST_F(TestServer, PrepareSocketDir_CreateDirThrows)
 TEST_F(TestServer, HandleReadEvent_QpsLimitExceeded)
 {
     Server server("/tmp/ubs_test/socket");
-    auto conn = std::make_shared<Connection>(10);
+    auto conn = std::make_shared<Connection>(10); // mock fd is 10
 
     server.qpsLimit_ = 0;
 
-    EXPECT_TRUE(server.HandleReadEvent(conn, 10));
+    EXPECT_TRUE(server.HandleReadEvent(conn, 10)); // mock fd is 10
 }
 
 TEST_F(TestServer, HandleRead_AllBranches)
@@ -366,7 +366,7 @@ TEST_F(TestServer, HandleRead_AllBranches)
 
     conn2.state_ = Connection::State::READ_LEN;
     uint32_t len = htonl(8);
-    write(fds[0], &len, 4);
+    write(fds[0], &len, 4); // 4 is len of char count
     EXPECT_TRUE(conn2.HandleRead());
 
     close(fds[0]);

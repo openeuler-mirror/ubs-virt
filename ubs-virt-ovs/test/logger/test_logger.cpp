@@ -13,6 +13,8 @@
 #include "test_logger.h"
 #include "logger.cpp"
 
+#include <securec.h>
+
 using namespace virt::logger;
 using mockcpp::atLeast;
 namespace ovs::ut {
@@ -22,7 +24,7 @@ TEST_F(TestLogger, NowFilename_ReturnNonEmptyString)
     std::string filename = NowFilename();
     EXPECT_FALSE(filename.empty());
     EXPECT_GT(filename.size(), 0u);
-    EXPECT_EQ(filename.size(), 15);
+    EXPECT_EQ(filename.size(), 15); // expect filename size is 15
 }
 
 TEST_F(TestLogger, LogFile_CanWrite)
@@ -40,7 +42,7 @@ TEST_F(TestLogger, LogFile_CanWrite)
 
 TEST_F(TestLogger, LoggerEntry_SubmitDoesNotThrow)
 {
-    Logger entry(LoggerLevel::INFO, "logger_test.cpp", "LoggerEntry_SubmitDoesNotThrow", 123);
+    Logger entry(LoggerLevel::INFO, "logger_test.cpp", "LoggerEntry_SubmitDoesNotThrow", 123); // 123 is line num
     EXPECT_NO_THROW({
         entry << "This is a test log";
         entry.Submit();
@@ -73,8 +75,8 @@ TEST_F(TestLogger, NowFilename_StrftimeFailed)
 static struct dirent *MakeDirent(const char *name)
 {
     static struct dirent ent;
-    memset(&ent, 0, sizeof(ent));
-    strncpy(ent.d_name, name, sizeof(ent.d_name) - 1);
+    memset_s(&ent, sizeof(ent), 0, sizeof(ent));
+    strncpy_s(ent.d_name, sizeof(ent.d_name), name, sizeof(ent.d_name) - 1);
     return &ent;
 }
 
@@ -88,14 +90,14 @@ TEST_F(TestLogger, CleanupOldRotateLogFile_NoDelete)
         .then(returnValue(MakeDirent("virt_ovs_20240102010101.tar.gz")))
         .then(returnValue((dirent *)0));
     MOCKER(closedir).expects(once()).will(returnValue(1));
-    MOCKER(strftime).stubs().will(returnValue(reinterpret_cast<char *>(1)));
+    MOCKER(strftime).stubs().will(returnValue(static_cast<size_t>(1)));
 
     MOCKER(mktime)
         .stubs()
         .will(returnValue(time_t(1)))
-        .then(returnValue(time_t(2)))
-        .then(returnValue(time_t(3)))
-        .then(returnValue(time_t(4)));
+        .then(returnValue(time_t(2))) // mock file stat time is 2
+        .then(returnValue(time_t(3))) // mock file stat time is 3
+        .then(returnValue(time_t(4))); // mock file stat time is 4
 
     MOCKER(unlink).expects(never());
 
@@ -129,12 +131,12 @@ TEST_F(TestLogger, CleanupOldRotateLogFile_DeleteOldest)
     MOCKER(mktime)
         .stubs()
         .will(returnValue(time_t(1)))
-        .then(returnValue(time_t(2)))
-        .then(returnValue(time_t(3)))
-        .then(returnValue(time_t(4)))
-        .then(returnValue(time_t(5)))
-        .then(returnValue(time_t(6)))
-        .then(returnValue(time_t(7)));
+        .then(returnValue(time_t(2))) // mock file stat time is 2
+        .then(returnValue(time_t(3))) // mock file stat time is 3
+        .then(returnValue(time_t(4))) // mock file stat time is 4
+        .then(returnValue(time_t(5))) // mock file stat time is 5
+        .then(returnValue(time_t(6))) // mock file stat time is 6
+        .then(returnValue(time_t(7))); // mock file stat time is 7
     MOCKER(unlink).expects(exactly(1)).will(returnValue(0));
     CleanupOldRotateLogFile();
     GlobalMockObject::verify();
