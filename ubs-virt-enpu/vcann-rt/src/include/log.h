@@ -59,6 +59,13 @@ typedef struct {
 extern void log_print(EnpuLogLevel level, const char* filename, int line, const char* format, ...);
 extern int log_init(void);
 extern LogConfig g_log_config;
+long get_file_size(const char* filepath);
+int is_current_process(const char* filename);
+int is_log_file(const char* filename);
+int count_log_files(void);
+int compress_file(void);
+int update_log_file(void);
+int rotate_log_by_size(void);
 
 #define LOG_DEBUG(msg, ...) do { \
     if (g_log_config.min_log_level >= 4) { \

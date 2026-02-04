@@ -34,7 +34,7 @@ static const char* log_level_str[] = {
 };
 
 // bytes
-static long get_file_size(const char* filepath)
+long get_file_size(const char* filepath)
 {
     struct stat st;
     if (stat(filepath, &st) < 0) {
@@ -209,7 +209,7 @@ int update_log_file()
     return ENPU_SUCCESS;
 }
 
-static int rotate_log_by_size()
+int rotate_log_by_size()
 {
     long file_size = get_file_size(g_log_config.log_path);
     if (file_size < g_log_config.max_file_size) {
@@ -226,7 +226,6 @@ static int rotate_log_by_size()
 
 int log_init()
 {
-    printf("log init\n");
     pthread_mutex_init(&g_log_config.print_mutex, NULL);
     pthread_mutex_init(&g_log_config.compress_mutex, NULL);
 
