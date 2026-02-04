@@ -17,8 +17,15 @@
 extern "C" {
 #endif
 
+#define MOCK_MEMCTL_LOCK_PATH "../build/memctl.lock"
+
 void load_rt_libraries(void);
 void stub_load_rt_libraries(void);
+
+const char *lock_path();
+const char *stub_lock_path();
+
+void enpu_global_init(void);
 
 #if defined(__cplusplus)
 }

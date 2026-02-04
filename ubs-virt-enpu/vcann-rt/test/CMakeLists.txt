@@ -1,3 +1,15 @@
+# -----------------------------------------------------------------------------------------------------------
+# Copyright (c) Huawei Technologies Co., Ltd. 2026-2026. All rights reserved.
+# ubs-virt-enpu is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
+#          http://license.coscl.org.cn/MulanPSL2
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
+# -----------------------------------------------------------------------------------------------------------
+
 add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=1)
 
 include(${PROJECT_SOURCE_DIR}/scripts/cmake/gtest.cmake)
@@ -24,6 +36,8 @@ set(VNPU_SRC_FILES
 
 set(VNPU_TESTCASE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/demo_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/device_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/memory_test.cpp
 )
 
 set(VNPU_STUB_FILES
@@ -64,6 +78,7 @@ target_compile_options(vnpu_test PRIVATE
     -fstack-protector-strong
     -fvisibility=hidden
     -fno-common
+    -O1
 )
 
 target_link_options(vnpu_test PRIVATE

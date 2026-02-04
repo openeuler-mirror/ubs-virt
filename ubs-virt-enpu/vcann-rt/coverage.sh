@@ -1,4 +1,16 @@
 #!/bin/bash
+# -----------------------------------------------------------------------------------------------------------
+# Copyright (c) Huawei Technologies Co., Ltd. 2026-2026. All rights reserved.
+# ubs-virt-enpu is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
+#          http://license.coscl.org.cn/MulanPSL2
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
+# -----------------------------------------------------------------------------------------------------------
+
 set -e
 
 if ! command -v lcov > /dev/null 2>&1; then
@@ -11,7 +23,30 @@ echo "[DEBUG] $(pwd)"
 
 COVERAGE_THRESHOLD=80.0
 
-IGNORED_ERRORS="mismatch,unused,unused"
+get_lcov_version() {
+    local version_output
+    version_output=$(lcov --version 2>/dev/null | head -n1)
+    if [[ $version_output =~ ([0-9]+\.[0-9]+) ]]; then
+        echo "${BASH_REMATCH[1]}"
+    else
+        echo "0.0"
+    fi
+}
+
+version_ge() {
+    [ "$(echo -e "$1\n$2" | sort -V | tail -n1)" = "$1" ]
+}
+
+lcov_version=$(get_lcov_version)
+echo "get lcov version: $lcov_version"
+
+if version_ge "$lcov_version" "2.0"; then
+    echo "lcov $lcov_version supports --ignore-errors mismatch"
+    IGNORED_ERRORS="mismatch,unused,unused"
+else
+    echo "lcov $lcov_version do not support --ignore-errors mismatch"
+    IGNORED_ERRORS="gcov,source,graph"
+fi
 
 lcov --capture --directory . \
     --ignore-errors "$IGNORED_ERRORS" \

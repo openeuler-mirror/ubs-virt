@@ -1,3 +1,15 @@
+# -----------------------------------------------------------------------------------------------------------
+# Copyright (c) Huawei Technologies Co., Ltd. 2026-2026. All rights reserved.
+# ubs-virt-enpu is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
+#          http://license.coscl.org.cn/MulanPSL2
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
+# -----------------------------------------------------------------------------------------------------------
+
 # build_mockcpp.cmake
 if(TARGET mockcpp::mockcpp)
     return()
@@ -29,12 +41,23 @@ string(SHA256 CONFIG_HASH
 
 # --- Download ---
 message(STATUS "Downloading mockcpp src from ${MOCKCPP_URL}")
-FetchContent_Declare(
-    _mockcpp_src
-    URL      ${MOCKCPP_URL}
-    URL_HASH SHA256=${MOCKCPP_SHA256}
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-)
+
+# 根据cmake版本决定是否使用DOWNLOAD_EXTRACT_TIMESTAMP参数
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.24)
+    FetchContent_Declare(
+        _mockcpp_src
+        URL      ${MOCKCPP_URL}
+        URL_HASH SHA256=${MOCKCPP_SHA256}
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+else()
+    FetchContent_Declare(
+        _mockcpp_src
+        URL      ${MOCKCPP_URL}
+        URL_HASH SHA256=${MOCKCPP_SHA256}
+    )
+endif()
+
 FetchContent_Populate(_mockcpp_src)
 
 # --- Patch: apply ARM64 support patch ---

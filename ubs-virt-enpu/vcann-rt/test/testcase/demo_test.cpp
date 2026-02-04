@@ -12,28 +12,32 @@
 
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
+#include <sys/file.h>
 #include <runtime/rt.h>
+#include "securec.h"
 #include "runtime_stub.h"
+#include "runtime_stub.h"
+#include "log.h"
 
 class DemoTest : public testing::Test {
 protected:
     void SetUp()
     {
+        (void)sprintf_s(g_log_config.log_dir, sizeof(g_log_config.log_dir), "%s", "../build/log/enpu/");
+        open(stub_lock_path(), O_CREAT | O_RDONLY, 777); // ut memctl.lock文件,设置为777权限
+        enpu_global_init();
         MOCKER(load_rt_libraries).stubs().will(invoke(stub_load_rt_libraries));
+        MOCKER(lock_path).stubs().will(invoke(stub_lock_path));
     }
-    void TearDown() {}
+
+    void TearDown()
+    {
+        GlobalMockObject::verify();
+        GlobalMockObject::reset();
+    }
 };
 
 TEST_F(DemoTest, DemoTestCase)
 {
     EXPECT_EQ(rtSetDevice(0), RT_ERROR_NONE);
-}
-
-TEST_F(DemoTest, rtMalloc)
-{
-    rtError_t error = rtSetDevice(0);
-    EXPECT_EQ(error, RT_ERROR_NONE);
-    void *srcAddr = nullptr;
-    error = rtMalloc(&srcAddr, 1, 0, 0);
-    EXPECT_EQ(error, RT_ERROR_NONE);
 }

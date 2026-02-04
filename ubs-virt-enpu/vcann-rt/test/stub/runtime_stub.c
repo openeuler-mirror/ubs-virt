@@ -11,6 +11,10 @@
  */
 
 #include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <runtime/rt.h>
 #include "runtime_hook.h"
 #include "runtime_stub.h"
@@ -34,4 +38,10 @@ void stub_load_rt_libraries(void)
     rt_library_entry[RUNTIME_HOOK_ENUM(name)].func_ptr = (void *)RUNTIME_STUB_FUNCTION_NAME(name);
     RUNTIME_FUNCTION_LIST
 #undef RUNTIME_FUNCTION_ENTRY
+}
+
+const char *stub_lock_path()
+{
+    printf("enter stub_lock_path");
+    return MOCK_MEMCTL_LOCK_PATH;
 }
