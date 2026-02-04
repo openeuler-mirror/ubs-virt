@@ -226,6 +226,7 @@ int rotate_log_by_size()
 
 int log_init()
 {
+    printf("log init\n");
     pthread_mutex_init(&g_log_config.print_mutex, NULL);
     pthread_mutex_init(&g_log_config.compress_mutex, NULL);
 
