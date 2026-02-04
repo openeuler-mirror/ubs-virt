@@ -69,7 +69,7 @@ TEST_F(TestServer, AcceptClient)
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     ASSERT_GT(snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path.c_str()), 0);
-    ASSERT_EQ(connect(client, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)), 0);
+    ASSERT_EQ(connect(client, static_cast<sockaddr*>(static_cast<void*>(&addr)), sizeof(addr)), 0);
 
     s.AcceptClients();
     close(client);
@@ -89,7 +89,7 @@ TEST_F(TestServer, AcceptClient_UserError)
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     ASSERT_GT(snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", path.c_str()), 0);
-    ASSERT_EQ(connect(client, reinterpret_cast<sockaddr *>(&addr), sizeof(addr)), 0);
+    ASSERT_EQ(connect(client, static_cast<sockaddr*>(static_cast<void*>(&addr)), sizeof(addr)), 0);
     MOCKER(Server::UidToUsername).stubs().will(returnValue(std::string("")));
     s.AcceptClients();
     MOCKER(Server::UidToUsername).reset();

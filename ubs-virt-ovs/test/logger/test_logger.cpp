@@ -127,7 +127,7 @@ TEST_F(TestLogger, CleanupOldRotateLogFile_DeleteOldest)
         .then(returnValue(MakeDirent("virt_ovs_20240106010101.tar.gz")))
         .then(returnValue((dirent *)0));
     MOCKER(closedir).expects(once()).will(returnValue(1));
-    MOCKER(strptime).stubs().will(returnValue(reinterpret_cast<char *>(1)));
+    MOCKER(strptime).stubs().will(returnValue(const_cast<char*>("x")));
     MOCKER(mktime)
         .stubs()
         .will(returnValue(time_t(1)))
@@ -159,7 +159,7 @@ TEST_F(TestLogger, CleanupOldRotateLogFile_IgnoreInvalid)
         .then(returnValue(MakeDirent("virt_ovs_invalid.tar.gz")))
         .then(returnValue((dirent *)0));
     MOCKER(closedir).expects(once()).will(returnValue(1));
-    MOCKER(strftime).stubs().will(returnValue(static_cast<char *>(nullptr)));
+    MOCKER(strftime).stubs().will(returnValue(static_cast<size_t>(10))); // mock strftime will return 10
 
     MOCKER(unlink).expects(never()).will(returnValue(0));
     CleanupOldRotateLogFile();
@@ -178,7 +178,9 @@ TEST_F(TestLogger, CompressOldLogFile_CallCleanup)
     std::string oldLogFile = "/tmp/test.log";
     std::string ts = "20260123_121314";
 
-    EXPECT_NO_THROW({ CompressOldLogFile(oldLogFile, ts); });
+    EXPECT_NO_THROW({
+        CompressOldLogFile(oldLogFile, ts);
+    });
     GlobalMockObject::verify();
     MOCKER(CleanupOldRotateLogFile).reset();
 }
