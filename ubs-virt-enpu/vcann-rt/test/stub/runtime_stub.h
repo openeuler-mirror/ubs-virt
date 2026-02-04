@@ -1,6 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2026-2026. All rights reserved.
- * ubs-virt-ovs is licensed under Mulan PSL v2.
+ * ubs-virt-enpu is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -26,6 +26,17 @@ const char *lock_path();
 const char *stub_lock_path();
 
 void enpu_global_init(void);
+
+int get_mem_used(size_t *used);
+void *map_share_mem(const char *shmID, size_t size);
+
+typedef struct file_lock {
+    int fd;
+    bool held;
+} file_lock;
+
+file_lock file_lock_create(const char *path, int operation);
+void file_lock_destroy(file_lock *lock);
 
 #if defined(__cplusplus)
 }

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2026-2026. All rights reserved.
- * ubs-virt-ovs is licensed under Mulan PSL v2.
+ * ubs-virt-enpu is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
  *          http://license.coscl.org.cn/MulanPSL2
@@ -133,4 +133,15 @@ TEST_F(MemoryTest, rtMemGetInfoEx)
     size_t totalSize = 1;
     rtError_t error = rtMemGetInfoEx(memInfoType, &freeSize, &totalSize);
     EXPECT_EQ(error, RT_ERROR_NONE);
+}
+
+TEST_F(MemoryTest, rtMemGetInfoEx_FailTest)
+{
+    static constexpr int32_t RT_ERROR_INVALID_VALUE = 0x07110001;
+    MOCKER(get_mem_used, int(size_t *)).stubs().will(returnValue(-1));
+    rtMemInfoType_t memInfoType = 0;
+    size_t freeSize = 0;
+    size_t totalSize = 1;
+    rtError_t error = rtMemGetInfoEx(memInfoType, &freeSize, &totalSize);
+    EXPECT_EQ(error, RT_ERROR_INVALID_VALUE);
 }

@@ -13,14 +13,25 @@
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
 #include <sys/file.h>
+#include <sys/mman.h>
 #include <runtime/rt.h>
+#include <acl/acl.h>
 #include "securec.h"
-#include "runtime_stub.h"
 #include "runtime_stub.h"
 #include "log.h"
 
-class DemoTest : public testing::Test {
+class UtilsTest : public testing::Test {
 protected:
+    static void SetUpTestCase()
+    {
+        std::cout<<"Utils test start"<<std::endl;
+    }
+
+    static void TearDownTestCase()
+    {
+        std::cout<<"Utils test end"<<std::endl;
+    }
+
     void SetUp()
     {
         (void)sprintf_s(g_log_config.log_dir, sizeof(g_log_config.log_dir), "%s", "../build/log/enpu/");
@@ -37,7 +48,24 @@ protected:
     }
 };
 
-TEST_F(DemoTest, DemoTestCase)
+TEST_F(UtilsTest, UtilsMemFailedTest)
 {
-    EXPECT_EQ(rtSetDevice(0), RT_ERROR_NONE);
+    char *shmIdNullptr = nullptr;
+    size_t size = 0;
+    map_share_mem(shmIdNullptr, size);
+    MOCKER(mmap, void *(void *, size_t, int, int, int, off_t)).stubs().will(returnValue(MAP_FAILED));
+    char *shmIdNew = "Id";
+    map_share_mem(shmIdNew, size);
+    char *pathNullptr = nullptr;
+    int operation = 1;
+    file_lock resLock = file_lock_create(pathNullptr, operation);
+    EXPECT_EQ(resLock.held, false);
+    MOCKER(flock, int(int, int)).stubs().will(returnValue(-1));
+    MOCKER(close, int(int)).stubs().will(returnValue(-1));
+    file_lock *lockNullptr = nullptr;
+    file_lock_destroy(lockNullptr);
+    file_lock normalLock = { 1, true };
+    file_lock_destroy(&normalLock);
+    normalLock.held = false;
+    file_lock_destroy(&normalLock);
 }
