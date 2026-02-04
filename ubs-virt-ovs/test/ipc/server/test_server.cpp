@@ -373,7 +373,7 @@ TEST_F(TestServer, HandleRead_AllBranches)
     close(fds[1]);
 }
 
-class MockConfModule: public config::ConfModule {
+class MockConfigModule: public config::ConfigModule {
 public:
     config::ConfigCode ret{ config::ConfigCode::OK };
     std::string authorityValue;
@@ -390,14 +390,14 @@ public:
 
 TEST_F(TestServer, AuthorizeUser_GetConfFailed)
 {
-    MockConfModule conf;
+    MockConfigModule conf;
     conf.ret = config::ConfigCode::CONFIG_FILE_READ_ERROR;
 
     std::string authority;
     EXPECT_FALSE(AuthManager::AuthorizeUser("testuser", authority, conf));
 }
 
-static config::ConfigCode FakeGetConfString(config::ConfModule *, const std::string &section, const std::string &key,
+static config::ConfigCode FakeGetConfString(config::ConfigModule *, const std::string &section, const std::string &key,
     std::string &val)
 {
     val = "svc1,svc2";
@@ -408,12 +408,12 @@ TEST_F(TestServer, AuthorizeUser_GetConfSuccess)
 {
     std::string authority;
 
-    MOCKER((config::ConfigCode(config::ConfModule::*)(const std::string &, const std::string &, std::string &)) &
-        config::ConfModule::GetConf<std::string>)
+    MOCKER((config::ConfigCode(config::ConfigModule::*)(const std::string &, const std::string &, std::string &)) &
+        config::ConfigModule::GetConf<std::string>)
         .stubs()
         .will(invoke(FakeGetConfString));
 
-    EXPECT_TRUE(AuthManager::AuthorizeUser("testuser", authority, config::ConfModule::GetInstance()));
+    EXPECT_TRUE(AuthManager::AuthorizeUser("testuser", authority, config::ConfigModule::GetInstance()));
 
     EXPECT_EQ(authority, "svc1,svc2");
 
