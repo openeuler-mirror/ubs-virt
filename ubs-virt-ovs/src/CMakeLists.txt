@@ -8,6 +8,8 @@ add_library(ubs-virt-ovs-core STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/logger/logger.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ubse/client_library.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ubse/urma_utility.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/config/config_manager.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/config/config_module.cpp
 )
 
 target_include_directories(ubs-virt-ovs-core
@@ -23,6 +25,8 @@ target_include_directories(ubs-virt-ovs-core
         ${CMAKE_CURRENT_SOURCE_DIR}/logger
         ${CMAKE_CURRENT_SOURCE_DIR}/serde
         ${CMAKE_CURRENT_SOURCE_DIR}/ubse
+        ${CMAKE_CURRENT_SOURCE_DIR}/config
+
 )
 
 add_executable(ubs-virt-ovs

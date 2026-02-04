@@ -9,6 +9,7 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include "config_module.h"
 #include "logger.h"
 #include "server.h"
 
@@ -40,6 +41,11 @@ void InstallSignalHandler()
 
 int main()
 {
+    namespace config = virt::ovs::config;
+    const config::ConfigCode ret = config::ConfigModule::GetInstance().Init("/etc/ubs-virt-ovs");
+    if (ret != config::ConfigCode::OK) {
+        LOG_ERROR << "Config module start failed, ret is :" << static_cast<uint32_t>(ret);
+    }
     InstallSignalHandler();
     LOG_INFO << "Process starting";
     virt::ovs::ipc::server::Server server("/run/ubsvirt/ovs.sock");
@@ -49,7 +55,6 @@ int main()
     while (g_running.load(std::memory_order_relaxed)) {
         std::this_thread::sleep_for(kShutdownPollInterval);
     }
-
     LOG_INFO << "SIGTERM or SIGINT received, stopping service";
     server.Stop();
     LOG_INFO << "Server stopped, exiting";
