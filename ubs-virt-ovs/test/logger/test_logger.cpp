@@ -127,7 +127,8 @@ TEST_F(TestLogger, CleanupOldRotateLogFile_DeleteOldest)
         .then(returnValue(MakeDirent("virt_ovs_20240106010101.tar.gz")))
         .then(returnValue((dirent *)0));
     MOCKER(closedir).expects(once()).will(returnValue(1));
-    MOCKER(strptime).stubs().will(returnValue(const_cast<char*>("x")));
+    static std::string dummy_str = "x";
+    MOCKER(strptime).stubs().will(returnValue(const_cast<char*>(dummy_str.c_str())));
     MOCKER(mktime)
         .stubs()
         .will(returnValue(time_t(1)))
