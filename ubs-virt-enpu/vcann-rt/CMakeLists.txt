@@ -27,8 +27,6 @@ add_compile_options(
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmake/securec.cmake)
 
-add_custom_target(runtime_original_target ${CMAKE_CURRENT_SOURCE_DIR}/make_lib_original.sh runtime _)
-
 add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
 
 set(INCLUDE_DIRS
@@ -68,7 +66,7 @@ target_link_options(enpu-monitor PRIVATE
 
 target_include_directories(enpu-monitor PRIVATE ${INCLUDE_DIRS})
 target_link_directories(enpu-monitor PRIVATE ${LINK_DIRS})
-target_link_libraries(enpu-monitor PRIVATE runtime_original securec ${LINK_LIBS})
+target_link_libraries(enpu-monitor PRIVATE securec ${LINK_LIBS})
 
 option(BUILD_TESTS "Build tests" OFF)
 option(ENABLE_COVERAGE "Enable coverage reporting" OFF)
