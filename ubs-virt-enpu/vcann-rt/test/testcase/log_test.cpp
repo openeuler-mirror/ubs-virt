@@ -150,9 +150,12 @@ TEST_F(LogTest, LogTest_count_log_files)
     ret = count_log_files();
     EXPECT_EQ(ret, fileCount);
 
-    remove(filename1);
-    remove(filename2);
-    remove(filename3);
+    ret = remove(filename1);
+    EXPECT_EQ(ret, 0);
+    ret = remove(filename2);
+    EXPECT_EQ(ret, 0);
+    ret = remove(filename3);
+    EXPECT_EQ(ret, 0);
 
     strcpy_s(g_log_config.log_dir, sizeof(g_log_config.log_dir), "/tmp/log/enpu/vcann-rt/mock/test/");
     ret = count_log_files();
