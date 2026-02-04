@@ -13,6 +13,7 @@
 #include "log.h"
 #include "runtime_hook.h"
 #include "core_limiter.h"
+#include "npu_manager.h"
 
 RUNTIME_HOOK_DEFINE(rtModelExecute, rtModel_t mdl, rtStream_t stm, uint32_t flag)
 {
@@ -62,7 +63,7 @@ RUNTIME_HOOK_DEFINE(rtStreamEndCapture, rtStream_t stm, rtModel_t *captureMdl)
 {
     core_limiter(stm, NULL, NULL);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtStreamEndCapture, stm, captureMdl);
-    if (ret == ACL_RT_SUCCESS) {
+    if (ret == ACL_RT_SUCCESS && is_core_limit()) {
         bool capture = false;
         set_stream_capture(&capture, stm);
     }

@@ -205,7 +205,6 @@ void clear_streams(void)
 
 void synchronize_all_streams(void)
 {
-    LOG_DEBUG("Stream synchronization num is %d.", g_cache_streams.num_streams);
     for (int i = 0; i < g_cache_streams.num_streams; ++i) {
         rtStream_t stm = g_cache_streams.streams[i];
         bool capture = 0;
