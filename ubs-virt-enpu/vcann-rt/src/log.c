@@ -203,7 +203,7 @@ int update_log_file()
 
     umask(SET_UMASK_FOR_666); // 规避系统默认文件权限不一致问题
     if (creat(g_log_config.log_path, LOG_FILE_RIGHT) < 0) {
-        perror("Create new log file");
+        perror("update log file error: Create new log file");
         return ENPU_FAIL;
     }
     return ENPU_SUCCESS;
