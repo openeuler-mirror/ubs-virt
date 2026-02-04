@@ -20,7 +20,7 @@
 #include "common.h"
 #include "log.h"
 
-void removeMockFiles()
+void RemoveMockFiles()
 {
     DIR* dir = opendir(g_log_config.log_dir);
     if (dir == NULL) {
@@ -54,7 +54,7 @@ void removeMockFiles()
     }
 }
 
-void setLogConfig(LogConfig log_config)
+void SetLogConfig(LogConfig log_config)
 {
     g_log_config = log_config;
 }
@@ -71,13 +71,13 @@ protected:
         int backupCount = 3;
         mockLogConfig.max_backup_count = backupCount;
         mockLogConfig.min_log_level = ENPU_LOG_INFO;
-        setLogConfig(mockLogConfig);
+        SetLogConfig(mockLogConfig);
         log_init();
     }
 
     void TearDown()
     {
-        removeMockFiles();
+        RemoveMockFiles();
         rmdir(g_log_config.log_dir);
 
         LogConfig originLogConfig;
@@ -88,7 +88,7 @@ protected:
         originLogConfig.max_file_size = fileSize; // 10MB
         originLogConfig.max_backup_count = backupCount;
         originLogConfig.min_log_level = ENPU_LOG_INFO;
-        setLogConfig(originLogConfig);
+        SetLogConfig(originLogConfig);
     }
 };
 
@@ -130,7 +130,7 @@ TEST_F(LogTest, LogTest_is_log_file)
 
 TEST_F(LogTest, LogTest_count_log_files)
 {
-    removeMockFiles();
+    RemoveMockFiles();
 
     const char *filename1 = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT_1.log";
     const char *filename2 = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT_2.log";
@@ -182,7 +182,7 @@ TEST_F(LogTest, LogTest_compress_file)
     ret = compress_file();
     EXPECT_EQ(ret, ENPU_SUCCESS);
 
-    removeMockFiles();
+    RemoveMockFiles();
 }
 
 TEST_F(LogTest, LogTest_update_log_file)
@@ -190,7 +190,7 @@ TEST_F(LogTest, LogTest_update_log_file)
     int ret = update_log_file();
     EXPECT_EQ(ret, ENPU_SUCCESS);
 
-    removeMockFiles();
+    RemoveMockFiles();
 }
 
 TEST_F(LogTest, LogTest_rotate_log_by_size)
@@ -234,5 +234,5 @@ TEST_F(LogTest, LogTest_rotate_log_by_size)
     logLevel++;
     LOG_DEBUG("test log level %d : %s.", logLevel, "DEBUG");
 
-    removeMockFiles();
+    RemoveMockFiles();
 }
