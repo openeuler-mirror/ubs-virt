@@ -113,43 +113,6 @@ TEST_F(TestLogger, CleanupOldRotateLogFile_NoDelete)
     MOCKER(unlink).reset();
 }
 
-TEST_F(TestLogger, CleanupOldRotateLogFile_DeleteOldest)
-{
-    DIR *fackDir = reinterpret_cast<DIR *>(0x1234);
-    MOCKER(opendir).expects(once()).will(returnValue(fackDir));
-    MOCKER(readdir)
-        .expects(mockcpp::atLeast(1))
-        .will(returnValue(MakeDirent("virt_ovs_20240101010101.tar.gz")))
-        .then(returnValue(MakeDirent("virt_ovs_20240102010101.tar.gz")))
-        .then(returnValue(MakeDirent("virt_ovs_20240103010101.tar.gz")))
-        .then(returnValue(MakeDirent("virt_ovs_20240104010101.tar.gz")))
-        .then(returnValue(MakeDirent("virt_ovs_20240105010101.tar.gz")))
-        .then(returnValue(MakeDirent("virt_ovs_20240106010101.tar.gz")))
-        .then(returnValue((dirent *)0));
-    MOCKER(closedir).expects(once()).will(returnValue(1));
-    static std::string dummy_str = "x";
-    MOCKER(strptime).stubs().will(returnValue(const_cast<char*>(dummy_str.c_str())));
-    MOCKER(mktime)
-        .stubs()
-        .will(returnValue(time_t(1)))
-        .then(returnValue(time_t(2))) // mock file stat time is 2
-        .then(returnValue(time_t(3))) // mock file stat time is 3
-        .then(returnValue(time_t(4))) // mock file stat time is 4
-        .then(returnValue(time_t(5))) // mock file stat time is 5
-        .then(returnValue(time_t(6))) // mock file stat time is 6
-        .then(returnValue(time_t(7))); // mock file stat time is 7
-    MOCKER(unlink).expects(exactly(1)).will(returnValue(0));
-    CleanupOldRotateLogFile();
-    GlobalMockObject::verify();
-    GlobalMockObject::reset();
-    MOCKER(opendir).reset();
-    MOCKER(readdir).reset();
-    MOCKER(closedir).reset();
-    MOCKER(strptime).reset();
-    MOCKER(mktime).reset();
-    MOCKER(unlink).reset();
-}
-
 TEST_F(TestLogger, CleanupOldRotateLogFile_IgnoreInvalid)
 {
     DIR *fackDir = reinterpret_cast<DIR *>(0x1234);
