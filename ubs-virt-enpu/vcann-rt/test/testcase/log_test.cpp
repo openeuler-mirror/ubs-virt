@@ -116,70 +116,71 @@ TEST_F(LogTest, LogTest_get_file_size)
     EXPECT_EQ(ret, 0);
 }
 
-TEST_F(LogTest, LogTest_is_log_file)
+TEST_F(LogTest, LogTest_is_current_process)
 {
-    const char *filename = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT.log";
-    const char *filenameError = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT.txt";
-
-    int ret = is_log_file(filename);
+    int ret = update_log_file();
     EXPECT_EQ(ret, ENPU_SUCCESS);
 
+    ret = is_current_process(g_log_config.log_path);
+    EXPECT_EQ(ret, ENPU_SUCCESS);
+
+    const char *filenameErrorSUFFIX = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT.txt";
+    ret = is_current_process(filenameErrorSUFFIX);
+    EXPECT_EQ(ret, ENPU_FAIL);
+
+    const char *filenameErrorPID = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT_0000_0000.txt";
+    ret = is_current_process(filenameErrorPID);
+    EXPECT_EQ(ret, ENPU_FAIL);
+}
+
+TEST_F(LogTest, LogTest_is_log_file)
+{
+    int ret = update_log_file();
+    EXPECT_EQ(ret, ENPU_SUCCESS);
+
+    ret = is_log_file(g_log_config.log_path);
+    EXPECT_EQ(ret, ENPU_SUCCESS);
+
+    const char *filenameError = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT.txt";
     ret = is_log_file(filenameError);
     EXPECT_EQ(ret, ENPU_FAIL);
+
+    RemoveMockFiles();
 }
 
 TEST_F(LogTest, LogTest_count_log_files)
 {
     RemoveMockFiles();
 
-    const char *filename1 = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT_1.log";
-    const char *filename2 = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT_2.log";
-    const char *filename3 = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT_3.log";
-
-    FILE *file1 = fopen(filename1, "w");
-    int ret = fclose(file1);
-    EXPECT_EQ(ret, 0);
-    FILE *file2 = fopen(filename2, "w");
-    ret = fclose(file2);
-    EXPECT_EQ(ret, 0);
-    FILE *file3 = fopen(filename3, "w");
-    ret = fclose(file3);
-    EXPECT_EQ(ret, 0);
-
     int fileCount = 3;
-    ret = count_log_files();
-    EXPECT_EQ(ret, fileCount);
+    for (int i = 0; i < fileCount; ++i) {
+        int ret = update_log_file();
+        EXPECT_EQ(ret, ENPU_SUCCESS);
+        sleep(1);
+    }
 
-    ret = remove(filename1);
-    EXPECT_EQ(ret, 0);
-    ret = remove(filename2);
-    EXPECT_EQ(ret, 0);
-    ret = remove(filename3);
-    EXPECT_EQ(ret, 0);
+    int ret = count_log_files();
+    EXPECT_EQ(ret, fileCount);
 
     strcpy_s(g_log_config.log_dir, sizeof(g_log_config.log_dir), "/tmp/log/enpu/vcann-rt/mock/test/");
     ret = count_log_files();
     EXPECT_EQ(ret, -1);
     strcpy_s(g_log_config.log_dir, sizeof(g_log_config.log_dir), "/tmp/log/enpu/vcann-rt/mock/");
+
+    RemoveMockFiles();
 }
 
 TEST_F(LogTest, LogTest_compress_file)
 {
-    const char *filename1 = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT_1.log";
-    const char *filename2 = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT_2.log";
-    const char *filename3 = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT_3.log";
+    RemoveMockFiles();
 
-    FILE *file1 = fopen(filename1, "w");
-    int ret = fclose(file1);
-    EXPECT_EQ(ret, 0);
-    FILE *file2 = fopen(filename2, "w");
-    ret = fclose(file2);
-    EXPECT_EQ(ret, 0);
-    FILE *file3 = fopen(filename3, "w");
-    ret = fclose(file3);
-    EXPECT_EQ(ret, 0);
+    int fileCount = 3;
+    for (int i = 0; i < fileCount; ++i) {
+        int ret = update_log_file();
+        EXPECT_EQ(ret, ENPU_SUCCESS);
+    }
 
-    ret = compress_file();
+    int ret = compress_file();
     EXPECT_EQ(ret, ENPU_SUCCESS);
 
     RemoveMockFiles();
