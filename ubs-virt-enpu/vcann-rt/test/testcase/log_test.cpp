@@ -198,5 +198,11 @@ TEST_F(LogTest, LogTest_rotate_log_by_size)
     ret = rotate_log_by_size();
     EXPECT_EQ(ret, ENPU_SUCCESS);
 
+    LOG_FATAL("test log level %d : %s.", 0, "FATAL");
+    LOG_ERROR("test log level %d : %s.", 1, "ERROR");
+    LOG_WARN("test log level %d : %s.", 2, "WARN");
+    LOG_INFO("test log level %d : %s.", 3, "INFO");
+    LOG_DEBUG("test log level %d : %s.", 0, "DEBUG");
+
     remove_mock_files();
 }
