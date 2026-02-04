@@ -13,11 +13,12 @@
 #include "log.h"
 #include "runtime_hook.h"
 #include "core_limiter.h"
+#include "npu_manager.h"
 
 RUNTIME_HOOK_DEFINE(rtEventCreate, rtEvent_t *evt)
 {
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtEventCreate, evt);
-    if (ret == ACL_RT_SUCCESS) {
+    if (ret == ACL_RT_SUCCESS && is_core_limit()) {
         set_event_create_status(*evt);
     }
     return ret;
@@ -26,7 +27,7 @@ RUNTIME_HOOK_DEFINE(rtEventCreate, rtEvent_t *evt)
 RUNTIME_HOOK_DEFINE(rtsEventCreate, rtEvent_t *evt, uint64_t flag)
 {
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtsEventCreate, evt, flag);
-    if (ret == ACL_RT_SUCCESS) {
+    if (ret == ACL_RT_SUCCESS && is_core_limit()) {
         set_event_create_status(*evt);
     }
     return ret;
@@ -35,7 +36,7 @@ RUNTIME_HOOK_DEFINE(rtsEventCreate, rtEvent_t *evt, uint64_t flag)
 RUNTIME_HOOK_DEFINE(rtsEventCreateEx, rtEvent_t *evt, uint64_t flag)
 {
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtsEventCreateEx, evt, flag);
-    if (ret == ACL_RT_SUCCESS) {
+    if (ret == ACL_RT_SUCCESS && is_core_limit()) {
         set_event_create_status(*evt);
     }
     return ret;
@@ -44,7 +45,7 @@ RUNTIME_HOOK_DEFINE(rtsEventCreateEx, rtEvent_t *evt, uint64_t flag)
 RUNTIME_HOOK_DEFINE(rtEventCreateWithFlag, rtEvent_t *evt, uint32_t flag)
 {
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtEventCreateWithFlag, evt, flag);
-    if (ret == ACL_RT_SUCCESS) {
+    if (ret == ACL_RT_SUCCESS && is_core_limit()) {
         set_event_create_status(*evt);
     }
     return ret;
@@ -53,7 +54,7 @@ RUNTIME_HOOK_DEFINE(rtEventCreateWithFlag, rtEvent_t *evt, uint32_t flag)
 RUNTIME_HOOK_DEFINE(rtEventCreateExWithFlag, rtEvent_t *evt, uint32_t flag)
 {
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtEventCreateExWithFlag, evt, flag);
-    if (ret == ACL_RT_SUCCESS) {
+    if (ret == ACL_RT_SUCCESS && is_core_limit()) {
         set_event_create_status(*evt);
     }
     return ret;
@@ -69,7 +70,9 @@ RUNTIME_HOOK_DEFINE(rtStreamWaitEvent, rtStream_t stm, rtEvent_t evt)
 RUNTIME_HOOK_DEFINE(rtEventRecord, rtEvent_t evt, rtStream_t stm)
 {
     core_limiter(stm, NULL, NULL);
-    set_event_record_status(evt, stm);
+    if (is_core_limit()) {
+        set_event_record_status(evt, stm);
+    }
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtEventRecord, evt, stm);
     return ret;
 }
@@ -77,7 +80,7 @@ RUNTIME_HOOK_DEFINE(rtEventRecord, rtEvent_t evt, rtStream_t stm)
 RUNTIME_HOOK_DEFINE(rtEventDestroy, rtEvent_t evt)
 {
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtEventDestroy, evt);
-    if (ret == ACL_RT_SUCCESS) {
+    if (ret == ACL_RT_SUCCESS && is_core_limit()) {
         set_event_destroy_status(evt);
     }
     return ret;
@@ -100,7 +103,7 @@ RUNTIME_HOOK_DEFINE(rtDestroyStreamForce, rtStream_t stm)
 RUNTIME_HOOK_DEFINE(rtsNotifyCreate, rtNotify_t *notify, uint64_t flag)
 {
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtsNotifyCreate, notify, flag);
-    if (ret == ACL_RT_SUCCESS) {
+    if (ret == ACL_RT_SUCCESS && is_core_limit()) {
         set_event_create_status(*notify);
     }
     return ret;
@@ -109,7 +112,9 @@ RUNTIME_HOOK_DEFINE(rtsNotifyCreate, rtNotify_t *notify, uint64_t flag)
 RUNTIME_HOOK_DEFINE(rtNotifyRecord, rtNotify_t evt, rtStream_t stm)
 {
     core_limiter(stm, NULL, NULL);
-    set_event_record_status(evt, stm);
+    if (is_core_limit()) {
+        set_event_record_status(evt, stm);
+    }
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtNotifyRecord, evt, stm);
     return ret;
 }
@@ -117,7 +122,7 @@ RUNTIME_HOOK_DEFINE(rtNotifyRecord, rtNotify_t evt, rtStream_t stm)
 RUNTIME_HOOK_DEFINE(rtNotifyDestroy, rtNotify_t evt)
 {
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtNotifyDestroy, evt);
-    if (ret == ACL_RT_SUCCESS) {
+    if (ret == ACL_RT_SUCCESS && is_core_limit()) {
         set_event_destroy_status(evt);
     }
     return ret;
