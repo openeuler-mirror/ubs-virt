@@ -38,6 +38,7 @@ set(VNPU_TESTCASE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/demo_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/device_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/memory_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/utils_test.cpp
 )
 
 set(VNPU_STUB_FILES
