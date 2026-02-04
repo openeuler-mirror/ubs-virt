@@ -18,10 +18,10 @@
 #include "server.h"
 
 namespace ovs::ut {
-class TestServer: public testing::Test {
+class TestServer : public testing::Test {
 public:
     TestServer() = default;
 }; // ovs::ut
 }
 
-#endif //UBSVIRTOVS_TEST_SERVER_H
+#endif // UBSVIRTOVS_TEST_SERVER_H

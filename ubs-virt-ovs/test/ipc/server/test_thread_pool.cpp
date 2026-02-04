@@ -18,7 +18,7 @@ namespace ovs::ut {
 
 TEST_F(TestThreadPool, StartAndStop)
 {
-    ThreadPool pool(2);
+    ThreadPool pool(2); // thread num is 2
     EXPECT_NO_THROW({
         pool.Start();
         pool.Stop();
@@ -30,7 +30,7 @@ TEST_F(TestThreadPool, EnqueueTaskExecuted)
     ThreadPool pool(1);
     pool.Start();
 
-    std::atomic<bool> executed{ false };
+    std::atomic<bool> executed{false};
     std::mutex mtx;
     std::condition_variable cv;
 
@@ -55,4 +55,4 @@ TEST_F(TestThreadPool, QueueSizeCoverage)
 
     EXPECT_EQ(pool.QueueSize(), 0);
 }
-}
+} // namespace ovs::ut

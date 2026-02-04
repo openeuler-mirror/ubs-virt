@@ -181,4 +181,4 @@ TEST_F(TestConnection, HandleReadProgressedFalseBranch_WriteResp)
     close(fds[0]);
     close(fds[1]);
 }
-}
+} // namespace ovs::ut

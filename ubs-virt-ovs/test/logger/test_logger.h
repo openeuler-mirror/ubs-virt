@@ -24,4 +24,4 @@ public:
 }; // ovs::ut
 }
 
-#endif //UBSVIRTOVS_TEST_LOGGER_H
+#endif // UBSVIRTOVS_TEST_LOGGER_H

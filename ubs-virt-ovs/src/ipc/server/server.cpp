@@ -305,7 +305,7 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
 
 bool AuthManager::AuthorizeService(const std::string &s, const std::string &key)
 {
-    auto trim_space = [](std::string_view v) {
+    auto trimSpace = [](std::string_view v) {
         auto begin = v.find_first_not_of(' ');
         if (begin == std::string_view::npos) {
             return std::string_view{};
@@ -313,11 +313,11 @@ bool AuthManager::AuthorizeService(const std::string &s, const std::string &key)
         auto end = v.find_last_not_of(' ');
         return v.substr(begin, end - begin + 1);
     };
-    std::string_view keyv = trim_space(key);
+    std::string_view keyv = trimSpace(key);
     std::stringstream ss(s);
     std::string item;
     while (std::getline(ss, item, ',')) {
-        if (trim_space(item) == keyv) {
+        if (trimSpace(item) == keyv) {
             return true;
         }
     }

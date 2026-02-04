@@ -13,10 +13,10 @@
 #include "test_server.h"
 #include "config_module.h"
 
+#include <arpa/inet.h>
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <filesystem>
@@ -32,10 +32,10 @@ static void SetNonBlock(int fd)
 
 TEST_F(TestServer, AuthorizeService)
 {
-    EXPECT_TRUE(AuthManager::AuthorizeService("a, b, c","a"));
-    EXPECT_TRUE(AuthManager::AuthorizeService("a, b, c","b"));
-    EXPECT_FALSE(AuthManager::AuthorizeService("a, b, c","d"));
-    EXPECT_FALSE(AuthManager::AuthorizeService("","a"));
+    EXPECT_TRUE(AuthManager::AuthorizeService("a, b, c", "a"));
+    EXPECT_TRUE(AuthManager::AuthorizeService("a, b, c", "b"));
+    EXPECT_FALSE(AuthManager::AuthorizeService("a, b, c", "d"));
+    EXPECT_FALSE(AuthManager::AuthorizeService("", "a"));
 }
 
 TEST_F(TestServer, UidToUsername)
@@ -281,8 +281,8 @@ TEST_F(TestServer, HandleBusiness_DispatchOk)
     MOCKER(AuthManager::AuthorizeService).reset();
 }
 
-class MockerServer: public Server {
-    public:
+class MockerServer : public Server {
+public:
     using Server::Server;
     bool throwInDispatch = false;
     IpcResponse Dispatch(const IpcRequest &req)
@@ -373,9 +373,9 @@ TEST_F(TestServer, HandleRead_AllBranches)
     close(fds[1]);
 }
 
-class MockConfigModule: public config::ConfigModule {
+class MockConfigModule : public config::ConfigModule {
 public:
-    config::ConfigCode ret{ config::ConfigCode::OK };
+    config::ConfigCode ret{config::ConfigCode::OK};
     std::string authorityValue;
 
     config::ConfigCode GetConf(const std::string &section, const std::string &username, std::string &authority)
@@ -398,7 +398,7 @@ TEST_F(TestServer, AuthorizeUser_GetConfFailed)
 }
 
 static config::ConfigCode FakeGetConfString(config::ConfigModule *, const std::string &section, const std::string &key,
-    std::string &val)
+                                            std::string &val)
 {
     val = "svc1,svc2";
     return config::ConfigCode::OK;
@@ -408,8 +408,8 @@ TEST_F(TestServer, AuthorizeUser_GetConfSuccess)
 {
     std::string authority;
 
-    MOCKER((config::ConfigCode(config::ConfigModule::*)(const std::string &, const std::string &, std::string &)) &
-        config::ConfigModule::GetConf<std::string>)
+    MOCKER((config::ConfigCode (config::ConfigModule::*)(const std::string &, const std::string &,
+                                                         std::string &))&config::ConfigModule::GetConf<std::string>)
         .stubs()
         .will(invoke(FakeGetConfString));
 
@@ -419,4 +419,4 @@ TEST_F(TestServer, AuthorizeUser_GetConfSuccess)
 
     GlobalMockObject::verify();
 }
-}
+} // namespace ovs::ut

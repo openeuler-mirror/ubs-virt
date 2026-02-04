@@ -18,10 +18,10 @@
 #include "thread_pool.h"
 
 namespace ovs::ut {
-class TestThreadPool: public testing::Test {
+class TestThreadPool : public testing::Test {
 public:
     TestThreadPool() = default;
 }; // ovs::ut
 }
 
-#endif //UBSVIRTOVS_TEST_THREAD_POOL_H
+#endif // UBSVIRTOVS_TEST_THREAD_POOL_H

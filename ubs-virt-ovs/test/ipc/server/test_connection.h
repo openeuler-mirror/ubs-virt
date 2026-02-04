@@ -17,10 +17,10 @@
 #include "connection.h"
 
 namespace ovs::ut {
-class TestConnection: public testing::Test {
-    public:
+class TestConnection : public testing::Test {
+public:
     TestConnection() = default;
 }; // ovs::ut
 }
 
-#endif //UBSVIRTOVS_TEST_CONNECTION_H
+#endif // UBSVIRTOVS_TEST_CONNECTION_H

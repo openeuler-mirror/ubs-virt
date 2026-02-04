@@ -176,7 +176,7 @@ TEST_F(TestLogger, CompressOldLogFile_CallCleanup)
     std::string oldLogFile = "/tmp/test.log";
     std::string ts = "20260123_121314";
 
-    EXPECT_NO_THROW({CompressOldLogFile(oldLogFile, ts);});
+    EXPECT_NO_THROW({ CompressOldLogFile(oldLogFile, ts); });
     GlobalMockObject::verify();
     MOCKER(CleanupOldRotateLogFile).reset();
 }
