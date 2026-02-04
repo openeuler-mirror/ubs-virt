@@ -86,7 +86,7 @@ protected:
         int fileSize = 10 * 1024 * 1024; // 10MB
         int backupCount = 10;
         originLogConfig.max_file_size = fileSize; // 10MB
-        originLogConfig.max_backup_count = backup_count;
+        originLogConfig.max_backup_count = backupCount;
         originLogConfig.min_log_level = ENPU_LOG_INFO;
         setLogConfig(originLogConfig);
     }
