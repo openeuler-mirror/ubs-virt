@@ -266,7 +266,7 @@ void Server::CloseConnection(int fd)
 void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
 {
     LOG_INFO << "HandleBusiness begin fd=" << conn->Fd() << " tid=" << std::this_thread::get_id();
-    config::ConfModule &conf = config::ConfModule::GetInstance();
+    config::ConfigModule &conf = config::ConfigModule::GetInstance();
     const auto &id = conn->Identity();
     IpcResponse resp(static_cast<uint32_t>(VirtIPCCode::OK));
     std::string authority;
@@ -305,17 +305,26 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
 
 bool AuthManager::AuthorizeService(const std::string &s, const std::string &key)
 {
+    auto trimSpace = [](std::string_view v) {
+        auto begin = v.find_first_not_of(' ');
+        if (begin == std::string_view::npos) {
+            return std::string_view{};
+        }
+        auto end = v.find_last_not_of(' ');
+        return v.substr(begin, end - begin + 1);
+    };
+    std::string_view keyv = trimSpace(key);
     std::stringstream ss(s);
     std::string item;
     while (std::getline(ss, item, ',')) {
-        if (item == key) {
+        if (trimSpace(item) == keyv) {
             return true;
         }
     }
     return false;
 }
 
-bool AuthManager::AuthorizeUser(const std::string username, std::string &authority, config::ConfModule &conf)
+bool AuthManager::AuthorizeUser(const std::string username, std::string &authority, config::ConfigModule &conf)
 {
     auto ret = conf.GetConf("auth", username, authority);
     if (ret != config::ConfigCode::OK) {

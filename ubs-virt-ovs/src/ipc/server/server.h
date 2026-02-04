@@ -37,7 +37,7 @@ public:
     struct UserRule {
         std::unordered_set<std::string> services_;
     };
-    static bool AuthorizeUser(std::string username, std::string &authority, config::ConfModule &conf);
+    static bool AuthorizeUser(std::string username, std::string &authority, config::ConfigModule &conf);
     static bool AuthorizeService(const std::string &s, const std::string &key);
 
 private:
