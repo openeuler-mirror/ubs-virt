@@ -25,7 +25,7 @@ BASE_VERSION="8.5.0"
 
 IS_NEW_VER=$(printf "%s\n%s" "$BASE_VERSION" "$CANN_VERSION" | sort -V | head -n1)
 if [ "$IS_NEW_VER" = "$BASE_VERSION" ]; then
-    #  8.5.0+, 8.5.0-rc1
+    #  8.5.0+
     BUILD_WITH_NEW=1
     echo "$CANN_VERSION is greater than or equal to $BASE_VERSION set BUILD_WITH_NEW to 1"
 else
