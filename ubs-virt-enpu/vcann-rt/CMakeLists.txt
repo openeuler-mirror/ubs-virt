@@ -10,7 +10,7 @@ file(GLOB SRC_LIST
     src/utils/*.c
 )
 
-add_compile_options(
+set(SECURE_COMPILE_OPTIONS
     -O2
     -Wall
     -Wextra
@@ -26,8 +26,6 @@ add_compile_options(
 )
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmake/securec.cmake)
-
-add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
 
 set(INCLUDE_DIRS
     $ENV{ASCEND_TOOLKIT_HOME}/include
@@ -56,6 +54,8 @@ target_link_options(vruntime PRIVATE
 target_include_directories(vruntime PRIVATE ${INCLUDE_DIRS})
 target_link_directories(vruntime PRIVATE ${LINK_DIRS})
 target_link_libraries(vruntime PRIVATE securec ${LINK_LIBS})
+target_compile_options(vruntime PRIVATE ${SECURE_COMPILE_OPTIONS})
+target_compile_definitions(vruntime PRIVATE _GLIBCXX_USE_CXX11_ABI=0)
 
 add_executable(enpu-monitor src/tools/monitor.c ${SRC_LIST})
 
@@ -67,6 +67,8 @@ target_link_options(enpu-monitor PRIVATE
 target_include_directories(enpu-monitor PRIVATE ${INCLUDE_DIRS})
 target_link_directories(enpu-monitor PRIVATE ${LINK_DIRS})
 target_link_libraries(enpu-monitor PRIVATE securec ${LINK_LIBS})
+target_compile_options(enpu-monitor PRIVATE ${SECURE_COMPILE_OPTIONS})
+target_compile_definitions(enpu-monitor PRIVATE _GLIBCXX_USE_CXX11_ABI=0)
 
 option(BUILD_TESTS "Build tests" OFF)
 option(ENABLE_COVERAGE "Enable coverage reporting" OFF)
