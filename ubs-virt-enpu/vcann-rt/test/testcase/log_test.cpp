@@ -20,7 +20,8 @@
 #include "common.h"
 #include "log.h"
 
-void remove_mock_files() {
+void removeMockFiles()
+{
     DIR* dir = opendir(g_log_config.log_dir);
     if (dir == NULL) {
         return;
@@ -53,34 +54,41 @@ void remove_mock_files() {
     }
 }
 
-void set_log_config(LogConfig log_config) {
+void setLogConfig(LogConfig log_config)
+{
     g_log_config = log_config;
 }
 
 class LogTest : public testing::Test {
 protected:
-    void SetUp() {
-        LogConfig mock_log_config;
-        strcpy_s(mock_log_config.log_dir, sizeof(mock_log_config.log_dir), "/tmp/log/enpu/vcann-rt/mock/");
-        strcpy_s(mock_log_config.log_path, sizeof(mock_log_config.log_path), "vCann.log");
-        mock_log_config.max_file_size = 1024 * 1024; // 1MB
-        mock_log_config.max_backup_count = 3;
-        mock_log_config.min_log_level = ENPU_LOG_INFO;
-        set_log_config(mock_log_config);
+    void SetUp()
+    {
+        LogConfig mockLogConfig;
+        strcpy_s(mockLogConfig.log_dir, sizeof(mockLogConfig.log_dir), "/tmp/log/enpu/vcann-rt/mock/");
+        strcpy_s(mockLogConfig.log_path, sizeof(mockLogConfig.log_path), "vCann.log");
+        int fileSize = 1024 * 1024; // 1MB
+        mockLogConfig.max_file_size = fileSize;
+        int backupCount = 3;
+        mockLogConfig.max_backup_count = backupCount;
+        mockLogConfig.min_log_level = ENPU_LOG_INFO;
+        setLogConfig(mockLogConfig);
         log_init();
     }
 
-    void TearDown() {
-        remove_mock_files();
+    void TearDown()
+    {
+        removeMockFiles();
         rmdir(g_log_config.log_dir);
 
-        LogConfig origin_log_config;
-        strcpy_s(origin_log_config.log_dir, sizeof(origin_log_config.log_dir), "/var/log/enpu/vcann-rt/");
-        strcpy_s(origin_log_config.log_path, sizeof(origin_log_config.log_path), "vCann.log");
-        origin_log_config.max_file_size = 10 * 1024 * 1024; // 10MB
-        origin_log_config.max_backup_count = 10;
-        origin_log_config.min_log_level = ENPU_LOG_INFO;
-        set_log_config(origin_log_config);
+        LogConfig originLogConfig;
+        strcpy_s(originLogConfig.log_dir, sizeof(originLogConfig.log_dir), "/var/log/enpu/vcann-rt/");
+        strcpy_s(originLogConfig.log_path, sizeof(originLogConfig.log_path), "vCann.log");
+        int fileSize = 10 * 1024 * 1024; // 10MB
+        int backupCount = 10;
+        originLogConfig.max_file_size = fileSize; // 10MB
+        originLogConfig.max_backup_count = backup_count;
+        originLogConfig.min_log_level = ENPU_LOG_INFO;
+        setLogConfig(originLogConfig);
     }
 };
 
@@ -96,44 +104,51 @@ TEST_F(LogTest, LogTest_get_file_size)
     ret = fprintf(file, "%s", message);
     EXPECT_EQ(ret, strlen(message));
 
-    fflush(file);
-    fclose(file);
+    ret = fflush(file);
+    EXPECT_EQ(ret, 0);
+    ret = fclose(file);
+    EXPECT_EQ(ret, 0);
 
     ret = get_file_size(filename);
     EXPECT_EQ(ret, strlen(message));
 
-    remove(filename);
+    ret = remove(filename);
+    EXPECT_EQ(ret, 0);
 }
 
 TEST_F(LogTest, LogTest_is_log_file)
 {
     const char *filename = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT.log";
-    const char *filename_error = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT.txt";
+    const char *filenameError = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT.txt";
 
     int ret = is_log_file(filename);
     EXPECT_EQ(ret, ENPU_SUCCESS);
 
-    ret = is_log_file(filename_error);
+    ret = is_log_file(filenameError);
     EXPECT_EQ(ret, ENPU_FAIL);
 }
 
 TEST_F(LogTest, LogTest_count_log_files)
 {
-    remove_mock_files();
+    removeMockFiles();
 
     const char *filename1 = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT_1.log";
     const char *filename2 = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT_2.log";
     const char *filename3 = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT_3.log";
 
     FILE *file1 = fopen(filename1, "w");
-    fclose(file1);
+    int ret = fclose(file1);
+    EXPECT_EQ(ret, 0);
     FILE *file2 = fopen(filename2, "w");
-    fclose(file2);
+    ret = fclose(file2);
+    EXPECT_EQ(ret, 0);
     FILE *file3 = fopen(filename3, "w");
-    fclose(file3);
+    ret = fclose(file3);
+    EXPECT_EQ(ret, 0);
 
-    int ret = count_log_files();
-    EXPECT_EQ(ret, 3);
+    int fileCount = 3;
+    ret = count_log_files();
+    EXPECT_EQ(ret, fileCount);
 
     remove(filename1);
     remove(filename2);
@@ -152,16 +167,19 @@ TEST_F(LogTest, LogTest_compress_file)
     const char *filename3 = "/tmp/log/enpu/vcann-rt/mock/eNPU_vCANN_RT_3.log";
 
     FILE *file1 = fopen(filename1, "w");
-    fclose(file1);
+    int ret = fclose(file1);
+    EXPECT_EQ(ret, 0);
     FILE *file2 = fopen(filename2, "w");
-    fclose(file2);
+    ret = fclose(file2);
+    EXPECT_EQ(ret, 0);
     FILE *file3 = fopen(filename3, "w");
-    fclose(file3);
+    ret = fclose(file3);
+    EXPECT_EQ(ret, 0);
 
-    int ret = compress_file();
+    ret = compress_file();
     EXPECT_EQ(ret, ENPU_SUCCESS);
 
-    remove_mock_files();
+    removeMockFiles();
 }
 
 TEST_F(LogTest, LogTest_update_log_file)
@@ -169,7 +187,7 @@ TEST_F(LogTest, LogTest_update_log_file)
     int ret = update_log_file();
     EXPECT_EQ(ret, ENPU_SUCCESS);
 
-    remove_mock_files();
+    removeMockFiles();
 }
 
 TEST_F(LogTest, LogTest_rotate_log_by_size)
@@ -181,8 +199,10 @@ TEST_F(LogTest, LogTest_rotate_log_by_size)
 
     int ret = fprintf(file, "%s", message);
     EXPECT_EQ(ret, strlen(message));
-    fflush(file);
-    fclose(file);
+    ret = fflush(file);
+    EXPECT_EQ(ret, 0);
+    ret = fclose(file);
+    EXPECT_EQ(ret, 0);
 
     ret = rotate_log_by_size();
     EXPECT_EQ(ret, ENPU_SUCCESS);
@@ -192,17 +212,24 @@ TEST_F(LogTest, LogTest_rotate_log_by_size)
         ret = fprintf(file, "%s", message);
         EXPECT_EQ(ret, strlen(message));
     }
-    fflush(file);
-    fclose(file);
+    ret = fflush(file);
+    EXPECT_EQ(ret, 0);
+    ret = fclose(file);
+    EXPECT_EQ(ret, 0);
 
     ret = rotate_log_by_size();
     EXPECT_EQ(ret, ENPU_SUCCESS);
 
-    LOG_FATAL("test log level %d : %s.", 0, "FATAL");
-    LOG_ERROR("test log level %d : %s.", 1, "ERROR");
-    LOG_WARN("test log level %d : %s.", 2, "WARN");
-    LOG_INFO("test log level %d : %s.", 3, "INFO");
-    LOG_DEBUG("test log level %d : %s.", 0, "DEBUG");
+    int logLevel = 0;
+    LOG_FATAL("test log level %d : %s.", logLevel, "FATAL");
+    logLevel++;
+    LOG_ERROR("test log level %d : %s.", logLevel, "ERROR");
+    logLevel++;
+    LOG_WARN("test log level %d : %s.", logLevel, "WARN");
+    logLevel++;
+    LOG_INFO("test log level %d : %s.", logLevel, "INFO");
+    logLevel++;
+    LOG_DEBUG("test log level %d : %s.", logLevel, "DEBUG");
 
-    remove_mock_files();
+    removeMockFiles();
 }
