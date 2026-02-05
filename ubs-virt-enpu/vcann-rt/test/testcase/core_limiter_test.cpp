@@ -13,26 +13,23 @@
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
 #include <sys/file.h>
-#include <sys/mman.h>
 #include <runtime/rt.h>
-#include <acl/acl.h>
 #include "securec.h"
 #include "runtime_stub.h"
 #include "log.h"
-#include "config.h"
 #include "npu_manager.h"
 #include "mem_limiter.h"
 
-class ConfigTest : public testing::Test {
+class CoreLimiterTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout<<"Config test start"<<std::endl;
+        std::cout<<"Core Limiter test start"<<std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout<<"Config test end"<<std::endl;
+        std::cout<<"Core Limiter test end"<<std::endl;
     }
 
     void SetUp()
@@ -52,23 +49,22 @@ protected:
     }
 };
 
-TEST_F(ConfigTest, LoadConfigTest)
+TEST_F(CoreLimiterTest, npu_utilization_monitor_thread_test)
 {
-    int rc = load_config(MOCK_NPU_CONFIG_PATH);
-    EXPECT_EQ(rc, RT_ERROR_NONE);
-    rc = load_config(nullptr);
-    EXPECT_EQ(rc, ENPU_FAIL);
+    void *para = nullptr;
+    (void)npu_utilization_monitor_thread(para);
+    int owner = 0;
+    check_and_borrow_timeslice(owner);
+    bool ret = slide_window_check(owner);
+    EXPECT_EQ(ret, false);
+    owner = get_vnpu_id();
+    check_and_borrow_timeslice(owner);
+    ret = slide_window_check(owner);
+    EXPECT_EQ(ret, false);
 }
 
-TEST_F(ConfigTest, CheckInt32Test)
+TEST_F(CoreLimiterTest, calculate_alive_vnpu_num_test)
 {
-    int rc = check_int32(-1, nullptr);
-    EXPECT_EQ(rc, ENPU_FAIL);
-}
-
-TEST_F(ConfigTest, CheckStrTest)
-{
-    std::string str = "";
-    int rc = check_str(str.c_str(), nullptr);
-    EXPECT_EQ(rc, ENPU_FAIL);
+    int32_t count = calculate_alive_vnpu_num();
+    EXPECT_EQ(count, 1);
 }

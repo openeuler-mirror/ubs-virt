@@ -52,7 +52,7 @@ lcov --capture --directory . \
     --ignore-errors "$IGNORED_ERRORS" \
     --output-file coverage_base.info
 lcov --remove coverage_base.info \
-    '/usr/*' '*/test/*' '*/build/*' \
+    '/usr/*' '*/test/*' '*/build/*' '*/__build/*' \
     '*.h' '*.hpp' '*.hh' '*.hxx' \
     --ignore-errors "$IGNORED_ERRORS" \
     --output-file coverage_filtered.info

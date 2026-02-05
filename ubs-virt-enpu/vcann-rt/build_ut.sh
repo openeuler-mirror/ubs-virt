@@ -6,6 +6,8 @@ echo "[DEBUG] $(pwd)"
 
 mkdir -p __build
 cd __build
+
+# 在ut用例运行前,把测试所需的test_npu_info.config拷贝到临时目录下面
 cp ../test/res/test_npu_info.config .
 
 cmake .. -DBUILD_TESTS=ON -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug

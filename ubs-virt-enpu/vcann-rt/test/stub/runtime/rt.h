@@ -106,6 +106,7 @@ typedef struct {
     RUNTIME_FUNCTION_ENTRY(rtSetDeviceWithFlags, int32_t deviceId, uint64_t flags)                           \
     RUNTIME_FUNCTION_ENTRY(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type,                         \
                            const uint16_t moduleId)                                                          \
+    RUNTIME_FUNCTION_ENTRY(rtSetDeviceWithoutTsd, int32_t deviceId)                                          \
     RUNTIME_FUNCTION_ENTRY(rtMallocCached, void **devPtr, uint64_t size, rtMemType_t type,                   \
                            const uint16_t moduleId)                                                          \
     RUNTIME_FUNCTION_ENTRY(rtDvppMalloc, void **devPtr, uint64_t size, uint16_t moduleId)                    \
@@ -173,6 +174,7 @@ typedef struct {
     RUNTIME_FUNCTION_ENTRY(rtsModelExecute, rtModel_t mdl, int32_t timeout)                                  \
     RUNTIME_FUNCTION_ENTRY(rtModelExecuteSync, rtModel_t mdl, rtStream_t stm, uint32_t flag,                 \
                            int32_t timeout)                                                                  \
+    RUNTIME_FUNCTION_ENTRY(rtsModelExecuteAsync, rtModel_t mdl, rtStream_t stm)                              \
     RUNTIME_FUNCTION_ENTRY(rtStarsTaskLaunch, const void *taskSqe, uint32_t sqeLen, rtStream_t stm)          \
     RUNTIME_FUNCTION_ENTRY(rtStarsTaskLaunchWithFlag, const void *taskSqe, uint32_t sqeLen, rtStream_t stm,  \
                            uint32_t flag)                                                                    \
@@ -193,7 +195,18 @@ typedef struct {
     RUNTIME_FUNCTION_ENTRY(rtStreamWaitEvent, rtStream_t stm, rtEvent_t evt)                                 \
     RUNTIME_FUNCTION_ENTRY(rtEventRecord, rtEvent_t evt, rtStream_t stm)                                     \
     RUNTIME_FUNCTION_ENTRY(rtEventDestroy, rtEvent_t evt)                                                    \
-    RUNTIME_FUNCTION_ENTRY(rtEventReset, rtEvent_t evt, rtStream_t stm)
+    RUNTIME_FUNCTION_ENTRY(rtEventReset, rtEvent_t evt, rtStream_t stm)                                      \
+    RUNTIME_FUNCTION_ENTRY(rtEventDestroySync, rtEvent_t evt)                                                \
+    RUNTIME_FUNCTION_ENTRY(rtsNotifyCreate, rtNotify_t *notify, uint64_t flag)                               \
+    RUNTIME_FUNCTION_ENTRY(rtNotifyRecord, rtNotify_t notify, rtStream_t stm)                                \
+    RUNTIME_FUNCTION_ENTRY(rtNotifyDestroy, rtNotify_t notify)                                               \
+    RUNTIME_FUNCTION_ENTRY(rtStreamDestroy, rtStream_t stm)                                                  \
+    RUNTIME_FUNCTION_ENTRY(rtDestroyStreamForce, rtStream_t stm)                                             \
+    RUNTIME_FUNCTION_ENTRY(rtsNotifyWaitAndReset, rtNotify_t notify, rtStream_t stm, uint32_t timeout)       \
+    RUNTIME_FUNCTION_ENTRY(rtStreamWaitEventWithTimeout, rtStream_t stm, rtEvent_t evt, uint32_t timeout)    \
+    RUNTIME_FUNCTION_ENTRY(rtNotifyWait, rtNotify_t notify, rtStream_t stm)                                  \
+    RUNTIME_FUNCTION_ENTRY(rtNotifyWaitWithTimeOut, rtNotify_t notify, rtStream_t stm, uint32_t timeOut)     \
+    RUNTIME_FUNCTION_ENTRY(rtNotifyCreateWithFlag, int32_t deviceId, rtNotify_t *notify, uint32_t flag)
 
 #define RUNTIME_FUNCTION_ENTRY(name, ...) rtError_t name(__VA_ARGS__);
 RUNTIME_FUNCTION_LIST

@@ -31,6 +31,12 @@ const char *stub_lock_path();
 int stub_load_config(const char *file_path);
 int stub_enpu_load_config(void);
 
+// core_limiter.c
+void *npu_utilization_monitor_thread(void *arg);
+bool slide_window_check(int owner);
+void check_and_borrow_timeslice(int owner);
+int calculate_alive_vnpu_num(void);
+
 // config.c
 int check_int32(int32_t option, const char *option_name);
 int check_str(const char *str, const char *option_name);
