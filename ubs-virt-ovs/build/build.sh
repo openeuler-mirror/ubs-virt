@@ -5,6 +5,9 @@ PROJECT_NAME=ubs-virt-ovs
 VERSION=1.0.0
 RELEASE=1
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
+
 # ============ build type ============
 BUILD_TYPE=${1:-relwithdebinfo}
 
@@ -21,6 +24,11 @@ case "${BUILD_TYPE}" in
     CMAKE_BUILD_TYPE=RelwithDebinfo
     RPM_RELEASE_SUFFIX=.rel
     ;;
+  dt)
+    cd "${ROOT_DIR}"
+    bash "${SCRIPT_DIR}/run_ut.sh"
+    exit 0
+    ;;
   *)
     echo "Usage: $0 [debug|release|relwithdebinfo]"
     exit 1
@@ -28,8 +36,6 @@ case "${BUILD_TYPE}" in
 esac
 
 # ============ paths ============
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
 RPMBUILD_DIR="${ROOT_DIR}/build/rpmbuild"
 OUTPUT_DIR="${ROOT_DIR}/build/output"
 SPEC_FILE="${SCRIPT_DIR}/${PROJECT_NAME}.spec"

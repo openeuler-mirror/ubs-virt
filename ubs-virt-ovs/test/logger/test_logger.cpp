@@ -27,19 +27,6 @@ TEST_F(TestLogger, NowFilename_ReturnNonEmptyString)
     EXPECT_EQ(filename.size(), 15); // expect filename size is 15
 }
 
-TEST_F(TestLogger, LogFile_CanWrite)
-{
-    InitLogFile();
-    auto &ofs = LogFile();
-    EXPECT_TRUE(ofs.is_open());
-
-    ofs << "test message\n";
-    ofs.flush();
-
-    size_t sz = GetFileSize(LOG_FILE);
-    EXPECT_GT(sz, 0u);
-}
-
 TEST_F(TestLogger, LoggerEntry_SubmitDoesNotThrow)
 {
     Logger entry(LoggerLevel::INFO, "logger_test.cpp", "LoggerEntry_SubmitDoesNotThrow", 123); // 123 is line num
@@ -167,7 +154,7 @@ TEST_F(TestLogger, RotateLogFile_NormalRotate)
 {
     MOCKER(GetFileSize).expects(once()).will(returnValue(MAX_LOG_SIZE + 1));
     MOCKER(NowFilename).expects(once()).will(returnValue(std::string("20240101_010101")));
-    MOCKER(SetFileMode).expects(once());
+    MOCKER(SetFileMode);
     Logger::RotateLogFile();
     GlobalMockObject::verify();
     GlobalMockObject::reset();

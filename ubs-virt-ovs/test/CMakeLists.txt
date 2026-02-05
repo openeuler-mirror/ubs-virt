@@ -1,3 +1,6 @@
+include(${CMAKE_SOURCE_DIR}/script/mockcpp.cmake)
+include(${CMAKE_SOURCE_DIR}/script/gtest.cmake)
+
 file(GLOB_RECURSE TEST_FILES "*.cpp")
 file(GLOB_RECURSE ALL_SRC_DIRS LIST_DIRECTORIES true ${CMAKE_SOURCE_DIR}/src/*)
 set(SRC_INCLUDE_DIRS "")
@@ -24,13 +27,11 @@ include_directories(
         ${CMAKE_SOURCE_DIR}/src
         ${CMAKE_SOURCE_DIR}/test
         ${CMAKE_SOURCE_DIR}/deps
-        ${CMAKE_SOURCE_DIR}/deps/googletest/include
         ${CMAKE_SOURCE_DIR}/deps/mockcpp/include
         ${CMAKE_CURRENT_BINARY_DIR}/../deps/mockcpp/include
 )
 
 link_directories(
-        ${CMAKE_SOURCE_DIR}/deps/googletest/lib64
         ${CMAKE_SOURCE_DIR}/deps/mockcpp/lib
 )
 
@@ -40,7 +41,7 @@ target_compile_options(virt_ut PRIVATE -fno-access-control -w)
 
 target_link_libraries(virt_ut
         PRIVATE ubs-virt-ovs-core
-        PRIVATE gtest gtest_main
+        PRIVATE GTest::gmock_main
         PRIVATE gmock gmock_main
         PRIVATE mockcpp
         PRIVATE pthread

@@ -1,3 +1,6 @@
+%{!?version:%global version 1.0.0}
+%{!?release:%global release 1}
+
 Name:   ubs-virt-ovs
 Version:    %{version}
 Release:    %{release}%{?dist}
@@ -6,9 +9,13 @@ Summary:    UBS Virt OVS Service
 License:    Proprietary
 Source0:    %{name}-%{version}.tar.gz
 
-BuildRequires:  cmake
-BuildRequires:  gcc-c++
-BuildRequires: libboundscheck
+BuildRequires: cmake make gcc-c++ gcc
+BuildRequires: libasan libasan-static
+BuildRequires: glibc-devel libstdc++-devel
+BuildRequires: systemd-devel
+BuildRequires: libboundscheck ubs-comm-devel libxml2-devel
+BuildRequires: numactl-libs
+BuildRequires: bash bc coreutils sudo util-linux-user ninja-build
 Requires: libboundscheck
 Requires(post): systemd
 Requires(preun):    systemd
@@ -30,7 +37,7 @@ mkdir -p build
 cd build
 
 # cross compile variables
-%{!?cross_compile_prefix:%global cross_compile_prefix}
+%{!?cross_compile_prefix:%global cross_compile_prefix %nil}
 
 cmake .. \
     -DCMAKE_BUILD_TYPE=%{cmake_build_type} \

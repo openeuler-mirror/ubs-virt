@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-ROOT_DIR=$(dirname "$(realpath "$0")")
+SCRIPT_DIR=$(dirname "$(realpath "$0")")
+ROOT_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
 BUILD_DIR="$ROOT_DIR/buildUT"
 COVERAGE=true
 
@@ -26,15 +27,13 @@ extract_dep(){
 
 rm -rf "$BUILD_DIR"
 
-[[ -f "$ROOT_DIR/deps/mockcpp_aarch64.tar.gz" ]] && {
-  extract_dep "$ROOT_DIR/deps/mockcpp_aarch64.tar.gz" "$ROOT_DIR/deps/mockcpp"
-  extract_dep "$ROOT_DIR/deps/googletest_aarch64.tar.gz" "$ROOT_DIR/deps/googletest"
-}
-
 
 if $COVERAGE; then
   log "config with COVERAGE ON"
-  cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DBUILD_TESTS=ON -DCOVERAGE=ON
+  cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DBUILD_TESTS=ON -DCOVERAGE=ON \
+  -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer" \
+  -DCMAKE_LINKER_FLAGS="-fsanitize=address" \
+  -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address"
 fi
 
 log "Building UT"
