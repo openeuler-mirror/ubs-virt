@@ -128,7 +128,6 @@ int enpu_config_info_init()
 int enpu_load_config(void)
 {
     int rc = load_config(NPU_CONFIG_PATH);
-    printf("Error code : %d --------------",rc);
     CHECK_RETURN_ERROR_CODE(rc, "Failed to initialize npu manager.");
     return enpu_config_info_init();
 }
