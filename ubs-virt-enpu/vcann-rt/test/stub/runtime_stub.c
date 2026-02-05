@@ -16,7 +16,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <runtime/rt.h>
+#include "common.h"
 #include "runtime_hook.h"
+#include "config.h"
 #include "runtime_stub.h"
 
 #define RUNTIME_STUB_FUNCTION_NAME(name) RUNTIME_STUB_##name
@@ -50,4 +52,12 @@ int fail_stub_get_mem_used(size_t *used)
 {
     (void)used;
     return -1;
+}
+
+int stub_enpu_load_config(void)
+{
+    printf("enter stub_enpu_load_config\n");
+    int rc = load_config(MOCK_NPU_CONFIG_PATH);
+    CHECK_RETURN_ERROR_CODE(rc, "Failed to initialize npu manager.");
+    return enpu_config_info_init(config);
 }

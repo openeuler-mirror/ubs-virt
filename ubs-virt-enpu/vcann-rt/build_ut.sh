@@ -4,8 +4,9 @@ set -e
 echo "[DEBUG] Building tests..."
 echo "[DEBUG] $(pwd)"
 
-mkdir -p build
-cd build
+mkdir -p __build
+cd __build
+cp ../test/res/test_npu_info.config .
 
 cmake .. -DBUILD_TESTS=ON -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
 make vnpu_test
