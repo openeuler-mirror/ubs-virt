@@ -8,13 +8,13 @@
 
 ### 软件版本
 
-- CANN版本建议8.5.0, HDK版本建议25.5.0及以上。
-- (可选，直接使用docker部署则不需要) Kubernetes版本建议1.17.x ~ 1.34.x, 推荐使用1.19.x及以上版本。
-- (可选，直接使用docker部署则不需要) MindCluster版本建议26.0.0。
+- CANN版本8.5.0, HDK版本25.5.0及以上。
+- (可选，直接使用docker部署则不需要) Kubernetes版本1.17.x ~ 1.34.x, 推荐使用1.19.x及以上版本。
+- (可选，直接使用docker部署则不需要) MindCluster版本26.0.0。
 
 ### 主机侧环境配置
 
-主机侧通过`npu-smi`工具开启容器共享模式：
+主机侧通过`npu-smi`工具开启容器共享模式。若配合MindCluster使用，要求整节点开启容器共享模式。
 
 ```shell
 $ npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
@@ -26,7 +26,7 @@ $ npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
   - chip_id : 芯片id, 通过`npu-smi info -m`命令查询获取的Chip ID即为芯片id。
   - value : 容器共享模式使能状态：分为禁用(0)、使能(1)，默认禁用。
     
-  示例：开启设备0的容器共享模式：
+  示例：开启设备0所有芯片的容器共享模式：
 
   ```shell
   npu-smi set -t device-share -i 0 -d 1
@@ -37,6 +37,8 @@ $ npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
   用户需要保证业务容器`/usr/bin`目录内包含`systemd-detect-virt`命令行工具，该工具用于检测系统的运行环境是否为虚拟化环境和虚拟化方式。若容器内未安装systemd-detect-virt工具，软切分动态库在调用dcmi接口时会出现故障。
 
 ## 源码获取
+
+在编译vCANN-RT源码前，用户需要先设置CANN的环境变量。
 
 可以使用如下方式获取`vCANN-RT`源码。
 
@@ -189,7 +191,7 @@ vCANN-RT支持两种方式启动服务：
                               mountPath: /etc/localtime
                               # 配置文件夹路径
                             - name: share-device-config-dir
-                              mountPath: /etc/enpu/
+                              mountPath: /etc/enpu/vcann-rt/
                               # 软切分动态库路径
                             - name: libpreload 
                               mountPath: /opt/enpu/vcann-rt/lib/libvruntime.so
@@ -214,7 +216,7 @@ vCANN-RT支持两种方式启动服务：
                           - name: share-device-config-dir 
                             hostPath:
                               # {配置文件夹路径}/${namespace}.${container_name}/
-                              path: /etc/enpu/vnpu.vnpu-base/ 
+                              path: /etc/enpu/vcann-rt/vnpu.vnpu-base/ 
                               type: DirectoryOrCreate
                             # 软切分动态库路径
                           - name: libpreload 
@@ -242,7 +244,7 @@ vCANN-RT支持两种方式启动服务：
       - volumes:
           - name: share-device-config-dir # 配置文件夹路径。
               - hostPath:
-                  - path: /etc/enpu/${namespace}.${container_name}/
+                  - path: /etc/enpu/vcann-rt/${namespace}.${container_name}/
           - name: preload # preload配置文件路径。
               - hostPath:
                   - path: ${preload_path}/ld.so.preload # 步骤2中创建的ld.so.preload文件路径。
@@ -276,7 +278,7 @@ vCANN-RT支持两种方式启动服务：
       在容器内可查询配置文件获取vNPU资源配额等信息：
 
       ```shell
-      $ cat /etc/enpu/npu_info.config
+      $ cat /etc/enpu/vcann-rt/npu_info.config
       ```
 
       在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息：
@@ -330,7 +332,7 @@ vCANN-RT支持两种方式启动服务：
         -v /dev/shm:/dev/shm \
         -v /opt/enpu/vann-rt/lib/libvruntime.so:/opt/enpu/vann-rt/lib/libvruntime.so \
         -v /opt/enpu/vann-rt/tools/enpu-monitor:/opt/enpu/vann-rt/tools/enpu-monitor \
-        -v /xxx/npu_info.config:/etc/enpu/npu_info.config \
+        -v /xxx/npu_info.config:/etc/enpu/vcann-rt/npu_info.config \
         -v /xxx/ld.so.preload:/etc/ld.so.preload \
         image_name /bin/bash
       ```
@@ -340,7 +342,7 @@ vCANN-RT支持两种方式启动服务：
       - 监测工具：主机侧和容器内均为固定路径：`/opt/enpu/vann-rt/tools/enpu-monitor`
       - 物理NPU设备：主机侧和容器内均为固定路径：`/dev/davinci0`
       - 共享内存设备：主机侧和容器内均为固定路径：`/dev/shm`
-      - 配置文件：主机侧可存放在自定义路径，容器内为固定路径：`/etc/enpu/npu_info.config`
+      - 配置文件：主机侧可存放在自定义路径，容器内为固定路径：`/etc/enpu/vcann-rt/npu_info.config`
       - 预加载动态库文件：主机侧可存放在自定义路径，容器内为固定路径：`/etc/ld.so.preload`
 
       若用户使用指定镜像，则启动命令可以简化为：
@@ -353,7 +355,7 @@ vCANN-RT支持两种方式启动服务：
         -v /usr/local/sbin:/usr/local/sbin \
         -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
         -v /dev/shm:/dev/shm \
-        -v /xxx/npu_info.config:/etc/enpu/npu_info.config \
+        -v /xxx/npu_info.config:/etc/enpu/vcann-rt/npu_info.config \
         image_name /bin/bash
       ```
 
@@ -375,7 +377,7 @@ vCANN-RT支持两种方式启动服务：
       
 ## 约束
 
-- 由于VCANN-RT解决方案使用了共享内存，因此用户需要确保在可信用户范围内使用。
+- 由于vCANN-RT解决方案使用了共享内存，因此用户需要确保在可信用户范围内使用。
 - 单个物理NPU卡支持的最大容器数量为100个，单个vNPU支持的最大进程数为128。
 - 当用户的配置文件错误时，只有在容器业务拉起之后才会报错。例如，若用户配置aicore-quota=120，此时算力资源配额已经超出100%，在容器启动时不会报错，只有当容器内的使用vNPU的进程启动后，才会返回报错，此时需要用户在主机侧修改配置文件，并重新拉起容器。
 - 若用户通过源码自行编译软切分动态库，则需要保证主机侧的CANN版本和容器镜像中的CANN版本保持一致。
@@ -384,4 +386,4 @@ vCANN-RT支持两种方式启动服务：
 
 1. hook拦截runtime API提示`can't find function`:
 
-    当前vCANN-RT方案适配CANN软件版本为商发版本8.3.RC1，部分runtime API在CANN其他版本未支持。
+    当前vCANN-RT方案适配CANN软件版本为商发版本8.5.0，部分runtime API在CANN其他版本未支持。
