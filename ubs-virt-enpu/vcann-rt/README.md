@@ -8,7 +8,7 @@
 
 ### 软件版本
 
-- CANN版本8.5.0, HDK版本25.5.0及以上。
+- CANN版本8.3.RC1, HDK版本25.5.0及以上。
 - (可选，直接使用docker部署则不需要) Kubernetes版本1.17.x ~ 1.34.x, 推荐使用1.19.x及以上版本。
 - (可选，直接使用docker部署则不需要) MindCluster版本26.0.0。
 
@@ -386,4 +386,4 @@ vCANN-RT支持两种方式启动服务：
 
 1. hook拦截runtime API提示`can't find function`:
 
-    当前vCANN-RT方案适配CANN软件版本为商发版本8.5.0，部分runtime API在CANN其他版本未支持。
+    当前vCANN-RT方案适配CANN软件版本为商发版本8.3.RC1，部分runtime API在CANN其他版本未支持。
