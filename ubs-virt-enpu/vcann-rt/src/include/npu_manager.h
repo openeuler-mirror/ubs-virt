@@ -15,7 +15,7 @@
 #include <stdatomic.h>
 #include "config.h"
 
-#define NPU_CONFIG_PATH  "/etc/enpu/npu_info.config"
+#define NPU_CONFIG_PATH  "/etc/enpu/vcann-rt/npu_info.config"
 #define MAX_PIDS 1024
 #define MAX_NPU_COUNT 16
 #define MAX_VNPU 100
