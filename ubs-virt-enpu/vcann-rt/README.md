@@ -386,4 +386,4 @@ vCANN-RT支持两种方式启动服务：
 
 1. hook拦截runtime API提示`can't find function`:
 
-    当前vCANN-RT方案适配CANN软件版本为商发版本8.3.RC1，部分runtime API在CANN其他版本未支持。
+    当前vCANN-RT方案适配CANN软件版本为商发版本8.5.0，部分runtime API在CANN其他版本未支持。
