@@ -27,8 +27,6 @@ set(SECURE_COMPILE_OPTIONS
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmake/securec.cmake)
 
-add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=0)
-
 if(ENABLE_NEW_BUILD)
     message(STATUS "CANN version greater than or equal to 8.5.0, using new include dirs.")
     set(INCLUDE_DIRS
