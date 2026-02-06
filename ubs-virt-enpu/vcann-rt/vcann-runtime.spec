@@ -31,6 +31,7 @@ vcann-runtime library
      %define cmake_flags -DENABLE_NEW_BUILD=ON
      echo "Building for 8.5.0+ branch..."
 %else
+     %define cmake_flags -DENABLE_NEW_BUILD=OFF
      echo "Building for legacy branch..."
 %endif
 
