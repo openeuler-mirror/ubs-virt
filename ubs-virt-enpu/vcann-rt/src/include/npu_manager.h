@@ -14,12 +14,10 @@
 
 #if defined(__cplusplus)
 #include <atomic>
-#define _STDATOMIC_H
-#define __CLANG_STDATOMIC_H
-typedef std::atomic<int> atomic_int;
-typedef std::atomic<uint_fast8_t> atomic_uint_fast8_t;
-typedef std::atomic<uint_fast32_t> atomic_uint_fast32_t;
-typedef std::atomic<uint_fast64_t> atomic_uint_fast64_t;
+using atomic_int = std::atomic<int>;
+using atomic_uint_fast8_t = std::atomic<uint_fast8_t>;
+using atomic_uint_fast32_t = std::atomic<uint_fast32_t>;
+using atomic_uint_fast64_t = std::atomic<uint_fast64_t>;
 #else
 #include <stdatomic.h>
 #endif
@@ -30,7 +28,7 @@ typedef std::atomic<uint_fast64_t> atomic_uint_fast64_t;
 extern "C" {
 #endif
 
-#define NPU_CONFIG_PATH  "/etc/enpu/npu_info.config"
+#define NPU_CONFIG_PATH  "/etc/enpu/vcann-rt/npu_info.config"
 #define MAX_PIDS 1024
 #define MAX_NPU_COUNT 16
 #define MAX_VNPU 100

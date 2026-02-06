@@ -14,16 +14,13 @@
 
 #if defined(__cplusplus)
 #include <atomic>
-#define _STDATOMIC_H
-#define __CLANG_STDATOMIC_H
-typedef std::atomic<int> atomic_int;
+using atomic_int = std::atomic<int>;
 #else
 #include <stdatomic.h>
 #endif
 
 #include <acl/acl.h>
 #include <runtime/rt.h>
-#include <stdatomic.h>
 #include <inttypes.h>
 
 #if defined(__cplusplus)
