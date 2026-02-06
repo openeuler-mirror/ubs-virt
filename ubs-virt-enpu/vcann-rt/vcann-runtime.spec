@@ -27,13 +27,21 @@ vcann-runtime library
 # ==============================================================
 %build
 
+%if "%{build_with_new}" == "1"
+     %define cmake_flags -DENABLE_NEW_BUILD=ON
+     echo "Building for 8.5.0+ branch..."
+%else
+     %define cmake_flags -DENABLE_NEW_BUILD=OFF
+     echo "Building for legacy branch..."
+%endif
+
 BUILD_PATH=%{_topdir}/../build
 if [ ! -d "${BUILD_PATH}" ]; then
     mkdir -p "${BUILD_PATH}"
 fi
 
 cd "${BUILD_PATH}"
-if ! /usr/bin/cmake ..; then
+if ! /usr/bin/cmake .. %{cmake_flags}; then
      echo "make_build:cmake failed."
      exit 1
 fi
