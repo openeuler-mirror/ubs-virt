@@ -8,9 +8,14 @@
 
 ### 软件版本
 
-- CANN版本8.3.RC1, HDK版本25.5.0及以上。
-- (可选，直接使用docker部署则不需要) Kubernetes版本1.17.x ~ 1.34.x, 推荐使用1.19.x及以上版本。
-- (可选，直接使用docker部署则不需要) MindCluster版本26.0.0。
+**表 1 软件版本**
+
+| 软件                | 版本                                                                        |
+|:---------------------|:-----------------------------------------------------------------------------|
+| CANN                | 8.3.RC1                                                                     |
+| HDK                 | 25.5.0及以上版本                                                            |
+| （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
+| （可选）MindCluster | 26.0.0（直接使用Docker部署则不需要）|
 
 ### 主机侧环境配置
 
@@ -20,13 +25,16 @@
 $ npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
 ```
 
-参数说明：
+**表 2 参数说明**
 
-  - id : 设备id, 通过`npu-smi info -l`命令查询获取的NPU ID即为设备id。
-  - chip_id : 芯片id, 通过`npu-smi info -m`命令查询获取的Chip ID即为芯片id。
-  - value : 容器共享模式使能状态：分为禁用(0)、使能(1)，默认禁用。
+|参数|参数选项|说明|
+|:---|:---|:---|
+|id|设备id|通过`npu-smi info -l`命令查询获取的NPU ID即为设备id。|
+|chip_id|芯片id|通过`npu-smi info -m`命令查询获取的Chip ID即为芯片id。|
+|value|<ul>默认值：禁用<li>禁用(0)</li><li>使能(1)</li></ul>|容器共享模式使能状态。|
     
-  示例：开启设备0所有芯片的容器共享模式：
+  示例：
+  开启设备0所有芯片的容器共享模式。
 
   ```shell
   npu-smi set -t device-share -i 0 -d 1
@@ -90,290 +98,299 @@ $ rpm -ivh --nodeps vcann-runtime-1.0-1.${arch}.rpm
 
 vCANN-RT支持两种方式启动服务：
 
-- 方式一：基于kubernetes编排系统部署
+#### 方式一：基于kubernetes编排系统部署
 
-    用户通过k8s yaml文件，在申请容器时声明所需的vNPU算力资源百分比例和显存资源数量。k8s会将容器调度到资源充足的节点，并将算力和显存资源配额等信息以配置文件挂载到容器内。同时，k8s会将vCANN-RT的包挂载到容器，容器内即可使能vCANN-RT软切分能力。
+  用户通过k8s yaml文件，在申请容器时声明所需的vNPU算力资源百分比例和显存资源数量。k8s会将容器调度到资源充足的节点，并将算力和显存资源配额等信息以配置文件挂载到容器内。同时，k8s会将vCANN-RT的包挂载到容器，容器内即可使能vCANN-RT软切分能力。
 
-  1. 配置preload文件。
+1. 配置preload文件。
 
-      创建ld.so.preload文件，并将libvruntime.so的安装路径配置到ld.so.preload文件中，用于K8s挂载vCANN-RT到容器。
+    创建ld.so.preload文件，并将libvruntime.so的安装路径配置到ld.so.preload文件中，用于K8s挂载vCANN-RT到容器。
 
-      ```shell
-      $ vi ld.so.preload
-        # libvruntime.so 的固定路径为/opt/enpu/vcann-rt/lib
-      $ /opt/enpu/vcann-rt/lib/libvruntime.so
-      ```
+    ```shell
+    $ vi ld.so.preload
+      # libvruntime.so 的固定路径为/opt/enpu/vcann-rt/lib
+    $ /opt/enpu/vcann-rt/lib/libvruntime.so
+    ```
 
-      ld.so.preload文件的路径用户可自定义，文档后续内容中使用${preload_path}表示。
+    ld.so.preload文件的路径用户可自定义，文档后续内容中使用${preload_path}表示。
 
-  2. 使用yaml启动容器。
+2. <span id="step2">使用yaml启动容器。</span>
 
-      yaml文件配置可参考如下格式：
+    yaml文件配置可参考如下格式：
 
-      ```shell
-      vnpu-base.yaml
+    ```shell
+    vnpu-base.yaml
 
-      apiVersion: mindxdl.gitee.com/v1
-      kind: AscendJob
-      metadata:
-          # 容器名，需与yaml文件名一致
-          name: vnpu-base 
-          # namespace
-          namespace: vnpu 
-          labels:
-              framework: pytorch
-              # 该标签为任务是否使用交换机亲和性调度，配置项如下：
-                # null/不配置：不使用
-                # large-model-schema：大模型任务
-                # normal-schema：普通任务
-              tor-affinity: "null"
-              fault-scheduling: "force"
-              # 算力aicore配额，单位：%
-              scheduler-share-aicore-quota: "20" 
-              # 显存HBM配额，单位：MB
-              scheduler-share-hbm-quota: "65536" 
-              # 调度策略，默认弹性模式(elastic mode)
-              scheduler-share-scheduling-policy: "2" 
-      spec:
-          # work when enableGangScheduling is true
-          schedulerName: volcano 
-          runPolicy:
-              # work when enableGangScheduling is true
-              schedulingPolicy: 
-                  minAvailable: 1
-                  queue: default
-          successPolicy: AllWorkers
-          replicaSpecs:
-              Master:
-                  replocas: 1
-                  restartPolicy: Never
-                  template:
-                      spec:
-                          nodeSelector:
-                              host-arch: huawei-arm
-                              accelerator-type: module-910b-8
-                          containers:
-                          # do not modify
-                          - name: ascend 
-                            # 镜像名称
-                            image: ${image_name} 
-                            imagePullPolicy: IfNotPresent
-                            env:
-                              # IP address of the physical node, which is used to identify the node where the pod is running
-                              - name: XDL_IP 
-                                valueFrom:
-                                  fieldRef:
-                                      fieldPath: status.hostIP
-                            command:
-                              - /bin/bash
-                              - -c
-                            args: [ "sleep 3000000;" ]
-                            ports: 
-                              # default value containerPort: 2222 name: ascendjob-port if not set
-                              # determined by user
-                              - containerPort: 2222
-                                # do not modify 
-                                name: ascendjob-port 
-                            resources:
-                              limits:
-                                  huawei.com/Ascend910: 1
-                              requests:
-                                  huawei.com/Ascend910: 1
-                            volumeMounts:
-                            - name: sbin
-                              mountPath: /usr/local/sbin/
-                            - name: ascend-driver
-                              mountPath: /usr/local/Ascend/driver
-                              # 共享内存
-                            - name: dshm 
-                              mountPath: /dev/shm
-                            - name: localtime
-                              mountPath: /etc/localtime
-                              # 配置文件夹路径
-                            - name: share-device-config-dir
-                              mountPath: /etc/enpu/vcann-rt/
-                              # 软切分动态库路径
-                            - name: libpreload 
-                              mountPath: /opt/enpu/vcann-rt/lib/libvruntime.so
-                              # preload配置文件路径
-                            - name: preload 
-                              mountPath: ${preload_path}/ld.so.preload
-                          volumes: 
+    apiVersion: mindxdl.gitee.com/v1
+    kind: AscendJob
+    metadata:
+        # 容器名，需与yaml文件名一致
+        name: vnpu-base 
+        # namespace
+        namespace: vnpu 
+        labels:
+            framework: pytorch
+            # 该标签为任务是否使用交换机亲和性调度，配置项如下：
+              # null/不配置：不使用
+              # large-model-schema：大模型任务
+              # normal-schema：普通任务
+            tor-affinity: "null"
+            fault-scheduling: "force"
+            # 算力aicore配额，单位：%
+            scheduler-share-aicore-quota: "20" 
+            # 显存HBM配额，单位：MB
+            scheduler-share-hbm-quota: "65536" 
+            # 调度策略，默认弹性模式(elastic mode)
+            scheduler-share-scheduling-policy: "2" 
+    spec:
+        # work when enableGangScheduling is true
+        schedulerName: volcano 
+        runPolicy:
+            # work when enableGangScheduling is true
+            schedulingPolicy: 
+                minAvailable: 1
+                queue: default
+        successPolicy: AllWorkers
+        replicaSpecs:
+            Master:
+                replocas: 1
+                restartPolicy: Never
+                template:
+                    spec:
+                        nodeSelector:
+                            host-arch: huawei-arm
+                            accelerator-type: module-910b-8
+                        containers:
+                        # do not modify
+                        - name: ascend 
+                          # 镜像名称
+                          image: ${image_name} 
+                          imagePullPolicy: IfNotPresent
+                          env:
+                            # IP address of the physical node, which is used to identify the node where the pod is running
+                            - name: XDL_IP 
+                              valueFrom:
+                                fieldRef:
+                                    fieldPath: status.hostIP
+                          command:
+                            - /bin/bash
+                            - -c
+                          args: [ "sleep 3000000;" ]
+                          ports: 
+                            # default value containerPort: 2222 name: ascendjob-port if not set
+                            # determined by user
+                            - containerPort: 2222
+                              # do not modify 
+                              name: ascendjob-port 
+                          resources:
+                            limits:
+                                huawei.com/Ascend910: 1
+                            requests:
+                                huawei.com/Ascend910: 1
+                          volumeMounts:
                           - name: sbin
-                            hostPath: 
-                              path: /usr/local/sbin/
+                            mountPath: /usr/local/sbin/
                           - name: ascend-driver
-                            hostPath:
-                              path: /usr/local/Ascend/driver
-                            # 共享内存  
+                            mountPath: /usr/local/Ascend/driver
+                            # 共享内存
                           - name: dshm 
-                            hostPath:
-                              path: /dev/shm/
+                            mountPath: /dev/shm
                           - name: localtime
-                            hostPath:
-                              path: /etc/localtime
+                            mountPath: /etc/localtime
                             # 配置文件夹路径
-                          - name: share-device-config-dir 
-                            hostPath:
-                              # {配置文件夹路径}/${namespace}.${container_name}/
-                              path: /etc/enpu/vcann-rt/vnpu.vnpu-base/ 
-                              type: DirectoryOrCreate
+                          - name: share-device-config-dir
+                            mountPath: /etc/enpu/vcann-rt/
                             # 软切分动态库路径
                           - name: libpreload 
-                            hostPath:
-                              # preload配置文件路径
-                              path: /opt/enpu/vcann-rt/lib/libvruntime.so
+                            mountPath: /opt/enpu/vcann-rt/lib/libvruntime.so
+                            # preload配置文件路径
                           - name: preload 
-                            hostPath:
-                              path: ${preload_path}/ld.so.preload
-      ```
+                            mountPath: ${preload_path}/ld.so.preload
+                        volumes: 
+                        - name: sbin
+                          hostPath: 
+                            path: /usr/local/sbin/
+                        - name: ascend-driver
+                          hostPath:
+                            path: /usr/local/Ascend/driver
+                          # 共享内存  
+                        - name: dshm 
+                          hostPath:
+                            path: /dev/shm/
+                        - name: localtime
+                          hostPath:
+                            path: /etc/localtime
+                          # 配置文件夹路径
+                        - name: share-device-config-dir 
+                          hostPath:
+                            # {配置文件夹路径}/${namespace}.${container_name}/
+                            path: /etc/enpu/vcann-rt/vnpu.vnpu-base/ 
+                            type: DirectoryOrCreate
+                          # 软切分动态库路径
+                        - name: libpreload 
+                          hostPath:
+                            # preload配置文件路径
+                            path: /opt/enpu/vcann-rt/lib/libvruntime.so
+                        - name: preload 
+                          hostPath:
+                            path: ${preload_path}/ld.so.preload
+    ```
 
-      可根据实际业务进行参数配置：
-      - metadata:
-          - name: 容器名，与yaml文件名一致。
-          - namespace: 命名空间。
-          - labels:
-              - scheduler-share-aicore-quota: 算力aicore配额，单位：%
-              - scheduler-share-hbm-quota: 显存HBM配额，单位：MB
-              - scheduler-share-scheduling-policy: 调度策略，默认弹性模式。1：固定配额模式（fixed_share）, 2: 弹性模式（elastic）, 3: 争抢模式（best-effort）。
-      - containers:
-          - image: 镜像名。
-      - volumeMounts:
-          - name: preload # preload配置文件路径。
-          - mountPath: ${preload_path}/ld.so.preload # 步骤2中创建的ld.so.preload文件路径。
-      - volumes:
-          - name: share-device-config-dir # 配置文件夹路径。
-              - hostPath:
-                  - path: /etc/enpu/vcann-rt/${namespace}.${container_name}/
-          - name: preload # preload配置文件路径。
-              - hostPath:
-                  - path: ${preload_path}/ld.so.preload # 步骤2中创建的ld.so.preload文件路径。
-      
-      使用yaml拉起容器：
+    可根据实际业务进行参数配置：
+    - metadata:
+        - name: 容器名，与yaml文件名一致。
+        - namespace: 命名空间。
+        - labels:
+            - scheduler-share-aicore-quota: 算力aicore配额，单位：%
+            - scheduler-share-hbm-quota: 显存HBM配额，单位：MB
+            - scheduler-share-scheduling-policy: 调度策略，默认为弹性模式。
+              - 1：固定配额模式（fixed_share）
+              - 2：弹性模式（elastic）
+              - 3：争抢模式（best-effort）
+    - containers:
+        - image: 镜像名。
+    - volumeMounts:
+        - name: preload # preload配置文件路径。
+        - mountPath: ${preload_path}/ld.so.preload # [步骤2](#step2)中创建的ld.so.preload文件路径。
+    - volumes:
+        - name: share-device-config-dir # 配置文件夹路径。
+            - hostPath:
+                - path: /etc/enpu/vcann-rt/${namespace}.${container_name}/
+        - name: preload # preload配置文件路径。
+            - hostPath:
+                - path: ${preload_path}/ld.so.preload # [步骤2](#step2)中创建的ld.so.preload文件路径。
+    
+    使用yaml文件拉起容器：
 
-      ```shell
-      $ kubectl apply -f ${container_name.yaml}
-      # 查看容器
-      $ kubectl get pods -n ${namespace}
-      ```
+    ```shell
+    $ kubectl apply -f ${container_name.yaml}
+    # 查看容器
+    $ kubectl get pods -n ${namespace}
+    ```
 
-  3. 拉起vCANN-RT软切分服务。
+3. 拉起vCANN-RT软切分服务。
 
-      进入容器：
+    进入容器：
 
-      ```shell
-      $ kubectl exec -it ${pod_name} -n ${namespace} bash
-      ```
+    ```shell
+    $ kubectl exec -it ${pod_name} -n ${namespace} bash
+    ```
 
-      进入容器后，可通过环境变量`ENPU_LOG_LEVEL`配置日志级别。日志级别由高到底分别是FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。默认日志级别为INFO。
+    进入容器后，可通过环境变量`ENPU_LOG_LEVEL`配置日志级别。日志级别由高到底分别是FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。默认日志级别为INFO。
 
-      示例：
+    示例：
 
-      ```shell
-      $ export ENPU_LOG_LEVEL=3
-      ```
+    ```shell
+    $ export ENPU_LOG_LEVEL=3
+    ```
 
-      启动训推任务时，会自动拉起vCANN-RT算力控制和显存控制服务。
+    启动训推任务时，会自动拉起vCANN-RT算力控制和显存控制服务。
 
-      在容器内可查询配置文件获取vNPU资源配额等信息：
+    在容器内可查询配置文件获取vNPU资源配额等信息：
 
-      ```shell
-      $ cat /etc/enpu/vcann-rt/npu_info.config
-      ```
+    ```shell
+    $ cat /etc/enpu/vcann-rt/npu_info.config
+    ```
 
-      在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息：
+    在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息：
 
-      ```shell
-      $ ./opt/enpu/vann-rt/tools/enpu-monitor
-      ```
+    ```shell
+    $ ./opt/enpu/vann-rt/tools/enpu-monitor
+    ```
 
-- 方式二：docker方式部署（不依赖kubernetes组件）
+#### 方式二：docker方式部署（不依赖kubernetes组件）
 
-    当不依赖k8s组件使用vCANN-RT时，需要用户在启动容器时自行挂载软切分相关动态库、文件和设备。例如软件分动态库、配置文件、共享内存设备和物理NPU设备。具体步骤如下：
+  当不依赖k8s组件使用vCANN-RT时，需要用户在启动容器时自行挂载软切分相关动态库、文件和设备。例如软件分动态库、配置文件、共享内存设备和物理NPU设备。具体步骤如下：
 
-  1. 创建vNPU配置文件和共享内存设备。
+1. 创建vNPU配置文件和共享内存设备。
 
-      针对每个容器，需要在主机侧创建一个配置文件，并映射到容器的npu_info.config文件中（由于不同容器的配置内容不同，需要确保每个容器的配置文件在主机侧独立存储并明确区分，比如通过文件名或者路径区分）。配置文件的格式和字段示例如下：
+    针对每个容器，需要在主机侧创建一个配置文件，并映射到容器的npu_info.config文件中（由于不同容器的配置内容不同，需要确保每个容器的配置文件在主机侧独立存储并明确区分，比如通过文件名或者路径区分）。配置文件的格式和字段示例如下：
 
-      ```bash
-        physical-npu-id=0
-        virtual-npu-npu-id=0
-        aicore-quota=20
-        memory-quota=1024
-        shm-id=xxx
-        scheduling-policy=1
-      ```
+    ```bash
+      physical-npu-id=0
+      virtual-npu-npu-id=0
+      aicore-quota=20
+      memory-quota=1024
+      shm-id=xxx
+      scheduling-policy=1
+    ```
 
-      配置项说明：
-      - physical-npu-id: 物理NPU id。`physical-npu-id=0`表示使用第0张物理NPU。
-      - virtual-npu-npu-id: vNPU id。需要从0开始配置，并且同一个物理NPU下面的vNPU不允许重复。
-      - aicore-quota: AI Core资源配额，单位为%，表示算力使用的时间比例。当前每个time slice默认为100ms, 通过软件硬编码，不支持动态配置。假如申请了20%的算力资源，那么该容器有20ms的NPU使用权。
-      - memory-quota: HBM资源配额，单位为MB，表示显存资源使用容量。当前容器内所有进程使用的HBM总量不能超过HBM资源配额。
-      - shm-id: 共享内存文件名称。该文件名称采用物理NPU对应的VDie ID, 可以保证全局唯一。通过`npu-smi info -t board -i ${id} -c ${chip_id}`命令查询VDie ID。查询完成之后，可以通过`-`符号拼接成文件名称，例如：`shm-id=11111111-22222222-33333333-44444444-55555555`
-      - scheduling-policy: 调度策略，默认配置为2。1: fixed-share mode  2: elastic mode  3: best-effort mode
+    **表 3 配置项说明**
 
-      此外，需要设置配置文件具有合适的权限，建议为644。
+    |参数|参数选项|说明|
+    |:---|:---|:---|
+    |physical-npu-id|物理NPU id|`physical-npu-id=0`表示使用第0张物理NPU。|
+    |virtual-npu-npu-id|vNPU id|需要从0开始配置，并且同一个物理NPU下的vNPU不允许重复。|
+    |aicore-quota|AI Core资源配额，单位为%|表示算力使用的时间比例。当前每个time slice默认为100ms, 通过软件硬编码，不支持动态配置。假如申请了20%的算力资源，那么该容器有20ms的NPU使用权。|
+    |memory-quota|HBM资源配额，单位为MB|表示显存资源使用容量。当前容器内所有进程使用的HBM总量不能超过HBM资源配额。|
+    |shm-id|共享内存文件名称|该文件名称采用物理NPU对应的VDie ID, 可以保证全局唯一。<br>通过`npu-smi info -t board -i ${id} -c ${chip_id}`命令查询VDie ID。<br>查询完成之后，可以通过`-`符号拼接成文件名称，例如：`shm-id=11111111-22222222-33333333-44444444-55555555`|
+    |scheduling-policy|<ul>默认配置为2。<li>1: fixed-share mode</li><li>2: elastic mode</li><li>3: best-effort mode</li></ul>|调度策略。|
 
-  2. 预加载配置文件（若使用指定容器镜像，可以跳过此步骤）。
+    此外，需要设置配置文件具有合适的权限，建议为644。
 
-      在主机侧创建预加载动态库文件`ld.so.preload`, 文件内容为libvruntime.so的固定安装路径：`opt/enpu/vann-rt/lib/libvruntime.so`
+2. 预加载配置文件（若使用指定容器镜像，可以跳过此步骤）。
 
-  3. 启动业务容器。
+    在主机侧创建预加载动态库文件`ld.so.preload`, 文件内容为libvruntime.so的固定安装路径：`opt/enpu/vann-rt/lib/libvruntime.so`
 
-      用户在启动容器时，需要将软切分相关动态库、文件和设备挂载到容器，容器启动命令可参考(假如使用第0张NPU卡)：
+3. 启动业务容器。
 
-      ```bash
-        docker run -it --name=container_name \
-        --device=/dev/davinci0:/dev/davinci0 \
-        --device=/dev/davinci_manager \
-        --device=/dev/hisi_hdc:/dev/hisi_hdc \
-        -v /usr/local/sbin:/usr/local/sbin \
-        -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
-        -v /dev/shm:/dev/shm \
-        -v /opt/enpu/vann-rt/lib/libvruntime.so:/opt/enpu/vann-rt/lib/libvruntime.so \
-        -v /opt/enpu/vann-rt/tools/enpu-monitor:/opt/enpu/vann-rt/tools/enpu-monitor \
-        -v /xxx/npu_info.config:/etc/enpu/vcann-rt/npu_info.config \
-        -v /xxx/ld.so.preload:/etc/ld.so.preload \
-        image_name /bin/bash
-      ```
+    用户在启动容器时，需要将软切分相关动态库、文件和设备挂载到容器，容器启动命令可参考(假如使用第0张NPU卡)：
 
-      参数说明：
-      - 软切分动态库: 主机侧和容器内均为固定路径：`/opt/enpu/vann-rt/lib/libvruntime.so`
-      - 监测工具：主机侧和容器内均为固定路径：`/opt/enpu/vann-rt/tools/enpu-monitor`
-      - 物理NPU设备：主机侧和容器内均为固定路径：`/dev/davinci0`
-      - 共享内存设备：主机侧和容器内均为固定路径：`/dev/shm`
-      - 配置文件：主机侧可存放在自定义路径，容器内为固定路径：`/etc/enpu/vcann-rt/npu_info.config`
-      - 预加载动态库文件：主机侧可存放在自定义路径，容器内为固定路径：`/etc/ld.so.preload`
+    ```bash
+      docker run -it --name=container_name \
+      --device=/dev/davinci0:/dev/davinci0 \
+      --device=/dev/davinci_manager \
+      --device=/dev/hisi_hdc:/dev/hisi_hdc \
+      -v /usr/local/sbin:/usr/local/sbin \
+      -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
+      -v /dev/shm:/dev/shm \
+      -v /opt/enpu/vann-rt/lib/libvruntime.so:/opt/enpu/vann-rt/lib/libvruntime.so \
+      -v /opt/enpu/vann-rt/tools/enpu-monitor:/opt/enpu/vann-rt/tools/enpu-monitor \
+      -v /xxx/npu_info.config:/etc/enpu/vcann-rt/npu_info.config \
+      -v /xxx/ld.so.preload:/etc/ld.so.preload \
+      image_name /bin/bash
+    ```
 
-      若用户使用指定镜像，则启动命令可以简化为：
+    **表 4 参数说明**
 
-      ```bash
-        docker run -it --name=container_name \
-        --device=/dev/davinci0:/dev/davinci0 \
-        --device=/dev/davinci_manager \
-        --device=/dev/hisi_hdc:/dev/hisi_hdc \
-        -v /usr/local/sbin:/usr/local/sbin \
-        -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
-        -v /dev/shm:/dev/shm \
-        -v /xxx/npu_info.config:/etc/enpu/vcann-rt/npu_info.config \
-        image_name /bin/bash
-      ```
+    |文件/工具|路径|
+    |:---|:---|
+    |软切分动态库|主机侧和容器内均为固定路径：`/opt/enpu/vann-rt/lib/libvruntime.so`|
+    |物理NPU设备|主机侧和容器内均为固定路径：`/opt/enpu/vann-rt/tools/enpu-monitor`|
+    |共享内存设备|主机侧和容器内均为固定路径：`/dev/davinci0`|
+    |共享内存设备|主机侧和容器内均为固定路径：`/dev/shm`|
+    |配置文件|<ul><li>主机侧可存放在自定义路径。</li><li>容器内为固定路径：`/etc/enpu/vcann-rt/npu_info.config`</li></ul>|
+    |预加载动态库文件|主机侧可存放在自定义路径，容器内为固定路径：`/etc/ld.so.preload`|
 
-  4. 启动业务，使用vCANN-RT服务
+    若用户使用指定镜像，则启动命令可以简化为：
 
-      - 拉起容器之后，启动训练推理任务前，可以通过环境变量配置日志级别。例如：
+    ```bash
+      docker run -it --name=container_name \
+      --device=/dev/davinci0:/dev/davinci0 \
+      --device=/dev/davinci_manager \
+      --device=/dev/hisi_hdc:/dev/hisi_hdc \
+      -v /usr/local/sbin:/usr/local/sbin \
+      -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
+      -v /dev/shm:/dev/shm \
+      -v /xxx/npu_info.config:/etc/enpu/vcann-rt/npu_info.config \
+      image_name /bin/bash
+    ```
+
+4. 启动业务，使用vCANN-RT服务
+
+    - 拉起容器之后，启动训练推理任务前，可以通过环境变量配置日志级别。例如：
 
       ```bash
       $  export ENPU_LOG_LEVEL=2
       ```
 
-      - 训练推理任务启动时，会自动拉起vCANN-RT服务进行算力控制和显存控制，如果日志回显内容为`"global init Success"`, 则表示vCANN-RT服务启动成功。
+    - 训练推理任务启动时，会自动拉起vCANN-RT服务进行算力控制和显存控制，如果日志回显内容为`"global init Success"`, 则表示vCANN-RT服务启动成功。
 
-      - 在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息。
+    - 在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息。
 
-        ```bash
-        $ ./opt/enpu/vann-rt/tools/enpu-monitor
-        ```
+      ```bash
+      $ ./opt/enpu/vann-rt/tools/enpu-monitor
+      ```
       
 ## 约束
 
