@@ -15,6 +15,10 @@
 #include <stddef.h>
 #include <stdbool.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define MOD 2654435761UL
 
 typedef struct {
@@ -51,5 +55,9 @@ int hashmap_contains(HashMap *map, void *key);
 size_t hashmap_size(HashMap *map);
 
 void hashmap_destroy(HashMap *map);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif // HASHMAP_H

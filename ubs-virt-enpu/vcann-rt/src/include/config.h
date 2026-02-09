@@ -14,6 +14,10 @@
 
 #include "common.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define SHM_ID_LEN 128
 #define OPTION_NPU_ID "physical-npu-id"
 #define OPTION_VNPU_ID "virtual-npu-id"
@@ -35,5 +39,9 @@ struct Config {
 extern struct Config config;
 
 int load_config(const char *file_path);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

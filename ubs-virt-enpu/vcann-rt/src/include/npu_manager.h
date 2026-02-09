@@ -12,10 +12,23 @@
 #ifndef __NPU_MANAGER_H__
 #define __NPU_MANAGER_H__
 
+#if defined(__cplusplus)
+#include <atomic>
+using atomic_int = std::atomic<int>;
+using atomic_uint_fast8_t = std::atomic<uint_fast8_t>;
+using atomic_uint_fast32_t = std::atomic<uint_fast32_t>;
+using atomic_uint_fast64_t = std::atomic<uint_fast64_t>;
+#else
 #include <stdatomic.h>
+#endif
+
 #include "config.h"
 
-#define NPU_CONFIG_PATH  "/etc/enpu/vcann-rt/npu_info.config"
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+#define NPU_CONFIG_PATH  "/etc/enpu/vcann-rt/vcann-rt/npu_info.config"
 #define MAX_PIDS 1024
 #define MAX_NPU_COUNT 16
 #define MAX_VNPU 100
@@ -73,5 +86,9 @@ extern schedule_policy_t get_sched_policy(void);
 extern int enpu_load_config(void);
 extern int enpu_device_init(void);
 extern int enpu_config_info_init(void);
+#if defined(__cplusplus)
+}
+#endif
+
 
 #endif

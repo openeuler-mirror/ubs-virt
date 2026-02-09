@@ -23,6 +23,10 @@
 #include <stdbool.h>
 #include "log.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define MAX_LINE_LENGTH 256
 
 #define ENPU_SUCCESS 0
@@ -54,4 +58,9 @@
     } while (false)
 
 extern int get_config_value(const char *file_path, const char *key_name, char *buffer);
+
+#if defined(__cplusplus)
+}
+#endif
+
 #endif

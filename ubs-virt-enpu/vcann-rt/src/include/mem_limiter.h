@@ -19,6 +19,9 @@
 #include "utils.h"
 #include "npu_manager.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define FILE_LOCK_BASE_DIR "/run/enpu/vcann-rt/"
 #define MEMCTL_LOCK_PATH "/run/enpu/vcann-rt/memctl.lock"
@@ -31,5 +34,9 @@ extern int memory_limiter_init();
 extern bool memory_check(size_t requested);
 extern const char *lock_path();
 extern int create_file_lock_base_dir();
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif
