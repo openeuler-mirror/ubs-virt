@@ -19,6 +19,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define ZIP_EXT ".tar.gz"
 #define TAR_CMD_PREFIX "tar -czpf "
 #define RM_CMD_PREFIX "rm -f "
@@ -84,5 +88,9 @@ extern LogConfig g_log_config;
     log_print(ENPU_LOG_FATAL, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
     fprintf(stderr, msg"\n", ##__VA_ARGS__); \
 } while (false)
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

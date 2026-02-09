@@ -15,9 +15,17 @@
 
 #include "common.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #define MAX_PIDS 128
 
 extern int enpu_dcmi_get_card_info(int logic_id, int *card_id, int *device_id);
 extern int enpu_dcmi_get_device_resource_info(int card_id, int device_id, size_t *used);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

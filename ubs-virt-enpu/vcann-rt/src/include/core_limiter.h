@@ -12,10 +12,20 @@
 #ifndef __CORE_LIMITER_H__
 #define __CORE_LIMITER_H__
 
+#if defined(__cplusplus)
+#include <atomic>
+using atomic_int = std::atomic<int>;
+#else
+#include <stdatomic.h>
+#endif
+
 #include <acl/acl.h>
 #include <runtime/rt.h>
-#include <stdatomic.h>
 #include <inttypes.h>
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define MAGIC_INITIALIZED 0x495A4544U // IZED
 #define MAGIC_INITIALIZING 0x5A494E47U // ZING
@@ -52,4 +62,9 @@ extern void set_event_record_status(rtEvent_t evt, rtStream_t stm);
 extern void remove_stream(rtEvent_t evt, rtStream_t stm);
 extern void set_event_destroy_status(rtEvent_t evt);
 uint64_t ns_now(void);
+
+#if defined(__cplusplus)
+}
+#endif
+
 #endif // CORE_LIMITER_H
