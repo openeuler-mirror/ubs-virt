@@ -13,25 +13,16 @@
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
 
-#include <atomic>
-#define _STDATOMIC_H
-#define __CLANG_STDATOMIC_H
-typedef std::atomic<int> atomic_int;
-typedef std::atomic<uint_fast8_t> atomic_uint_fast8_t;
-typedef std::atomic<uint_fast32_t> atomic_uint_fast32_t;
-typedef std::atomic<uint_fast64_t> atomic_uint_fast64_t;
-
 #include "securec.h"
+#include "npu_manager.h"
+#include "dcmi_wrapper.h"
+#include "config.h"
+#include "mem_limiter.h"
+#include "core_limiter.h"
+#include "log.h"
+#include "common.h"
 
 extern "C" {
-    #include "npu_manager.h"
-    #include "dcmi_wrapper.h"
-    #include "config.h"
-    #include "mem_limiter.h"
-    #include "core_limiter.h"
-    #include "log.h"
-    #include "common.h"
-    
     int stub_load_config(const char *path)
     {
         config.phy_npu_id = 0;
