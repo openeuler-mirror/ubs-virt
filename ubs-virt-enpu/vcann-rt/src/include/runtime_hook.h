@@ -96,6 +96,7 @@ typedef enum {
     RUNTIME_HOOK_ENUM(rtBarrierTaskLaunch),
     RUNTIME_HOOK_ENUM(rtMultipleTaskInfoLaunch),
     RUNTIME_HOOK_ENUM(rtMultipleTaskInfoLaunchWithFlag),
+    RUNTIME_HOOK_ENUM(rtsModelExecuteAsync),
     /* Event Part */
     RUNTIME_HOOK_ENUM(rtEventCreate),
     RUNTIME_HOOK_ENUM(rtsEventCreate),

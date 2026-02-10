@@ -62,6 +62,7 @@ rt_entry_t rt_library_entry[] = {
     {.name = "rtBarrierTaskLaunch"},
     {.name = "rtMultipleTaskInfoLaunch"},
     {.name = "rtMultipleTaskInfoLaunchWithFlag"},
+    {.name = "rtsModelExecuteAsync"},
     /* Event Part */
     {.name = "rtEventCreate"},
     {.name = "rtsEventCreate"},
