@@ -75,6 +75,11 @@ void set_core_cur_timeslice(uint64_t time)
     g_npu_info.core_cur_timeslice = time;
 }
 
+uint8_t get_card_id(void)
+{
+    return g_npu_info.card_id;
+}
+
 schedule_policy_t get_sched_policy(void)
 {
     return g_npu_info.sched_policy;

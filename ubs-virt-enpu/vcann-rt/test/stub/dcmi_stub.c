@@ -31,3 +31,10 @@ int dcmi_get_device_resource_info(int card_id, int device_id, struct dcmi_proc_m
     printf("call stub_dcmi_get_device_resource_info\n");
     return 0;
 }
+
+int dcmi_get_device_utilization_rate(int card_id, int device_id, int input_type,
+                                     unsigned int* utilization_rate)
+{
+    printf("call stub_dcmi_get_device_utilization_rate\n");
+    return 0;
+}

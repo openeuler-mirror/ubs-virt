@@ -323,6 +323,47 @@ void *npu_utilization_monitor_thread(void *arg)
     }
 }
 
+bool slide_window_check(int owner)
+{
+    int slide_windows_len = atomic_load(&g_vnpu_sched_context->slide_window_len);
+    
+    for (int i = 1; i <= MAX_VNPU && slide_windows_len > 0; ++ i) {
+        int next_vnpu = (owner + i) % MAX_VNPU;
+        if (next_vnpu == g_vnpu_id) {
+            return true;
+        }
+        // The slide window only contains alive vnpu.
+        if (is_vnpu_alive(next_vnpu)) {
+            slide_windows_len -= 1;
+        }
+    }
+    return false;
+}
+
+void check_and_borrow_timeslice(int owner)
+{
+    if (owner == g_vnpu_id) {
+        // Check and update slide_window_len, no borrow here
+        bool check = check_timeout(
+            &g_vnpu_sched_context->last_slide_window_time_ns, WATTING_SLIDE_WINDOW_TIMEOUT_PERIOD);
+        if (!check) {
+            uint64_t now = ns_now();
+            atomic_store(&g_vnpu_sched_context->last_slide_window_time_ns, now);
+
+            pthread_t thread;
+            int rc = pthread_create(&thread, NULL, npu_utilization_monitor_thread, NULL);
+            CHECK_ERROR_CODE(rc, "Failed to create npu_utilization_monitor_thread.");
+            pthread_detach(thread);
+        }
+    } else if (slide_window_check(owner)) { // Check and borrow timeslice
+        pthread_mutex_unlock(&g_sched_mutex);
+        ns_sleep(BORROW_TIMESLICE_LENGTH); // borrow BORROW_TIMESLICE_LENGTH ns every time
+        atomic_store(&g_sched_locking, true);
+        pthread_mutex_lock(&g_sched_mutex);
+        atomic_store(&g_sched_locking, false);
+    }
+}
+
 // Scheduling main thread
 void *vnpu_scheduler_thread(void *arg)
 {
@@ -335,6 +376,12 @@ void *vnpu_scheduler_thread(void *arg)
         // Distributed thread scheduling.
         // Scheduling is performed only when the owner is the current vnpu or the owner is disabled.
         int owner = atomic_load(&g_vnpu_sched_context->owner);
+
+        // ELASTIC will consider borrow timeslice
+        if (get_sched_policy() == SCHED_POLICY_ELASTIC) {
+            check_and_borrow_timeslice(owner);
+        }
+
         if (owner != g_vnpu_id) {
             if (!is_vnpu_alive(owner)) {
                 select_next_owner();
