@@ -17,6 +17,7 @@ rt_entry_t rt_library_entry[] = {
     {.name = "rtSetDevice"},
     {.name = "rtSetDeviceEx"},
     {.name = "rtSetDeviceWithFlags"},
+    {.name = "rtSetDeviceWithoutTsd"},
     /* Memory Part */
     {.name = "rtMalloc"},
     {.name = "rtMallocCached"},
@@ -75,6 +76,12 @@ rt_entry_t rt_library_entry[] = {
     {.name = "rtNotifyRecord"},
     {.name = "rtNotifyDestroy"},
     {.name = "rtsNotifyWaitAndReset"},
+    {.name = "rtStreamWaitEventWithTimeout"},
+    {.name = "rtEventDestroySync"},
+    {.name = "rtNotifyCreate"},
+    {.name = "rtNotifyCreateWithFlag"},
+    {.name = "rtNotifyWait"},
+    {.name = "rtNotifyWaitWithTimeOut"},
     /* Other Part */
     {.name = "rtStreamSynchronize"},
     {.name = "rtStreamDestroy"},
