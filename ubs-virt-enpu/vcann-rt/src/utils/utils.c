@@ -104,7 +104,7 @@ static bool file_lock_release(file_lock *lock)
     }
 
     int ret = flock(lock->fd, LOCK_UN);
-    CHECK_COND_RETURN_(ret != 0, false, "unlock failed, fd %d, errno %s", 
+    CHECK_COND_RETURN_(ret != 0, false, "unlock failed, fd %d, errno %s",
         lock->fd, strerror(errno));
 
     lock->held = false;

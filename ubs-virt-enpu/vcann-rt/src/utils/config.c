@@ -111,7 +111,7 @@ int load_config(const char *file_path)
     }
 
     FILE *file = fopen(file_path, "r");
-    CHECK_COND_RETURN_ERROR_CODE(!file, "Failed to open file: %s, error msg: %s", 
+    CHECK_COND_RETURN_ERROR_CODE(!file, "Failed to open file: %s, error msg: %s",
         file_path, strerror(errno));
 
     reset_config();
