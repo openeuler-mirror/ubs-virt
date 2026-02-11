@@ -60,10 +60,8 @@ int load_int32(const char *key, const char *value, int32_t *ret_value)
     errno = 0;
     char *endptr = NULL;
     int32_t result = (int32_t) strtoul(value, endptr, TEN_BASE);
-    if (errno != 0) {
-        LOG_ERROR("Failed to load config: %s, value: %s, error message: %s", key, value, strerror(errno));
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE(errno != 0,
+        "Failed to load config: %s, value: %s, error message: %s", key, value, strerror(errno));
     *ret_value = result;
     return ENPU_SUCCESS;
 }
@@ -77,12 +75,9 @@ int load_str(const char *key, const char *value, char *ret_value, size_t ret_len
         return ENPU_FAIL;
     }
 
-    if (strcpy_s(ret_value, ret_len, value) != 0) {
-        LOG_ERROR("Failed to load config: %s, string copy failed.", key);
-        return ENPU_FAIL;
-    } else {
-        return ENPU_SUCCESS;
-    }
+    int ret = strcpy_s(ret_value, ret_len, value);
+    CHECK_COND_RETURN_ERROR_CODE(ret != 0, "Failed to load config: %s, string copy failed.", key);
+    return ENPU_SUCCESS;
 }
 
 int save2config(const char *key, const char *value)
@@ -116,10 +111,8 @@ int load_config(const char *file_path)
     }
 
     FILE *file = fopen(file_path, "r");
-    if (!file) {
-        LOG_ERROR("Failed to open file: %s, error msg: %s", file_path, strerror(errno));
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE(!file, "Failed to open file: %s, error msg: %s", 
+        file_path, strerror(errno));
 
     reset_config();
 

@@ -23,10 +23,7 @@ bool memory_check(size_t requested)
     }
     size_t used;
     int ret = get_mem_used(&used);
-    if (ret != 0) {
-        LOG_ERROR("get mem used failed");
-        return false;
-    }
+    CHECK_COND_RETURN_(ret != 0, false, "get mem used failed");
     size_t quota = get_mem_limit_quota();
     if (requested + used > quota) {
         LOG_ERROR("out of memory, request %zd B, used %zd B, quota %zd B", requested, used, quota);
@@ -64,15 +61,10 @@ int create_file_lock_base_dir()
 {
     char cmd[128];
     int ans = snprintf_s(cmd, sizeof(cmd), sizeof(cmd), "mkdir -p -m 750 %s", FILE_LOCK_BASE_DIR);
-    if (ans < 0) {
-        LOG_ERROR("Can not concatenate string to create dir");
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE(ans < 0, "Can not concatenate string to create dir");
     int ret = system(cmd);
-    if (ret < 0 && errno != EEXIST) {
-        LOG_ERROR("create %s failed, err is %s", FILE_LOCK_BASE_DIR, strerror(errno));
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE(ret < 0 && errno != EEXIST,
+        "create %s failed, err is %s", FILE_LOCK_BASE_DIR, strerror(errno));
 
     LOG_INFO("create %s success", FILE_LOCK_BASE_DIR);
     return ENPU_SUCCESS;
