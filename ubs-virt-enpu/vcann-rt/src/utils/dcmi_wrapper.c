@@ -33,11 +33,11 @@ int enpu_dcmi_get_card_info(int logic_id, int *card_id, int *device_id)
     }
 
     ret = dcmi_init();
-    CHECK_RETURN_ERROR_CODE(ret, "dcmi init failed");
+    CHECK_RETURN_ERROR_CODE(ret, "dcmi init failed.");
     LOG_DEBUG("dcmi_init success");
 
     ret = dcmi_get_card_id_device_id_from_logicid(card_id, device_id, logic_id);
-    CHECK_RETURN_ERROR_CODE(ret, "get card info failed");
+    CHECK_RETURN_ERROR_CODE(ret, "get card info failed.");
     LOG_DEBUG("enpu_dcmi_get_card_info success");
     return ENPU_SUCCESS;
 }
@@ -98,10 +98,10 @@ int enpu_dcmi_get_device_resource_info(int card_id, int device_id, size_t *used)
     pthread_t thread;
 
     int ret = pthread_create(&thread, NULL, enpu_get_resource_info_thread, &args);
-    CHECK_COND_RETURN_ERROR_CODE(ret != 0, "create thread failed");
+    CHECK_COND_RETURN_ERROR_CODE(ret != 0, "create thread failed.");
 
     ret = pthread_join(thread, NULL);
-    CHECK_COND_RETURN_ERROR_CODE(ret != 0, "join thread failed");
+    CHECK_COND_RETURN_ERROR_CODE(ret != 0, "join thread failed.");
 
     if (args.result != 0) {
         LOG_ERROR("get info failed card:%d device:%d result:%d", card_id, device_id, args.result);
@@ -109,7 +109,7 @@ int enpu_dcmi_get_device_resource_info(int card_id, int device_id, size_t *used)
     }
 
     ret = enpu_get_mem_used(proc_info, proc_num, used);
-    CHECK_RETURN_ERROR_CODE(ret, "get device mem info failed card-id:%d device_id:%d",
+    CHECK_RETURN_ERROR_CODE(ret, "get device mem info failed card-id:%d device_id:%d.",
         card_id, device_id);
 
     return ENPU_SUCCESS;

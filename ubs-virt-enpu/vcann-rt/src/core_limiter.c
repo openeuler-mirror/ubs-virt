@@ -89,7 +89,7 @@ void core_limiter(rtStream_t stream, core_function func, void* param)
         LOG_DEBUG("Core limiter is waiting for the mutex lock.");
         // waiting for mutex == waiting for launch task
         int rc = pthread_mutex_lock(&g_sched_mutex);
-        CHECK_COND_RETURN(rc != 0, "Failed to lock mutex, error code=%d", rc);
+        CHECK_COND_RETURN(rc != 0, "Failed to lock mutex, error code=%d.", rc);
         LOG_DEBUG("The mutex lock is successfully obtained.");
         // The delivered stream needs to be recorded because the execution time needs to be collected later.
         restore_streams(stream);

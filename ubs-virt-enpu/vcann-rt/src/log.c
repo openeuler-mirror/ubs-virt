@@ -158,9 +158,9 @@ int compress_file()
         "-type f -iname \"*_", getpid(), "_*.log\" ! -iwholename \"", g_log_config.log_path, "\" -exec rm -f {} \\;");
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get rm cmd.");
     int tar_exe_result = system(tar_cmd);
-    CHECK_COND_RETURN_ERROR_CODE_LOG(tar_exe_result != 0, "Compress files error, failed to execute tar command");
+    CHECK_COND_RETURN_ERROR_CODE_LOG(tar_exe_result != 0, "Compress files error, failed to execute tar command.");
     int rm_exe_result = system(rm_cmd);
-    CHECK_COND_RETURN_ERROR_CODE_LOG(rm_exe_result != 0, "Compress files error, failed to execute rm command");
+    CHECK_COND_RETURN_ERROR_CODE_LOG(rm_exe_result != 0, "Compress files error, failed to execute rm command.");
     printf("Compressed .log files into %s and deleted the original files.\n", g_log_config.log_dir);
     return ENPU_SUCCESS;
 }
@@ -197,7 +197,7 @@ int rotate_log_by_size()
     }
 
     int ret = update_log_file();
-    CHECK_RETURN_ERROR_CODE_LOG(ret, "Failed to update log file, now log file is %s.\n", g_log_config.log_path);
+    CHECK_RETURN_ERROR_CODE_LOG(ret, "Failed to update log file, now log file is %s.", g_log_config.log_path);
     return ENPU_SUCCESS;
 }
 
@@ -216,7 +216,7 @@ int log_init()
     ret = is_current_process(g_log_config.log_path);
     if (ret != ENPU_SUCCESS) {
         ret = update_log_file();
-        CHECK_RETURN_ERROR_CODE_LOG(ret, "Failed to update log file, now log file is %s.\n", g_log_config.log_path);
+        CHECK_RETURN_ERROR_CODE_LOG(ret, "Failed to update log file, now log file is %s.", g_log_config.log_path);
     }
 
     char* enpu_log_level = getenv("ENPU_LOG_LEVEL");
@@ -245,30 +245,30 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
     localtime_r(&now, &tm_now);
     char time_str[64];
     ret = strftime(time_str, sizeof(time_str), "%Y%m%d%H%M%S", &tm_now);
-    CHECK_COND_RETURN_LOG(ret == 0, "Failed to get timestamp");
+    CHECK_COND_RETURN_LOG(ret == 0, "Failed to get timestamp.");
     ret = fprintf(fp, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level],
         MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), basename(filename), line);
-    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fprint log content to file");
+    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fprint log content to file.");
     ret = fprintf(stderr, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level],
         MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), basename(filename), line);
-    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fprint log content to stderr");
+    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fprint log content to stderr.");
     va_list args;
     va_start(args, format);
     ret = vfprintf(fp, format, args);
-    CHECK_COND_RETURN_LOG(ret < 0, "Failed to vfprint log content to file");
+    CHECK_COND_RETURN_LOG(ret < 0, "Failed to vfprint log content to file.");
     va_end(args);
     ret = fprintf(fp, "\n");
-    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fprint log content end to file");
+    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fprint log content end to file.");
     ret = fflush(fp);
-    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fflush log content to file");
+    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fflush log content to file.");
     ret = fclose(fp);
-    CHECK_COND_RETURN_LOG(ret < 0, "Failed to close log file");
+    CHECK_COND_RETURN_LOG(ret < 0, "Failed to close log file.");
     pthread_mutex_unlock(&g_log_config.print_mutex);
     pthread_mutex_lock(&g_log_config.compress_mutex);
     int log_file_count = count_log_files();
     if (log_file_count > g_log_config.max_backup_count) {
         ret = compress_file();
-        CHECK_ERROR_CODE_LOG(ret, "Failed to compress log files, log_dir is %s\n", g_log_config.log_dir);
+        CHECK_ERROR_CODE_LOG(ret, "Failed to compress log files, log_dir is %s.", g_log_config.log_dir);
     }
     pthread_mutex_unlock(&g_log_config.compress_mutex);
 }
