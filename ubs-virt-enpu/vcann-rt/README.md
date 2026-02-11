@@ -12,7 +12,7 @@
 
 | 软件                | 版本                                                                        |
 |:---------------------|:-----------------------------------------------------------------------------|
-| CANN                | 8.3.RC1                                                                     |
+| CANN                | 8.5.0                                                                     |
 | HDK                 | 25.5.0及以上版本                                                            |
 | （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
 | （可选）MindCluster | 26.0.0（直接使用Docker部署则不需要）|
@@ -70,10 +70,10 @@ $ git clone <ubs-virt-enpu-vcann-rt-url>
 `vCANN-RT`在代码仓中提供了统一的编译构建脚本（即`make_build.sh`文件），可以直接执行该脚本文件进行编译构建。默认无需任何配置项，直接执行即可。
 
 ```shell
-$ bash make_build.sh
+$ bash make_build.sh 8.5.0
 ```
 
-编译完成之后，会在`rpmbuild/RPMS/`目录下面产生RPM包。
+编译完成之后，会在`rpmbuild/RPMS/`目录下面产生RPM包（如果当前编译环境安装的cann版本不是8.5.0，则不需要增加编译参数）。
 
 ## 部署
 
@@ -295,7 +295,7 @@ vCANN-RT支持两种方式启动服务：
     在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息：
 
     ```shell
-    $ ./opt/enpu/vann-rt/tools/enpu-monitor
+    $ ./opt/enpu/vcann-rt/tools/enpu-monitor
     ```
 
 #### 方式二：docker方式部署（不依赖kubernetes组件）
@@ -308,7 +308,7 @@ vCANN-RT支持两种方式启动服务：
 
     ```bash
       physical-npu-id=0
-      virtual-npu-npu-id=0
+      virtual-npu-id=0
       aicore-quota=20
       memory-quota=1024
       shm-id=xxx
@@ -320,7 +320,7 @@ vCANN-RT支持两种方式启动服务：
     |参数|参数选项|说明|
     |:---|:---|:---|
     |physical-npu-id|物理NPU id|`physical-npu-id=0`表示使用第0张物理NPU。|
-    |virtual-npu-npu-id|vNPU id|需要从0开始配置，并且同一个物理NPU下的vNPU不允许重复。|
+    |virtual-npu-id|vNPU id|需要从0开始配置，并且同一个物理NPU下的vNPU不允许重复。|
     |aicore-quota|AI Core资源配额，单位为%|表示算力使用的时间比例。当前每个time slice默认为100ms, 通过软件硬编码，不支持动态配置。假如申请了20%的算力资源，那么该容器有20ms的NPU使用权。|
     |memory-quota|HBM资源配额，单位为MB|表示显存资源使用容量。当前容器内所有进程使用的HBM总量不能超过HBM资源配额。|
     |shm-id|共享内存文件名称|该文件名称采用物理NPU对应的VDie ID, 可以保证全局唯一。<br>通过`npu-smi info -t board -i ${id} -c ${chip_id}`命令查询VDie ID。<br>查询完成之后，可以通过`-`符号拼接成文件名称，例如：`shm-id=11111111-22222222-33333333-44444444-55555555`|
@@ -330,7 +330,7 @@ vCANN-RT支持两种方式启动服务：
 
 2. 预加载配置文件（若使用指定容器镜像，可以跳过此步骤）。
 
-    在主机侧创建预加载动态库文件`ld.so.preload`, 文件内容为libvruntime.so的固定安装路径：`opt/enpu/vann-rt/lib/libvruntime.so`
+    在主机侧创建预加载动态库文件`ld.so.preload`, 文件内容为libvruntime.so的固定安装路径：`opt/enpu/vcann-rt/lib/libvruntime.so`
 
 3. 启动业务容器。
 
@@ -344,8 +344,8 @@ vCANN-RT支持两种方式启动服务：
       -v /usr/local/sbin:/usr/local/sbin \
       -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
       -v /dev/shm:/dev/shm \
-      -v /opt/enpu/vann-rt/lib/libvruntime.so:/opt/enpu/vann-rt/lib/libvruntime.so \
-      -v /opt/enpu/vann-rt/tools/enpu-monitor:/opt/enpu/vann-rt/tools/enpu-monitor \
+      -v /opt/enpu/vcann-rt/lib/libvruntime.so:/opt/enpu/vcann-rt/lib/libvruntime.so \
+      -v /opt/enpu/vcann-rt/tools/enpu-monitor:/opt/enpu/vcann-rt/tools/enpu-monitor \
       -v /xxx/npu_info.config:/etc/enpu/vcann-rt/npu_info.config \
       -v /xxx/ld.so.preload:/etc/ld.so.preload \
       image_name /bin/bash
@@ -355,8 +355,8 @@ vCANN-RT支持两种方式启动服务：
 
     |文件/工具|路径|
     |:---|:---|
-    |软切分动态库|主机侧和容器内均为固定路径：`/opt/enpu/vann-rt/lib/libvruntime.so`|
-    |物理NPU设备|主机侧和容器内均为固定路径：`/opt/enpu/vann-rt/tools/enpu-monitor`|
+    |软切分动态库|主机侧和容器内均为固定路径：`/opt/enpu/vcann-rt/lib/libvruntime.so`|
+    |物理NPU设备|主机侧和容器内均为固定路径：`/opt/enpu/vcann-rt/tools/enpu-monitor`|
     |共享内存设备|主机侧和容器内均为固定路径：`/dev/davinci0`|
     |共享内存设备|主机侧和容器内均为固定路径：`/dev/shm`|
     |配置文件|<ul><li>主机侧可存放在自定义路径。</li><li>容器内为固定路径：`/etc/enpu/vcann-rt/npu_info.config`</li></ul>|
@@ -381,7 +381,7 @@ vCANN-RT支持两种方式启动服务：
     - 拉起容器之后，启动训练推理任务前，可以通过环境变量配置日志级别。例如：
 
       ```bash
-      $  export ENPU_LOG_LEVEL=2
+      $  export ENPU_LOG_LEVEL=3
       ```
 
     - 训练推理任务启动时，会自动拉起vCANN-RT服务进行算力控制和显存控制，如果日志回显内容为`"global init Success"`, 则表示vCANN-RT服务启动成功。
@@ -389,7 +389,7 @@ vCANN-RT支持两种方式启动服务：
     - 在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息。
 
       ```bash
-      $ ./opt/enpu/vann-rt/tools/enpu-monitor
+      $ ./opt/enpu/vcann-rt/tools/enpu-monitor
       ```
       
 ## 约束
@@ -403,4 +403,12 @@ vCANN-RT支持两种方式启动服务：
 
 1. hook拦截runtime API提示`can't find function`:
 
-    当前vCANN-RT方案适配CANN软件版本为商发版本8.3.RC1，部分runtime API在CANN其他版本未支持。
+    当前vCANN-RT方案适配CANN软件版本为商发版本8.5.0，部分runtime API在CANN其他版本未支持。
+
+2. 容器启动或者业务运行时报错`GLIBC_xxx not found`:
+    
+    由于GLIBC兼容性问题，容器使用的动态库要求的GLIBC版本和容器本身的版本不兼容，建议进行兼容适配。
+
+3. 容器启动或者业务运行时报错`libboundscheck.so: cannot open shared object file: No such file or directory`：
+
+    由于软切分动态库在运行时依赖安全函数库，因此用户需要确保容器中存在安全函数库，可以参考 https://gitcode.com/openeuler/libboundscheck 完成构建部署。
