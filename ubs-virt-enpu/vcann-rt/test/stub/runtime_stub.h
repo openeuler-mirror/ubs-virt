@@ -17,26 +17,23 @@
 extern "C" {
 #endif
 
-#define MOCK_MEMCTL_LOCK_PATH "../build/memctl.lock"
+#define MOCK_MEMCTL_LOCK_PATH "../__build/memctl.lock"
+#define MOCK_NPU_CONFIG_PATH  "../__build/test_npu_info.config"
 
+// device.c
 void load_rt_libraries(void);
 void stub_load_rt_libraries(void);
 
-const char *lock_path();
+// mem_limiter.c
 const char *stub_lock_path();
 
-void enpu_global_init(void);
+// npu_manager.c
+int stub_load_config(const char *file_path);
+int stub_enpu_load_config(void);
 
-int get_mem_used(size_t *used);
-void *map_share_mem(const char *shmID, size_t size);
-
-typedef struct file_lock {
-    int fd;
-    bool held;
-} file_lock;
-
-file_lock file_lock_create(const char *path, int operation);
-void file_lock_destroy(file_lock *lock);
+// config.c
+int check_int32(int32_t option, const char *option_name);
+int check_str(const char *str, const char *option_name);
 
 #if defined(__cplusplus)
 }

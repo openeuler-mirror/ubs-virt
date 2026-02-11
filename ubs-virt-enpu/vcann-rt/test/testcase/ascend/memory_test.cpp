@@ -18,6 +18,8 @@
 #include "securec.h"
 #include "runtime_stub.h"
 #include "log.h"
+#include "npu_manager.h"
+#include "mem_limiter.h"
 
 class MemoryTest : public testing::Test {
 protected:
@@ -33,11 +35,12 @@ protected:
 
     void SetUp()
     {
-        (void)sprintf_s(g_log_config.log_dir, sizeof(g_log_config.log_dir), "%s", "../build/log/enpu/");
+        (void)sprintf_s(g_log_config.log_dir, sizeof(g_log_config.log_dir), "%s", "../__build/log/enpu/");
         open(stub_lock_path(), O_CREAT | O_RDONLY, 777); // ut memctl.lock文件,设置为777权限
+        MOCKER(lock_path).stubs().will(invoke(stub_lock_path));
+        MOCKER(enpu_load_config).stubs().will(invoke(stub_enpu_load_config));
         enpu_global_init();
         MOCKER(load_rt_libraries).stubs().will(invoke(stub_load_rt_libraries));
-        MOCKER(lock_path).stubs().will(invoke(stub_lock_path));
     }
 
     void TearDown()

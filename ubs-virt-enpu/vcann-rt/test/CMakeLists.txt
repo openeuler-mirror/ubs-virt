@@ -35,12 +35,13 @@ set(VNPU_SRC_FILES
 )
 
 set(VNPU_TESTCASE_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/demo_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/log_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/device_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/memory_test.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/utils_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/ascend/device_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/ascend/graph_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/ascend/memory_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/utils/utils_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/utils/config_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/npu_manager_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/log_test.cpp
 )
 
 set(VNPU_STUB_FILES
