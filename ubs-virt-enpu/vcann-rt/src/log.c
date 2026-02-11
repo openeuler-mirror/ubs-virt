@@ -210,7 +210,7 @@ int log_init()
     char mkdir_cmd[MAX_CMD_LEN];
     int ret = snprintf_s(mkdir_cmd, sizeof(mkdir_cmd), sizeof(mkdir_cmd), "%s%s",
         MKDIR_CMD_PREFIX, g_log_config.log_dir);
-    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get log dir path.");
+    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Log init: Failed to get log dir path.");
     system(mkdir_cmd);
 
     ret = is_current_process(g_log_config.log_path);
