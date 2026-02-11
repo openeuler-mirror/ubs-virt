@@ -51,6 +51,7 @@ typedef enum {
     RUNTIME_HOOK_ENUM(rtSetDevice),
     RUNTIME_HOOK_ENUM(rtSetDeviceEx),
     RUNTIME_HOOK_ENUM(rtSetDeviceWithFlags),
+    RUNTIME_HOOK_ENUM(rtSetDeviceWithoutTsd),
     /* Memory Part */
     RUNTIME_HOOK_ENUM(rtMalloc),
     RUNTIME_HOOK_ENUM(rtMallocCached),
@@ -95,6 +96,7 @@ typedef enum {
     RUNTIME_HOOK_ENUM(rtBarrierTaskLaunch),
     RUNTIME_HOOK_ENUM(rtMultipleTaskInfoLaunch),
     RUNTIME_HOOK_ENUM(rtMultipleTaskInfoLaunchWithFlag),
+    RUNTIME_HOOK_ENUM(rtsModelExecuteAsync),
     /* Event Part */
     RUNTIME_HOOK_ENUM(rtEventCreate),
     RUNTIME_HOOK_ENUM(rtsEventCreate),
@@ -105,14 +107,20 @@ typedef enum {
     RUNTIME_HOOK_ENUM(rtEventRecord),
     RUNTIME_HOOK_ENUM(rtEventDestroy),
     RUNTIME_HOOK_ENUM(rtEventReset),
-    /* Other Part */
-    RUNTIME_HOOK_ENUM(rtStreamSynchronize),
-    RUNTIME_HOOK_ENUM(rtStreamDestroy),
-    RUNTIME_HOOK_ENUM(rtDestroyStreamForce),
     RUNTIME_HOOK_ENUM(rtsNotifyCreate),
     RUNTIME_HOOK_ENUM(rtNotifyRecord),
     RUNTIME_HOOK_ENUM(rtNotifyDestroy),
     RUNTIME_HOOK_ENUM(rtsNotifyWaitAndReset),
+    RUNTIME_HOOK_ENUM(rtStreamWaitEventWithTimeout),
+    RUNTIME_HOOK_ENUM(rtEventDestroySync),
+    RUNTIME_HOOK_ENUM(rtNotifyCreate),
+    RUNTIME_HOOK_ENUM(rtNotifyCreateWithFlag),
+    RUNTIME_HOOK_ENUM(rtNotifyWait),
+    RUNTIME_HOOK_ENUM(rtNotifyWaitWithTimeOut),
+    /* Other Part */
+    RUNTIME_HOOK_ENUM(rtStreamSynchronize),
+    RUNTIME_HOOK_ENUM(rtStreamDestroy),
+    RUNTIME_HOOK_ENUM(rtDestroyStreamForce),
     RUNTIME_ENTRY_END,
 }rt_hook_enum_t;
 

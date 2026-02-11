@@ -134,3 +134,48 @@ RUNTIME_HOOK_DEFINE(rtsNotifyWaitAndReset, rtNotify_t notify, rtStream_t stm, ui
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtsNotifyWaitAndReset, notify, stm, timeout);
     return ret;
 }
+
+RUNTIME_HOOK_DEFINE(rtStreamWaitEventWithTimeout, rtStream_t stm, rtEvent_t evt, uint32_t timeout)
+{
+    core_limiter(stm, set_event_wait_status, (void*)evt);
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtStreamWaitEventWithTimeout, stm, evt, timeout);
+}
+
+RUNTIME_HOOK_DEFINE(rtEventDestroySync, rtEvent_t evt)
+{
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtEventDestroySync, evt);
+    if (ret == ACL_RT_SUCCESS && is_core_limit()) {
+        set_event_destroy_status(evt);
+    }
+    return ret;
+}
+
+RUNTIME_HOOK_DEFINE(rtNotifyCreate, int32_t deviceId, rtNotify_t *notify)
+{
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtNotifyCreate, deviceId, notify);
+    if (ret == ACL_RT_SUCCESS && is_core_limit()) {
+        set_event_create_status(*notify);
+    }
+    return ret;
+}
+
+RUNTIME_HOOK_DEFINE(rtNotifyCreateWithFlag, int32_t deviceId, rtNotify_t *notify, uint32_t flag)
+{
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtNotifyCreateWithFlag, deviceId, notify, flag);
+    if (ret == ACL_RT_SUCCESS && is_core_limit()) {
+        set_event_create_status(*notify);
+    }
+    return ret;
+}
+
+RUNTIME_HOOK_DEFINE(rtNotifyWait, rtNotify_t notify, rtStream_t stm)
+{
+    core_limiter(stm, set_event_wait_status, (void*)notify);
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtNotifyWait, notify, stm);
+}
+
+RUNTIME_HOOK_DEFINE(rtNotifyWaitWithTimeOut, rtNotify_t notify, rtStream_t stm, uint32_t timeOut)
+{
+    core_limiter(stm, set_event_wait_status, (void*)notify);
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtNotifyWaitWithTimeOut, notify, stm, timeOut);
+}
