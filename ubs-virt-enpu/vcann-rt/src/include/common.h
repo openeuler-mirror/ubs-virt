@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-#define unlikely(x) __builtin__expect(!!(x), 0)
+#define unlikely(x) __builtin_expect(!!(x), 0)
 #define MAX_LINE_LENGTH 256
 
 #define ENPU_SUCCESS 0
