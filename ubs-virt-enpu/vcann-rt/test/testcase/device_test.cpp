@@ -14,20 +14,31 @@
 #include <mockcpp/mockcpp.hpp>
 #include <sys/file.h>
 #include <runtime/rt.h>
+#include <acl/acl.h>
+#include <atomic>
 #include "securec.h"
 #include "runtime_stub.h"
 #include "log.h"
 
-class DeviceTest : public testing::Test {
+#define _STDATOMIC H
+#define __CLANG_STDATOMIC_H
+typedef std::atomic<int> atomic_int;
+extern "C" {
+#include "core_limiter.h"
+}
+
+using namespace testing;
+
+class EventTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout<<"Device test start"<<std::endl;
+        std::cout<<"Event test start"<<std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout<<"Device test end"<<std::endl;
+        std::cout<<"Event test end"<<std::endl;
     }
 
     void SetUp()
@@ -36,6 +47,7 @@ protected:
         open(stub_lock_path(), O_CREAT | O_RDONLY, 777); // ut memctl.lock文件,设置为777权限
         enpu_global_init();
         MOCKER(load_rt_libraries).stubs().will(invoke(stub_load_rt_libraries));
+        MOCKER(lock_path).stubs().will(invoke(stub_lock_path));
     }
 
     void TearDown()
@@ -45,7 +57,7 @@ protected:
     }
 };
 
-TEST_F(DeviceTest, rtSetDevice)
+TEST_F(EventTest, rtSetDevice)
 {
     constexpr int32_t normalDevId = 20;
     int32_t devId = 0;

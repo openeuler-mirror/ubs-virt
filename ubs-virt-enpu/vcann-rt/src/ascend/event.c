@@ -138,8 +138,7 @@ RUNTIME_HOOK_DEFINE(rtsNotifyWaitAndReset, rtNotify_t notify, rtStream_t stm, ui
 RUNTIME_HOOK_DEFINE(rtStreamWaitEventWithTimeout, rtStream_t stm, rtEvent_t evt, uint32_t timeout)
 {
     core_limiter(stm, set_event_wait_status, (void*)evt);
-    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtStreamWaitEventWithTimeout, stm, evt, timeout);
-    return ret;
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtStreamWaitEventWithTimeout, stm, evt, timeout);
 }
 
 RUNTIME_HOOK_DEFINE(rtEventDestroySync, rtEvent_t evt)
@@ -172,13 +171,11 @@ RUNTIME_HOOK_DEFINE(rtNotifyCreateWithFlag, int32_t deviceId, rtNotify_t *notify
 RUNTIME_HOOK_DEFINE(rtNotifyWait, rtNotify_t notify, rtStream_t stm)
 {
     core_limiter(stm, set_event_wait_status, (void*)notify);
-    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtNotifyWait, notify, stm);
-    return ret;
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtNotifyWait, notify, stm);
 }
 
 RUNTIME_HOOK_DEFINE(rtNotifyWaitWithTimeOut, rtNotify_t notify, rtStream_t stm, uint32_t timeOut)
 {
     core_limiter(stm, set_event_wait_status, (void*)notify);
-    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtNotifyWaitWithTimeOut, notify, stm, timeOut);
-    return ret;
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtNotifyWaitWithTimeOut, notify, stm, timeOut);
 }

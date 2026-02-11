@@ -73,6 +73,5 @@ RUNTIME_HOOK_DEFINE(rtStreamEndCapture, rtStream_t stm, rtModel_t *captureMdl)
 RUNTIME_HOOK_DEFINE(rtsModelExecuteAsync, rtModel_t mdl, rtStream_t stm)
 {
     core_limiter(stm, NULL, NULL);
-    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtsModelExecuteAsync, mdl, stm);
-    return ret;
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtsModelExecuteAsync, mdl, stm);
 }
