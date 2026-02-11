@@ -107,20 +107,20 @@ typedef enum {
     RUNTIME_HOOK_ENUM(rtEventRecord),
     RUNTIME_HOOK_ENUM(rtEventDestroy),
     RUNTIME_HOOK_ENUM(rtEventReset),
-    RUNTIME_HOOK_ENUM(rtStreamWaitEventWithTimeout),
-    RUNTIME_HOOK_ENUM(rtEventDestroySync),
-    /* Other Part */
-    RUNTIME_HOOK_ENUM(rtStreamSynchronize),
-    RUNTIME_HOOK_ENUM(rtStreamDestroy),
-    RUNTIME_HOOK_ENUM(rtDestroyStreamForce),
     RUNTIME_HOOK_ENUM(rtsNotifyCreate),
     RUNTIME_HOOK_ENUM(rtNotifyRecord),
     RUNTIME_HOOK_ENUM(rtNotifyDestroy),
     RUNTIME_HOOK_ENUM(rtsNotifyWaitAndReset),
+    RUNTIME_HOOK_ENUM(rtStreamWaitEventWithTimeout),
+    RUNTIME_HOOK_ENUM(rtEventDestroySync),
     RUNTIME_HOOK_ENUM(rtNotifyCreate),
     RUNTIME_HOOK_ENUM(rtNotifyCreateWithFlag),
     RUNTIME_HOOK_ENUM(rtNotifyWait),
     RUNTIME_HOOK_ENUM(rtNotifyWaitWithTimeOut),
+    /* Other Part */
+    RUNTIME_HOOK_ENUM(rtStreamSynchronize),
+    RUNTIME_HOOK_ENUM(rtStreamDestroy),
+    RUNTIME_HOOK_ENUM(rtDestroyStreamForce),
     RUNTIME_ENTRY_END,
 }rt_hook_enum_t;
 
