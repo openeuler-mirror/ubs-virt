@@ -67,6 +67,8 @@ $ git clone <ubs-virt-enpu-vcann-rt-url>
 
 ## 编译
 
+在编译vCANN-RT源码前，用户需要先设置CANN的环境变量。
+
 `vCANN-RT`在代码仓中提供了统一的编译构建脚本（即`make_build.sh`文件），可以直接执行该脚本文件进行编译构建。默认无需任何配置项，直接执行即可。
 
 ```shell

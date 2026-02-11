@@ -34,7 +34,7 @@ static const char* log_level_str[] = {
 };
 
 // bytes
-static long get_file_size(const char* filepath)
+long get_file_size(const char* filepath)
 {
     struct stat st;
     if (stat(filepath, &st) < 0) {
@@ -51,10 +51,11 @@ int is_current_process(const char* filename)
     char* tokens[tokens_num];
     int token_count = 0;
 
-    token = strtok(temp, "_");
+    const char* delimiter = "_";
+    token = strtok(temp, delimiter);
     while ((token != NULL) && (token_count < tokens_num)) {
         tokens[token_count++] = token;
-        token = strtok(NULL, "_");
+        token = strtok(NULL, delimiter);
     }
     free(temp);
 
@@ -66,17 +67,16 @@ int is_current_process(const char* filename)
     const int pid_token_index = 3;
     const int pid_base = 10;
     long pid_from_filename = strtol(tokens[pid_token_index], &endptr, pid_base);
-    if (*endptr != '\0') {
+    const char flag = '\0';
+    if (*endptr != flag) {
         fprintf(stderr, "Failed to get pid from log filename. now log filename is %s.\n", g_log_config.log_path);
         return ENPU_FAIL;
     }
 
     pid_t current_pid = getpid();
     if (pid_from_filename == (long)current_pid) {
-        printf("Current filename pid %ld is equal to current pid %d \n", pid_from_filename, current_pid);
         return ENPU_SUCCESS;
     } else {
-        printf("Current filename pid %ld is not equal to current pid %d \n", pid_from_filename, current_pid);
         return ENPU_FAIL;
     }
 }
@@ -89,7 +89,7 @@ int is_log_file(const char* filename)
         return ENPU_FAIL;
     }
 
-    return ENPU_SUCCESS;
+    return is_current_process(filename);
 }
 
 int count_log_files()
@@ -118,7 +118,7 @@ int count_log_files()
         if (stat(full_path, &statbuf) != 0) {
             continue;
         }
-        if (S_ISREG(statbuf.st_mode) && (is_log_file(entry->d_name) == ENPU_SUCCESS)) {
+        if (S_ISREG(statbuf.st_mode) && (is_log_file(full_path) == ENPU_SUCCESS)) {
             file_count++;
         }
     }
@@ -155,13 +155,13 @@ int compress_file()
         return ENPU_FAIL;
     }
     umask(SET_UMASK_FOR_440); // 默认权限440
-    ret = snprintf_s(tar_cmd, sizeof(tar_cmd), sizeof(tar_cmd), "%s%s %s%s %s%s", TAR_CMD_PREFIX, zip_file,
-        "--exclude=", g_log_config.log_path, g_log_config.log_dir, "*.log");
+    ret = snprintf_s(tar_cmd, sizeof(tar_cmd), sizeof(tar_cmd), "%s%s %s%s %s%s%d%s", TAR_CMD_PREFIX, zip_file,
+        "--exclude=", g_log_config.log_path, g_log_config.log_dir, "*_", getpid(), "_*.log");
     if (ret < 0) {
         return ENPU_FAIL;
     }
-    ret = snprintf_s(rm_cmd, sizeof(rm_cmd), sizeof(rm_cmd), "%s%s %s%s%s", "find ", g_log_config.log_dir,
-        "-type f -iname \"*.log\" ! -iwholename \"", g_log_config.log_path, "\" -exec rm -f {} \\;");
+    ret = snprintf_s(rm_cmd, sizeof(rm_cmd), sizeof(rm_cmd), "%s%s %s%d%s%s%s", "find ", g_log_config.log_dir,
+        "-type f -iname \"*_", getpid(), "_*.log\" ! -iwholename \"", g_log_config.log_path, "\" -exec rm -f {} \\;");
     if (ret < 0) {
         return ENPU_FAIL;
     }
@@ -203,13 +203,13 @@ int update_log_file()
 
     umask(SET_UMASK_FOR_666); // 规避系统默认文件权限不一致问题
     if (creat(g_log_config.log_path, LOG_FILE_RIGHT) < 0) {
-        perror("Create new log file");
+        perror("update log file error: Create new log file");
         return ENPU_FAIL;
     }
     return ENPU_SUCCESS;
 }
 
-static int rotate_log_by_size()
+int rotate_log_by_size()
 {
     long file_size = get_file_size(g_log_config.log_path);
     if (file_size < g_log_config.max_file_size) {
@@ -226,7 +226,6 @@ static int rotate_log_by_size()
 
 int log_init()
 {
-    printf("log init\n");
     pthread_mutex_init(&g_log_config.print_mutex, NULL);
     pthread_mutex_init(&g_log_config.compress_mutex, NULL);
 
