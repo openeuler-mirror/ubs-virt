@@ -20,10 +20,7 @@ void *map_share_mem(const char *shmID, size_t size)
         return NULL;
     }
     int fd = shm_open(shmID, O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
-    if (fd == -1) {
-        LOG_ERROR("Failed to shm_open, fd = %d", fd);
-        return NULL;
-    }
+    CHECK_COND_RETURN_(fd == -1, NULL, "Failed to shm_open, fd = %d.", fd);
 
     struct stat st;
     if (fstat(fd, &st) == 0 && st.st_size < size) {
@@ -107,10 +104,8 @@ static bool file_lock_release(file_lock *lock)
     }
 
     int ret = flock(lock->fd, LOCK_UN);
-    if (ret != 0) {
-        LOG_ERROR("unlock failed, fd %d, errno %s", lock->fd, strerror(errno));
-        return false;
-    }
+    CHECK_COND_RETURN_(ret != 0, false, "unlock failed, fd %d, errno %s.",
+        lock->fd, strerror(errno));
 
     lock->held = false;
     return true;

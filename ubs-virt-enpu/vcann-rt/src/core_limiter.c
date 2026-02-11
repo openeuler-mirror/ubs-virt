@@ -68,10 +68,8 @@ void restore_streams(rtStream_t stream)
     }
 
     g_cache_streams.streams[g_cache_streams.num_streams++] = stream;
-    if (hashmap_put(stream_map, (void*)stream, NULL, false) == -1) {
-        LOG_ERROR("Failed to put stream %p to the hash map.", (void*)stream);
-        return;
-    }
+    int ret = hashmap_put(stream_map, (void*)stream, NULL, false);
+    CHECK_COND_RETURN(ret == -1, "Failed to put stream %p to the hash map.", (void*)stream);
     LOG_DEBUG("Stream %p is added in stream hash map.", (void*)stream);
     return;
 }
@@ -91,10 +89,7 @@ void core_limiter(rtStream_t stream, core_function func, void* param)
         LOG_DEBUG("Core limiter is waiting for the mutex lock.");
         // waiting for mutex == waiting for launch task
         int rc = pthread_mutex_lock(&g_sched_mutex);
-        if (rc != 0) {
-            LOG_ERROR("Failed to lock mutex, error code=%d", rc);
-            return;
-        }
+        CHECK_COND_RETURN(rc != 0, "Failed to lock mutex, error code=%d.", rc);
         LOG_DEBUG("The mutex lock is successfully obtained.");
         // The delivered stream needs to be recorded because the execution time needs to be collected later.
         restore_streams(stream);
@@ -370,17 +365,11 @@ int vnpu_scheduler_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
 
     pthread_t vnpu_scheduler_tid;
     int rc = pthread_create(&vnpu_scheduler_tid, NULL, vnpu_scheduler_thread, NULL);
-    if (rc != 0) {
-        LOG_ERROR("Failed to create vnpu scheduler thread.");
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE(rc != 0, "Failed to create vnpu scheduler thread.");
 
     pthread_t vnpu_alive_tid;
     rc = pthread_create(&vnpu_alive_tid, NULL, vnpu_scheduler_flush_thread, NULL);
-    if (rc != 0) {
-        LOG_ERROR("Failed to create vnpu alive thread.");
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE(rc != 0, "Failed to create vnpu alive thread.");
     pthread_detach(vnpu_scheduler_tid);
     pthread_detach(vnpu_alive_tid);
     return ENPU_SUCCESS;
@@ -400,10 +389,7 @@ int aicore_limiter_initialize(void)
     pthread_mutex_init(&g_sched_mutex, NULL);
 
     rc = vnpu_scheduler_init(vnpu_sched_shm);
-    if (rc != ENPU_SUCCESS) {
-        LOG_ERROR("Failed to initialize vnpu scheduler.");
-        return ENPU_FAIL;
-    }
+    CHECK_RETURN_ERROR_CODE(rc, "Failed to initialize vnpu scheduler.");
 
     stream_map = hashmap_create(MAX_STREAMS_PER_PROCESS);
     if (!stream_map) {
@@ -442,10 +428,7 @@ void set_event_wait_status(void* evt, rtStream_t stm)
 {
     MapValue event_status;
     int rc = hashmap_get(event_map, evt, &event_status);
-    if (rc == -1) {
-        LOG_ERROR("Error: Event hash map get event %p failed.", evt);
-        return;
-    }
+    CHECK_COND_RETURN(rc == -1, "Error: Event hash map get event %p failed.", evt);
 
     // not capture stream
     if (event_status.ptr != NULL) {
@@ -458,10 +441,7 @@ void set_event_wait_status(void* evt, rtStream_t stm)
 void set_event_create_status(rtEvent_t evt)
 {
     int rc = hashmap_put(event_map, (void*)evt, NULL, false);
-    if (rc == -1) {
-        LOG_ERROR("Error: Event hash map put event %p failed.", (void*)evt);
-        return;
-    }
+    CHECK_COND_RETURN(rc == -1, "Error: Event hash map put event %p failed.", evt);
 }
 
 void set_event_record_status(rtEvent_t evt, rtStream_t stm)

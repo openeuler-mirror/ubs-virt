@@ -116,10 +116,8 @@ int enpu_config_info_init()
     g_npu_info.vnpu_id = config.vnpu_id;
     g_npu_info.sched_policy = config.scheduling_policy;
 
-    if (strcpy_s(g_npu_info.shm_id, sizeof(g_npu_info.shm_id), config.shm_id) != 0) {
-        LOG_ERROR("Failed to copy the shm_id from the config to the npu manager.");
-        return ENPU_FAIL;
-    }
+    int ret = strcpy_s(g_npu_info.shm_id, sizeof(g_npu_info.shm_id), config.shm_id);
+    CHECK_COND_RETURN_ERROR_CODE(ret != 0, "Failed to copy the shm_id from the config to the npu manager.");
 
     LOG_INFO("Successfully to initialize vnpu device.");
     return ENPU_SUCCESS;
@@ -148,7 +146,7 @@ int enpu_device_init(void)
 static void __enpu_global_init(void)
 {
     int rc = log_init();
-    CHECK_ERROR_CODE(rc, "Failed to init log module.");
+    CHECK_ERROR_CODE_LOG(rc, "Failed to init log module.");
 
     rc = enpu_load_config();
     CHECK_ERROR_CODE(rc, "Failed to load npu config.");

@@ -27,6 +27,7 @@
 extern "C" {
 #endif
 
+#define unlikely(x) __builtin_expect(!!(x), 0)
 #define MAX_LINE_LENGTH 256
 
 #define ENPU_SUCCESS 0
@@ -44,17 +45,73 @@ extern "C" {
 /// DO NOT PASS FUNCTION IN
 #define CHECK_RETURN_ERROR_CODE(err, error_msg, ...)    \
     do {                                                \
-        if ((err) != ENPU_SUCCESS) {                    \
+        if (unlikely((err) != ENPU_SUCCESS)) {          \
             LOG_ERROR(error_msg, ##__VA_ARGS__);        \
             return (err);                               \
         }                                               \
     } while (false)
 
+
+#define CHECK_RETURN_ERROR_CODE_LOG(err, error_msg, ...)        \
+    do {                                                        \
+        if (unlikely((err) != ENPU_SUCCESS)) {                  \
+            fprintf(stderr, error_msg"\n", ##__VA_ARGS__);      \
+            return (err);                                       \
+        }                                                       \
+    } while (false)
+
 #define CHECK_ERROR_CODE(err, error_msg, ...)             \
     do {                                                  \
-        if ((err) != ENPU_SUCCESS) {                      \
+        if (unlikely((err) != ENPU_SUCCESS)) {            \
             LOG_ERROR(error_msg, ##__VA_ARGS__);          \
         }                                                 \
+    } while (false)
+
+#define CHECK_ERROR_CODE_LOG(err, error_msg, ...)               \
+    do {                                                        \
+        if (unlikely((err) != ENPU_SUCCESS)) {                  \
+            fprintf(stderr, error_msg"\n", ##__VA_ARGS__);      \
+        }                                                       \
+    } while (false)
+
+#define CHECK_COND_RETURN_LOG(err, error_msg, ...)          \
+    do {                                                        \
+        if (unlikely((err) != ENPU_SUCCESS)) {                  \
+            fprintf(stderr, error_msg"\n", ##__VA_ARGS__);      \
+            return;                                             \
+        }                                                       \
+    } while (false)
+
+#define CHECK_COND_RETURN(cond, error_msg, ...)     \
+    do {                                            \
+        if (unlikely(cond)) {                       \
+            LOG_ERROR(error_msg, ##__VA_ARGS__);    \
+            return;                                 \
+        }                                           \
+    } while (false)
+
+#define CHECK_COND_RETURN_ERROR_CODE(cond, error_msg, ...)      \
+    do {                                                        \
+        if (unlikely(cond)) {                                   \
+            LOG_ERROR(error_msg, ##__VA_ARGS__);                \
+            return ENPU_FAIL;                                   \
+        }                                                       \
+    } while (false)
+
+#define CHECK_COND_RETURN_ERROR_CODE_LOG(cond, error_msg, ...)      \
+    do {                                                            \
+        if (unlikely(cond)) {                                       \
+            fprintf(stderr, error_msg"\n", ##__VA_ARGS__);          \
+            return ENPU_FAIL;                                       \
+        }                                                           \
+    } while (false)
+
+#define CHECK_COND_RETURN_(cond, rt, error_msg, ...)            \
+    do {                                                        \
+        if (unlikely(cond)) {                                   \
+            LOG_ERROR(error_msg, ##__VA_ARGS__);                \
+            return rt;                                          \
+        }                                                       \
     } while (false)
 
 extern int get_config_value(const char *file_path, const char *key_name, char *buffer);

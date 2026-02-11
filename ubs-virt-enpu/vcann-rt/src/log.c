@@ -147,34 +147,20 @@ int compress_file()
     }
     int ret = snprintf_s(zip_file, sizeof(zip_file), sizeof(zip_file), "%s%s_%s",
         g_log_config.log_dir, SUB_MODULE_NAME, timestamp);
-    if (ret < 0) {
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get zip file name with timestamp.");
     ret = snprintf_s(zip_file + strlen(zip_file), sizeof(zip_file), sizeof(zip_file) - strlen(zip_file), "%s", ZIP_EXT);
-    if (ret < 0) {
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get full zip file name.");
     umask(SET_UMASK_FOR_440); // 默认权限440
     ret = snprintf_s(tar_cmd, sizeof(tar_cmd), sizeof(tar_cmd), "%s%s %s%s %s%s%d%s", TAR_CMD_PREFIX, zip_file,
         "--exclude=", g_log_config.log_path, g_log_config.log_dir, "*_", getpid(), "_*.log");
-    if (ret < 0) {
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get tar cmd.");
     ret = snprintf_s(rm_cmd, sizeof(rm_cmd), sizeof(rm_cmd), "%s%s %s%d%s%s%s", "find ", g_log_config.log_dir,
         "-type f -iname \"*_", getpid(), "_*.log\" ! -iwholename \"", g_log_config.log_path, "\" -exec rm -f {} \\;");
-    if (ret < 0) {
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get rm cmd.");
     int tar_exe_result = system(tar_cmd);
-    if (tar_exe_result != 0) {
-        perror("Compress files error, failed to execute tar command");
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE_LOG(tar_exe_result != 0, "Compress files error, failed to execute tar command.");
     int rm_exe_result = system(rm_cmd);
-    if (rm_exe_result != 0) {
-        perror("Compress files error, failed to execute rm command");
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE_LOG(rm_exe_result != 0, "Compress files error, failed to execute rm command.");
     printf("Compressed .log files into %s and deleted the original files.\n", g_log_config.log_dir);
     return ENPU_SUCCESS;
 }
@@ -186,20 +172,14 @@ int update_log_file()
     localtime_r(&now, &tm_now);
     char time_str[64];
     int ret = strftime(time_str, sizeof(time_str), "%Y%m%d%H%M%S", &tm_now);
-    if (ret == 0) {
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE_LOG(ret == 0, "Update log file error: failed to get timestamp.");
 
     char log_path[FILE_PATH_LEN];
     ret = snprintf_s(log_path, sizeof(log_path), sizeof(log_path), "%s%s_%s_%d_%s%s", g_log_config.log_dir,
         MODULE_NAME, SUB_MODULE_NAME, getpid(), time_str, LOG_FILE_SUFFIX);
-    if (ret < 0) {
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get log file name.");
     ret = strncpy_s(g_log_config.log_path, sizeof(g_log_config.log_path), log_path, sizeof(g_log_config.log_path) - 1);
-    if (ret != 0) {
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE_LOG(ret != 0, "Failed to set g_log_config.log_path %s.", log_path);
 
     umask(SET_UMASK_FOR_666); // 规避系统默认文件权限不一致问题
     if (creat(g_log_config.log_path, LOG_FILE_RIGHT) < 0) {
@@ -217,10 +197,7 @@ int rotate_log_by_size()
     }
 
     int ret = update_log_file();
-    if (ret != ENPU_SUCCESS) {
-        printf("Failed to update log file, now log file is %s.\n", g_log_config.log_path);
-        return ENPU_FAIL;
-    }
+    CHECK_RETURN_ERROR_CODE_LOG(ret, "Failed to update log file, now log file is %s.", g_log_config.log_path);
     return ENPU_SUCCESS;
 }
 
@@ -233,18 +210,13 @@ int log_init()
     char mkdir_cmd[MAX_CMD_LEN];
     int ret = snprintf_s(mkdir_cmd, sizeof(mkdir_cmd), sizeof(mkdir_cmd), "%s%s",
         MKDIR_CMD_PREFIX, g_log_config.log_dir);
-    if (ret < 0) {
-        return ENPU_FAIL;
-    }
+    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Log init: Failed to get log dir path.");
     system(mkdir_cmd);
 
     ret = is_current_process(g_log_config.log_path);
     if (ret != ENPU_SUCCESS) {
         ret = update_log_file();
-        if (ret != ENPU_SUCCESS) {
-            printf("Failed to update log file, now log filename is %s", g_log_config.log_path);
-            return ENPU_FAIL;
-        }
+        CHECK_RETURN_ERROR_CODE_LOG(ret, "Failed to update log file, now log file is %s.", g_log_config.log_path);
     }
 
     char* enpu_log_level = getenv("ENPU_LOG_LEVEL");
@@ -273,32 +245,30 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
     localtime_r(&now, &tm_now);
     char time_str[64];
     ret = strftime(time_str, sizeof(time_str), "%Y%m%d%H%M%S", &tm_now);
-    if (ret == 0) {
-        return;
-    }
-    int ret1 = fprintf(fp, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level],
-        MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), filename, line);
-    int ret2 = fprintf(stderr, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level],
-        MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), filename, line);
+    CHECK_COND_RETURN_LOG(ret == 0, "Failed to get timestamp.");
+    ret = fprintf(fp, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level],
+        MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), basename(filename), line);
+    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fprint log content to file.");
+    ret = fprintf(stderr, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level],
+        MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), basename(filename), line);
+    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fprint log content to stderr.");
     va_list args;
     va_start(args, format);
-    int ret3 = vfprintf(fp, format, args);
+    ret = vfprintf(fp, format, args);
+    CHECK_COND_RETURN_LOG(ret < 0, "Failed to vfprint log content to file.");
     va_end(args);
-    int ret4 = fprintf(fp, "\n");
-    int ret5 = fflush(fp);
-    int ret6 = fclose(fp);
-    if ((ret1 < 0) || (ret2 < 0) || (ret3 < 0) ||
-        (ret4 < 0) || (ret5 < 0) || (ret6 < 0)) {
-        return;
-    }
+    ret = fprintf(fp, "\n");
+    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fprint log content end to file.");
+    ret = fflush(fp);
+    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fflush log content to file.");
+    ret = fclose(fp);
+    CHECK_COND_RETURN_LOG(ret < 0, "Failed to close log file.");
     pthread_mutex_unlock(&g_log_config.print_mutex);
     pthread_mutex_lock(&g_log_config.compress_mutex);
     int log_file_count = count_log_files();
     if (log_file_count > g_log_config.max_backup_count) {
         ret = compress_file();
-        if (ret != ENPU_SUCCESS) {
-            printf("Failed to compress log files, log_dir is %s\n", g_log_config.log_dir);
-        }
+        CHECK_ERROR_CODE_LOG(ret, "Failed to compress log files, log_dir is %s.", g_log_config.log_dir);
     }
     pthread_mutex_unlock(&g_log_config.compress_mutex);
 }

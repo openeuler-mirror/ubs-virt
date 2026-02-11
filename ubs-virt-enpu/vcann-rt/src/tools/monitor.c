@@ -19,10 +19,7 @@ static void die(const char *fmt, ...)
 
     va_start(ap, fmt);
     int ret = vfprintf(stderr, fmt, ap);
-    if (ret < 0) {
-        LOG_ERROR("vfprintf failed");
-        return;
-    }
+    CHECK_COND_RETURN(ret < 0, "vfprintf failed.");
     va_end(ap);
 
     return;
@@ -43,9 +40,7 @@ static int monitor_npu_utilization(void)
     size_t used;
 
     ret = get_mem_used(&used);
-    if (ret != ENPU_SUCCESS) {
-        return ENPU_FAIL;
-    }
+    CHECK_RETURN_ERROR_CODE(ret, "Failed to get mem used.");
 
     die("       Aicore Limit Quota(%)     : %d\n"
         "       Memory Limit quota(MB)    : %lld\n"
@@ -60,38 +55,24 @@ int main(int argc, char *argv[])
 {
     int ret;
 
-    ret = parse_args(argc, argv);
-    if (ret != ENPU_SUCCESS) {
-        return ENPU_FAIL;
-    }
-
     ret = log_init();
-    if (ret != ENPU_SUCCESS) {
-        LOG_ERROR("log init failed");
-        return ENPU_FAIL;
-    }
+    CHECK_RETURN_ERROR_CODE(ret, "Log init failed.");
+
+    ret = parse_args(argc, argv);
+    CHECK_RETURN_ERROR_CODE(ret, "Failed to parse args.");
 
     if (getenv("ENPU_LOG_LEVEL") != NULL) {
         unsetenv("ENPU_LOG_LEVEL");
     }
 
     ret = enpu_load_config();
-    if (ret != ENPU_SUCCESS) {
-        LOG_ERROR("load npu device failed");
-        return ENPU_FAIL;
-    }
+    CHECK_RETURN_ERROR_CODE(ret, "Load npu device failed.");
 
     ret = enpu_device_init();
-    if (ret != ENPU_SUCCESS) {
-        LOG_ERROR("enpu_device_init failed");
-        return ENPU_FAIL;
-    }
+    CHECK_RETURN_ERROR_CODE(ret, "Enpu device init failed.");
 
     ret = monitor_npu_utilization();
-    if (ret != ENPU_SUCCESS) {
-        LOG_ERROR("npu utilization monitor failed");
-        return ENPU_FAIL;
-    }
+    CHECK_RETURN_ERROR_CODE(ret, "Npu utilization monitor failed.");
 
     return ENPU_SUCCESS;
 }
