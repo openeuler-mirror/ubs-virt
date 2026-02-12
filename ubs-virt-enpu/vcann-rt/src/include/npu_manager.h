@@ -28,7 +28,7 @@ using atomic_uint_fast64_t = std::atomic<uint_fast64_t>;
 extern "C" {
 #endif
 
-#define NPU_CONFIG_PATH  "/etc/enpu/vcann-rt/vcann-rt/npu_info.config"
+#define NPU_CONFIG_PATH  "/etc/enpu/vcann-rt/npu_info.config"
 #define MAX_PIDS 1024
 #define MAX_NPU_COUNT 16
 #define MAX_VNPU 100
