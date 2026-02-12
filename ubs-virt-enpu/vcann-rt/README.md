@@ -270,6 +270,7 @@ vCANN-RT支持两种方式启动服务：
     $ kubectl get pods -n ${namespace}
     ```
 
+    如果容器启动失败，可参考方式二中的解决方法。
 3. 拉起vCANN-RT软切分服务。
 
     进入容器：
@@ -325,14 +326,14 @@ vCANN-RT支持两种方式启动服务：
     |virtual-npu-id|vNPU id|需要从0开始配置，并且同一个物理NPU下的vNPU不允许重复。|
     |aicore-quota|AI Core资源配额，单位为%|表示算力使用的时间比例。当前每个time slice默认为100ms, 通过软件硬编码，不支持动态配置。假如申请了20%的算力资源，那么该容器有20ms的NPU使用权。|
     |memory-quota|HBM资源配额，单位为MB|表示显存资源使用容量。当前容器内所有进程使用的HBM总量不能超过HBM资源配额。|
-    |shm-id|共享内存文件名称|该文件名称采用物理NPU对应的VDie ID, 可以保证全局唯一。<br>通过`npu-smi info -t board -i ${id} -c ${chip_id}`命令查询VDie ID。<br>查询完成之后，可以通过`-`符号拼接成文件名称，例如：`shm-id=11111111-22222222-33333333-44444444-55555555`|
+    |shm-id|共享内存文件名称|该文件名称采用物理NPU对应的VDie ID, 可以保证全局唯一。<br>通过`npu-smi info -t board -i ${id} -c ${chip_id}`命令查询VDie ID。<br>查询完成之后，可以通过`-`符号拼接成文件名称，例如：`shm-id=11111111-22222222-33333333-44444444-55555555` 用户需要确保宿主机中存在此共享内存文件。|
     |scheduling-policy|<ul>默认配置为2。<li>1: fixed-share mode</li><li>2: elastic mode</li><li>3: best-effort mode</li></ul>|调度策略。|
 
     此外，需要设置配置文件具有合适的权限，建议为644。
 
 2. 预加载配置文件（若使用指定容器镜像，可以跳过此步骤）。
 
-    在主机侧创建预加载动态库文件`ld.so.preload`, 文件内容为libvruntime.so的固定安装路径：`opt/enpu/vcann-rt/lib/libvruntime.so`
+    在主机侧创建预加载动态库文件`ld.so.preload`, 文件内容为libvruntime.so的固定安装路径：`/opt/enpu/vcann-rt/lib/libvruntime.so`
 
 3. 启动业务容器。
 
@@ -352,6 +353,14 @@ vCANN-RT支持两种方式启动服务：
       -v /xxx/ld.so.preload:/etc/ld.so.preload \
       image_name /bin/bash
     ```
+    如果遇到容器启动报错`libboundscheck.so: cannot open shared object file: No such file or directory`，则说明动态库libvruntime.so依赖的安全函数库在容器中无法找到。解决办法：
+
+      1）取消容器启动命令中的/etc/ld.so.preload的映射，并重新启动容器。
+
+      2）参照文末FAQ中方法安装安全函数库，并确保动态库libvruntime.so能够正常链接。
+
+      3）执行`export LD_PRELOAD=/opt/enpu/vcann-rt/lib/libvruntime.so`命令。
+
 
     **表 4 参数说明**
 
