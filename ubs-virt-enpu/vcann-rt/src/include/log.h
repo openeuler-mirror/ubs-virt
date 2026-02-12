@@ -33,7 +33,7 @@ extern "C" {
 #define MAX_CMD_LEN 1024
 #define FILE_PATH_LEN 256
 #define SET_UMASK_FOR_666 0000
-#define SET_UMASK_FOR_440 0026
+#define SET_UMASK_FOR_440 0226
 #define LOG_FILE_RIGHT 0640
 
 extern FILE *fp1;
