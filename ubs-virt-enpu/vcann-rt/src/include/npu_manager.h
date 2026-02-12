@@ -76,6 +76,7 @@ extern uint8_t get_core_limit_quota(void);
 extern size_t get_mem_limit_quota(void);
 extern char *get_vnpu_shm_id(void);
 extern int get_mem_used(size_t *used);
+extern uint8_t get_device_id(void);
 extern uint8_t get_vnpu_id(void);
 extern uint64_t get_core_quota_timeslice(void);
 extern void set_core_quota_timeslice(uint64_t time);

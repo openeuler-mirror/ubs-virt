@@ -40,6 +40,11 @@ uint8_t get_core_limit_quota(void)
     return g_npu_info.core_limit_quota;
 }
 
+uint8_t get_device_id(void)
+{
+    return g_npu_info.device_id;
+}
+
 uint8_t get_vnpu_id(void)
 {
     return g_npu_info.vnpu_id;
