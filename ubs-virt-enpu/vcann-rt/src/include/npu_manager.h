@@ -28,7 +28,7 @@ using atomic_uint_fast64_t = std::atomic<uint_fast64_t>;
 extern "C" {
 #endif
 
-#define NPU_CONFIG_PATH  "/etc/enpu/vcann-rt/vcann-rt/npu_info.config"
+#define NPU_CONFIG_PATH  "/etc/enpu/vcann-rt/npu_info.config"
 #define MAX_PIDS 1024
 #define MAX_NPU_COUNT 16
 #define MAX_VNPU 100
@@ -76,6 +76,7 @@ extern uint8_t get_core_limit_quota(void);
 extern size_t get_mem_limit_quota(void);
 extern char *get_vnpu_shm_id(void);
 extern int get_mem_used(size_t *used);
+extern uint8_t get_device_id(void);
 extern uint8_t get_vnpu_id(void);
 extern uint64_t get_core_quota_timeslice(void);
 extern void set_core_quota_timeslice(uint64_t time);
