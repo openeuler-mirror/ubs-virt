@@ -36,12 +36,14 @@ extern "C" {
 #define NS_PER_US 1000ULL
 #define NS_PER_MS 1000000ULL
 #define NS_PER_S  1000000000ULL
+#define MAX_STREAK 2
 
 #define VNPU_SCHEULE_PERIOD             (400ULL * NS_PER_MS) // 400 ms
 #define VNPU_FLUSH_PERIOD               (1ULL * NS_PER_MS)   // 1ms
 #define VNPU_TIMEOUT_PERIOD             (3ULL * NS_PER_MS)   // 3ms
 #define VNPU_NO_TASK_TIMEOUT_PERIOD     (5ULL * NS_PER_MS)   // 5ms
 #define WAITING_SLEEP_PERIOD            (100ULL * NS_PER_US)  // 100 us
+#define DCMI_TIMEOUT_THRESHOLD (100ULL * NS_PER_MS)   // 100ms
 
 typedef struct cache_streams {
     int num_streams;

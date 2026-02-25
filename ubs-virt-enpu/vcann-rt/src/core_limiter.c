@@ -258,6 +258,71 @@ void *vnpu_scheduler_flush_thread(void *arg)
     }
 }
 
+int calculate_alive_vnpu_num(void)
+{
+    int count = 0;
+    for (size_t i = 0; i < MAX_VNPU; i++) {
+        if (is_vnpu_alive(i)) {
+            count++;
+        }
+    }
+    return count;
+}
+
+void *npu_utilization_monitor_thread(void *arg)
+{
+    (void)arg;
+    uint8_t utilization_rate = 0;
+    uint64_t begin = ns_now();
+    int ret = enpu_dcmi_get_device_utilization_rate(get_card_id(), get_device_id(), &utilization_rate);
+    if (ret != ENPU_SUCCESS) {
+        LOG_ERROR("DCMI call failed with ret: %d.", ret);
+        return NULL;
+    }
+
+    uint64_t now = ns_now();
+    uint64_t diff_ns = now - begin;
+    if (diff_ns > DCMI_TIMEOUT_THRESHOLD) {
+        LOG_ERROR("DCMI call timeout.");
+        return NULL;
+    }
+
+    static int high_load_streak = 0;
+    static int low_load_streak = 0;
+    int current_window = atomic_load(&g_vnpu_sched_context->slide_window_len);
+    int new_window = current_window;
+
+    if (utilization_rate > UTILIZATION_RATE_MAX) {
+        low_load_streak = 0;
+        high_load_streak++;
+        if (high_load_streak >= MAX_STREAK && current_window > 0) {
+            new_window = current_window - 1;
+            high_load_streak = 0;
+            LOG_DEBUG("Utilization high (%u%%), decreasing window to %d.", utilization_rate, new_window);
+        }
+    } else if (utilization_rate < UTILIZATION_RATE_MIN) {
+        high_load_streak = 0;
+        low_load_streak++;
+        if (low_load_streak >= MAX_STREAK) {
+            int max_len = calculate_alive_vnpu_num() - 1;
+            max_len = (max_len < 0) ? 0 : max_len;
+            if (current_window < max_len) {
+                new_window = current_window + 1;
+                LOG_DEBUG("Utilization low (%u%%), increasing window to %d (max:%d).",
+                    utilization_rate, new_window, max_len);
+            }
+            low_load_streak = 0;
+        }
+    } else {
+        high_load_streak = 0;
+        low_load_streak = 0;
+    }
+
+    if (new_window != current_window) {
+        atomic_store(&g_vnpu_sched_context->slide_window_len, new_window);
+    }
+}
+
 // Scheduling main thread
 void *vnpu_scheduler_thread(void *arg)
 {
