@@ -15,6 +15,8 @@
 
 #include "dcmi_wrapper.h"
 
+#define NPU_UTILIZATION (13)
+
 typedef struct {
     int card_id;
     int device_id;
@@ -41,6 +43,14 @@ int enpu_dcmi_get_card_info(int logic_id, int *card_id, int *device_id)
     LOG_DEBUG("enpu_dcmi_get_card_info success");
     return ENPU_SUCCESS;
 }
+
+// Get NPU Utilization
+int enpu_dcmi_get_device_utilization_rate(int card_id, int device_id, unsigned int *utilization_rate)
+{
+    // Using NPU total utilization. (Other choices: 2. AICore, 3. AICpu)
+    return dcmi_get_device_utilization_rate(card_id, device_id, NPU_UTILIZATION, utilization_rate);
+}
+
 
 static void *enpu_get_resource_info_thread(void *arg)
 {

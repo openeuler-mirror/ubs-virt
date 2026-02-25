@@ -49,6 +49,8 @@ typedef struct shared_memory {
     atomic_uint_fast8_t vnpu_core_limit_quota[MAX_VNPU];
     atomic_int owner;
     atomic_uint_fast32_t magic_number;
+    atomic_int slide_window_len;
+    atomic_uint_fast64_t last_slide_window_time_ns;
 } vnpu_time_slice_sched_t;
 
 typedef struct npu_info {
@@ -82,6 +84,7 @@ extern uint64_t get_core_quota_timeslice(void);
 extern void set_core_quota_timeslice(uint64_t time);
 extern uint64_t get_core_cur_timeslice(void);
 extern void set_core_cur_timeslice(uint64_t time);
+extern uint8_t get_card_id(void);
 extern schedule_policy_t get_sched_policy(void);
 
 extern int enpu_load_config(void);
