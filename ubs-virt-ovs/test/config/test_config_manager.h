@@ -10,25 +10,20 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef UBSVIRTOVS_TEST_CLIENT_LIBRARY_H
-#define UBSVIRTOVS_TEST_CLIENT_LIBRARY_H
-
-#include <dlfcn.h>
+#ifndef UBSVIRTOVS_TEST_CONFIG_MANAGER_H
+#define UBSVIRTOVS_TEST_CONFIG_MANAGER_H
 
 #include "gtest/gtest.h"
 #include "mockcpp/mockcpp.hpp"
-#include "client_library.h"
+#include "config_manager.h"
 
 namespace ovs::ut {
-using namespace virt::ovs::ubse::client;
-
-class TestClientLibrary : public testing::Test {
+class TestConfigManager : public testing::Test {
 public:
-    TestClientLibrary() = default;
+    TestConfigManager() = default;
     void SetUp() override;
     void TearDown() override;
 };
-
 } // namespace ovs::ut
 
-#endif // UBSVIRTOVS_TEST_CLIENT_LIBRARY_H
+#endif // UBSVIRTOVS_TEST_CONFIG_MANAGER_H

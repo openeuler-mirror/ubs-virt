@@ -10,25 +10,23 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef UBSVIRTOVS_TEST_CLIENT_LIBRARY_H
-#define UBSVIRTOVS_TEST_CLIENT_LIBRARY_H
-
-#include <dlfcn.h>
+#ifndef UBSVIRTOVS_TEST_URMA_UTILITY_H
+#define UBSVIRTOVS_TEST_URMA_UTILITY_H
 
 #include "gtest/gtest.h"
 #include "mockcpp/mockcpp.hpp"
-#include "client_library.h"
+#include "urma_utility.h"
 
 namespace ovs::ut {
-using namespace virt::ovs::ubse::client;
+using namespace virt::ovs::ubse::urma;
 
-class TestClientLibrary : public testing::Test {
+class TestUrmaUtility : public testing::Test {
 public:
-    TestClientLibrary() = default;
+    TestUrmaUtility() = default;
     void SetUp() override;
     void TearDown() override;
 };
 
 } // namespace ovs::ut
 
-#endif // UBSVIRTOVS_TEST_CLIENT_LIBRARY_H
+#endif // UBSVIRTOVS_TEST_URMA_UTILITY_H
