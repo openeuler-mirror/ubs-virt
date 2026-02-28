@@ -3,7 +3,7 @@
  * ubs-virt-ovs is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
- *          http://license.coscl.org.cn/MulanPSL2
+ * http://license.coscl.org.cn/MulanPSL2
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
  * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
@@ -14,12 +14,18 @@
 #include "virt_ipc_code.h"
 
 #include <fcntl.h>
+#include <pwd.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <atomic>
 #include <chrono>
+#include <filesystem>
+#include <sstream>
+#include <thread>
+#include <vector>
 
 using namespace virt::ovs;
 using namespace virt::ovs::msg;
@@ -54,6 +60,24 @@ void Server::Stop()
     LOG_INFO << "Server stopped";
 }
 
+bool Server::PrepareSocketDir() const
+{
+    namespace fs = std::filesystem;
+    const fs::path socketPath(socketPath_);
+    if (const fs::path dirPath(socketPath.parent_path()); !fs::exists(dirPath)) {
+        try {
+            if (fs::create_directory(dirPath)) {
+                LOG_INFO << "Successfully created socket directory: " << dirPath.string();
+                return true;
+            }
+        } catch (const fs::filesystem_error &e) {
+            LOG_ERROR << "Failed to create socket directory: " << e.what();
+            return false;
+        }
+    }
+    return true;
+}
+
 bool Server::InitListenSocket()
 {
     listenFd_ = socket(AF_UNIX, SOCK_STREAM, 0);
@@ -66,15 +90,16 @@ bool Server::InitListenSocket()
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     std::snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", socketPath_.c_str());
+    if (!PrepareSocketDir()) {
+        return false;
+    }
     unlink(socketPath_.c_str());
 
-    if (bind(listenFd_, static_cast<sockaddr *>(static_cast<void *>(&addr)), sizeof(addr)) < 0 ||
-        listen(listenFd_, LISTEN_BACK_LOG) < 0) {
+    if (bind(listenFd_, static_cast<sockaddr*>(static_cast<void*>(&addr)), sizeof(addr)) < 0 ||
+            listen(listenFd_, LISTEN_BACK_LOG) < 0) {
         LOG_ERROR << "bind/listen failed" << strerror(errno);
-        if (listenFd_ >= 0) {
-            close(listenFd_);
-            listenFd_ = -1;
-        }
+        close(listenFd_);
+        listenFd_ = -1;
         return false;
     }
 
@@ -87,27 +112,37 @@ bool Server::InitEpoll()
     epollFd_ = epoll_create1(0);
     if (epollFd_ < 0) {
         LOG_ERROR << "epoll_create1() failed";
-        if (listenFd_ >= 0) {
-            close(listenFd_);
-            listenFd_ = -1;
-        }
+        close(listenFd_);
+        listenFd_ = -1;
         return false;
     }
 
     epoll_event ev{EPOLLIN, {.fd = listenFd_}};
     if (epoll_ctl(epollFd_, EPOLL_CTL_ADD, listenFd_, &ev) < 0) {
         LOG_ERROR << "epoll_ctl ADD listenFd failed";
-        if (listenFd_ >= 0) {
-            close(listenFd_);
-            listenFd_ = -1;
-        }
-        if (epollFd_ >= 0) {
-            close(epollFd_);
-            epollFd_ = -1;
-        }
+        close(listenFd_);
+        close(epollFd_);
+        epollFd_ = -1;
+        listenFd_ = -1;
         return false;
     }
     return true;
+}
+
+std::string Server::UidToUsername(uid_t uid)
+{
+    long bufSize = sysconf(_SC_GETPW_R_SIZE_MAX);
+    if (bufSize < 0) {
+        bufSize = MAX_BUFFER_SIZE;
+    }
+    std::vector<char> buf(bufSize);
+
+    struct passwd pwd;
+    struct passwd *result = nullptr;
+    if (getpwuid_r(uid, &pwd, buf.data(), bufSize, &result) != 0 || result == nullptr) {
+        return {};
+    }
+    return pwd.pw_name;
 }
 
 void Server::AcceptClients()
@@ -125,24 +160,42 @@ void Server::AcceptClients()
             continue;
         }
 
-        SetNonBlock(client);
-        conns_.emplace(client, client);
-        epoll_event cev{};
-        cev.events = EPOLLIN | EPOLLET;
-        cev.data.fd = client;
-        if (epoll_ctl(epollFd_, EPOLL_CTL_ADD, client, &cev) < 0) {
-            const int closeFd = client;
-            LOG_WARN << "epoll_ctl ADD client failed: fd=" << closeFd;
+        ucred cred{};
+        socklen_t len = sizeof(cred);
+        if (getsockopt(client, SOL_SOCKET, SO_PEERCRED, &cred, &len) < 0) {
+            LOG_ERROR << "getsockopt failed";
             close(client);
-            clien = -1;
-            conns_.erase(closeFd);
             continue;
         }
-        LOG_INFO << "accepted client, fd=" << client;
+
+        PeerIdentity id{};
+        id.uid = cred.uid;
+        id.gid = cred.gid;
+        id.pid = cred.pid;
+        id.username = UidToUsername(id.uid);
+        if (id.username.empty()) {
+            LOG_ERROR << "Username is empty for uid " << id.uid;
+            close(client);
+            continue;
+        }
+        SetNonBlock(client);
+        auto conn = std::make_shared<Connection>(client, id);
+        conns_[client] = conn;
+
+        epoll_event ev{};
+        ev.events = EPOLLIN | EPOLLET;
+        ev.data.fd = client;
+        if (epoll_ctl(epollFd_, EPOLL_CTL_ADD, client, &ev) < 0) {
+            LOG_WARN << "epoll_ctl ADD client failed: fd=" << client;
+            conns_.erase(client);
+            close(client);
+            continue;
+        }
+        LOG_INFO << "accepted client, fd=" << client << " uid=" << id.uid << " user=" << id.username;
     }
 }
 
-bool Server::HandleReadEvent(Connection &conn, int fd)
+bool Server::HandleReadEvent(const ConnPtr &conn, int fd)
 {
     auto nowSec =
         std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -157,17 +210,20 @@ bool Server::HandleReadEvent(Connection &conn, int fd)
     }
 
     bool keepReading = true;
-    while (conn.HasRequest()) {
-        if (!conn.HandleRead()) {
+    while (keepReading) {
+        if (!conn->HandleRead()) {
             return false;
         }
-        if (!conn.HasRequest()) {
+        if (!conn->HasRequest()) {
             keepReading = false;
             continue;
         }
 
-        std::string req = conn.TakeRequest();
-        if (!pool_.TryEnqueue([this, fd, req = std::move(req)] { this->HandleBusiness(fd, std::move(req)); })) {
+        std::string req = conn->TakeRequest();
+        if (!pool_.TryEnqueue([this, conn, req = std::move(req)]() mutable {
+                LOG_DEBUG << "HandleBusiness scheduled fd=" << conn->Fd() << " tid=" << std::this_thread::get_id();
+                this->HandleBusiness(conn, std::move(req));
+            })) {
             LOG_WARN << "ThreadPool full, drop request, fd=" << fd;
             return false;
         }
@@ -191,6 +247,7 @@ bool Server::HandleWriteEvent(Connection &conn, int fd) const
             LOG_ERROR << "epoll_ctl MOD failed in HandleWriteEvent, fd=" << fd;
             return false;
         }
+        LOG_DEBUG << "HandleWriteEvent: write done, fd=" << fd;
         conn.ResetAfterWrite();
     }
     return true;
@@ -206,62 +263,88 @@ void Server::CloseConnection(int fd)
     LOG_INFO << "closed fd=" << closeFd;
 }
 
-void Server::HandleBusiness(int fd, const std::string &req)
+void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
 {
-    IpcRequest cr;
-    VirtMsgUnPacker unpacker(req);
-    if (cr.Deserialize(unpacker) != 0) {
-        LOG_ERROR << "Failed to deserialize request, fd=" << fd;
+    LOG_INFO << "HandleBusiness begin fd=" << conn->Fd() << " tid=" << std::this_thread::get_id();
+    config::ConfigModule &conf = config::ConfigModule::GetInstance();
+    const auto &id = conn->Identity();
+    IpcResponse resp(static_cast<uint32_t>(VirtIPCCode::OK));
+    std::string authority;
+    if (!AuthManager::AuthorizeUser(id.username, authority, conf)) {
+        LOG_ERROR << "Permission denied: username=" << id.username ;
+        resp.code_ = static_cast<uint32_t>(VirtIPCCode::PERMISSION_DENIED);
         return;
     }
-    LOG_DEBUG << "IpcRequest deserialized, service=" << cr.service_ << ", method=" << cr.method_
-              << ", payload_size=" << cr.payload_.size();
 
-    IpcResponse resp;
-    try {
-        resp = dispatcher_.Dispatch(cr);
-    } catch (const std::exception &e) {
-        LOG_ERROR << "Dispatch request failed: " << e.what();
-        resp.code_ = static_cast<int32_t>(VirtIPCCode::INTERNAL_ERROR);
-    }
+    IpcRequest ipcReq;
+    VirtMsgUnPacker unpacker(req);
+    ipcReq.Deserialize(unpacker);
+    LOG_DEBUG << "IpcRequest deserialized, service=" << ipcReq.service_ << ", method=" << ipcReq.method_
+              << ", payload_size=" << ipcReq.payload_.size();
 
     VirtMsgPacker packer;
-    if (resp.Serialize(packer) != 0) {
-        LOG_ERROR << "Failed to serialize request, fd=" << fd;
+    if (!AuthManager::AuthorizeService(authority, ipcReq.service_)) {
+        LOG_ERROR << "Permission denied: uid=" << id.uid << ", method=" << ipcReq.method_
+                  << " service=" << ipcReq.service_;
+        resp.code_ = static_cast<uint32_t>(VirtIPCCode::PERMISSION_DENIED);
         return;
     }
-
-    auto it = conns_.find(fd);
-    if (it == conns_.end()) {
-        LOG_WARN << "Connection not found for fd=" << fd;
-        return;
+    try {
+        resp = dispatcher_.Dispatch(ipcReq);
+        resp.Serialize(packer);
+    } catch (const std::exception &e) {
+        LOG_ERROR << "Dispatch request failed: " << e.what();
+        resp.code_ = static_cast<uint32_t>(VirtIPCCode::INTERNAL_ERROR);
     }
 
-    it->second.SetResponse(packer.String(), epollFd_);
+    conn->SetResponse(packer.String(), epollFd_);
 
-    LOG_DEBUG << "IpcResponse serialized, fd=" << fd << ", code=" << resp.code_
+    LOG_DEBUG << "IpcResponse serialized, fd=" << conn->Fd() << ", code=" << resp.code_
               << ", payload_size=" << resp.payload_.size();
+}
+
+bool AuthManager::AuthorizeService(const std::string &s, const std::string &key)
+{
+    auto trimSpace = [](std::string_view v) {
+        auto begin = v.find_first_not_of(' ');
+        if (begin == std::string_view::npos) {
+            return std::string_view{};
+        }
+        auto end = v.find_last_not_of(' ');
+        return v.substr(begin, end - begin + 1);
+    };
+    std::string_view keyv = trimSpace(key);
+    std::stringstream ss(s);
+    std::string item;
+    while (std::getline(ss, item, ',')) {
+        if (trimSpace(item) == keyv) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool AuthManager::AuthorizeUser(const std::string username, std::string &authority, config::ConfigModule &conf)
+{
+    auto ret = conf.GetConf("auth", username, authority);
+    if (ret != config::ConfigCode::OK) {
+        LOG_ERROR << "Get auth conf failed, ret=" << static_cast<uint32_t>(ret);
+        return false;
+    }
+    LOG_INFO << "Get auth conf success, username=" << username << " authority=" << authority;
+    return true;
 }
 
 void Server::Loop()
 {
-    if (!InitListenSocket()) {
-        return;
-    }
-    if (!InitEpoll()) {
+    if (!InitListenSocket() || !InitEpoll()) {
         return;
     }
 
     epoll_event events[MAX_EPOLL_EVENTS];
     while (running_) {
         int n = epoll_wait(epollFd_, events, MAX_EPOLL_EVENTS, EPOLL_WAIT_TIMEOUT);
-        if (n < 0) {
-            if (errno != EINTR) {
-                LOG_ERROR << "epoll_wait failed: " << strerror(errno);
-            }
-            continue;
-        }
-        if (n == 0) {
+        if (n <= 0) {
             continue;
         }
 
@@ -284,21 +367,17 @@ void Server::Loop()
                 CloseConnection(fd);
                 continue;
             }
-            if ((evt & EPOLLOUT) && !HandleWriteEvent(conn, fd)) {
+            if ((evt & EPOLLOUT) && !HandleWriteEvent(*conn, fd)) {
                 CloseConnection(fd);
-                continue;
             }
         }
     }
 
-    if (listenFd_ >= 0) {
-        close(listenFd_);
-        listenFd_ = -1;
-    }
-    if (epollFd_ >= 0) {
-        close(epollFd_);
-        epollFd_ = -1;
-    }
+    close(listenFd_);
+    listenFd_ = -1;
+    close(epollFd_);
+    epollFd_ = -1;
+
     LOG_INFO << "Event loop exited";
 }
 } // namespace virt::ovs::ipc::server

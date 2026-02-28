@@ -34,12 +34,15 @@ enum class LoggerLevel {
     ERROR
 };
 
-class LoggerEntry {
+class Logger {
 public:
-    LoggerEntry(LogLevel LoggerLevel, const char *file, const char *func, int line);
-
+    Logger(LoggerLevel level, const char *file, const char *func, int line) noexcept;
+    ~Logger() noexcept
+    {
+        Submit();
+    }
     template <typename T>
-    LoggerEntry &operator<<(const T &val)
+    Logger &operator<<(const T &val)
     {
         ss_ << val;
         return *this;
@@ -48,9 +51,11 @@ public:
     void Submit();
 
 private:
+    static void RotateLogFile();
+
     LoggerLevel level_;
-    std::string file_;
-    std::string func_;
+    const char *file_;
+    const char *func_;
     int line_;
 
     pid_t pid_;
@@ -58,28 +63,14 @@ private:
     std::chrono::system_clock::time_point timestamp_;
     std::stringstream ss_;
 
-    static std::string Basename(const char *path);
-    static uint64_t ThreadIdToU64(std::thread::id tid);
+    static constexpr const char *Basename(const char *path) noexcept;
+    static inline uint64_t GetTid() noexcept;
     std::string FormatTime(const std::chrono::system_clock::time_point &tp);
 };
 
-class Logger {
-public:
-    bool operator==(LoggerEntry &entry)
-    {
-        entry.Submit();
-        return true;
-    }
-};
-
-inline bool LogInternal(LoggerLevel level, const char *file, const char *func, int line)
-{
-    return Logger() == LoggerEntry(level, file, func, line);
-}
-
-#define LOG_DEBUG LogInternal(LoggerLevel::DEBUG, __FILE__, __FUNCTION__, __LINE__)
-#define LOG_INFO LogInternal(LoggerLevel::INFO, __FILE__, __FUNCTION__, __LINE__)
-#define LOG_WARN LogInternal(LoggerLevel::WARN, __FILE__, __FUNCTION__, __LINE__)
-#define LOG_ERROR LogInternal(LoggerLevel::ERROR, __FILE__, __FUNCTION__, __LINE__)
+#define LOG_DEBUG virt::logger::Logger(virt::logger::LoggerLevel::DEBUG, __FILE__, __FUNCTION__, __LINE__)
+#define LOG_INFO virt::logger::Logger(virt::logger::LoggerLevel::INFO, __FILE__, __FUNCTION__, __LINE__)
+#define LOG_WARN virt::logger::Logger(virt::logger::LoggerLevel::WARN, __FILE__, __FUNCTION__, __LINE__)
+#define LOG_ERROR virt::logger::Logger(virt::logger::LoggerLevel::ERROR, __FILE__, __FUNCTION__, __LINE__)
 } // namespace virt::logger
 #endif

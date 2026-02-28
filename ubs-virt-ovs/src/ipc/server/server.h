@@ -12,20 +12,37 @@
 #ifndef SERVER_H
 #define SERVER_H
 #include <atomic>
+#include <set>
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 
+#include "config_module.h"
 #include "connection.h"
 #include "dispatcher.h"
 #include "thread_pool.h"
 
 namespace virt::ovs::ipc::server {
-
 inline constexpr int DEFAULT_QPS_LIMIT = 100;
 inline constexpr int MAX_EPOLL_EVENTS = 64;
 inline constexpr int EPOLL_WAIT_TIMEOUT = 1000;
 inline constexpr int LISTEN_BACK_LOG = 128;
+inline constexpr int MAX_BUFFER_SIZE = 1024;
+
+using ConnPtr = std::shared_ptr<Connection>;
+
+class AuthManager {
+public:
+    struct UserRule {
+        std::unordered_set<std::string> services_;
+    };
+    static bool AuthorizeUser(std::string username, std::string &authority, config::ConfigModule &conf);
+    static bool AuthorizeService(const std::string &s, const std::string &key);
+
+private:
+    std::unordered_map<std::string, UserRule> userRules_;
+};
 
 class Server {
 public:
@@ -39,12 +56,14 @@ private:
     void Loop();
     bool InitListenSocket();
     bool InitEpoll();
-    void HandleBusiness(int fd, const std::string &req);
+    void HandleBusiness(const ConnPtr &conn, const std::string &req);
     void AcceptClients();
-    bool HandleReadEvent(Connection &conn, int fd);
+    bool HandleReadEvent(const ConnPtr &conn, int fd);
     bool HandleWriteEvent(Connection &conn, int fd) const;
     void CloseConnection(int fd);
+    bool PrepareSocketDir() const;
 
+    static std::string UidToUsername(uid_t uid);
     std::string socketPath_;
     int listenFd_{-1};
     int epollFd_{-1};
@@ -54,8 +73,9 @@ private:
 
     ThreadPool pool_;
     Dispatcher dispatcher_;
+    AuthManager authManager_;
 
-    std::unordered_map<int, Connection> conns_;
+    std::unordered_map<int, ConnPtr> conns_;
 
     int qpsLimit_{DEFAULT_QPS_LIMIT};
     std::atomic<int> reqInCurrentSecond_{0};
