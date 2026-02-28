@@ -92,3 +92,19 @@ TEST_F(GraphTest, rtStreamBeginCapture)
     rtError_t error = rtStreamBeginCapture(stm, mode);
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
+
+TEST_F(GraphTest, rtStreamEndCapture)
+{
+    rtStream_t stm = nullptr;
+    rtModel_t *mdl = nullptr;
+    rtError_t error = rtStreamEndCapture(stm, mdl);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+}
+
+TEST_F(GraphTest, rtsModelExecuteAsync)
+{
+    rtModel_t mdl = nullptr;
+    rtStream_t stm = nullptr;
+    rtError_t error = rtsModelExecuteAsync(mdl, stm);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+}

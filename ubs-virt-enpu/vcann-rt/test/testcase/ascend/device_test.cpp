@@ -90,3 +90,16 @@ TEST_F(DeviceTest, rtSetDeviceWithFlags)
     flags = 1;
     EXPECT_EQ(rtSetDeviceWithFlags(devId, flags), RT_ERROR_NONE);
 }
+
+TEST_F(DeviceTest, rtSetDeviceWithoutTsd)
+{
+    constexpr int32_t normalDevId = 20;
+    int32_t devId = 0;
+    EXPECT_EQ(rtSetDeviceWithoutTsd(devId), RT_ERROR_NONE);
+    devId = normalDevId;
+    EXPECT_EQ(rtSetDeviceWithoutTsd(devId), RT_ERROR_NONE);
+    devId = INT32_MAX;
+    EXPECT_EQ(rtSetDeviceWithoutTsd(devId), RT_ERROR_NONE);
+    devId = -1;
+    EXPECT_EQ(rtSetDeviceWithoutTsd(devId), RT_ERROR_NONE);
+}
