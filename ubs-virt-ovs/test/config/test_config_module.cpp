@@ -11,8 +11,7 @@
 
 using namespace virt::ovs::config;
 
-namespace ovs::ut
-{
+namespace ovs::ut {
 
 void TestConfigModule::SetUp()
 {}

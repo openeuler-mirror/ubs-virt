@@ -8,8 +8,7 @@
 #include "urma_utility.h"
 #undef private
 
-namespace ovs::ut
-{
+namespace ovs::ut {
 using namespace virt::ovs::ubse::urma;
 
 static int g_urmaFakeHandle = 0;

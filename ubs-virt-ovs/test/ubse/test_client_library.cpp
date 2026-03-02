@@ -8,8 +8,7 @@
 #include "client_library.h"
 #undef private
 
-namespace ovs::ut
-{
+namespace ovs::ut {
 using namespace virt::ovs::ubse::client;
 
 static int g_fakeHandle = 0;

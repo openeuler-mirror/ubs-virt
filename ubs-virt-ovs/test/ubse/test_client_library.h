@@ -9,10 +9,8 @@
 #include "gtest/gtest.h"
 #include "mockcpp/mockcpp.hpp"
 
-namespace ovs::ut
-{
-class TestClientLibrary : public testing::Test
-{
+namespace ovs::ut {
+class TestClientLibrary : public testing::Test {
 public:
     TestClientLibrary() = default;
     void SetUp() override;
