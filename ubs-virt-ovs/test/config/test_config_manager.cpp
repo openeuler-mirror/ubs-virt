@@ -4,9 +4,9 @@
  */
 #include "test_config_manager.h"
 
-#define private public
+
 #include "config_manager.h"
-#undef private
+
 
 #include <fstream>
 #include <filesystem>

@@ -75,7 +75,7 @@ TEST_F(TestLogger, CleanupOldRotateLogFile_NoDelete)
         .expects(mockcpp::atLeast(1))
         .will(returnValue(MakeDirent("virt_ovs_20240101010101.tar.gz")))
         .then(returnValue(MakeDirent("virt_ovs_20240102010101.tar.gz")))
-        .then(returnValue((dirent *)0));
+        .then(returnValue(static_cast<void*>(nullptr)));
     MOCKER(closedir).expects(once()).will(returnValue(1));
     MOCKER(strftime).stubs().will(returnValue(static_cast<size_t>(1)));
 
@@ -108,7 +108,7 @@ TEST_F(TestLogger, CleanupOldRotateLogFile_IgnoreInvalid)
         .expects(mockcpp::atLeast(1))
         .will(returnValue(MakeDirent("randon.txt")))
         .then(returnValue(MakeDirent("virt_ovs_invalid.tar.gz")))
-        .then(returnValue((dirent *)0));
+        .then(returnValue(static_cast<void*>(nullptr)));
     MOCKER(closedir).expects(once()).will(returnValue(1));
     MOCKER(strftime).stubs().will(returnValue(static_cast<size_t>(10))); // mock strftime will return 10
 

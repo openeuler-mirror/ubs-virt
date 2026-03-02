@@ -4,10 +4,10 @@
  */
 #include "test_config_module.h"
 
-#define private public
+
 #include "config_module.h"
 #include "config_manager.h"
-#undef private
+
 
 using namespace virt::ovs::config;
 

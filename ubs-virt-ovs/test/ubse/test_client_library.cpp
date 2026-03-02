@@ -4,9 +4,9 @@
  */
 #include "test_client_library.h"
 
-#define private public
+
 #include "client_library.h"
-#undef private
+
 
 namespace ovs::ut {
 using namespace virt::ovs::ubse::client;
@@ -24,7 +24,7 @@ void TestClientLibrary::TearDown()
 TEST_F(TestClientLibrary, Open_Success)
 {
     ClientLibrary lib("/dummy.so");
-    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue((void*)&g_fakeHandle));
+    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(reinterpret_cast<void*>(&g_fakeHandle)));
     
     EXPECT_NO_THROW(lib.Open());
     EXPECT_EQ(lib.handle, &g_fakeHandle);
@@ -33,8 +33,8 @@ TEST_F(TestClientLibrary, Open_Success)
 TEST_F(TestClientLibrary, Open_Failed)
 {
     ClientLibrary lib("/dummy.so");
-    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue((void*)nullptr));
-    MOCKER(dlerror).stubs().will(returnValue((char*)"mock error"));
+    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(static_cast<void*>(nullptr)));
+    MOCKER(dlerror).stubs().will(returnValue(const_cast<char*>("mock error")));
     
     EXPECT_THROW(lib.Open(), std::runtime_error);
 }
@@ -45,8 +45,8 @@ TEST_F(TestClientLibrary, GetSymbol_Success)
     lib.handle = &g_fakeHandle;
     
     int fakeSymbol = 0;
-    MOCKER(dlsym).stubs().with(any(), any()).will(returnValue((void*)&fakeSymbol));
-    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue((void*)&g_fakeHandle));
+    MOCKER(dlsym).stubs().with(any(), any()).will(returnValue(reinterpret_cast<void*>(&fakeSymbol)));
+    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(reinterpret_cast<void*>(&g_fakeHandle)));
 
     void* sym = lib.GetSymbol("test_symbol");
     EXPECT_EQ(sym, &fakeSymbol);
@@ -55,9 +55,9 @@ TEST_F(TestClientLibrary, GetSymbol_Success)
 TEST_F(TestClientLibrary, GetSymbol_NotFound)
 {
     ClientLibrary lib("/dummy.so");
-    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue((void*)&g_fakeHandle));
-    MOCKER(dlsym).stubs().with(any(), any()).will(returnValue((void*)nullptr));
-    MOCKER(dlerror).stubs().will(returnValue((char*)"not found"));
+    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(reinterpret_cast<void*>(&g_fakeHandle)));
+    MOCKER(dlsym).stubs().with(any(), any()).will(returnValue(static_cast<void*>(nullptr)));
+    MOCKER(dlerror).stubs().will(returnValue(const_cast<char*>("not found")));
     
     EXPECT_THROW(lib.GetSymbol("test_symbol"), std::runtime_error);
 }

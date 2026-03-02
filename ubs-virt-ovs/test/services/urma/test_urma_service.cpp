@@ -21,8 +21,8 @@ void TestUrmaService::SetUp()
     Test::SetUp();
     std::shared_ptr<int> fake = std::make_shared<int>(1);
     void *fakeHandler = static_cast<void *>(fake.get());
-    MOCKER_CPP(dlopen).stubs().will(returnValue((void*)fakeHandler));
-    MOCKER_CPP(dlsym).stubs().will(returnValue((void*)fakeHandler));
+    MOCKER_CPP(dlopen).stubs().will(returnValue(reinterpret_cast<void*>(fakeHandler)));
+    MOCKER_CPP(dlsym).stubs().will(returnValue(reinterpret_cast<void*>(fakeHandler)));
     service = std::make_shared<UrmaService>();
 }
 

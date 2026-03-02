@@ -4,9 +4,9 @@
  */
 #include "test_urma_utility.h"
 
-#define private public
+
 #include "urma_utility.h"
-#undef private
+
 
 namespace ovs::ut {
 using namespace virt::ovs::ubse::urma;
@@ -26,15 +26,15 @@ static uint32_t MockResetBw(const char*)
 
 static void* MockDlsym(void* handle, const char* symbol)
 {
-    if (std::string(symbol) == "ubs_urma_bandwidth_get") return (void*)MockGetBw;
-    if (std::string(symbol) == "ubs_urma_bandwidth_set") return (void*)MockSetBw;
-    if (std::string(symbol) == "ubs_urma_bandwidth_reset") return (void*)MockResetBw;
+    if (std::string(symbol) == "ubs_urma_bandwidth_get") return reinterpret_cast<void*>(MockGetBw);
+    if (std::string(symbol) == "ubs_urma_bandwidth_set") return reinterpret_cast<void*>(MockSetBw);
+    if (std::string(symbol) == "ubs_urma_bandwidth_reset") return reinterpret_cast<void*>(MockResetBw);
     return nullptr;
 }
 
 void TestUrmaUtility::SetUp()
 {
-    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue((void*)&g_urmaFakeHandle));
+    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(reinterpret_cast<void*>(&g_urmaFakeHandle)));
     
     // Instead of mockcpp string matching which is causing issues, map dlsym to a mock function
     MOCKER(dlsym).stubs().will(invoke(MockDlsym));
