@@ -58,8 +58,9 @@ TEST_F(TestClientLibrary, GetSymbol_Success)
 
 TEST_F(TestClientLibrary, GetSymbol_OpenFailed)
 {
+    static std::string mockError = "mock error";
     MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(nullptr));
-    MOCKER(dlerror).stubs().will(returnValue("mock error"));
+    MOCKER(dlerror).stubs().will(returnValue(mockError.c_str()));
     
     auto &lib = ClientLibrary::Instance("/nonexistent.so");
     EXPECT_THROW(lib.GetSymbol("test_symbol"), std::runtime_error);
@@ -71,12 +72,13 @@ TEST_F(TestClientLibrary, GetSymbol_OpenFailed)
 
 TEST_F(TestClientLibrary, GetSymbol_SymbolNotFound)
 {
+    static std::string symbolError = "symbol not found";
     int fakeHandleData = 0;
     void *fakeHandle = &fakeHandleData;
     
     MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(fakeHandle));
     MOCKER(dlsym).stubs().with(any(), any()).will(returnValue(nullptr));
-    MOCKER(dlerror).stubs().will(returnValue("symbol not found"));
+    MOCKER(dlerror).stubs().will(returnValue(symbolError.c_str()));
     MOCKER(dlclose).stubs().with(any()).will(returnValue(0));
     
     auto &lib = ClientLibrary::Instance("/tmp/libtest.so");

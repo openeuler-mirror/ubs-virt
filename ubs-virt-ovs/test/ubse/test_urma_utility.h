@@ -13,6 +13,8 @@
 #ifndef UBSVIRTOVS_TEST_URMA_UTILITY_H
 #define UBSVIRTOVS_TEST_URMA_UTILITY_H
 
+#include <dlfcn.h>
+
 #include "gtest/gtest.h"
 #include "mockcpp/mockcpp.hpp"
 #include "urma_utility.h"
