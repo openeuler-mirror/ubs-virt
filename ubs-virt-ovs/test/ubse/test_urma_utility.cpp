@@ -10,7 +10,6 @@
 
 namespace ovs::ut {
 using namespace virt::ovs::ubse::urma;
-using mockcpp::sm;
 
 static int g_urmaFakeHandle = 0;
 
@@ -22,17 +21,18 @@ static uint32_t MockGetBw(const char*, uint32_t* minBw, uint32_t* maxBw) {
 static uint32_t MockSetBw(const char*, uint32_t, uint32_t) { return 0; }
 static uint32_t MockResetBw(const char*) { return 0; }
 
-static const char* sym1 = "ubs_urma_bandwidth_get";
-static const char* sym2 = "ubs_urma_bandwidth_set";
-static const char* sym3 = "ubs_urma_bandwidth_reset";
+static void* MockDlsym(void* handle, const char* symbol) {
+    if (std::string(symbol) == "ubs_urma_bandwidth_get") return (void*)MockGetBw;
+    if (std::string(symbol) == "ubs_urma_bandwidth_set") return (void*)MockSetBw;
+    if (std::string(symbol) == "ubs_urma_bandwidth_reset") return (void*)MockResetBw;
+    return nullptr;
+}
 
 void TestUrmaUtility::SetUp() {
     MOCKER(dlopen).stubs().with(any(), any()).will(returnValue((void*)&g_urmaFakeHandle));
     
-    MOCKER(dlsym).stubs().with(any(), sm("ubs_urma_bandwidth_get")).will(returnValue((void*)MockGetBw));
-    MOCKER(dlsym).stubs().with(any(), sm("ubs_urma_bandwidth_set")).will(returnValue((void*)MockSetBw));
-    MOCKER(dlsym).stubs().with(any(), sm("ubs_urma_bandwidth_reset")).will(returnValue((void*)MockResetBw));
-    MOCKER(dlsym).stubs().with(any(), any()).will(returnValue((void*)MockResetBw));
+    // Instead of mockcpp string matching which is causing issues, map dlsym to a mock function
+    MOCKER(dlsym).stubs().will(invoke(MockDlsym));
 }
 
 void TestUrmaUtility::TearDown() {
