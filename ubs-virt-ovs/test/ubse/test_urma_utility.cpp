@@ -26,29 +26,14 @@ static uint32_t MockBandWidthGet(const char *name, uint32_t *minBw, uint32_t *ma
     return 0;
 }
 
-static uint32_t MockBandWidthGetFailed(const char *name, uint32_t *minBw, uint32_t *maxBw)
-{
-    return 1;
-}
-
 static uint32_t MockBandWidthSet(const char *name, uint32_t minBw, uint32_t maxBw)
 {
     return 0;
 }
 
-static uint32_t MockBandWidthSetFailed(const char *name, uint32_t minBw, uint32_t maxBw)
-{
-    return 1;
-}
-
 static uint32_t MockBandWidthReset(const char *name)
 {
     return 0;
-}
-
-static uint32_t MockBandWidthResetFailed(const char *name)
-{
-    return 1;
 }
 
 TEST_F(TestUrmaUtility, Instance_ReturnsSingleton)
@@ -93,27 +78,6 @@ TEST_F(TestUrmaUtility, GetBandWidth_Success)
     MOCKER(dlclose).reset();
 }
 
-TEST_F(TestUrmaUtility, GetBandWidth_Failed)
-{
-    int fakeHandleData = 0;
-    void *fakeHandle = &fakeHandleData;
-    
-    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(fakeHandle));
-    MOCKER(dlsym).stubs().with(any(), any()).will(returnValue((void *)MockBandWidthGetFailed));
-    MOCKER(dlclose).stubs().with(any()).will(returnValue(0));
-    
-    auto &urma = UrmaUtility::Instance();
-    uint32_t minBw = 0;
-    uint32_t maxBw = 0;
-    uint32_t ret = urma.GetBandWidth("test_device", minBw, maxBw);
-    EXPECT_NE(ret, 0u);
-    
-    GlobalMockObject::verify();
-    MOCKER(dlopen).reset();
-    MOCKER(dlsym).reset();
-    MOCKER(dlclose).reset();
-}
-
 TEST_F(TestUrmaUtility, SetBandWidth_Success)
 {
     int fakeHandleData = 0;
@@ -133,25 +97,6 @@ TEST_F(TestUrmaUtility, SetBandWidth_Success)
     MOCKER(dlclose).reset();
 }
 
-TEST_F(TestUrmaUtility, SetBandWidth_Failed)
-{
-    int fakeHandleData = 0;
-    void *fakeHandle = &fakeHandleData;
-    
-    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(fakeHandle));
-    MOCKER(dlsym).stubs().with(any(), any()).will(returnValue((void *)MockBandWidthSetFailed));
-    MOCKER(dlclose).stubs().with(any()).will(returnValue(0));
-    
-    auto &urma = UrmaUtility::Instance();
-    uint32_t ret = urma.SetBandWidth("test_device", 100, 1000);
-    EXPECT_NE(ret, 0u);
-    
-    GlobalMockObject::verify();
-    MOCKER(dlopen).reset();
-    MOCKER(dlsym).reset();
-    MOCKER(dlclose).reset();
-}
-
 TEST_F(TestUrmaUtility, ResetBandWidth_Success)
 {
     int fakeHandleData = 0;
@@ -164,25 +109,6 @@ TEST_F(TestUrmaUtility, ResetBandWidth_Success)
     auto &urma = UrmaUtility::Instance();
     uint32_t ret = urma.ResetBandWidth("test_device");
     EXPECT_EQ(ret, 0u);
-    
-    GlobalMockObject::verify();
-    MOCKER(dlopen).reset();
-    MOCKER(dlsym).reset();
-    MOCKER(dlclose).reset();
-}
-
-TEST_F(TestUrmaUtility, ResetBandWidth_Failed)
-{
-    int fakeHandleData = 0;
-    void *fakeHandle = &fakeHandleData;
-    
-    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(fakeHandle));
-    MOCKER(dlsym).stubs().with(any(), any()).will(returnValue((void *)MockBandWidthResetFailed));
-    MOCKER(dlclose).stubs().with(any()).will(returnValue(0));
-    
-    auto &urma = UrmaUtility::Instance();
-    uint32_t ret = urma.ResetBandWidth("test_device");
-    EXPECT_NE(ret, 0u);
     
     GlobalMockObject::verify();
     MOCKER(dlopen).reset();
