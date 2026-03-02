@@ -35,7 +35,7 @@ TEST_F(TestClientLibrary, Open_Failed)
     ClientLibrary lib("/dummy.so");
     MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(static_cast<void*>(nullptr)));
     static char mockErrStr[] = "mock error";
-    MOCKER(dlerror).stubs().will(returnValue(mockErrStr));
+    MOCKER(dlerror).stubs().will(returnValue(static_cast<char*>(mockErrStr)));
     
     EXPECT_THROW(lib.Open(), std::runtime_error);
 }
@@ -59,7 +59,7 @@ TEST_F(TestClientLibrary, GetSymbol_NotFound)
     MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(reinterpret_cast<void*>(&g_fakeHandle)));
     MOCKER(dlsym).stubs().with(any(), any()).will(returnValue(static_cast<void*>(nullptr)));
     static char notFoundStr[] = "not found";
-    MOCKER(dlerror).stubs().will(returnValue(notFoundStr));
+    MOCKER(dlerror).stubs().will(returnValue(static_cast<char*>(notFoundStr)));
     
     EXPECT_THROW(lib.GetSymbol("test_symbol"), std::runtime_error);
 }
