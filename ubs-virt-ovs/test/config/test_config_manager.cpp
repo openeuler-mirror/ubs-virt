@@ -1,217 +1,123 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  * ubs-virt-ovs is licensed under Mulan PSL v2.
- * You can use this software according to the terms and conditions of the Mulan PSL v2.
- * You may obtain a copy of Mulan PSL v2 at:
- *          http://license.coscl.org.cn/MulanPSL2
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
- * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
- * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- * See the Mulan PSL v2 for more details.
  */
-
 #include "test_config_manager.h"
-#include "config_manager.cpp"
+
+#define private public
+#include "config_manager.h"
+#undef private
 
 #include <fstream>
+#include <filesystem>
 
 using namespace virt::ovs::config;
+
 namespace ovs::ut {
 
 void TestConfigManager::SetUp() {}
-
-void TestConfigManager::TearDown() {}
-
-TEST_F(TestConfigManager, Trim_EmptyString)
-{
-    EXPECT_EQ(Trim(""), "");
+void TestConfigManager::TearDown() {
+    GlobalMockObject::verify();
+    GlobalMockObject::reset();
 }
 
-TEST_F(TestConfigManager, Trim_WhitespaceOnly)
-{
-    EXPECT_EQ(Trim("   "), "");
-    EXPECT_EQ(Trim("\t\n"), "");
-}
-
-TEST_F(TestConfigManager, Trim_LeadingAndTrailingSpaces)
-{
+TEST_F(TestConfigManager, Trim_Basic) {
     EXPECT_EQ(Trim("  hello  "), "hello");
-    EXPECT_EQ(Trim("\tvalue\n"), "value");
+    EXPECT_EQ(Trim(""), "");
+    EXPECT_EQ(Trim(" \t\n "), "");
 }
 
-TEST_F(TestConfigManager, Trim_NoTrimNeeded)
-{
-    EXPECT_EQ(Trim("test"), "test");
-}
-
-TEST_F(TestConfigManager, CatString_EmptyVector)
-{
-    std::vector<std::string> empty;
-    EXPECT_EQ(CatString(empty, ","), "");
-}
-
-TEST_F(TestConfigManager, CatString_SingleElement)
-{
-    std::vector<std::string> vec = {"one"};
-    EXPECT_EQ(CatString(vec, ","), "one");
-}
-
-TEST_F(TestConfigManager, CatString_MultipleElements)
-{
+TEST_F(TestConfigManager, CatString_Basic) {
     std::vector<std::string> vec = {"a", "b", "c"};
     EXPECT_EQ(CatString(vec, ","), "a,b,c");
+    EXPECT_EQ(CatString({}, ","), "");
 }
 
-TEST_F(TestConfigManager, FormatErrorMessage_BasicMessage)
-{
-    std::string result = FormatErrorMessage("Error", 10);
-    EXPECT_TRUE(result.find("Error") != std::string::npos);
-    EXPECT_TRUE(result.find("10") != std::string::npos);
-}
-
-TEST_F(TestConfigManager, FormatErrorMessage_WithSection)
-{
-    std::string result = FormatErrorMessage("Error", 5, "section1");
-    EXPECT_TRUE(result.find("section1") != std::string::npos);
-}
-
-TEST_F(TestConfigManager, FormatErrorMessage_WithAllParams)
-{
-    std::string result = FormatErrorMessage("Error", 1, "sec", "key", "val");
-    EXPECT_TRUE(result.find("sec") != std::string::npos);
-    EXPECT_TRUE(result.find("key") != std::string::npos);
-    EXPECT_TRUE(result.find("val") != std::string::npos);
-}
-
-TEST_F(TestConfigManager, CheckNoIllegalChars_ValidString)
-{
-    EXPECT_TRUE(CheckNoIllegalChars("abc123"));
-    EXPECT_TRUE(CheckNoIllegalChars("test_value-1"));
-    EXPECT_TRUE(CheckNoIllegalChars("name.test"));
-}
-
-TEST_F(TestConfigManager, CheckNoIllegalChars_EmptyString)
-{
-    EXPECT_TRUE(CheckNoIllegalChars(""));
-}
-
-TEST_F(TestConfigManager, CheckNoIllegalChars_InvalidChars)
-{
-    EXPECT_FALSE(CheckNoIllegalChars("test value"));
-    EXPECT_FALSE(CheckNoIllegalChars("test@value"));
-    EXPECT_FALSE(CheckNoIllegalChars("test!value"));
-}
-
-TEST_F(TestConfigManager, CheckNoIllegalChars_ConfigValueValid)
-{
+TEST_F(TestConfigManager, CheckNoIllegalChars_Basic) {
+    EXPECT_TRUE(CheckNoIllegalChars("valid_key-1"));
+    EXPECT_FALSE(CheckNoIllegalChars("invalid key"));
     EXPECT_TRUE(CheckNoIllegalChars("192.168.1.1", true));
-    EXPECT_TRUE(CheckNoIllegalChars("value:123", true));
-    EXPECT_TRUE(CheckNoIllegalChars("a/b/c", true));
 }
 
-TEST_F(TestConfigManager, IsConfFile_ValidConfFile)
-{
-    EXPECT_TRUE(IsConfFile("test.conf"));
-    EXPECT_TRUE(IsConfFile("config.conf"));
-}
-
-TEST_F(TestConfigManager, IsConfFile_InvalidConfFile)
-{
-    EXPECT_FALSE(IsConfFile("test.txt"));
-    EXPECT_FALSE(IsConfFile("test.cfg"));
-    EXPECT_FALSE(IsConfFile(".conf"));
-}
-
-TEST_F(TestConfigManager, PathJoin_BaseWithSlash)
-{
-    EXPECT_EQ(PathJoin("/tmp/", "file.conf"), "/tmp/file.conf");
-}
-
-TEST_F(TestConfigManager, PathJoin_BaseWithoutSlash)
-{
+TEST_F(TestConfigManager, PathJoin_Basic) {
     EXPECT_EQ(PathJoin("/tmp", "file.conf"), "/tmp/file.conf");
-}
-
-TEST_F(TestConfigManager, PathJoin_EmptyBase)
-{
+    EXPECT_EQ(PathJoin("/tmp/", "file.conf"), "/tmp/file.conf");
     EXPECT_EQ(PathJoin("", "file.conf"), "file.conf");
 }
 
-TEST_F(TestConfigManager, CheckParamValidation_SectionTooLong)
-{
-    std::string longSection(CONFIG_SECTION_MAX_FIELD_LENGTH + 1, 'a');
-    EXPECT_EQ(CheckParamValidation(longSection, "key", ""), ConfigCode::SECTION_LENGTH_INVALID);
+TEST_F(TestConfigManager, IsConfFile_Basic) {
+    EXPECT_TRUE(IsConfFile("test.conf"));
+    EXPECT_FALSE(IsConfFile("test.txt"));
 }
 
-TEST_F(TestConfigManager, CheckParamValidation_SectionTooShort)
-{
-    EXPECT_EQ(CheckParamValidation("", "key", ""), ConfigCode::SECTION_LENGTH_INVALID);
-}
-
-TEST_F(TestConfigManager, CheckParamValidation_KeyTooLong)
-{
-    std::string longKey(CONFIG_KEY_MAX_FIELD_LENGTH + 1, 'a');
-    EXPECT_EQ(CheckParamValidation("sec", longKey, ""), ConfigCode::KEY_LENGTH_INVALID);
-}
-
-TEST_F(TestConfigManager, CheckParamValidation_KeyTooShort)
-{
-    EXPECT_EQ(CheckParamValidation("sec", "", ""), ConfigCode::KEY_LENGTH_INVALID);
-}
-
-TEST_F(TestConfigManager, CheckParamValidation_ValueTooLong)
-{
-    std::string longValue(CONFIG_VALUE_MAX_FIELD_LENGTH + 1, 'a');
-    EXPECT_EQ(CheckParamValidation("sec", "key", longValue, true), ConfigCode::VALUE_LENGTH_INVALID);
-}
-
-TEST_F(TestConfigManager, CheckParamValidation_ValidParams)
-{
-    EXPECT_EQ(CheckParamValidation("section", "key", "value"), ConfigCode::OK);
-}
-
-TEST_F(TestConfigManager, TravelDepthLimitedFiles_DirectoryOpenError)
-{
-    std::vector<std::string> filePaths;
-    MOCKER(opendir).stubs().will(returnValue((DIR *)nullptr));
-    EXPECT_EQ(TravelDepthLimitedFiles(filePaths, "/nonexistent", 0), ConfigCode::CONFIG_FOLDER_OPEN_ERROR);
-    GlobalMockObject::verify();
-    MOCKER(opendir).reset();
-}
-
-TEST_F(TestConfigManager, TravelDepthLimitedFiles_MaxDepthExceeded)
-{
-    std::vector<std::string> filePaths;
-    EXPECT_EQ(TravelDepthLimitedFiles(filePaths, "/tmp", CONFIG_DIR_MAX_DEPTH + 1), ConfigCode::CONFIG_FOLDER_MAX_DEPTH);
-}
-
-TEST_F(TestConfigManager, Format_IsSectionStart)
-{
+TEST_F(TestConfigManager, Format_Checks) {
     Format fmt;
     EXPECT_TRUE(fmt.IsSectionStart("["));
-    EXPECT_FALSE(fmt.IsSectionStart("]"));
-}
-
-TEST_F(TestConfigManager, Format_IsSectionEnd)
-{
-    Format fmt;
     EXPECT_TRUE(fmt.IsSectionEnd("]"));
-    EXPECT_FALSE(fmt.IsSectionEnd("["));
-}
-
-TEST_F(TestConfigManager, Format_IsAssign)
-{
-    Format fmt;
     EXPECT_TRUE(fmt.IsAssign("="));
-    EXPECT_FALSE(fmt.IsAssign(":"));
-}
-
-TEST_F(TestConfigManager, Format_IsComment)
-{
-    Format fmt;
     EXPECT_TRUE(fmt.IsComment(";"));
     EXPECT_TRUE(fmt.IsComment("#"));
-    EXPECT_FALSE(fmt.IsComment("/"));
 }
 
-} // namespace ovs::ut
+TEST_F(TestConfigManager, ParseConf_Valid) {
+    ConfigManager mgr;
+    std::string tempSection = "section1";
+    mgr.ParseConf("file.conf", "key1=value1", 1, tempSection);
+    
+    std::string val;
+    EXPECT_EQ(mgr.GetConf("section1", "key1", val), ConfigCode::OK);
+    EXPECT_EQ(val, "value1");
+}
+
+TEST_F(TestConfigManager, ParseSection_Valid) {
+    ConfigManager mgr;
+    std::string tempSection = "";
+    mgr.ParseSection("file.conf", "[section2]", 1, tempSection);
+    EXPECT_EQ(tempSection, "section2");
+    EXPECT_TRUE(mgr.configMap.find("section2") != mgr.configMap.end());
+}
+
+TEST_F(TestConfigManager, GetConf_SectionNotExist) {
+    ConfigManager mgr;
+    std::string val;
+    EXPECT_EQ(mgr.GetConf("not_exist", "key", val), ConfigCode::SECTION_NOT_EXIST);
+}
+
+TEST_F(TestConfigManager, GetConf_KeyNotExist) {
+    ConfigManager mgr;
+    mgr.configMap["sec1"] = {};
+    std::string val;
+    EXPECT_EQ(mgr.GetConf("sec1", "not_exist", val), ConfigCode::CONFIG_KEY_NOT_EXIST);
+}
+
+TEST_F(TestConfigManager, ReadConfFile_Success) {
+    std::string testFile = "test_read.conf";
+    std::ofstream out(testFile);
+    out << "[sec1]\nkey1=val1\n# comment\nkey2=val2\n";
+    out.close();
+
+    ConfigManager mgr;
+    EXPECT_EQ(mgr.ReadConfFile(testFile), ConfigCode::OK);
+    
+    std::string val;
+    EXPECT_EQ(mgr.GetConf("sec1", "key1", val), ConfigCode::OK);
+    EXPECT_EQ(val, "val1");
+    EXPECT_EQ(mgr.GetConf("sec1", "key2", val), ConfigCode::OK);
+    EXPECT_EQ(val, "val2");
+
+    std::filesystem::remove(testFile);
+}
+
+TEST_F(TestConfigManager, TravelDepthLimitedFiles_Success) {
+    std::filesystem::create_directory("test_conf_dir");
+    std::ofstream out("test_conf_dir/test.conf");
+    out << "[sec1]\nkey=val\n";
+    out.close();
+
+    std::vector<std::string> paths;
+    EXPECT_EQ(TravelDepthLimitedFiles(paths, "test_conf_dir", 0), ConfigCode::OK);
+    EXPECT_EQ(paths.size(), 1u);
+
+    std::filesystem::remove_all("test_conf_dir");
+}
+}

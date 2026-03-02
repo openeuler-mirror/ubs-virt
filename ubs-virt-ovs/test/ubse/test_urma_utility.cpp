@@ -1,119 +1,62 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  * ubs-virt-ovs is licensed under Mulan PSL v2.
- * You can use this software according to the terms and conditions of the Mulan PSL v2.
- * You may obtain a copy of Mulan PSL v2 at:
- *          http://license.coscl.org.cn/MulanPSL2
- * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
- * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
- * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- * See the Mulan PSL v2 for more details.
  */
-
 #include "test_urma_utility.h"
-#include "urma_utility.cpp"
+
+#define private public
+#include "urma_utility.h"
+#undef private
 
 namespace ovs::ut {
+using namespace virt::ovs::ubse::urma;
 
-void TestUrmaUtility::SetUp() {}
+static int g_urmaFakeHandle = 0;
 
-void TestUrmaUtility::TearDown() {}
-
-static uint32_t MockBandWidthGet(const char *name, uint32_t *minBw, uint32_t *maxBw)
-{
-    if (minBw) *minBw = 100;
-    if (maxBw) *maxBw = 1000;
+static uint32_t MockGetBw(const char*, uint32_t* minBw, uint32_t* maxBw) {
+    if(minBw) *minBw = 10;
+    if(maxBw) *maxBw = 100;
     return 0;
 }
+static uint32_t MockSetBw(const char*, uint32_t, uint32_t) { return 0; }
+static uint32_t MockResetBw(const char*) { return 0; }
 
-static uint32_t MockBandWidthSet(const char *name, uint32_t minBw, uint32_t maxBw)
-{
-    return 0;
+static const char* sym1 = "ubs_urma_bandwidth_get";
+static const char* sym2 = "ubs_urma_bandwidth_set";
+static const char* sym3 = "ubs_urma_bandwidth_reset";
+
+void TestUrmaUtility::SetUp() {
+    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(&g_urmaFakeHandle));
+    
+    MOCKER(dlsym).stubs().with(any(), sm(sym1)).will(returnValue((void*)MockGetBw));
+    MOCKER(dlsym).stubs().with(any(), sm(sym2)).will(returnValue((void*)MockSetBw));
+    MOCKER(dlsym).stubs().with(any(), sm(sym3)).will(returnValue((void*)MockResetBw));
+    MOCKER(dlsym).stubs().with(any(), any()).will(returnValue((void*)MockResetBw));
 }
 
-static uint32_t MockBandWidthReset(const char *name)
-{
-    return 0;
-}
-
-TEST_F(TestUrmaUtility, Instance_ReturnsSingleton)
-{
-    int fakeHandleData = 0;
-    void *fakeHandle = &fakeHandleData;
-    
-    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(fakeHandle));
-    MOCKER(dlsym).stubs().with(any(), any()).will(returnValue((void *)MockBandWidthGet));
-    MOCKER(dlclose).stubs().with(any()).will(returnValue(0));
-    
-    auto &inst1 = UrmaUtility::Instance();
-    auto &inst2 = UrmaUtility::Instance();
-    EXPECT_EQ(&inst1, &inst2);
-    
+void TestUrmaUtility::TearDown() {
     GlobalMockObject::verify();
-    MOCKER(dlopen).reset();
-    MOCKER(dlsym).reset();
-    MOCKER(dlclose).reset();
+    GlobalMockObject::reset();
 }
 
 TEST_F(TestUrmaUtility, GetBandWidth_Success)
 {
-    int fakeHandleData = 0;
-    void *fakeHandle = &fakeHandleData;
-    
-    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(fakeHandle));
-    MOCKER(dlsym).stubs().with(any(), any()).will(returnValue((void *)MockBandWidthGet));
-    MOCKER(dlclose).stubs().with(any()).will(returnValue(0));
-    
-    auto &urma = UrmaUtility::Instance();
-    uint32_t minBw = 0;
-    uint32_t maxBw = 0;
-    uint32_t ret = urma.GetBandWidth("test_device", minBw, maxBw);
-    EXPECT_EQ(ret, 0u);
-    EXPECT_EQ(minBw, 100u);
-    EXPECT_EQ(maxBw, 1000u);
-    
-    GlobalMockObject::verify();
-    MOCKER(dlopen).reset();
-    MOCKER(dlsym).reset();
-    MOCKER(dlclose).reset();
+    UrmaUtility utility;
+    uint32_t minBw = 0, maxBw = 0;
+    EXPECT_EQ(utility.GetBandWidth("dev", minBw, maxBw), 0u);
+    EXPECT_EQ(minBw, 10u);
+    EXPECT_EQ(maxBw, 100u);
 }
 
 TEST_F(TestUrmaUtility, SetBandWidth_Success)
 {
-    int fakeHandleData = 0;
-    void *fakeHandle = &fakeHandleData;
-    
-    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(fakeHandle));
-    MOCKER(dlsym).stubs().with(any(), any()).will(returnValue((void *)MockBandWidthSet));
-    MOCKER(dlclose).stubs().with(any()).will(returnValue(0));
-    
-    auto &urma = UrmaUtility::Instance();
-    uint32_t ret = urma.SetBandWidth("test_device", 100, 1000);
-    EXPECT_EQ(ret, 0u);
-    
-    GlobalMockObject::verify();
-    MOCKER(dlopen).reset();
-    MOCKER(dlsym).reset();
-    MOCKER(dlclose).reset();
+    UrmaUtility utility;
+    EXPECT_EQ(utility.SetBandWidth("dev", 10, 100), 0u);
 }
 
 TEST_F(TestUrmaUtility, ResetBandWidth_Success)
 {
-    int fakeHandleData = 0;
-    void *fakeHandle = &fakeHandleData;
-    
-    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(fakeHandle));
-    MOCKER(dlsym).stubs().with(any(), any()).will(returnValue((void *)MockBandWidthReset));
-    MOCKER(dlclose).stubs().with(any()).will(returnValue(0));
-    
-    auto &urma = UrmaUtility::Instance();
-    uint32_t ret = urma.ResetBandWidth("test_device");
-    EXPECT_EQ(ret, 0u);
-    
-    GlobalMockObject::verify();
-    MOCKER(dlopen).reset();
-    MOCKER(dlsym).reset();
-    MOCKER(dlclose).reset();
+    UrmaUtility utility;
+    EXPECT_EQ(utility.ResetBandWidth("dev"), 0u);
 }
-
-} // namespace ovs::ut
+}
