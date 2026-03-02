@@ -49,7 +49,8 @@ void TestUrmaUtility::TearDown()
 TEST_F(TestUrmaUtility, GetBandWidth_Success)
 {
     UrmaUtility utility;
-    uint32_t minBw = 0, maxBw = 0;
+    uint32_t minBw = 0;
+    uint32_t maxBw = 0;
     EXPECT_EQ(utility.GetBandWidth("dev", minBw, maxBw), 0u);
     EXPECT_EQ(minBw, 10u);
     EXPECT_EQ(maxBw, 100u);
