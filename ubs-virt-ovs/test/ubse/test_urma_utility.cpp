@@ -10,6 +10,7 @@
 
 namespace ovs::ut {
 using namespace virt::ovs::ubse::urma;
+using mockcpp::sm;
 
 static int g_urmaFakeHandle = 0;
 
@@ -28,9 +29,9 @@ static const char* sym3 = "ubs_urma_bandwidth_reset";
 void TestUrmaUtility::SetUp() {
     MOCKER(dlopen).stubs().with(any(), any()).will(returnValue((void*)&g_urmaFakeHandle));
     
-    MOCKER(dlsym).stubs().with(any(), eq(sym1)).will(returnValue((void*)MockGetBw));
-    MOCKER(dlsym).stubs().with(any(), eq(sym2)).will(returnValue((void*)MockSetBw));
-    MOCKER(dlsym).stubs().with(any(), eq(sym3)).will(returnValue((void*)MockResetBw));
+    MOCKER(dlsym).stubs().with(any(), sm("ubs_urma_bandwidth_get")).will(returnValue((void*)MockGetBw));
+    MOCKER(dlsym).stubs().with(any(), sm("ubs_urma_bandwidth_set")).will(returnValue((void*)MockSetBw));
+    MOCKER(dlsym).stubs().with(any(), sm("ubs_urma_bandwidth_reset")).will(returnValue((void*)MockResetBw));
     MOCKER(dlsym).stubs().with(any(), any()).will(returnValue((void*)MockResetBw));
 }
 
