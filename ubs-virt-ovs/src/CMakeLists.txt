@@ -88,8 +88,8 @@ if (BUILD_TESTS)
                 COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}
                 COMMAND ${TEST_BIN_DIR}/virt_ut --gtest_output=xml:${CMAKE_CURRENT_BINARY_DIR}/coverage/test_detail.xml
                 COMMAND lcov --capture --rc lcov_branch_coverage=1 --directory ${CMAKE_BINARY_DIR} --directory ${CMAKE_CURRENT_BINARY_DIR} --output-file coverage.info
-                COMMAND lcov --remove coverage.info '/usr/*' '*/deps/*' '*/test/*' --output-file coverage.info
-                COMMAND genhtml --branch-coverage coverage.info --output-directory coverage_html
+                COMMAND lcov --rc lcov_branch_coverage=1 --remove coverage.info '/usr/*' '*/deps/*' '*/test/*' --output-file coverage.info
+                COMMAND genhtml --branch-coverage --rc lcov_branch_coverage=1 coverage.info --output-directory coverage_html
                 WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         )
     endif ()
