@@ -12,11 +12,13 @@ namespace ovs::ut {
 using namespace virt::ovs::ubse::urma;
 
 static int g_urmaFakeHandle = 0;
+static int g_minBw = 10;
+static int g_maxBw = 100;
 
 static uint32_t MockGetBw(const char*, uint32_t* minBw, uint32_t* maxBw)
 {
-    if (minBw) *minBw = 10;
-    if (maxBw) *maxBw = 100;
+    if (minBw) *minBw = g_minBw;
+    if (maxBw) *maxBw = g_maxBw;
     return 0;
 }
 static uint32_t MockSetBw(const char*, uint32_t, uint32_t)
@@ -52,14 +54,14 @@ TEST_F(TestUrmaUtility, GetBandWidth_Success)
     uint32_t minBw = 0;
     uint32_t maxBw = 0;
     EXPECT_EQ(utility.GetBandWidth("dev", minBw, maxBw), 0u);
-    EXPECT_EQ(minBw, 10u);
-    EXPECT_EQ(maxBw, 100u);
+    EXPECT_EQ(minBw, g_minBw);
+    EXPECT_EQ(maxBw, g_maxBw);
 }
 
 TEST_F(TestUrmaUtility, SetBandWidth_Success)
 {
     UrmaUtility utility;
-    EXPECT_EQ(utility.SetBandWidth("dev", 10, 100), 0u);
+    EXPECT_EQ(utility.SetBandWidth("dev", g_minBw, g_maxBw), 0u);
 }
 
 TEST_F(TestUrmaUtility, ResetBandWidth_Success)
