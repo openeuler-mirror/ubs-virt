@@ -11,29 +11,35 @@
 
 using namespace virt::ovs::config;
 
-namespace ovs::ut {
+namespace ovs::ut
+{
 
-void TestConfigModule::SetUp() {}
-void TestConfigModule::TearDown() {
+void TestConfigModule::SetUp()
+{}
+void TestConfigModule::TearDown()
+{
     GlobalMockObject::verify();
     GlobalMockObject::reset();
 }
 
-TEST_F(TestConfigModule, IsValidNumber) {
+TEST_F(TestConfigModule, IsValidNumber)
+{
     EXPECT_TRUE(IsValidNumber("123", false));
     EXPECT_FALSE(IsValidNumber("-123", false));
     EXPECT_TRUE(IsValidNumber("-123.45", true));
     EXPECT_FALSE(IsValidNumber("abc", false));
 }
 
-TEST_F(TestConfigModule, TrimConf) {
+TEST_F(TestConfigModule, TrimConf)
+{
     auto [sec, key, val] = TrimConf(" sec ", " key ", " val ");
     EXPECT_EQ(sec, "sec");
     EXPECT_EQ(key, "key");
     EXPECT_EQ(val, "val");
 }
 
-TEST_F(TestConfigModule, GetConf_Types) {
+TEST_F(TestConfigModule, GetConf_Types)
+{
     auto& mgr = ConfigManager::GetInstance();
     mgr.configMap["type_sec"]["uint_key"] = "42";
     mgr.configMap["type_sec"]["ulong_key"] = "10000000000";
@@ -63,7 +69,8 @@ TEST_F(TestConfigModule, GetConf_Types) {
     EXPECT_TRUE(bval);
 }
 
-TEST_F(TestConfigModule, GetConf_InvalidType) {
+TEST_F(TestConfigModule, GetConf_InvalidType)
+{
     ConfigModule mod;
     int unsupported;
     EXPECT_EQ(mod.GetConf("type_sec", "any", unsupported), ConfigCode::VALUE_TYPE_NOT_SUPPORTED);

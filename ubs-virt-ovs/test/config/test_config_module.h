@@ -8,8 +8,10 @@
 #include "gtest/gtest.h"
 #include "mockcpp/mockcpp.hpp"
 
-namespace ovs::ut {
-class TestConfigModule : public testing::Test {
+namespace ovs::ut
+{
+class TestConfigModule : public testing::Test
+{
 public:
     TestConfigModule() = default;
     void SetUp() override;

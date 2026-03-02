@@ -9,8 +9,10 @@
 #include "gtest/gtest.h"
 #include "mockcpp/mockcpp.hpp"
 
-namespace ovs::ut {
-class TestUrmaUtility : public testing::Test {
+namespace ovs::ut
+{
+class TestUrmaUtility : public testing::Test
+{
 public:
     TestUrmaUtility() = default;
     void SetUp() override;

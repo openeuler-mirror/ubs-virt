@@ -8,34 +8,41 @@
 #include "urma_utility.h"
 #undef private
 
-namespace ovs::ut {
+namespace ovs::ut
+{
 using namespace virt::ovs::ubse::urma;
 
 static int g_urmaFakeHandle = 0;
 
-static uint32_t MockGetBw(const char*, uint32_t* minBw, uint32_t* maxBw) {
+static uint32_t MockGetBw(const char*, uint32_t* minBw, uint32_t* maxBw)
+{
     if(minBw) *minBw = 10;
     if(maxBw) *maxBw = 100;
     return 0;
 }
-static uint32_t MockSetBw(const char*, uint32_t, uint32_t) { return 0; }
-static uint32_t MockResetBw(const char*) { return 0; }
+static uint32_t MockSetBw(const char*, uint32_t, uint32_t)
+{ return 0; }
+static uint32_t MockResetBw(const char*)
+{ return 0; }
 
-static void* MockDlsym(void* handle, const char* symbol) {
+static void* MockDlsym(void* handle, const char* symbol)
+{
     if (std::string(symbol) == "ubs_urma_bandwidth_get") return (void*)MockGetBw;
     if (std::string(symbol) == "ubs_urma_bandwidth_set") return (void*)MockSetBw;
     if (std::string(symbol) == "ubs_urma_bandwidth_reset") return (void*)MockResetBw;
     return nullptr;
 }
 
-void TestUrmaUtility::SetUp() {
+void TestUrmaUtility::SetUp()
+{
     MOCKER(dlopen).stubs().with(any(), any()).will(returnValue((void*)&g_urmaFakeHandle));
     
     // Instead of mockcpp string matching which is causing issues, map dlsym to a mock function
     MOCKER(dlsym).stubs().will(invoke(MockDlsym));
 }
 
-void TestUrmaUtility::TearDown() {
+void TestUrmaUtility::TearDown()
+{
     GlobalMockObject::verify();
     GlobalMockObject::reset();
 }
