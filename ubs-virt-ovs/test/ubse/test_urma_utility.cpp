@@ -15,8 +15,8 @@ static int g_urmaFakeHandle = 0;
 
 static uint32_t MockGetBw(const char*, uint32_t* minBw, uint32_t* maxBw)
 {
-    if(minBw) *minBw = 10;
-    if(maxBw) *maxBw = 100;
+    if (minBw) *minBw = 10;
+    if (maxBw) *maxBw = 100;
     return 0;
 }
 static uint32_t MockSetBw(const char*, uint32_t, uint32_t)
