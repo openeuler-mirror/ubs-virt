@@ -26,7 +26,8 @@ static uint32_t MockSetBw(const char*, uint32_t, uint32_t)
 static uint32_t MockResetBw(const char*)
 { return 0; }
 
-static void* MockDlsym(void* handle, const char* symbol)
+template <typename T>
+static void* MockDlsym(T handle, const char* symbol)
 {
     if (std::string(symbol) == "ubs_urma_bandwidth_get") return reinterpret_cast<void*>(MockGetBw);
     if (std::string(symbol) == "ubs_urma_bandwidth_set") return reinterpret_cast<void*>(MockSetBw);
@@ -39,7 +40,7 @@ void TestUrmaUtility::SetUp()
     MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(reinterpret_cast<void*>(&g_urmaFakeHandle)));
     
     // Instead of mockcpp string matching which is causing issues, map dlsym to a mock function
-    MOCKER(dlsym).stubs().will(invoke(MockDlsym));
+    MOCKER(dlsym).stubs().will(invoke(MockDlsym<void*>));
 }
 
 void TestUrmaUtility::TearDown()
