@@ -28,9 +28,9 @@ static const char* sym3 = "ubs_urma_bandwidth_reset";
 void TestUrmaUtility::SetUp() {
     MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(&g_urmaFakeHandle));
     
-    MOCKER(dlsym).stubs().with(any(), sm(sym1)).will(returnValue((void*)MockGetBw));
-    MOCKER(dlsym).stubs().with(any(), sm(sym2)).will(returnValue((void*)MockSetBw));
-    MOCKER(dlsym).stubs().with(any(), sm(sym3)).will(returnValue((void*)MockResetBw));
+    MOCKER(dlsym).stubs().with(any(), eq(sym1)).will(returnValue((void*)MockGetBw));
+    MOCKER(dlsym).stubs().with(any(), eq(sym2)).will(returnValue((void*)MockSetBw));
+    MOCKER(dlsym).stubs().with(any(), eq(sym3)).will(returnValue((void*)MockResetBw));
     MOCKER(dlsym).stubs().with(any(), any()).will(returnValue((void*)MockResetBw));
 }
 
