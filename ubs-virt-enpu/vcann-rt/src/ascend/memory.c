@@ -17,7 +17,7 @@
 
 RUNTIME_HOOK_DEFINE(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
 {
-    LOG_INFO("Hook mem rtMalloc size:%" PRIu64, size);
+    LOG_DEBUG("Hook mem rtMalloc size:%" PRIu64 ".", size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -27,7 +27,7 @@ RUNTIME_HOOK_DEFINE(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, co
 
 RUNTIME_HOOK_DEFINE(rtMallocCached, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
 {
-    LOG_INFO("Hook mem rtMallocCached size:%" PRIu64, size);
+    LOG_DEBUG("Hook mem rtMallocCached size:%" PRIu64 ".", size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -37,7 +37,7 @@ RUNTIME_HOOK_DEFINE(rtMallocCached, void **devPtr, uint64_t size, rtMemType_t ty
 
 RUNTIME_HOOK_DEFINE(rtDvppMalloc, void **devPtr, uint64_t size, uint16_t moduleId)
 {
-    LOG_INFO("Hook mem rtDvppMalloc size:%" PRIu64, size);
+    LOG_DEBUG("Hook mem rtDvppMalloc size:%" PRIu64 ".", size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -47,7 +47,7 @@ RUNTIME_HOOK_DEFINE(rtDvppMalloc, void **devPtr, uint64_t size, uint16_t moduleI
 
 RUNTIME_HOOK_DEFINE(rtDvppMallocWithFlag, void **devPtr, uint64_t size, uint32_t flag, const uint16_t moduleId)
 {
-    LOG_INFO("Hook mem rtDvppMallocWithFlag size:%" PRIu64, size);
+    LOG_DEBUG("Hook mem rtDvppMallocWithFlag size:%" PRIu64 ".", size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -57,7 +57,7 @@ RUNTIME_HOOK_DEFINE(rtDvppMallocWithFlag, void **devPtr, uint64_t size, uint32_t
 
 RUNTIME_HOOK_DEFINE(rtMemAlloc, void **devPtr, uint64_t size, rtMallocPolicy policy, rtMallocAdvise advise, rtMallocConfig_t *cfg)
 {
-    LOG_INFO("Hook mem rtMemAlloc size:%" PRIu64, size);
+    LOG_DEBUG("Hook mem rtMemAlloc size:%" PRIu64 ".", size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -67,7 +67,7 @@ RUNTIME_HOOK_DEFINE(rtMemAlloc, void **devPtr, uint64_t size, rtMallocPolicy pol
 
 RUNTIME_HOOK_DEFINE(rtMemAllocManaged, void **ptr, uint64_t size, uint32_t flag, const uint16_t moduleId)
 {
-    LOG_INFO("Hook mem rtMemAllocManaged size:%" PRIu64, size);
+    LOG_DEBUG("Hook mem rtMemAllocManaged size:%" PRIu64 ".", size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -77,7 +77,7 @@ RUNTIME_HOOK_DEFINE(rtMemAllocManaged, void **ptr, uint64_t size, uint32_t flag,
 
 RUNTIME_HOOK_DEFINE(rtMallocPhysical, rtDrvMemHandle *handle, size_t size, rtDrvMemProp_t *prop, uint64_t flags)
 {
-    LOG_INFO("Hook mem rtMallocPhysical size:%zd", size);
+    LOG_DEBUG("Hook mem rtMallocPhysical size:%zd.", size);
     int ret = guard_memory(size);
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -88,7 +88,7 @@ RUNTIME_HOOK_DEFINE(rtMallocPhysical, rtDrvMemHandle *handle, size_t size, rtDrv
 RUNTIME_HOOK_DEFINE(rtMemGetInfoEx, rtMemInfoType_t memInfoType, size_t *freeSize, size_t *totalSize)
 {
     enpu_global_init();
-    LOG_INFO("Hook mem rtMemGetInfoEx.");
+    LOG_DEBUG("Hook mem rtMemGetInfoEx.");
     size_t quota = get_mem_limit_quota();
     size_t used;
     int ret = get_mem_used(&used);

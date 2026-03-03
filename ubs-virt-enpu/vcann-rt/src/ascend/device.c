@@ -40,8 +40,8 @@ RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
     }
 
     devId = get_device_id();
-    LOG_INFO("Hook init rtSetDevice devId:%" PRIi32, devId);
-    LOG_INFO("Hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.",
+    LOG_DEBUG("Hook init rtSetDevice devId:%" PRIi32 ".", devId);
+    LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.",
         VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
     return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDevice, devId);
@@ -55,8 +55,8 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
     }
 
     devId = get_device_id();
-    LOG_INFO("Hook init rtSetDeviceEx devId:%" PRIi32, devId);
-    LOG_INFO("Hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.",
+    LOG_DEBUG("Hook init rtSetDeviceEx devId:%" PRIi32 ".", devId);
+    LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.",
         VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
     return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceEx, devId);
@@ -70,8 +70,8 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceWithFlags, int32_t devId, uint64_t flags)
     }
 
     devId = get_device_id();
-    LOG_INFO("Hook init rtSetDeviceWithFlags devId:%" PRIi32, devId);
-    LOG_INFO("Hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.",
+    LOG_DEBUG("Hook init rtSetDeviceWithFlags devId:%" PRIi32 ".", devId);
+    LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.",
         VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
     return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceWithFlags, devId, flags);
@@ -85,8 +85,8 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceWithoutTsd, int32_t devId)
     }
 
     devId = get_device_id();
-    LOG_INFO("Hook init rtSetDeviceWithoutTsd devId:%" PRIi32, devId);
-    LOG_INFO("Hook modify cur VNPU_SCHEULE_PERIOD is: %zd, limit is %zd.",
+    LOG_DEBUG("Hook init rtSetDeviceWithoutTsd devId:%" PRIi32 ".", devId);
+    LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.",
         VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
     return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceWithoutTsd, devId);
