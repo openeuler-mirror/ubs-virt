@@ -76,6 +76,7 @@ extern bool is_core_limit(void);
 extern bool is_mem_limit(void);
 extern uint8_t get_core_limit_quota(void);
 extern size_t get_mem_limit_quota(void);
+extern void set_mem_limit_quota(size_t mem);
 extern char *get_vnpu_shm_id(void);
 extern int get_mem_used(size_t *used);
 extern uint8_t get_device_id(void);

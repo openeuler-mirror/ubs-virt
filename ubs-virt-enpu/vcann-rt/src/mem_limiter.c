@@ -14,6 +14,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <acl/acl.h>
+#include <runtime/rt.h>
+#include "runtime_hook.h"
 #include "mem_limiter.h"
 
 bool memory_check(size_t requested)
