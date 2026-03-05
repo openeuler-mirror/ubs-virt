@@ -57,6 +57,8 @@ int check_config()
 
 int load_int32(const char *key, const char *value, int32_t *ret_value)
 {
+    CHECK_COND_RETURN_ERROR_CODE(((key == NULL) || (value == NULL) || (ret_value == NULL)),
+        "Input para contains NULL!");
     errno = 0;
     char *endptr = NULL;
     int32_t result = (int32_t) strtoul(value, endptr, TEN_BASE);
@@ -69,6 +71,8 @@ int load_int32(const char *key, const char *value, int32_t *ret_value)
 
 int load_str(const char *key, const char *value, char *ret_value, size_t ret_len)
 {
+    CHECK_COND_RETURN_ERROR_CODE(((key == NULL) || (value == NULL) || (ret_value == NULL)),
+        "Input para contains NULL!");
     if (strlen(value) > ret_len) {
         LOG_ERROR("Failed to load config: %s, value length (which is %lu)exceed buffer size %zu",
             key, strlen(value), ret_len);
