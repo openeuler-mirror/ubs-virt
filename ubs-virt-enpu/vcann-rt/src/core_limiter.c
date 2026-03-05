@@ -138,10 +138,6 @@ bool vnpu_sched_need_skip(void)
 
 void vnpu_idling(void)
 {
-    if (get_sched_policy() != SCHED_POLICY_FIXED_SHARE) {
-        return;
-    }
-
     int npu_core_limit_quota = 0;
     for (int i = 0; i < MAX_VNPU; ++i) {
         if (is_vnpu_alive(i)) {
@@ -154,10 +150,9 @@ void vnpu_idling(void)
     ns_sleep((HUNDRED_PERCENT - npu_core_limit_quota) * VNPU_SCHEULE_PERIOD / HUNDRED_PERCENT);
 }
 
-void select_next_owner(void)
+int select_next_owner(int vnpu_id)
 {
     int next_vnpu_id = -1;
-    int vnpu_id = atomic_load(&g_vnpu_sched_context->owner);
 
     for (int i = 1; i <= MAX_VNPU; ++i) {
         if (is_vnpu_alive((vnpu_id + i) % MAX_VNPU)) {
@@ -166,17 +161,21 @@ void select_next_owner(void)
         }
     }
 
-    if (next_vnpu_id != -1) {
-        if (next_vnpu_id <= vnpu_id) {
-            vnpu_idling();
-        }
-        atomic_store(&g_vnpu_sched_context->owner, next_vnpu_id);
-    }
-
-    return;
+    return next_vnpu_id;
 }
 
-void clear_streams(void)
+void set_vnpu_and_idle(int vnpu_id, int next_vnpu_id)
+{
+    if (next_vnpu_id == -1) {
+        return;
+    }
+    if (get_sched_policy() == SCHED_POLICY_FIXED_SHARE && next_vnpu_id <= vnpu_id) {
+        vnpu_idling();
+    }
+    atomic_store(&g_vnpu_sched_context->owner, next_vnpu_id);
+}
+
+void synchronize_and_clear_streams(void)
 {
     int remaining_count = 0;
     for (int i = 0; i < g_cache_streams.num_streams; ++i) {
@@ -184,45 +183,26 @@ void clear_streams(void)
         bool capture = 0;
         int rc = hashmap_get_capture_status(stream_map, (void*)stm, &capture);
         if (capture) {
-            LOG_DEBUG("Stream %p is in capture, keep in stream cache.", (void*)stm);
-            if (remaining_count < i) {
-                g_cache_streams.streams[remaining_count] = stm;
-                g_cache_streams.streams[i] = NULL;
-            }
-            remaining_count++;
-            continue;
-        }
-        g_cache_streams.streams[i] = NULL;
-        rc = hashmap_remove(stream_map, (void*)stm);
-    }
-    g_cache_streams.num_streams = remaining_count;
-}
-
-void synchronize_all_streams(void)
-{
-    for (int i = 0; i < g_cache_streams.num_streams; ++i) {
-        rtStream_t stm = g_cache_streams.streams[i];
-        bool capture = 0;
-        int rc = hashmap_get_capture_status(stream_map, (void*)stm, &capture);
-        if (capture) {
-            LOG_DEBUG("Stream %p is in capture, skip synchronization.", (void*)stm);
+            LOG_DEBUG("Stream %p is in capture, skip synchronization and clear.", (void*)stm);
+            g_cache_streams.streams[remaining_count++] = stm;
             continue;
         }
         LOG_DEBUG("Stream %p is being synchronized.", (void*)stm);
         RUNTIME_HOOK_CALL(rt_library_entry, rtStreamSynchronize, stm);
         LOG_DEBUG("Stream synchronization end.");
+        rc = hashmap_remove(stream_map, (void*)stm);
     }
+    g_cache_streams.num_streams = remaining_count;
 }
 
 void compensate_delta_time(void)
 {
     uint64_t begin = ns_now();
-    synchronize_all_streams();
+    synchronize_and_clear_streams();
     set_core_cur_timeslice(get_core_cur_timeslice() - (ns_now() - begin));
-    clear_streams();
 }
 
-bool add_and_consume_time_slice(void)
+bool add_and_consume_time_slice(uint8_t *turn_id)
 {
     uint64_t now = ns_now();
     uint64_t timeslice = get_core_cur_timeslice() + get_core_quota_timeslice();
@@ -231,9 +211,17 @@ bool add_and_consume_time_slice(void)
         return false;
     }
 
+    pthread_mutex_unlock(&g_sched_mutex);
+
     uint64_t end = now + timeslice;
     set_core_cur_timeslice(0ULL);
-    pthread_mutex_unlock(&g_sched_mutex);
+
+    // For Determining whether the current round of scheduling is complete for a container with multiple threads.
+    *turn_id = atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]);
+
+    int vnpu_id = atomic_load(&g_vnpu_sched_context->owner);
+    int next_vnpu_id = select_next_owner(vnpu_id);
+
     while (end > now) {
         now = ns_now();
         if (vnpu_sched_need_skip()) {
@@ -245,6 +233,7 @@ bool add_and_consume_time_slice(void)
     atomic_store(&g_sched_locking, true);
     pthread_mutex_lock(&g_sched_mutex);
     atomic_store(&g_sched_locking, false);
+    set_vnpu_and_idle(vnpu_id, next_vnpu_id);
     return true;
 }
 
@@ -256,6 +245,7 @@ void *vnpu_scheduler_flush_thread(void *arg)
         atomic_store(&g_vnpu_sched_context->last_alive_time_ns[g_vnpu_id], now);
         ns_sleep(VNPU_FLUSH_PERIOD);
     }
+    return;
 }
 
 int calculate_alive_vnpu_num(void)
@@ -274,6 +264,7 @@ void *npu_utilization_monitor_thread(void *arg)
     (void)arg;
     uint8_t utilization_rate = 0;
     uint64_t begin = ns_now();
+    atomic_store(&g_vnpu_sched_context->last_slide_window_time_ns, begin);
     int ret = enpu_dcmi_get_device_utilization_rate(get_card_id(), get_device_id(), &utilization_rate);
     if (ret != ENPU_SUCCESS) {
         LOG_ERROR("DCMI call failed with ret: %d.", ret);
@@ -321,6 +312,7 @@ void *npu_utilization_monitor_thread(void *arg)
     if (new_window != current_window) {
         atomic_store(&g_vnpu_sched_context->slide_window_len, new_window);
     }
+    return;
 }
 
 bool slide_window_check(int owner)
@@ -344,12 +336,8 @@ void check_and_borrow_timeslice(int owner)
 {
     if (owner == g_vnpu_id) {
         // Check and update slide_window_len, no borrow here
-        bool check = check_timeout(
-            &g_vnpu_sched_context->last_slide_window_time_ns, WATTING_SLIDE_WINDOW_TIMEOUT_PERIOD);
-        if (!check) {
-            uint64_t now = ns_now();
-            atomic_store(&g_vnpu_sched_context->last_slide_window_time_ns, now);
-
+        if (!check_timeout(&g_vnpu_sched_context->last_slide_window_time_ns,
+            WATTING_SLIDE_WINDOW_TIMEOUT_PERIOD)) {
             pthread_t thread;
             int rc = pthread_create(&thread, NULL, npu_utilization_monitor_thread, NULL);
             CHECK_ERROR_CODE(rc, "Failed to create npu_utilization_monitor_thread.");
@@ -368,6 +356,7 @@ void check_and_borrow_timeslice(int owner)
 void *vnpu_scheduler_thread(void *arg)
 {
     (void)arg;
+    uint8_t turn_id = -1;
     // For scheduler thread:
     //     holding mutex: user can not launch task by core_limiter
     //     release mutex: user can launch task by core_limiter
@@ -384,17 +373,15 @@ void *vnpu_scheduler_thread(void *arg)
 
         if (owner != g_vnpu_id) {
             if (!is_vnpu_alive(owner)) {
-                select_next_owner();
+                int vnpu_id = atomic_load(&g_vnpu_sched_context->owner);
+                set_vnpu_and_idle(vnpu_id, select_next_owner(vnpu_id));
             }
             ns_sleep(WAITING_SLEEP_PERIOD);
             continue;
         }
 
-        // For Determining whether the current round of scheduling is complete for a container with multiple threads.
-        uint8_t turn_id = atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]);
-
         // Consumption time slice. The lock is released to the user process within the specified time.
-        bool flag = add_and_consume_time_slice();
+        bool flag = add_and_consume_time_slice(&turn_id);
 
         // Only one thread is accepted.
         int rc = pthread_mutex_lock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
@@ -413,13 +400,13 @@ void *vnpu_scheduler_thread(void *arg)
             if (flag) {
                 compensate_delta_time();
             }
-            select_next_owner();
             atomic_store(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id], turn_id + 1);
         }
         pthread_mutex_unlock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
     }
     hashmap_destroy(stream_map);
     hashmap_destroy(event_map);
+    return;
 }
 
 void share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
