@@ -550,22 +550,22 @@ void set_event_wait_status(void* evt, rtStream_t stm)
     }
 }
 
-void set_event_create_status(rtEvent_t evt)
+void set_event_create_status(void* evt)
 {
-    int rc = hashmap_put(event_map, (void*)evt, NULL, false);
+    int rc = hashmap_put(event_map, evt, NULL, false);
     CHECK_COND_RETURN(rc == -1, "Error: Event hash map put event %p failed.", evt);
 }
 
-void set_event_record_status(rtEvent_t evt, rtStream_t stm)
+void set_event_record_status(void* evt, rtStream_t stm)
 {
     MapValue event_status;
-    int rc = hashmap_get(event_map, (void*)evt, &event_status);
+    int rc = hashmap_get(event_map, evt, &event_status);
     void* head_stream = NULL;
     rc = hashmap_get_ptr(stream_map, (void*)stm, &head_stream);
     // capture
     if (head_stream != NULL) {
-        rc = hashmap_put(event_map, (void*)evt, head_stream, true);
-        LOG_DEBUG("Event %p capture status is updated to true in recording.", (void*)evt);
+        rc = hashmap_put(event_map, evt, head_stream, true);
+        LOG_DEBUG("Event %p capture status is updated to true in recording.", evt);
     }
 }
 
@@ -585,7 +585,7 @@ void remove_stream(void* unused, rtStream_t stm)
     }
 }
 
-void set_event_destroy_status(rtEvent_t evt)
+void set_event_destroy_status(void* evt)
 {
-    (void)hashmap_remove(event_map, (void*)evt);
+    (void)hashmap_remove(event_map, evt);
 }
