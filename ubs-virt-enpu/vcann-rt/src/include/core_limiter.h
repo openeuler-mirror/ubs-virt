@@ -64,11 +64,11 @@ extern atomic_int waitEventCount;
 extern int aicore_limiter_initialize(void);
 extern void core_limiter(rtStream_t stream, core_function func, void* param);
 extern void set_stream_capture(rtStream_t stream, void* capture);
-extern void set_event_create_status(rtEvent_t evt);
+extern void set_event_create_status(void* evt);
 extern void set_event_wait_status(void* evt, rtStream_t stm);
-extern void set_event_record_status(rtEvent_t evt, rtStream_t stm);
+extern void set_event_record_status(void* evt, rtStream_t stm);
 extern void remove_stream(rtEvent_t evt, rtStream_t stm);
-extern void set_event_destroy_status(rtEvent_t evt);
+extern void set_event_destroy_status(void* evt);
 uint64_t ns_now(void);
 
 #if defined(__cplusplus)
