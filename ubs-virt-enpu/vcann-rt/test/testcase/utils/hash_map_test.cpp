@@ -17,12 +17,10 @@
 #include <atomic>
 #include "runtime_stub.h"
 #include "securec.h"
+#include "hash_map.h"
 #include "mem_limiter.h"
 #include "npu_manager.h"
 #include "log.h"
-extern "C" {
-    #include "hash_map.h" 
-}
 
 using namespace testing;
 
@@ -90,7 +88,7 @@ TEST_F(HashMapTest, hashmap_put_old_node)
     void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(map->size, 1);
-    void* ptr1 = einterpret_cast<void*>(120);
+    void* ptr1 = reinterpret_cast<void*>(120);
     void* ret_ptr = nullptr;
     ret = hashmap_put(map, key, ptr1, false);
     EXPECT_EQ(map->size, 1);
