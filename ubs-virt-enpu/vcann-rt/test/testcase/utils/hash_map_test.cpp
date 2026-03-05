@@ -21,13 +21,13 @@
 #include "npu_manager.h"
 #include "log.h"
 extern "C" {
-#include "hash_map.h" 
+    #include "hash_map.h" 
 }
 
 using namespace testing;
 
 class HashMapTest : public testing::Test {
-    protected:
+protected:
     static void SetUpTestCase()
     {
         std::cout<<"Hash map test start"<<std::endl;
@@ -73,11 +73,11 @@ TEST_F(HashMapTest, hashmap_put_success)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(map->size, 1);
-    void* ptr1 = (void*)120;
+    void* ptr1 = reinterpret_cast<void*>(120);
     ret = hashmap_put(map, key, ptr1, false);
 }
 
@@ -86,11 +86,11 @@ TEST_F(HashMapTest, hashmap_put_old_node)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(map->size, 1);
-    void* ptr1 = (void*)120;
+    void* ptr1 = einterpret_cast<void*>(120);
     void* ret_ptr = nullptr;
     ret = hashmap_put(map, key, ptr1, false);
     EXPECT_EQ(map->size, 1);
@@ -104,7 +104,7 @@ TEST_F(HashMapTest, hashmap_put_key_nullptr)
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
     void* key = nullptr;
-    void* ptr = (void*)110;
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(ret, -1);
 }
@@ -114,8 +114,8 @@ TEST_F(HashMapTest, hashmap_get_success)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(map->size, 1);
     MapValue value;
@@ -129,8 +129,8 @@ TEST_F(HashMapTest, hashmap_get_key_nullptr)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(map->size, 1);
     MapValue value;
@@ -144,8 +144,8 @@ TEST_F(HashMapTest, hashmap_get_ptr_success)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(map->size, 1);
     void* ret_ptr = nullptr;
@@ -159,8 +159,8 @@ TEST_F(HashMapTest, hashmap_get_ptr_key_nullptr)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(map->size, 1);
     void* ret_ptr = nullptr;
@@ -174,8 +174,8 @@ TEST_F(HashMapTest, hashmap_get_capture_status_success)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(map->size, 1);
     bool capture_status;
@@ -189,8 +189,8 @@ TEST_F(HashMapTest, hashmap_get_capture_status_key_nullptr)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(map->size, 1);
     bool capture_status;
@@ -204,8 +204,8 @@ TEST_F(HashMapTest, hashmap_remove_success)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(map->size, 1);
     ret = hashmap_remove(map, key);
@@ -218,8 +218,8 @@ TEST_F(HashMapTest, hashmap_remove_key_nullptr)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(map->size, 1);
     key = nullptr;
@@ -232,8 +232,8 @@ TEST_F(HashMapTest, hashmap_contains_success)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(map->size, 1);
     ret = hashmap_contains(map, key);
@@ -245,8 +245,8 @@ TEST_F(HashMapTest, hashmap_contains_map_nullptr)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(map->size, 1);
     key = nullptr;
@@ -259,8 +259,8 @@ TEST_F(HashMapTest, hashmap_size_test)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(ret, 0);
     ret = hashmap_size(map);
@@ -272,8 +272,8 @@ TEST_F(HashMapTest, hashmap_destroy_test)
     size_t cap = 10;
     HashMap* map = hashmap_create(cap);
     EXPECT_NE(map, nullptr);
-    void* key = (void*)100;
-    void* ptr = (void*)110;
+    void* key = reinterpret_cast<void*>(100);
+    void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
     EXPECT_EQ(ret, 0);
     hashmap_destroy(map);
