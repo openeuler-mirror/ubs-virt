@@ -43,6 +43,7 @@ set(VNPU_TESTCASE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/ascend/task_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/utils/utils_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/utils/config_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/utils/hash_map_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/npu_manager_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/core_limiter_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/log_test.cpp
