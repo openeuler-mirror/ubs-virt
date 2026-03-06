@@ -1046,7 +1046,7 @@ DynamicBitset ClusterSched::GetDomainCpuMask(const std::vector<VmDomain> &domain
  */
 VasRet ClusterSched::GetVmCgroupPath(const std::string &uuid, fs::path &cpuPath)
 {
-    void *domainConn = nullptr;
+    virDomainPtr domainConn = nullptr;
     if (const auto ret = LibvirtHelper::GetInstance().GetDomainConnByUUID(uuid, domainConn);
         isVasRetFail(ret) || !domainConn) {
         LOG_ERROR("Get domain connect by uuid failed. uuid=" + uuid);
