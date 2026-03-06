@@ -189,8 +189,7 @@ TEST_F(LogTest, LogTest_compress_file)
 TEST_F(LogTest, LogTest_update_log_file)
 {
     int ret = update_log_file();
-    // temp ENPU_FAIL need further debug
-    EXPECT_EQ(ret, ENPU_FAIL);
+    EXPECT_EQ(ret, ENPU_SUCCESS);
 
     RemoveMockFiles();
 }
