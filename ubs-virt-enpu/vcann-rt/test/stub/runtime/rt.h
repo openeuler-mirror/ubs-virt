@@ -36,7 +36,6 @@ typedef void *rtFftsPlusTaskInfo_t;
 typedef void *rtFftsTaskInfo_t;
 typedef void *rtKernelLaunchNames_t;
 typedef uint32_t rtMemType_t;
-typedef uint32_t rtMemInfoType_t;
 typedef void *rtModel_t;
 typedef void *rtNotify_t;
 typedef void *rtSmDesc_t;
@@ -99,6 +98,21 @@ typedef struct {
     rtMallocAttribute_t *attrs;
     size_t numAttrs;
 } rtMallocConfig_t;
+
+typedef enum tagRtMemInfoType {
+    RT_MEMORYINFO_DDR,
+    RT_MEMORYINFO_HBM,
+    RT_MEMORYINFO_DDR_HUGE,               // Hugepage memory of DDR
+    RT_MEMORYINFO_DDR_NORMAL,             // Normal memory of DDR
+    RT_MEMORYINFO_HBM_HUGE,               // Hugepage memory of HBM
+    RT_MEMORYINFO_HBM_NORMAL,             // Normal memory of HBM
+    RT_MEMORYINFO_DDR_P2P_HUGE,           // Hugepage memory of DDR
+    RT_MEMORYINFO_DDR_P2P_NORMAL,         // Normal memory of DDR
+    RT_MEMORYINFO_HBM_P2P_HUGE,           // Hugepage memory of HBM
+    RT_MEMORYINFO_HBM_P2P_NORMAL,         // Normal memory of HBM
+    RT_MEMORYINFO_HBM_HUGE1G,             // 1G HugePage memory of HBM
+    RT_MEMORYINFO_HBM_P2P_HUGE1G,         // 1G HugePage memory of HBM
+} rtMemInfoType_t;
 
 #define RUNTIME_FUNCTION_LIST                                                                                \
     RUNTIME_FUNCTION_ENTRY(rtSetDevice, int32_t devId)                                                       \

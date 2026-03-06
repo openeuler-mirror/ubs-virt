@@ -9,6 +9,9 @@
 * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 * See the Mulan PSL v2 for more details.
 */
+
+#include <runtime/rt.h>
+#include "runtime_hook.h"
 #include "common.h"
 #include "dcmi_wrapper.h"
 #include "core_limiter.h"
@@ -18,6 +21,7 @@
 #include "npu_manager.h"
 
 pthread_once_t once_init = PTHREAD_ONCE_INIT;
+pthread_once_t post_init_flag = PTHREAD_ONCE_INIT;
 static struct npu_info g_npu_info = {0};
 
 bool is_mem_limit(void)
@@ -33,6 +37,11 @@ bool is_core_limit(void)
 size_t get_mem_limit_quota(void)
 {
     return g_npu_info.mem_limit_quota;
+}
+
+void set_mem_limit_quota(size_t mem)
+{
+    g_npu_info.mem_limit_quota = mem;
 }
 
 uint8_t get_core_limit_quota(void)
@@ -177,4 +186,26 @@ static void __enpu_global_init(void)
 void enpu_global_init(void)
 {
     pthread_once(&once_init, __enpu_global_init);
+}
+
+void __enpu_global_init_post(void)
+{
+    size_t freeSize = 0;
+    size_t totalSize = 0;
+    size_t appliedSize = get_mem_limit_quota();
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtMemGetInfoEx, RT_MEMORYINFO_HBM, &freeSize, &totalSize);
+    LOG_DEBUG("Call rtMemGetInfoEx return:%d, free HBM size:%zu, total HBM size:%zu, user applied HBM size:%zu.",
+        ret, freeSize, totalSize, appliedSize);
+    CHECK_COND_LOG_((ret != RT_ERROR_NONE),
+        "Get avaliable HBM size failed! ret:%d, freeSize:%zu, totalSize:%zu.", ret, freeSize, totalSize);
+    if (appliedSize > totalSize) {
+        LOG_WARN("User appiled HBM size:%zd is bigger than total HBM size:%zd, now set mem_limit_quota to %zd.",
+            appliedSize, totalSize, totalSize);
+        set_mem_limit_quota(totalSize);
+    }
+}
+
+void enpu_global_init_post(void)
+{
+    pthread_once(&post_init_flag, __enpu_global_init_post);
 }

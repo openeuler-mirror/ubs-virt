@@ -44,7 +44,10 @@ RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
     LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.",
         VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
-    return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDevice, devId);
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtSetDevice, devId);
+    CHECK_COND_RETURN_((ret != ACL_RT_SUCCESS), ret, "Call rtSetDevice fails, ret:%d.", ret);
+    enpu_global_init_post();
+    return ACL_RT_SUCCESS;
 }
 
 RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
@@ -59,7 +62,10 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
     LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.",
         VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
-    return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceEx, devId);
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceEx, devId);
+    CHECK_COND_RETURN_((ret != ACL_RT_SUCCESS), ret, "Call rtSetDeviceEx fails, ret:%d.", ret);
+    enpu_global_init_post();
+    return ACL_RT_SUCCESS;
 }
 
 RUNTIME_HOOK_DEFINE(rtSetDeviceWithFlags, int32_t devId, uint64_t flags)
@@ -74,7 +80,10 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceWithFlags, int32_t devId, uint64_t flags)
     LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.",
         VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
-    return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceWithFlags, devId, flags);
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceWithFlags, devId, flags);
+    CHECK_COND_RETURN_((ret != ACL_RT_SUCCESS), ret, "Call rtSetDeviceWithFlags fails, ret:%d.", ret);
+    enpu_global_init_post();
+    return ACL_RT_SUCCESS;
 }
 
 RUNTIME_HOOK_DEFINE(rtSetDeviceWithoutTsd, int32_t devId)
@@ -89,5 +98,8 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceWithoutTsd, int32_t devId)
     LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.",
         VNPU_SCHEULE_PERIOD / NS_PER_MS, get_core_limit_quota());
     pthread_once(&pre_rt_init_flag, load_rt_libraries);
-    return RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceWithoutTsd, devId);
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceWithoutTsd, devId);
+    CHECK_COND_RETURN_((ret != ACL_RT_SUCCESS), ret, "Call rtSetDeviceWithoutTsd fails, ret:%d.", ret);
+    enpu_global_init_post();
+    return ACL_RT_SUCCESS;
 }

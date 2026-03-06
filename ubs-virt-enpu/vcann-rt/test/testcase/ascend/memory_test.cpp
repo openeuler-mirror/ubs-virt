@@ -65,7 +65,7 @@ TEST_F(MemoryTest, rtMalloc)
     EXPECT_EQ(error, RT_ERROR_NONE);
     size = MAX_ARR_SIZE;
     error = rtMalloc(devPtrsArr, size, type, moduleId);
-    EXPECT_EQ(error, RT_ERROR_NONE);
+    EXPECT_EQ(error, ACL_ERROR_STORAGE_OVER_LIMIT);
 }
 
 TEST_F(MemoryTest, rtMallocCached)
@@ -135,7 +135,7 @@ TEST_F(MemoryTest, rtMallocPhysical)
 
 TEST_F(MemoryTest, rtMemGetInfoEx)
 {
-    rtMemInfoType_t memInfoType = 0;
+    rtMemInfoType_t memInfoType = RT_MEMORYINFO_HBM;
     size_t freeSize = 0;
     size_t totalSize = 1;
     rtError_t error = rtMemGetInfoEx(memInfoType, &freeSize, &totalSize);
@@ -146,7 +146,7 @@ TEST_F(MemoryTest, rtMemGetInfoEx_FailTest)
 {
     static constexpr int32_t RT_ERROR_INVALID_VALUE = 0x07110001;
     MOCKER(get_mem_used, int(size_t *)).stubs().will(returnValue(-1));
-    rtMemInfoType_t memInfoType = 0;
+    rtMemInfoType_t memInfoType = RT_MEMORYINFO_HBM;
     size_t freeSize = 0;
     size_t totalSize = 1;
     rtError_t error = rtMemGetInfoEx(memInfoType, &freeSize, &totalSize);

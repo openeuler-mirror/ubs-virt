@@ -114,6 +114,13 @@ extern "C" {
         }                                                       \
     } while (false)
 
+#define CHECK_COND_LOG_(cond, error_msg, ...)             \
+    do {                                                 \
+        if (unlikely(cond)) {                            \
+            LOG_ERROR(error_msg, ##__VA_ARGS__);         \
+        }                                                \
+    } while (false)
+
 extern int get_config_value(const char *file_path, const char *key_name, char *buffer);
 
 #if defined(__cplusplus)
