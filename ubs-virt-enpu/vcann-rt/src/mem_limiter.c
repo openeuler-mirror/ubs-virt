@@ -25,10 +25,12 @@ bool memory_check(size_t requested)
     int ret = get_mem_used(&used);
     CHECK_COND_RETURN_(ret != 0, false, "get mem used failed.");
     size_t quota = get_mem_limit_quota();
-    if (requested + used > quota) {
-        LOG_ERROR("out of memory, request %zd B, used %zd B, quota %zd B", requested, used, quota);
-        return false;
-    }
+    size_t total;
+    bool result = __builtin_add_overflow(requested, used, &total);
+    CHECK_COND_RETURN_(result, false,
+        "User requested mem size too big! Request:%zu B, used:%zu B, quota:%zu B.", requested, used, quota);
+    CHECK_COND_RETURN_((total > quota), false,
+        "Out of memory! Request:%zu B, used:%zu B, quota:%zu B.", requested, used, quota);
     return true;
 }
 

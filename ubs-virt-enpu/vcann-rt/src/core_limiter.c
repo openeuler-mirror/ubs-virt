@@ -404,6 +404,7 @@ void *vnpu_scheduler_thread(void *arg)
         }
         pthread_mutex_unlock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
     }
+    pthread_mutex_unlock(&g_sched_mutex);
     hashmap_destroy(stream_map);
     hashmap_destroy(event_map);
     return;
@@ -499,6 +500,7 @@ int aicore_limiter_initialize(void)
     event_map = hashmap_create(MAX_EVENT_PER_PROCESS);
     if (!event_map) {
         LOG_ERROR("Event hash map init failed.");
+        hashmap_destroy(stream_map);
         return ENPU_FAIL;
     }
     return rc;
