@@ -45,21 +45,33 @@ long get_file_size(const char* filepath)
 
 int is_current_process(const char* filename)
 {
+    char* path_copy = strdup(filename);
+    if (!path_copy) {
+        return ENPU_FAIL;
+    }
+    char* base = basename(path_copy);
+    if (!base || *base == '\0') {
+        free(path_copy);
+        return ENPU_FAIL;
+    }
+
     char* token;
-    char* temp = strdup(filename);
+    char* temp = strdup(base);
     const int tokens_num = 5;
     char* tokens[tokens_num];
     int token_count = 0;
 
     const char* delimiter = "_";
-    token = strtok(temp, delimiter);
+    char* saveptr;
+    token = strtok_r(temp, delimiter, &saveptr);
     while ((token != NULL) && (token_count < tokens_num)) {
         tokens[token_count++] = token;
-        token = strtok(NULL, delimiter);
+        token = strtok_r(NULL, delimiter, &saveptr);
     }
-    free(temp);
 
     if (token_count < tokens_num) {
+        free(temp);
+        free(path_copy);
         return ENPU_FAIL;
     }
 
@@ -70,9 +82,13 @@ int is_current_process(const char* filename)
     const char flag = '\0';
     if (*endptr != flag) {
         fprintf(stderr, "Failed to get pid from log filename. now log filename is %s.\n", g_log_config.log_path);
+        free(temp);
+        free(path_copy);
         return ENPU_FAIL;
     }
 
+    free(temp);
+    free(path_copy);
     pid_t current_pid = getpid();
     if (pid_from_filename == (long)current_pid) {
         return ENPU_SUCCESS;
@@ -150,14 +166,15 @@ int compress_file()
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get zip file name with timestamp.");
     ret = snprintf_s(zip_file + strlen(zip_file), sizeof(zip_file), sizeof(zip_file) - strlen(zip_file), "%s", ZIP_EXT);
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get full zip file name.");
-    umask(SET_UMASK_FOR_440); // 默认权限440
     ret = snprintf_s(tar_cmd, sizeof(tar_cmd), sizeof(tar_cmd), "%s%s %s%s %s%s%d%s", TAR_CMD_PREFIX, zip_file,
         "--exclude=", g_log_config.log_path, g_log_config.log_dir, "*_", getpid(), "_*.log");
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get tar cmd.");
     ret = snprintf_s(rm_cmd, sizeof(rm_cmd), sizeof(rm_cmd), "%s%s %s%d%s%s%s", "find ", g_log_config.log_dir,
         "-type f -iname \"*_", getpid(), "_*.log\" ! -iwholename \"", g_log_config.log_path, "\" -exec rm -f {} \\;");
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get rm cmd.");
+    mode_t old_mask = umask(SET_UMASK_FOR_440); // 默认权限440
     int tar_exe_result = system(tar_cmd);
+    umask(old_mask);
     CHECK_COND_RETURN_ERROR_CODE_LOG(tar_exe_result != 0, "Compress files error, failed to execute tar command.");
     int rm_exe_result = system(rm_cmd);
     CHECK_COND_RETURN_ERROR_CODE_LOG(rm_exe_result != 0, "Compress files error, failed to execute rm command.");
@@ -181,7 +198,6 @@ int update_log_file()
     ret = strncpy_s(g_log_config.log_path, sizeof(g_log_config.log_path), log_path, sizeof(g_log_config.log_path) - 1);
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret != 0, "Failed to set g_log_config.log_path %s.", log_path);
 
-    umask(SET_UMASK_FOR_666); // 规避系统默认文件权限不一致问题
     if (creat(g_log_config.log_path, LOG_FILE_RIGHT) < 0) {
         perror("update log file error: Create new log file");
         return ENPU_FAIL;
