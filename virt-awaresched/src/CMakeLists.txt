@@ -1,5 +1,4 @@
 add_subdirectory(cli)
-add_subdirectory(libvirt_module)
 add_subdirectory(log)
 add_subdirectory(util)
 add_subdirectory(vasctl)

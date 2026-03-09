@@ -76,7 +76,6 @@ endif()
 
 # Set all executable output directories
 set(INCLUDE_DIR src/include)
-set(LIBVIRT_INCLUDE_DIR src/libvirt_module)
 set(UTIL_INCLUDE_DIR src/util)
 set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
 set(PROJECT_DEPS_DIR ${PROJECT_SOURCE_DIR}/deps)
@@ -84,6 +83,8 @@ set(SECURE_C_INCLUDE ${PROJECT_SOURCE_DIR}/deps/securec/include)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/static)
 set(PROJECT_TOP_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR})
+set(LIBVIRT_INCLUDE_DIR /usr/include/libvirt)
+set(LIBVIRT_LIB_PATH /usr/lib64/libvirt.so)
 # Print path information.
 message(STATUS "CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
 message(STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")

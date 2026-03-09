@@ -45,7 +45,6 @@ void VasdLooper::Stop()
     // join thread wait for exit
     eventThread.join();
     timerThread.join();
-    LibvirtModule::DeInit();
 }
 
 /**
