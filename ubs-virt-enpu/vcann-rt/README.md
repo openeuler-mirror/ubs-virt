@@ -353,14 +353,14 @@ vCANN-RT支持两种方式启动服务：
       -v /xxx/ld.so.preload:/etc/ld.so.preload \
       image_name /bin/bash
     ```
+
     如果遇到容器启动报错`libboundscheck.so: cannot open shared object file: No such file or directory`，则说明动态库libvruntime.so依赖的安全函数库在容器中无法找到。解决办法：
 
-      1）取消容器启动命令中的/etc/ld.so.preload的映射，并重新启动容器。
+      1. 取消容器启动命令中的/etc/ld.so.preload的映射，并重新启动容器。
 
-      2）参照文末FAQ中方法安装安全函数库，并确保动态库libvruntime.so能够正常链接。
+      2. 参照文末FAQ中方法安装安全函数库，并确保动态库libvruntime.so能够正常链接。
 
-      3）执行`export LD_PRELOAD=/opt/enpu/vcann-rt/lib/libvruntime.so`命令。
-
+      3. 执行`export LD_PRELOAD=/opt/enpu/vcann-rt/lib/libvruntime.so`命令。
 
     **表 4 参数说明**
 
@@ -422,4 +422,4 @@ vCANN-RT支持两种方式启动服务：
 
 3. 容器启动或者业务运行时报错`libboundscheck.so: cannot open shared object file: No such file or directory`：
 
-    由于软切分动态库在运行时依赖安全函数库，因此用户需要确保容器中存在安全函数库，可以参考 https://gitcode.com/openeuler/libboundscheck 完成构建部署。
+    由于软切分动态库在运行时依赖安全函数库，因此用户需要确保容器中存在安全函数库，可以参考 [https://gitcode.com/openeuler/libboundscheck](https://gitcode.com/openeuler/libboundscheck) 完成构建部署。
