@@ -1,6 +1,8 @@
 %{!?version:%global version 1.0.0}
 %{!?release:%global release 1}
 
+%define debug_package %{nil}
+
 Name:   ubs-virt-ovs
 Version:    %{version}
 Release:    %{release}%{?dist}
