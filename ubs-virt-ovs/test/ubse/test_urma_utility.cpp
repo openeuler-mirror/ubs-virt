@@ -37,7 +37,7 @@ static void* MockDlsym(T handle, const char* symbol)
 
 void TestUrmaUtility::SetUp()
 {
-    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(reinterpret_cast<void*>(&g_urmaFakeHandle)));
+    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(static_cast<void*>(&g_urmaFakeHandle)));
     
     // Instead of mockcpp string matching which is causing issues, map dlsym to a mock function
     MOCKER(dlsym).stubs().will(invoke(MockDlsym<void*>));
