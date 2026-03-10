@@ -13,7 +13,7 @@ BuildRequires: cmake make gcc-c++ gcc
 BuildRequires: libasan libasan-static
 BuildRequires: glibc-devel libstdc++-devel
 BuildRequires: systemd-devel
-BuildRequires: libboundscheck ubs-comm-devel libxml2-devel
+BuildRequires: libboundscheck libxml2-devel
 BuildRequires: numactl-libs
 BuildRequires: bash bc coreutils sudo util-linux-user ninja-build
 Requires: libboundscheck
