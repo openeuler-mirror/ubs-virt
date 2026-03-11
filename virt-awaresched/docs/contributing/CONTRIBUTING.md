@@ -11,21 +11,26 @@
 
 1. **Fork 本仓库** 到您的 GitCode 账号。
 2. **克隆 Fork 后的仓库**：
+
    ```bash
    git clone https://gitcode.com/<your-username>/ubs-virt.git
    cd virt-awaresched
    git remote add upstream https://gitcode.com/openeuler/ubs-virt.git
    ```
+
 3. **创建特性分支**（建议以 `feat/xxx` 或 `fix/xxx` 命名）：
+
    ```bash
    git checkout -b feat/modify-cluster-sched
    ```
+
 4. **开发并验证**：编写代码、补充测试、更新文档。
 5. **提交代码**（遵循 [提交规范](#commit-message-convention)）。
 6. **推送分支并发起 Pull Request（PR）** 到 `openeuler/ubs-virt:master`。
 7. **响应 Review 意见**，直至 PR 合并。
 
 > 💡 提示：请保持您的 fork 与上游仓库同步：
+>
 > ```bash
 > git fetch upstream
 > git rebase upstream/master
@@ -36,6 +41,7 @@
 ## 🛠️ 2. 开发环境与构建验证
 
 ### 推荐环境
+
 - **操作系统**：openEuler 24.03 LTS SP3 或更高版本
 - **编译器**：GCC ≥ 9.3 或 Clang ≥ 12
 - **构建工具**：CMake ≥ 3.18, Ninja（可选）
@@ -77,7 +83,7 @@ bash build.sh test [-C]
 
 提交信息格式参考 [Conventional Commits](https://www.conventionalcommits.org/)，便于自动生成 CHANGELOG：
 
-```
+```log
 <type>(<scope>): <subject>
 
 <body>
@@ -96,7 +102,8 @@ bash build.sh test [-C]
 - **body**（可选）：详细说明、关联 Issue 等
 
 ✅ 示例：
-```
+
+```info
 feat(mem): add round-robin scheduling algorithm
 
 - Implement basic round-robin allocator in MemScheduler
@@ -109,6 +116,7 @@ feat(mem): add round-robin scheduling algorithm
 ## 📚 5. 文档与注释
 
 - **公共 API** 必须使用 Doxygen 风格注释：
+
   ```cpp
   /**
    * @brief Allocate memory block from pool.
@@ -117,6 +125,7 @@ feat(mem): add round-robin scheduling algorithm
    */
   void* mem_alloc(size_t size);
   ```
+
 - 新增功能或架构变更需同步更新 `docs/` 下对应文档（如设计、API、示例）。
 
 ---
@@ -141,14 +150,14 @@ feat(mem): add round-robin scheduling algorithm
 
 ## ❓ 8. 获取帮助
 
-- 提交 Issue：[https://gitcode.com/openeuler/ ubs-virt/issues](https://gitcode.com/openeuler/ ubs-virt/issues)
+- 提交 Issue：[https://gitcode.com/openeuler/ubs-virt/issues](https://gitcode.com/openeuler/ubs-virt/issues)
 - openEuler 社区论坛：[https://gitcode.com/openeuler/community](https://gitcode.com/openeuler/community)
 
 ---
 
 ## 📄 许可证
 
-所有贡献代码将依据项目 LICENSE（Mulan PSL v2）开源。  
+所有贡献代码将依据项目 LICENSE（Mulan PSL v2）开源。
 提交 PR 即表示您同意您的贡献遵循该许可证条款。
 
 ---
