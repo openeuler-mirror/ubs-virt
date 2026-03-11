@@ -9,17 +9,16 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef UBSVIRTOVS_TEST_CLIENT_LIBRARY_H
-#define UBSVIRTOVS_TEST_CLIENT_LIBRARY_H
+#ifndef UBSVIRTOVS_TEST_CONFIG_MANAGER_H
+#define UBSVIRTOVS_TEST_CONFIG_MANAGER_H
 
-#include <dlfcn.h>
 #include "gtest/gtest.h"
 #include "mockcpp/mockcpp.hpp"
 
 namespace ovs::ut {
-class TestClientLibrary : public testing::Test {
+class TestConfigManager : public testing::Test {
 public:
-    TestClientLibrary() = default;
+    TestConfigManager() = default;
     void SetUp() override;
     void TearDown() override;
 };

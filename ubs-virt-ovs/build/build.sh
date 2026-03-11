@@ -10,8 +10,9 @@ ROOT_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
 
 # ============ build type ============
 BUILD_TYPE=${1:-relwithdebinfo}
+BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
 
-case "${BUILD_TYPE}" in
+case "${BUILD_TYPE_LOWER}" in
   debug)
     CMAKE_BUILD_TYPE=Debug
     RPM_RELEASE_SUFFIX=.debug

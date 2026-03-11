@@ -1,6 +1,8 @@
 %{!?version:%global version 1.0.0}
 %{!?release:%global release 1}
 
+%define debug_package %{nil}
+
 Name:   ubs-virt-ovs
 Version:    %{version}
 Release:    %{release}%{?dist}
@@ -13,7 +15,7 @@ BuildRequires: cmake make gcc-c++ gcc
 BuildRequires: libasan libasan-static
 BuildRequires: glibc-devel libstdc++-devel
 BuildRequires: systemd-devel
-BuildRequires: libboundscheck ubs-comm-devel libxml2-devel
+BuildRequires: libboundscheck libxml2-devel
 BuildRequires: numactl-libs
 BuildRequires: bash bc coreutils sudo util-linux-user ninja-build
 Requires: libboundscheck

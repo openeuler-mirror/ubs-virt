@@ -87,9 +87,9 @@ if (BUILD_TESTS)
         add_custom_target(coverage
                 COMMAND ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}
                 COMMAND ${TEST_BIN_DIR}/virt_ut --gtest_output=xml:${CMAKE_CURRENT_BINARY_DIR}/coverage/test_detail.xml
-                COMMAND lcov --capture --directory ${CMAKE_BINARY_DIR} --directory ${CMAKE_CURRENT_BINARY_DIR} --output-file coverage.info
-                COMMAND lcov --remove coverage.info '/usr/*' '*/deps/*' '*/test/*' --output-file coverage.info
-                COMMAND genhtml coverage.info --output-directory coverage_html
+                COMMAND lcov --capture --rc lcov_branch_coverage=1 --rc lcov_excl_br_line='.*__cxa_throw.*|.*__cxa_allocate_exception.*|.*__cxa_rethrow.*|.*std::.*' --directory ${CMAKE_BINARY_DIR} --directory ${CMAKE_CURRENT_BINARY_DIR} --output-file coverage.info
+                COMMAND lcov --rc lcov_branch_coverage=1 --rc lcov_excl_br_line='.*__cxa_throw.*|.*__cxa_allocate_exception.*|.*__cxa_rethrow.*|.*std::.*' --remove coverage.info '/usr/*' '*/deps/*' '*/test/*' --output-file coverage.info
+                COMMAND genhtml --ignore-errors source --branch-coverage --rc lcov_branch_coverage=1 coverage.info --output-directory coverage_html
                 WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         )
     endif ()
