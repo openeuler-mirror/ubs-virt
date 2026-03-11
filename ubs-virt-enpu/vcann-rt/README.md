@@ -8,12 +8,25 @@
 
 ### 软件版本
 
+##### Atlas A2 推理系列产品
+
 **表 1 软件版本**
 
 | 软件                | 版本                                                                        |
 |:---------------------|:-----------------------------------------------------------------------------|
 | CANN                | 8.5.0                                                                     |
 | HDK                 | 25.5.0及以上版本                                                            |
+| （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
+| （可选）MindCluster | 26.0.0（直接使用Docker部署则不需要）|
+
+#### Atlas A3 推理系列产品
+
+**表 2 软件版本**
+
+| 软件                | 版本                                                                        |
+|:---------------------|:-----------------------------------------------------------------------------|
+| CANN                | 8.5.0                                                                     |
+| HDK                 | 26.0.0及以上版本                                                            |
 | （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
 | （可选）MindCluster | 26.0.0（直接使用Docker部署则不需要）|
 
@@ -25,7 +38,7 @@
 $ npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
 ```
 
-**表 2 参数说明**
+**表 3 参数说明**
 
 |参数|参数选项|说明|
 |:---|:---|:---|
@@ -39,6 +52,18 @@ $ npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
   ```shell
   npu-smi set -t device-share -i 0 -d 1
   ```
+
+主机侧可设置容器共享持久化使能状态。
+
+```shell
+$ npu-smi set -t device-share-cfg-recover -d ${value}
+```
+
+**表 4 参数说明**
+
+|参数|参数选项|说明|
+|:---|:---|:---|
+|value|<ul>默认值：禁用<li>禁用(0)</li><li>使能(1)</li></ul>|容器共享持久化使能状态。|
 
 ### 虚拟化环境检测工具准备
 
@@ -139,11 +164,14 @@ vCANN-RT支持两种方式启动服务：
             tor-affinity: "null"
             fault-scheduling: "force"
             # 算力aicore配额，单位：%
-            scheduler-share-aicore-quota: "20" 
+            huawei.com/scheduler.softShareDev.aicoreQuota: "20" 
             # 显存HBM配额，单位：MB
-            scheduler-share-hbm-quota: "65536" 
-            # 调度策略，默认弹性模式(elastic mode)
-            scheduler-share-scheduling-policy: "2" 
+            huawei.com/scheduler.softShareDev.hbmQuota: "65536" 
+            # 调度策略，默认弹性模式(elastic)，可选fixed-share，elastic，best-effort
+            huawei.com/scheduler.softShareDev.policy: "elastic" 
+        annotations:
+            # 集群调度组件的调度策略
+            huawei.com/schedule_policy: "chip1-softShareDev"
     spec:
         # work when enableGangScheduling is true
         schedulerName: volcano 
@@ -243,12 +271,12 @@ vCANN-RT支持两种方式启动服务：
         - name: 容器名，与yaml文件名一致。
         - namespace: 命名空间。
         - labels:
-            - scheduler-share-aicore-quota: 算力aicore配额，单位：%
-            - scheduler-share-hbm-quota: 显存HBM配额，单位：MB
-            - scheduler-share-scheduling-policy: 调度策略，默认为弹性模式。
-              - 1：固定配额模式（fixed_share）
-              - 2：弹性模式（elastic）
-              - 3：争抢模式（best-effort）
+            - huawei.com/scheduler.softShareDev.aicoreQuota: 算力aicore配额，单位：%
+            - huawei.com/scheduler.softShareDev.hbmQuota: 显存HBM配额，单位：MB
+            - huawei.com/scheduler.softShareDev.policy: 调度策略，默认为弹性模式。
+              - 固定配额模式（fixed_share）
+              - 弹性模式（elastic）
+              - 争抢模式（best-effort）
     - containers:
         - image: 镜像名。
     - volumeMounts:
@@ -287,7 +315,7 @@ vCANN-RT支持两种方式启动服务：
     $ export ENPU_LOG_LEVEL=3
     ```
 
-    启动训推任务时，会自动拉起vCANN-RT算力控制和显存控制服务。
+    启动推理任务时，会自动拉起vCANN-RT算力控制和显存控制服务。
 
     在容器内可查询配置文件获取vNPU资源配额等信息：
 
@@ -318,7 +346,7 @@ vCANN-RT支持两种方式启动服务：
       scheduling-policy=1
     ```
 
-    **表 3 配置项说明**
+    **表 5 配置项说明**
 
     |参数|参数选项|说明|
     |:---|:---|:---|
@@ -362,7 +390,7 @@ vCANN-RT支持两种方式启动服务：
 
       3. 执行`export LD_PRELOAD=/opt/enpu/vcann-rt/lib/libvruntime.so`命令。
 
-    **表 4 参数说明**
+    **表 6 参数说明**
 
     |文件/工具|路径|
     |:---|:---|
@@ -395,7 +423,7 @@ vCANN-RT支持两种方式启动服务：
       $  export ENPU_LOG_LEVEL=3
       ```
 
-    - 训练推理任务启动时，会自动拉起vCANN-RT服务进行算力控制和显存控制，如果日志回显内容为`"global init Success"`, 则表示vCANN-RT服务启动成功。
+    - 推理任务启动时，会自动拉起vCANN-RT服务进行算力控制和显存控制，如果日志回显内容为`"Successfully to initialize all module."`, 则表示vCANN-RT服务启动成功。
 
     - 在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息。
 
