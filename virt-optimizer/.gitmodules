@@ -1,0 +1,11 @@
+[submodule "ebpf/3rdparty/googletest"]
+	path = ebpf/3rdparty/googletest
+	url = https://codehub-dg-y.huawei.com/OpenSourceCenter/googletest.git
+[submodule "ebpf/3rdparty/rapidjson"]
+	path = ebpf/3rdparty/rapidjson
+	url = https://szv-open.codehub.huawei.com/OpenSourceCenter/Tencent/rapidjson.git
+	branch = refs/tags/6089180ecb704cb2b136777798fa1be303618975
+[submodule "ebpf/3rdparty/mockcpp"]
+	path = ebpf/3rdparty/mockcpp
+	url = https://szv-open.codehub.huawei.com/hdt/hdt-c-cpp-cube/mockcpp.git
+	branch = ver-lm-base
