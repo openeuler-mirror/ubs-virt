@@ -35,7 +35,7 @@
 主机侧通过`npu-smi`工具开启容器共享模式。若配合MindCluster使用，要求整节点开启容器共享模式。
 
 ```shell
-$ npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
+npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
 ```
 
 **表 3 参数说明**
@@ -56,7 +56,7 @@ $ npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
 主机侧可设置容器共享持久化使能状态。
 
 ```shell
-$ npu-smi set -t device-share-cfg-recover -d ${value}
+npu-smi set -t device-share-cfg-recover -d ${value}
 ```
 
 **表 4 参数说明**
@@ -64,6 +64,17 @@ $ npu-smi set -t device-share-cfg-recover -d ${value}
 |参数|参数选项|说明|
 |:---|:---|:---|
 |value|<ul>默认值：禁用<li>禁用(0)</li><li>使能(1)</li></ul>|容器共享持久化使能状态。|
+
+（可选）针对A3 推理系列产品，如采用下文提到的docker方式部署，则在主机侧需要通过`npu-smi`工具开启支持单Die通入容器的模式。
+
+```shell
+npu-smi set -t multi-die-policy -d ${value}
+```
+**表 5 参数说明**
+
+|参数|参数选项|说明|
+|:---|:---|:---|
+|value|<ul>默认值：双Die联合模式<li>双Die联合模式(0)</li><li>单Die独立模式(1)</li></ul>|A3的device通入容器的策略模式|
 
 ### 虚拟化环境检测工具准备
 
@@ -76,7 +87,7 @@ $ npu-smi set -t device-share-cfg-recover -d ${value}
 可以使用如下方式获取`vCANN-RT`源码。
 
 ```shell
-$ git clone <ubs-virt-enpu-vcann-rt-url>
+git clone <ubs-virt-enpu-vcann-rt-url>
 ```
 
 ### 源码目录结构
@@ -97,29 +108,14 @@ $ git clone <ubs-virt-enpu-vcann-rt-url>
 `vCANN-RT`在代码仓中提供了统一的编译构建脚本（即`make_build.sh`文件），可以直接执行该脚本文件进行编译构建。默认无需任何配置项，直接执行即可。
 
 ```shell
-$ bash make_build.sh 8.5.0
+bash make_build.sh 8.5.0
 ```
 
-编译完成之后，会在`rpmbuild/RPMS/`目录下面产生RPM包（如果当前编译环境安装的cann版本不是8.5.0，则不需要增加编译参数）。
+编译完成之后，会在`build`目录下面产生相应的编译产物（如果当前编译环境安装的cann版本不是8.5.0，则不需要增加编译参数）。
 
 ## 部署
 
-### 安装
-
-用户可执行RPM包相关命令对`libvruntime.so`动态库和`enpu-monitor`可执行文件进行安装。
-
-```shell
-$ rpm -ivh --nodeps vcann-runtime-1.0-1.${arch}.rpm
-```
-
-更换vCANN-RT版本前，需要卸载已安装版本，重新安装：
-
-```shell
-$ rpm -ev vcann-runtime-1.0-1.${arch}
-$ rpm -ivh --nodeps vcann-runtime-1.0-1.${arch}.rpm
-```
-
-其中，${arch}: 表示CPU架构，如aarch64、x86_64。
+用户可以选择将软切分动态库`libvruntime.so`和检测工具`enpu-monitor`分别拷贝到`/opt/enpu/vcann-rt/lib`和`/opt/enpu/vcann-rt/tools`目录。（如果选择不拷贝，则需要在后面的流程中修改相应的路径。）
 
 ### 启动服务
 
@@ -131,12 +127,12 @@ vCANN-RT支持两种方式启动服务：
 
 1. 配置preload文件。
 
-    创建ld.so.preload文件，并将libvruntime.so的安装路径配置到ld.so.preload文件中，用于K8s挂载vCANN-RT到容器。
+    创建ld.so.preload文件，并将libvruntime.so的路径配置到ld.so.preload文件中，用于K8s挂载vCANN-RT到容器。
 
     ```shell
-    $ vi ld.so.preload
-      # libvruntime.so 的固定路径为/opt/enpu/vcann-rt/lib
-    $ /opt/enpu/vcann-rt/lib/libvruntime.so
+    vi ld.so.preload
+      # 例如libvruntime.so 的路径为/opt/enpu/vcann-rt/lib
+    /opt/enpu/vcann-rt/lib/libvruntime.so
     ```
 
     ld.so.preload文件的路径用户可自定义，文档后续内容中使用${preload_path}表示。
@@ -293,9 +289,9 @@ vCANN-RT支持两种方式启动服务：
     使用yaml文件拉起容器：
 
     ```shell
-    $ kubectl apply -f ${container_name.yaml}
+    kubectl apply -f ${container_name.yaml}
     # 查看容器
-    $ kubectl get pods -n ${namespace}
+    kubectl get pods -n ${namespace}
     ```
 
     如果容器启动失败，可参考方式二中的解决方法。
@@ -304,7 +300,7 @@ vCANN-RT支持两种方式启动服务：
     进入容器：
 
     ```shell
-    $ kubectl exec -it ${pod_name} -n ${namespace} bash
+    kubectl exec -it ${pod_name} -n ${namespace} bash
     ```
 
     进入容器后，可通过环境变量`ENPU_LOG_LEVEL`配置日志级别。日志级别由高到底分别是FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。默认日志级别为INFO。
@@ -312,7 +308,7 @@ vCANN-RT支持两种方式启动服务：
     示例：
 
     ```shell
-    $ export ENPU_LOG_LEVEL=3
+    export ENPU_LOG_LEVEL=3
     ```
 
     启动推理任务时，会自动拉起vCANN-RT算力控制和显存控制服务。
@@ -320,13 +316,13 @@ vCANN-RT支持两种方式启动服务：
     在容器内可查询配置文件获取vNPU资源配额等信息：
 
     ```shell
-    $ cat /etc/enpu/vcann-rt/npu_info.config
+    cat /etc/enpu/vcann-rt/npu_info.config
     ```
 
     在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息：
 
     ```shell
-    $ ./opt/enpu/vcann-rt/tools/enpu-monitor
+    ./opt/enpu/vcann-rt/tools/enpu-monitor
     ```
 
 #### 方式二：docker方式部署（不依赖kubernetes组件）
@@ -346,7 +342,7 @@ vCANN-RT支持两种方式启动服务：
       scheduling-policy=1
     ```
 
-    **表 5 配置项说明**
+    **表 6 配置项说明**
 
     |参数|参数选项|说明|
     |:---|:---|:---|
@@ -361,7 +357,7 @@ vCANN-RT支持两种方式启动服务：
 
 2. 预加载配置文件（若使用指定容器镜像，可以跳过此步骤）。
 
-    在主机侧创建预加载动态库文件`ld.so.preload`, 文件内容为libvruntime.so的固定安装路径：`/opt/enpu/vcann-rt/lib/libvruntime.so`
+    在主机侧创建预加载动态库文件`ld.so.preload`, 文件内容为libvruntime.so的路径，例如：`/opt/enpu/vcann-rt/lib/libvruntime.so`
 
 3. 启动业务容器。
 
@@ -390,12 +386,12 @@ vCANN-RT支持两种方式启动服务：
 
       3. 执行`export LD_PRELOAD=/opt/enpu/vcann-rt/lib/libvruntime.so`命令。
 
-    **表 6 参数说明**
+    **表 7 参数说明**
 
     |文件/工具|路径|
     |:---|:---|
-    |软切分动态库|主机侧和容器内均为固定路径：`/opt/enpu/vcann-rt/lib/libvruntime.so`|
-    |物理NPU设备|主机侧和容器内均为固定路径：`/opt/enpu/vcann-rt/tools/enpu-monitor`|
+    |软切分动态库|主机侧和容器内均为建议路径：`/opt/enpu/vcann-rt/lib/libvruntime.so`|
+    |物理NPU设备|主机侧和容器内均为建议路径：`/opt/enpu/vcann-rt/tools/enpu-monitor`|
     |共享内存设备|主机侧和容器内均为固定路径：`/dev/davinci0`|
     |共享内存设备|主机侧和容器内均为固定路径：`/dev/shm`|
     |配置文件|<ul><li>主机侧可存放在自定义路径。</li><li>容器内为固定路径：`/etc/enpu/vcann-rt/npu_info.config`</li></ul>|
@@ -420,7 +416,7 @@ vCANN-RT支持两种方式启动服务：
     - 拉起容器之后，启动训练推理任务前，可以通过环境变量配置日志级别。例如：
 
       ```bash
-      $  export ENPU_LOG_LEVEL=3
+      export ENPU_LOG_LEVEL=3
       ```
 
     - 推理任务启动时，会自动拉起vCANN-RT服务进行算力控制和显存控制，如果日志回显内容为`"Successfully to initialize all module."`, 则表示vCANN-RT服务启动成功。
@@ -428,7 +424,7 @@ vCANN-RT支持两种方式启动服务：
     - 在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息。
 
       ```bash
-      $ ./opt/enpu/vcann-rt/tools/enpu-monitor
+      ./opt/enpu/vcann-rt/tools/enpu-monitor
       ```
       
 ## 约束

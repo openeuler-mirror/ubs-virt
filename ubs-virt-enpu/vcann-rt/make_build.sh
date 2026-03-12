@@ -34,27 +34,22 @@ else
     echo "$CANN_VERSION is less than $BASE_VERSION set BUILD_WITH_NEW to 0"
 fi
 
-# ========== paths =========
-ROOT_DIR=${CURRENT_PATH}
-RPMBUILD_DIR="${CURRENT_PATH}/rpmbuild"
-rm -rf "${RPMBUILD_DIR}"
-mkdir -p "${RPMBUILD_DIR}"/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+BUILD_PATH="$CURRENT_PATH/build"
+mkdir -p "$BUILD_PATH"
+cd "$BUILD_PATH"
 
-# ========== source tar =========
-tar czf "${RPMBUILD_DIR}/SOURCES/${PROJECT_NAME}-${VERSION}.tar.gz" \
-    --exclude=build \
-    --exclude=.git \
-    -C "${ROOT_DIR}/src" \
-    --transform "s,^,${PROJECT_NAME}-${VERSION}/," .
+if [ "$BUILD_WITH_NEW" -eq 1 ]; then
+    CMAKE_CMD="cmake .. -DENABLE_NEW_BUILD=ON"
+else
+    CMAKE_CMD="cmake .. -DENABLE_NEW_BUILD=OFF"
+fi
 
-# ========== spec =========
-cp "${ROOT_DIR}/vcann-runtime.spec" \
-    "${RPMBUILD_DIR}/SPECS/${PROJECT_NAME}.spec"
+if ! eval "$CMAKE_CMD"; then
+    echo "[ERROR] make_build:cmake failed.!"
+    exit 1
+fi
 
-# ========== build RPM =========
-echo "Building RPM package..."
-rpmbuild --define "_topdir ${RPMBUILD_DIR}" --define "version ${VERSION}" --define "build_with_new ${BUILD_WITH_NEW}" -ba "${RPMBUILD_DIR}/SPECS/${PROJECT_NAME}.spec"
-
-# ========== collect RPMs =========
-echo "[INFO] Output RPMs:"
-find "${RPMBUILD_DIR}/RPMS" -name "*.rpm" -type f -exec ls -lh {} \;
+if ! make -j $(nproc); then
+    echo "[ERROR] make_build:make failed."
+    exit 1
+fi
