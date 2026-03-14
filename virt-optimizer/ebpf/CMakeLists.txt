@@ -23,6 +23,16 @@ add_link_options(
     -pie
 )
 
+message(STATUS "fetch rapidjson")
+include(FetchContent)
+FetchContent_Declare(
+        rapidjson
+        GIT_REPOSITORY https://gitcode.com/GitHub_Trending/ra/rapidjson.git
+        GIT_TAG master
+        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/rapidjson
+)
+FetchContent_Populate(rapidjson)
+
 IF(${CMAKE_BUILD_TYPE} MATCHES "Release")
     add_subdirectory(src)
 ENDIF()
