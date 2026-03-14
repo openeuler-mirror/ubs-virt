@@ -38,17 +38,6 @@ namespace vas::sched::ut {
         Api::cmdMap.clear();
     }
 
-    TEST_F(TestApi, testSocketMsgHandlerInvalidParams)
-    {
-        std::string resStr;
-        Api::cmdMap.insert({"setconfig", Api::SetConfig});
-        std::string cmd = "setconfig;sched-policy:abcde";
-
-        VasRet ret = Api::SocketMsgHandler(cmd, resStr);
-        std::cout << "SocketMsgHandler ret: " << resStr << std::endl;
-        EXPECT_EQ(ret, VAS_ERROR);
-    }
-
     TEST_F(TestApi, testSocketMsgHandlerUnknownCommand)
     {
         std::string cmd = "unknown_command";

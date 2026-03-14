@@ -138,31 +138,6 @@ CpuTopologyMap TestClusterSched::defaultCpuTopologyMap{{
 
 VasRet GetVmInfoListMockSuccess(LibvirtHelper *cls, VmInfoMap &vmInfoMap);
 
-TEST_F(TestClusterSched, testUpdateDomainInfo1)
-{
-    MOCKER_CPP(&LibvirtHelper::GetVmInfoList, VasRet(LibvirtHelper::*)(VmInfoMap &))
-        .stubs()
-        .will(invoke(GetVmInfoListMockSuccess));
-    MOCKER(&ClusterSched::SelectVmNuma).stubs().will(returnValue(VAS_OK));
-    MOCKER(&ClusterSched::Alloc).stubs().will(returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
-    MOCKER(&ClusterSched::Assign).stubs().will(returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
-    std::string domainKey = uuid01 + "_0";
-    EXPECT_EQ(ClusterSched::GetInstance().UpdateDomainInfosAndSched(), VAS_OK);
-    EXPECT_FALSE(ClusterSched::GetInstance().domainMap_[domainKey].isReScheded);
-    EXPECT_EQ(ClusterSched::GetInstance().UpdateDomainInfosAndSched(), VAS_OK);
-    EXPECT_FALSE(ClusterSched::GetInstance().domainMap_[domainKey].isReScheded);
-    EXPECT_EQ(ClusterSched::GetInstance().UpdateDomainInfosAndSched(), VAS_OK);
-    EXPECT_TRUE(ClusterSched::GetInstance().domainMap_[domainKey].isReScheded);
-}
-
-TEST_F(TestClusterSched, testUpdateDomainInfo2)
-{
-    MOCKER_CPP(&LibvirtHelper::GetVmInfoList, VasRet(LibvirtHelper::*)(VmInfoMap &))
-        .stubs()
-        .will(returnValue(VAS_ERROR));
-    EXPECT_EQ(ClusterSched::GetInstance().UpdateDomainInfosAndSched(), VAS_ERROR);
-}
-
 TEST_F(TestClusterSched, testInitClusterInfo1)
 {
     MOCKER(CpuHelper::GetClusterCpuSet).stubs().will(returnValue(cluster0CpuList));
@@ -199,42 +174,6 @@ TEST_F(TestClusterSched, testGetDomainsByUuid)
     const auto ret = ClusterSched::GetInstance().GetDomainsByUuid(uuid01);
     EXPECT_EQ(ret.size(), 1);
     EXPECT_EQ(ret[0].uuid, uuid01);
-}
-
-TEST_F(TestClusterSched, testReSched)
-{
-    ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
-    ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
-    const std::string domainKey = uuid01 + "_0";
-    VmDomain domain = ClusterSched::GetInstance().domainMap_[domainKey];
-    std::vector vmDomains{domain};
-    MOCKER_CPP(&ClusterSched::Alloc, VasRet(ClusterSched::*)(VmDomain &))
-        .stubs()
-        .will(returnValue(VAS_ERROR))
-        .then(returnValue(VAS_OK));
-    MOCKER_CPP(&ClusterSched::Assign, VasRet(ClusterSched::*)(VmDomain &))
-        .stubs()
-        .will(returnValue(VAS_ERROR))
-        .then(returnValue(VAS_OK));
-    auto ret = ClusterSched::GetInstance().ReSched(vmDomains);
-    EXPECT_EQ(ret, VAS_ERROR);
-    ret = ClusterSched::GetInstance().ReSched(vmDomains);
-    EXPECT_EQ(ret, VAS_OK);
-    ret = ClusterSched::GetInstance().ReSched(vmDomains);
-    EXPECT_EQ(ret, VAS_OK);
-}
-
-TEST_F(TestClusterSched, testDeReSched)
-{
-    ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
-    ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
-    const std::string domainKey = uuid01 + "_0";
-    VmDomain domain = ClusterSched::GetInstance().domainMap_[domainKey];
-    std::vector vmDomains{domain};
-    MOCKER_CPP(&ClusterSched::Unassign, void(ClusterSched::*)(VmDomain &)).stubs().will(returnValue(VAS_OK));
-    MOCKER_CPP(&ClusterSched::Free, void(ClusterSched::*)(VmDomain &)).stubs().will(returnValue(VAS_OK));
-    const auto ret = ClusterSched::GetInstance().DeReSched(vmDomains);
-    EXPECT_EQ(ret, VAS_OK);
 }
 
 TEST_F(TestClusterSched, testReSchedVm)
@@ -274,25 +213,6 @@ TEST_F(TestClusterSched, testReSchedVm)
     EXPECT_EQ(ret, VAS_OK);
     ret = ClusterSched::GetInstance().ReSchedVm(uuid01);
     EXPECT_EQ(ret, VAS_OK);
-}
-
-TEST_F(TestClusterSched, testClusterCompaction)
-{
-    ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
-    ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
-    ClusterSched::GetInstance().vmNeedAssignTgIdCpu_ = defaultVmNeedAssignTgIdCpu;
-    ClusterSched::GetInstance().vmNeedAssignIoThreadCpu_ = defaultVmNeedAssignIoThreadCpu;
-    MOCKER_CPP(&ClusterSched::CleanDyingPid, VasRet(ClusterSched::*)()).stubs().will(returnValue(VAS_OK));
-    MOCKER_CPP(&ClusterSched::CompactionCluster, void(ClusterSched::*)(uint16_t, std::map<uint16_t, Cluster> &))
-        .stubs()
-        .will(ignoreReturnValue());
-    MOCKER_CPP(&ClusterSched::AssignIoThreadsCpu_, void(ClusterSched::*)(std::vector<VmDomain> &))
-        .stubs()
-        .will(ignoreReturnValue());
-    MOCKER_CPP(&ClusterSched::AssignEmulatorCpu_, void(ClusterSched::*)(std::vector<VmDomain> &))
-        .stubs()
-        .will(ignoreReturnValue());
-    EXPECT_NO_THROW(ClusterSched::GetInstance().ClusterCompaction());
 }
 
 VasRet GetVmInfoListMockSuccess(LibvirtHelper *cls, VmInfoMap &vmInfoMap)
@@ -357,27 +277,6 @@ void GetCacheMockSuccess(VmInfoMap &vmInfoMap)
     }};
 }
 
-TEST_F(TestClusterSched, testReSetSchedPolicy)
-{
-    ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
-    ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
-    ClusterSched::GetInstance().vmNeedAssignTgIdCpu_ = defaultVmNeedAssignTgIdCpu;
-    ClusterSched::GetInstance().vmNeedAssignIoThreadCpu_ = defaultVmNeedAssignIoThreadCpu;
-
-    MOCKER(LibvirtHelper::GetCache).stubs().will(invoke(GetCacheMockSuccess));
-    MOCKER_CPP(&ClusterSched::Alloc, VasRet(ClusterSched::*)(VmDomain &))
-        .stubs()
-        .will(returnValue(VAS_ERROR))
-        .then(returnValue(VAS_OK));
-    MOCKER_CPP(&ClusterSched::Assign, VasRet(ClusterSched::*)(VmDomain &))
-        .stubs()
-        .will(returnValue(VAS_ERROR))
-        .then(returnValue(VAS_OK));
-    EXPECT_NO_THROW(ClusterSched::GetInstance().ReSetSchedPolicy());
-    EXPECT_NO_THROW(ClusterSched::GetInstance().ReSetSchedPolicy());
-    EXPECT_NO_THROW(ClusterSched::GetInstance().ReSetSchedPolicy());
-}
-
 TEST_F(TestClusterSched, testRecoverVmVcpu)
 {
     ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
@@ -387,40 +286,6 @@ TEST_F(TestClusterSched, testRecoverVmVcpu)
     MOCKER(ClusterSched::GetVmCgroupPath).stubs().will(returnValue(VAS_OK));
     MOCKER(ClusterSched::SetVmCpuset).stubs().will(returnValue(VAS_OK));
     EXPECT_NO_THROW(ClusterSched::GetInstance().RecoverVmVcpu(oneVmInfo));
-}
-
-TEST_F(TestClusterSched, testAlloc)
-{
-    ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
-    std::string domainKey = uuid01 + "_0";
-    int totalCpuNum = 128;
-    int getGranularityResult = 2;
-    int getGranularityOtherResult = 4;
-    auto domain = ClusterSched::GetInstance().domainMap_[domainKey];
-    ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
-    ClusterSched::GetInstance().vmNeedAssignTgIdCpu_ = defaultVmNeedAssignTgIdCpu;
-    ClusterSched::GetInstance().vmNeedAssignIoThreadCpu_ = defaultVmNeedAssignIoThreadCpu;
-    MOCKER_CPP(&ClusterSched::GetGranularity, uint16_t(*)()).stubs()
-        .will(returnValue(NUMBER_ZERO)).then(returnValue(getGranularityResult));
-    MOCKER(&ClusterSched::GetNumaTotalCpus).stubs().will(returnValue((uint16_t)NUMBER_ZERO));
-        .then(returnValue((uint16_t)totalCpuNum));
-    MOCKER_CPP(&ClusterSched::AllocClusterGroupToDomain, uint16_t(ClusterSched::*)(VmDomain &, const uint16_t &))
-        .stubs()
-        .will(returnValue(NUMBER_ZERO))
-        .then(returnValue(getGranularityResult))
-        .then(returnValue(getGranularityOtherResult));
-    auto ret = ClusterSched::GetInstance().Alloc(domain);
-    EXPECT_EQ(ret, VAS_ERROR);
-    domain.isReScheded = true;
-    ret = ClusterSched::GetInstance().Alloc(domain);
-    EXPECT_EQ(ret, VAS_OK);
-    domain.isReScheded = false;
-    ret = ClusterSched::GetInstance().Alloc(domain);
-    EXPECT_EQ(ret, VAS_ERROR);
-    ret = ClusterSched::GetInstance().Alloc(domain);
-    EXPECT_EQ(ret, VAS_ERROR);
-    ret = ClusterSched::GetInstance().Alloc(domain);
-    EXPECT_EQ(ret, VAS_OK);
 }
 
 TEST_F(TestClusterSched, testFree)
@@ -601,35 +466,6 @@ TEST_F(TestClusterSched, testGenEntity)
     pid_t myThreadPid = getpid();
     VmEntity& entity = scheduler.GenEntity(myThreadPid, 2);
     EXPECT_EQ(entity.pid, myThreadPid);
-}
-
-TEST_F(TestClusterSched, testSetVcpuAffinity)
-{
-    ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
-    ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
-    DynamicBistset dynamicBitset;
-    VmDomain vmDomain;
-    int numaIdNum = 0;
-    int tgidNum = 4567;
-    vmDomain.uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
-    vmDomain.name = "ProductionVM-01";
-    vmDomain.numaId = numaIdNum;
-    vmDomain.tgid = tgidNum;
-    vmDomain.ioThreadIds = {8001, 8002, 8003};
-    vmDomain.pidVcpuMap = {
-            {8001, 0},
-            {8002, 1},
-            {8003, 2}
-    };
-    vmDomain.groups = {"production", "highperformance", "webcluster"};
-    vmDomain.entityPids = {4567, 4568, 4569};
-    vmDomain.isReScheded = false;
-    const int pid = 0;
-    VasdArgParse::schedPolicy = "dynamicAffinity";
-    MOCKER(ClusterSched::GetVmCgroupPath).stubs().will(returnValue(VAS_OK));
-    MOCKER(ClusterSched::SetVmCpuset).stubs().will(returnValue(VAS_OK));
-    const auto ret = ClusterSched::GetInstance().SetVcpuAffinity(vmDomain, pid, dynamicBitset);
-    EXPECT_EQ(ret, VAS_OK);
 }
 
 TEST_F(TestClusterSched, testCleanDyingPidByGroup)

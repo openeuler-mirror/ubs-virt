@@ -4,8 +4,7 @@ target_include_directories(socket_client
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/src/log
 )
-target_link_libraries(socket_client PRIVATE logger securec)
-add_dependencies(socket_client build_securec)
+target_link_libraries(socket_client PRIVATE logger boundscheck)
 
 add_library(socket_server STATIC socket_server.cpp)
 target_include_directories(socket_server
@@ -13,5 +12,4 @@ target_include_directories(socket_server
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/src/log
 )
-target_link_libraries(socket_server PRIVATE logger securec security)
-add_dependencies(socket_server build_securec)
+target_link_libraries(socket_server PRIVATE logger boundscheck security)

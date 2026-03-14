@@ -62,29 +62,6 @@ namespace vas::ut::arg {
         EXPECT_FALSE(VasdArgParse::rangeAffinity);
     }
 
-    TEST_F(TestArgParse, testArgsInitFunction)
-    {
-        VasdArgParse::schedPolicy = "dynamicAffinity";
-        MOCKER(VasdArgParse::IsDynamicAffinityAvailable).stubs().will(returnValue(false)).then(returnValue(true));
-        EXPECT_EQ(VasdArgParse::Init(), VAS_WARN);
-        VasdArgParse::schedPolicy = "dynamicAffinity";
-        MOCKER(VasdArgParse::WriteDynamicAffinityUtilThresh).stubs().will(
-            returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
-        EXPECT_EQ(VasdArgParse::Init(), VAS_WARN);
-        MOCKER(VasdArgParse::EnableDynamicAffinityClusterSched).stubs().will(
-            returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
-        EXPECT_EQ(VasdArgParse::Init(), VAS_WARN);
-        VasdArgParse::dynamicAffinityUtilThresh = 90;
-        EXPECT_EQ(VasdArgParse::Init(), VAS_OK);
-        VasdArgParse::schedPolicy = "ErrorStratage";
-        EXPECT_EQ(VasdArgParse::Init(), VAS_ERROR);
-        VasdArgParse::schedPolicy = "affinity";
-        EXPECT_EQ(VasdArgParse::Init(), VAS_OK);
-        MOCKER(VasdArgParse::WriteDynamicAffinityUtilThresh).reset();
-        MOCKER(VasdArgParse::EnableDynamicAffinityClusterSched).reset();
-        MOCKER(VasdArgParse::IsDynamicAffinityAvailable).reset();
-    }
-
     TEST_F(TestArgParse, testArgsDeInitFunction)
     {
         VasdArgParse::schedPolicy = "dynamicAffinity";

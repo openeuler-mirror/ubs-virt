@@ -100,8 +100,8 @@ ensure_fastcov_installed() {
         echo "Installing fastcov via pip..."
         if ! pip3 install fastcov \
                 --disable-pip-version-check --user \
-                --trusted-host mirrors.tools.huawei.com \
-                -i https://mirrors.tools.huawei.com/pypi/simple \
+                --trusted-host repo.huaweicloud.com \
+ 	              -i https://repo.huaweicloud.com/repository/pypi/simple/ \
         ; then
             error_exit "Failed to install fastcov. Check network connection."
         fi

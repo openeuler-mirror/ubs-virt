@@ -1,7 +1,5 @@
-include_directories(${PROJECT_DEPS_DIR}/googletest/include)
-include_directories(${PROJECT_DEPS_DIR}/mockcpp/include)
-link_directories(${PROJECT_DEPS_DIR}/googletest/lib64)
-link_directories(${PROJECT_DEPS_DIR}/mockcpp/lib)
+include(${PROJECT_SOURCE_DIR}/cmake/gtest.cmake)
+include(${PROJECT_SOURCE_DIR}/cmake/mockcpp.cmake)
 link_directories(${CMAKE_ARCHIVE_OUTPUT_DIRECTORY})
 
 set(UT_BINARY ${CMAKE_PROJECT_NAME}_ut)
@@ -41,8 +39,6 @@ target_link_libraries(${UT_BINARY} PUBLIC
 )
 set_target_properties(${UT_BINARY} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/test)
 
-add_dependencies(${UT_BINARY} build_googletest)
-add_dependencies(${UT_BINARY} build_mockcpp)
 add_custom_target(build_test COMMAND export "VIRT_CURL_PATH=/usr/lib64"
         && ${PROJECT_SOURCE_DIR}/test/${UT_BINARY} --gtest_output=xml:${PROJECT_SOURCE_DIR}/build/test_detail.xml WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/test)
 add_dependencies(build_test ${UT_BINARY})
