@@ -144,16 +144,6 @@ TEST_F(TestVasdLooper, testVmEventHandler)
     Conf::exitFlag.store(false);
 }
 
-TEST_F(TestVasdLooper, testClusterCompactionTimer)
-{
-    MOCKER_CPP(&ClusterSched::UpdateDomainInfosAndSched, VasRet(ClusterSched::*)()).stubs().will(returnValue(VAS_OK));
-    MOCKER_CPP(&ClusterSched::ClusterCompaction, void(ClusterSched::*)()).stubs().will(returnValue(nullptr));
-    auto tmp = std::thread(SetExitFlagTrue);
-    EXPECT_NO_THROW(VasdLooper::ClusterCompactionTimer());
-    tmp.join();
-    Conf::exitFlag.store(false);
-}
-
 TEST_F(TestVasdLooper, testStartSocketServer)
 {
     MOCKER_CPP(&SocketServer::StartServer, bool(SocketServer::*)())

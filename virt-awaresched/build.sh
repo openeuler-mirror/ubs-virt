@@ -90,7 +90,8 @@ function build_cmake() {
     fi
     cmake .. -DCMAKE_BUILD_TYPE=${build_type} -DBUILD_TESTS=${enable_test} -DENABLE_COVERAGE=${enable_coverage} -DSOURCE_COMPILING=${enable_source_compiling} -DCMAKE_INSTALL_PREFIX=../output
 
-    make build_"${build_target}"
+    N_CPUS=$(grep processor /proc/cpuinfo | wc -l)
+    make build_"${build_target}" -j $((N_CPUS-2))
     if [[ $enable_coverage == 'ON' ]]; then
         make coverage
     fi

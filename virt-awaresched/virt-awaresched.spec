@@ -12,8 +12,10 @@ License:        MIT
 Vendor:         Huawei Technologies Co., Ltd.
 Prefix:         /usr
 
+BuildRequires:  gcc-c++ gcc cmake make
+BuildRequires:  patch libvirt-devel libboundscheck
 Requires:       libvirt
-Requires:       libsecurec
+Requires:       libboundscheck
 Requires:       libcap
 
 %define _rpmdir %_topdir/RPMS

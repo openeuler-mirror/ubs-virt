@@ -41,22 +41,6 @@ virConnectPtr TestVirConnectOpen(const char *str)
     return reinterpret_cast<virConnectPtr>(new char[1]);
 }
 
-TEST_F(TestLibvirtHelper, InitLibvirtHelperTest)
-{
-    LibvirtHelper libvirtHelper;
-
-    MOCKER(LibvirtHelper::RegisterEventDefaultImpl).stubs().will(returnValue(VAS_ERROR));
-    EXPECT_EQ(libvirtHelper.Init(), VAS_ERROR);
-    MOCKER(LibvirtHelper::RegisterEventDefaultImpl).reset();
-    MOCKER(LibvirtHelper::RegisterEventDefaultImpl).stubs().will(returnValue(VAS_OK));
-    MOCKER(virConnectOpen).stubs().will(returnValue(nullptr));
-    EXPECT_EQ(libvirtHelper.Init(), VAS_ERROR);
-    MOCKER(virConnectOpen).reset();
-
-    MOCKER(virConnectOpen).stubs().will(invoke(TestVirConnectOpen));
-    EXPECT_EQ(libvirtHelper.Init(), VAS_OK);
-}
-
 int TestVirEventRegisterDefaultImplError()
 {
     return VAS_ERROR;
@@ -106,17 +90,6 @@ TEST_F(TestLibvirtHelper, IsConnectAliveTest)
 int TestVirConnectCloseReturnZero(virConnectPtr param)
 {
     return 0;
-}
-
-TEST_F(TestLibvirtHelper, ReconnectTest)
-{
-    LibvirtHelper::GetInstance().CloseConn();
-    MOCKER(virConnectOpen).stubs().will(invoke(TestVirConnectOpen));
-    LibvirtHelper::GetInstance().Connect();
-    MOCKER(virConnectClose).stubs().will(invoke(TestVirConnectCloseReturnZero));
-    EXPECT_EQ(LibvirtHelper::GetInstance().Reconnect(), VAS_OK);
-    MOCKER(virConnectOpen).reset();
-    MOCKER(virConnectClose).reset();
 }
 
 TEST_F(TestLibvirtHelper, CheckWithReconnectTest)

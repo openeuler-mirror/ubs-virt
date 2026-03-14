@@ -67,6 +67,7 @@ message(STATUS "CMAKE_CXX_FLAGS_MINSIZEREL: ${CMAKE_CXX_FLAGS_MINSIZEREL}")
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 include(utils)
 include(building)
+include(libboundscheck)
 
 option(ENABLE_COVERAGE "Use gcov" OFF)
 message(STATUS ENABLE_COVERAGE=${ENABLE_COVERAGE})
@@ -79,7 +80,6 @@ set(INCLUDE_DIR src/include)
 set(UTIL_INCLUDE_DIR src/util)
 set(SRC_DIR ${PROJECT_SOURCE_DIR}/src)
 set(PROJECT_DEPS_DIR ${PROJECT_SOURCE_DIR}/deps)
-set(SECURE_C_INCLUDE ${PROJECT_SOURCE_DIR}/deps/securec/include)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/static)
 set(PROJECT_TOP_BUILD_DIR ${CMAKE_CURRENT_BINARY_DIR})
@@ -98,9 +98,8 @@ get_directory_property(COMPILE_OPTIONS DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} COM
 message(STATUS "CXX Compile options: ${CMAKE_CXX_FLAGS_RELEASE} ${COMPILE_OPTIONS}")
 
 # Add header file search path
-include_directories(${INCLUDE_DIR} ${LIBVIRT_INCLUDE_DIR} ${UTIL_INCLUDE_DIR} ${SECURE_C_INCLUDE})
+include_directories(${INCLUDE_DIR} ${LIBVIRT_INCLUDE_DIR} ${UTIL_INCLUDE_DIR})
 # Adding a Source Code Directory
-add_subdirectory(3rdparty)
 add_subdirectory(src)
 
 message(STATUS BUILD_TESTS=${BUILD_TESTS})
