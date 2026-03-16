@@ -23,7 +23,6 @@ namespace vas::sched {
 using namespace vas::common;
 namespace fs = std::filesystem;
 const fs::path PROC_CMDLINE = "/proc/cmdline";
-const fs::path DYNAMIC_AFFINITY_CLUSTER_SCHED_PATH = "/proc/sys/kernel/dynamic_affinity_cluster_sched";
 const fs::path DYNAMIC_UTIL_THRESH_PATH = "/proc/sys/kernel/sched_util_low_pct";
 const std::string DYNAMIC_AFFINITY_ENABLE_KEY = "dynamic_affinity=enable";
 
@@ -39,8 +38,6 @@ public:
     static VasRet DeInit();
     static VasRet WriteDynamicAffinityUtilThresh(uint16_t value);
     static bool IsDynamicAffinityAvailable();
-    static VasRet EnableDynamicAffinityClusterSched();
-    static VasRet DisableDynamicAffinityClusterSched();
 };
 } // namespace vas::sched
 

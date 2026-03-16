@@ -242,6 +242,8 @@ std::string Bitset::GetCpuSetFromDynamicBitset(const DynamicBitset &cpuBitSet)
     std::string result = oss.str();
     if (!result.empty()) {
         result.pop_back();
+    } else {
+        result = "";
     }
     return result;
 }

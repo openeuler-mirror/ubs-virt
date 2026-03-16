@@ -24,9 +24,9 @@ target_compile_options(vas_daemon PRIVATE
         $<$<CONFIG:RelWithDebInfo>: ${RELEASE_FLAGS}>
         $<$<CONFIG:MinSizeRel>: ${RELEASE_FLAGS}>
 )
-get_target_property(VAS_CLI_COMPILE_OPTIONS vas_daemon COMPILE_OPTIONS)
-message(DEBUG "vas_daemon compile options: ${VAS_CLI_COMPILE_OPTIONS}")
-target_link_options(vas_daemon PRIVATE -rdynamic -pie)
 if (${CMAKE_BUILD_TYPE} MATCHES "Release")
+    target_link_options(vas_daemon PRIVATE -rdynamic -pie)
     target_compile_options(vas_daemon PRIVATE -ftrapv)
 endif()
+get_target_property(VAS_CLI_COMPILE_OPTIONS vas_daemon COMPILE_OPTIONS)
+message(DEBUG "vas_daemon compile options: ${VAS_CLI_COMPILE_OPTIONS}")

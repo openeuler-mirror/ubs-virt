@@ -63,7 +63,10 @@ FetchContent_Populate(_mockcpp_src)
 # --- Patch: apply ARM64 support patch ---
 
 # 检查是否已打过补丁（通过是否存在新增的 ARM64 文件）
-if(EXISTS "${_mockcpp_src_SOURCE_DIR}/src/JmpCodeAARCH64.h")
+
+if (NOT CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
+    message(STATUS "CPU family is not aarch64, skip mockcpp aarch64 patch.")
+elseif (EXISTS "${_mockcpp_src_SOURCE_DIR}/src/JmpCodeAARCH64.h")
     message(STATUS "ARM64 patch already applied, skipping.")
 else()
 

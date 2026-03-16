@@ -90,6 +90,7 @@ private:
     DynamicBitset GetDomainCpuMask(const std::vector<VmDomain> &domains);
     VasRet AssignPidCpu(VmDomain &domain, const pid_t &pid);
     void UnAssignPidCpu(const VmDomain &domain);
+    VasRet SetVcpuAffinity(VmDomain &domain, const pid_t &pid, const uint16_t &cpuIndex, const uint16_t &clusterId);
     void RestoreVmInfoWithoutLock();
     void ReSchedStartedVmsWithoutLock();
     VmEntity &GenEntity(const pid_t &pid, const int16_t &index = -1);
@@ -105,7 +106,7 @@ private:
     void OverProvisionUp(uint16_t numaId);
     void OverProvisionDown(uint16_t numaId);
 
-    static const uint8_t MAX_OVER_PROVISION;
+    static const uint8_t maxOverProvision;
 
     static uint16_t GetGranularity();
     static void AddGroupToClusterLayer(const VmGroup &group, ClusterLayer &clusterLayer);
@@ -117,7 +118,6 @@ private:
     static VasRet GetVmCgroupPath(const std::string &uuid, fs::path &cpuPath);
     static VasRet SetVmCpuset(const fs::path &vmPathPre, const VmThreadType &threadType, const DynamicBitset &cpuBitSet,
                               const int32_t &id = 0);
-    static VasRet SetVcpuAffinity(VmDomain &domain, const pid_t &pid, const DynamicBitset &cpuBitSet);
     static VasRet SetEmulatorAffinity(const std::string &uuid, const DynamicBitset &cpuBitSet);
     static VasRet SetIoThreadAffinity(const std::string &uuid, std::set<pid_t> &ioThreadIds,
                                       const DynamicBitset &cpuBitSet);

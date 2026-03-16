@@ -9,9 +9,9 @@ target_compile_options(vasctl PRIVATE
         $<$<CONFIG:RelWithDebInfo>: ${RELEASE_FLAGS}>
         $<$<CONFIG:MinSizeRel>: ${RELEASE_FLAGS}>
 )
-get_target_property(VAS_CLI_COMPILE_OPTIONS vasctl COMPILE_OPTIONS)
-message(DEBUG "vasctl compile options: ${VAS_CLI_COMPILE_OPTIONS}")
-target_link_options(vasctl PRIVATE -rdynamic -pie)
 if (${CMAKE_BUILD_TYPE} MATCHES "Release")
+    target_link_options(vasctl PRIVATE -rdynamic -pie)
     target_compile_options(vasctl PRIVATE -ftrapv)
 endif()
+get_target_property(VAS_CLI_COMPILE_OPTIONS vasctl COMPILE_OPTIONS)
+message(DEBUG "vasctl compile options: ${VAS_CLI_COMPILE_OPTIONS}")
