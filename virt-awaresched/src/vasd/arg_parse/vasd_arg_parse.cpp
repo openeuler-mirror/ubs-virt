@@ -42,15 +42,8 @@ VasRet VasdArgParse::Init()
             return VAS_WARN;
         }
 
-        auto ret = WriteDynamicAffinityUtilThresh(dynamicAffinityUtilThresh);
-        if (ret != VAS_OK) {
+        if (const auto ret = WriteDynamicAffinityUtilThresh(dynamicAffinityUtilThresh); ret != VAS_OK) {
             LOG_WARN("Failed to set dynamic affinity utilization threshold.");
-            return VAS_WARN;
-        }
-
-        ret = EnableDynamicAffinityClusterSched();
-        if (isVasRetFail(ret)) {
-            LOG_WARN("Kernel may not support dynamic affinity cluster scheduling.");
             return VAS_WARN;
         }
         return VAS_OK;
@@ -64,15 +57,7 @@ VasRet VasdArgParse::Init()
 
 VasRet VasdArgParse::DeInit()
 {
-    if (schedPolicy == "dynamicAffinity") {
-        auto ret = DisableDynamicAffinityClusterSched();
-        if (isVasRetFail(ret)) {
-            LOG_WARN("Disable dynamic affinity cluster failed.");
-            return VAS_WARN;
-        }
-        return VAS_OK;
-    }
-    if (schedPolicy != "affinity") {
+    if (schedPolicy != "affinity" && schedPolicy != "dynamicAffinity") {
         LOG_ERROR("Scheduler policy is invalid. current=" + schedPolicy);
         return VAS_ERROR;
     }
@@ -136,55 +121,6 @@ bool VasdArgParse::IsDynamicAffinityAvailable()
         }
     }
     return false;
-}
-
-/**
- * Enable dynamic affinity cluster scheduling by writing to the specified file.
- * @return Operation result.
- */
-VasRet VasdArgParse::EnableDynamicAffinityClusterSched()
-{
-    std::vector<__u32> caps = {
-        CAP_DAC_OVERRIDE,
-    };
-    if (VasSecurityManager::ModifyEffectiveCapabilities(caps, VasCapOperateType::CAP_ADD) != VAS_OK) {
-        LOG_ERROR("Add capabilities failed.");
-        return VAS_ERROR;
-    }
-    std::ofstream file(DYNAMIC_AFFINITY_CLUSTER_SCHED_PATH);
-    if (!file.is_open()) {
-        LOG_WARN("Open file failed, " + DYNAMIC_AFFINITY_CLUSTER_SCHED_PATH.string() + " maybe not exist.");
-        VasSecurityManager::ClearCapabilities(caps);
-        return VAS_WARN;
-    }
-    file << "1";
-    if (VasSecurityManager::ModifyEffectiveCapabilities(caps, VasCapOperateType::CAP_DELETE) != VAS_OK) {
-        LOG_ERROR("Delete capabilities failed.");
-        return VAS_ERROR;
-    }
-    return VAS_OK;
-}
-VasRet VasdArgParse::DisableDynamicAffinityClusterSched()
-{
-    std::vector<__u32> caps = {
-        CAP_DAC_OVERRIDE,
-    };
-    if (VasSecurityManager::ModifyEffectiveCapabilities(caps, VasCapOperateType::CAP_ADD) != VAS_OK) {
-        LOG_ERROR("Add capabilities failed.");
-        return VAS_ERROR;
-    }
-    std::ofstream file(DYNAMIC_AFFINITY_CLUSTER_SCHED_PATH);
-    if (!file.is_open()) {
-        LOG_WARN("Open file failed, " + DYNAMIC_AFFINITY_CLUSTER_SCHED_PATH.string() + " maybe not exist.");
-        VasSecurityManager::ClearCapabilities(caps);
-        return VAS_WARN;
-    }
-    file << "0";
-    if (VasSecurityManager::ModifyEffectiveCapabilities(caps, VasCapOperateType::CAP_DELETE) != VAS_OK) {
-        LOG_ERROR("Delete capabilities failed.");
-        return VAS_ERROR;
-    }
-    return VAS_OK;
 }
 } // namespace vas::sched
 

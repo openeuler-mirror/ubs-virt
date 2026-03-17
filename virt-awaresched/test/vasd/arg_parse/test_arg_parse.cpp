@@ -65,15 +65,11 @@ namespace vas::ut::arg {
     TEST_F(TestArgParse, testArgsDeInitFunction)
     {
         VasdArgParse::schedPolicy = "dynamicAffinity";
-        MOCKER(VasdArgParse::DisableDynamicAffinityClusterSched).stubs().will(
-            returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
-        EXPECT_EQ(VasdArgParse::DeInit(), VAS_WARN);
         EXPECT_EQ(VasdArgParse::DeInit(), VAS_OK);
         VasdArgParse::schedPolicy = "ErrorStratage";
         EXPECT_EQ(VasdArgParse::DeInit(), VAS_ERROR);
         VasdArgParse::schedPolicy = "affinity";
         EXPECT_EQ(VasdArgParse::DeInit(), VAS_OK);
-        MOCKER(VasdArgParse::DisableDynamicAffinityClusterSched).reset();
     }
 
     TEST_F(TestArgParse, testArgsIsDynamicAffinityAvailable)
@@ -83,28 +79,6 @@ namespace vas::ut::arg {
         file.close();
         EXPECT_FALSE(VasdArgParse::IsDynamicAffinityAvailable());
         std::remove(PROC_CMDLINE.string().c_str());
-    }
-
-    TEST_F(TestArgParse, testArgsEnableDynamicAffinityClusterSched)
-    {
-        MOCKER(vas::security::VasSecurityManager::ModifyEffectiveCapabilities).stubs()
-            .will(returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
-        VasRet ret = VasdArgParse::EnableDynamicAffinityClusterSched();
-        EXPECT_EQ(ret, VAS_ERROR);
-        ret = VasdArgParse::EnableDynamicAffinityClusterSched();
-        EXPECT_EQ(ret, VAS_WARN);
-        MOCKER(vas::security::VasSecurityManager::ModifyEffectiveCapabilities).reset();
-    }
-
-    TEST_F(TestArgParse, testArgsDisanableDynamicAffinityClusterSched)
-    {
-        MOCKER(vas::security::VasSecurityManager::ModifyEffectiveCapabilities).stubs()
-            .will(returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
-        VasRet ret = VasdArgParse::DisableDynamicAffinityClusterSched();
-        EXPECT_EQ(ret, VAS_ERROR);
-        ret = VasdArgParse::DisableDynamicAffinityClusterSched();
-        EXPECT_EQ(ret, VAS_WARN);
-        MOCKER(vas::security::VasSecurityManager::ModifyEffectiveCapabilities).reset();
     }
 
     TEST_F(TestArgParse, testArgsInvalidDynamicAffinityUtilThresh)

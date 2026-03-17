@@ -13,6 +13,7 @@
 
 #include <csignal>
 #include <iostream>
+#include <sys/time.h>
 
 #include "args_util.h"
 #include "def.h"

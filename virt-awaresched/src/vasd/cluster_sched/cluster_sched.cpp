@@ -28,7 +28,7 @@ using namespace std::chrono;
 using namespace vas::common;
 using namespace vas::security;
 
-const uint8_t ClusterSched::MAX_OVER_PROVISION = 1;
+const uint8_t ClusterSched::maxOverProvision = 6;
 
 /**
  * update vm domain info
@@ -392,14 +392,14 @@ NumaUsedCpuMap ClusterSched::GetNumaUsedCpuMap()
 
 VasRet ClusterSched::SelectMinLayer(const std::set<uint16_t> &availableNumas, uint16_t &selectNumaId)
 {
-    size_t minOverProvision = MAX_OVER_PROVISION;
+    size_t minOverProvision = maxOverProvision;
     for (auto &numaId : availableNumas) {
         if (overProvision_[numaId] < minOverProvision) {
             minOverProvision = overProvision_[numaId];
             selectNumaId = numaId;
         }
     }
-    if (minOverProvision == MAX_OVER_PROVISION) {
+    if (minOverProvision == maxOverProvision) {
         return VAS_ERROR;
     }
     return VAS_OK;
@@ -428,7 +428,7 @@ VasRet ClusterSched::SelectVmNuma(const VmInfo &vmInfo, NumaUsedCpuMap &numaUsed
     LOG_DEBUG("availableNumas=" + StringUtil::SetToStr(availableNumas));
     // Select a numa with as full of CPUs as possible, provided that the numa has enough free CPUs
     int16_t selectNumaUsedCpuCount = -1;
-    uint16_t selectLayerId = MAX_OVER_PROVISION;
+    uint16_t selectLayerId = maxOverProvision;
     size_t layerId = 0;
     for (auto &numaId : availableNumas) {
         for (layerId = 0; layerId < overProvision_[numaId]; ++layerId) {
@@ -636,6 +636,43 @@ void ClusterSched::Unassign(VmDomain &domain)
 }
 
 /**
+ * bind vcpu to cpu
+ * @param domain
+ * @param pid
+ * @param cpuIndex
+ * @param clusterId
+ * @return
+ */
+VasRet ClusterSched::SetVcpuAffinity(VmDomain &domain, const pid_t &pid, const uint16_t &cpuIndex,
+                                     const uint16_t &clusterId)
+{
+    fs::path vmPathPre{};
+    auto ret = GetVmCgroupPath(domain.uuid, vmPathPre);
+    if (isVasRetFail(ret)) {
+        return ret;
+    }
+
+    if (VasdArgParse::schedPolicy == "dynamicAffinity") {
+        auto numaCpusetMap = CpuHelper::GetInstance().GetNuma2CpusetMap();
+        const auto numaCpuBitMap =
+            Bitset::GenDynamicBitsetByCpuSet(CpuHelper::MAX_CPU_NUM, numaCpusetMap[domain.numaId]);
+        ret = SetVmCpuset(vmPathPre, VmThreadType::VCPU_CPUSET, numaCpuBitMap, domain.pidVcpuMap[pid]);
+        if (isVasRetFail(ret)) {
+            return VAS_ERROR;
+        }
+        if (numaClusterMap_.find(domain.numaId) == numaClusterMap_.end() ||
+            numaClusterMap_[domain.numaId].find(clusterId) == numaClusterMap_[domain.numaId].end()) {
+            LOG_ERROR("Invalid numaId or clusterId");
+            return VAS_ERROR;
+        }
+        return SetVmCpuset(vmPathPre, VmThreadType::VCPU_PREFERRED_CPU,
+                           Bitset::GenDynamicBitSetByArea(CpuHelper::MAX_CPU_NUM, cpuIndex, 1), domain.pidVcpuMap[pid]);
+    }
+    return SetVmCpuset(vmPathPre, VmThreadType::VCPU_CPUSET,
+                       Bitset::GenDynamicBitSetByArea(CpuHelper::MAX_CPU_NUM, cpuIndex, 1), domain.pidVcpuMap[pid]);
+}
+
+/**
  * cpu rescheduling by VmDomain
  * @param domains VmDomain
  * @return VasRet
@@ -706,9 +743,7 @@ VasRet ClusterSched::AssignPidCpu(VmDomain &domain, const pid_t &pid)
         }
         const auto cluster = numaClusterMap_[domain.numaId][group.clusterId];
         const auto cpuIndex = cluster.GetStartCpu() + index;
-        if (const auto ret =
-                SetVcpuAffinity(domain, pid, Bitset::GenDynamicBitSetByArea(CpuHelper::MAX_CPU_NUM, cpuIndex, 1));
-            isVasRetFail(ret)) {
+        if (const auto ret = SetVcpuAffinity(domain, pid, cpuIndex, group.clusterId); isVasRetFail(ret)) {
             return VAS_ERROR;
         }
         const VmEntity &entity = GenEntity(pid, index);
@@ -886,11 +921,11 @@ uint16_t ClusterSched::AllocClusterGroupToDomain(VmDomain &domain, const uint16_
         if (allocNum != 0) {
             break;
         }
-        if (layerId == overProvision_[domain.numaId] - 1 && overProvision_[domain.numaId] < MAX_OVER_PROVISION &&
+        if (layerId == overProvision_[domain.numaId] - 1 && overProvision_[domain.numaId] < maxOverProvision &&
             VasdArgParse::schedPolicy == SCHED_POLICY_DYNAMIC) {
             OverProvisionUp(domain.numaId);
         } else {
-            LOG_WARN("overProvision=" + std::to_string(MAX_OVER_PROVISION) + ", can't raise up again.");
+            LOG_WARN("overProvision=" + std::to_string(maxOverProvision) + ", can't raise up again.");
         }
     }
     return allocNum;
@@ -1136,34 +1171,6 @@ VasRet ClusterSched::SetVmCpuset(const fs::path &vmPathPre, const VmThreadType &
 }
 
 /**
- * bind vcpu to cpu
- * @param domain
- * @param pid
- * @param cpuBitSet
- * @return
- */
-VasRet ClusterSched::SetVcpuAffinity(VmDomain &domain, const pid_t &pid, const DynamicBitset &cpuBitSet)
-{
-    fs::path vmPathPre{};
-    auto ret = GetVmCgroupPath(domain.uuid, vmPathPre);
-    if (isVasRetFail(ret)) {
-        return ret;
-    }
-
-    if (VasdArgParse::schedPolicy == "dynamicAffinity") {
-        auto numaCpusetMap = CpuHelper::GetInstance().GetNuma2CpusetMap();
-        const auto numaCpuBitMap =
-            Bitset::GenDynamicBitsetByCpuSet(CpuHelper::MAX_CPU_NUM, numaCpusetMap[domain.numaId]);
-        ret = SetVmCpuset(vmPathPre, VmThreadType::VCPU_CPUSET, numaCpuBitMap, domain.pidVcpuMap[pid]);
-        if (isVasRetFail(ret)) {
-            return VAS_ERROR;
-        }
-        return SetVmCpuset(vmPathPre, VmThreadType::VCPU_PREFERRED_CPU, cpuBitSet, domain.pidVcpuMap[pid]);
-    }
-    return SetVmCpuset(vmPathPre, VmThreadType::VCPU_CPUSET, cpuBitSet, domain.pidVcpuMap[pid]);
-}
-
-/**
  * set emulator cpu affinity
  * @param uuid
  * @param cpuBitSet
@@ -1353,9 +1360,7 @@ VasRet ClusterSched::GroupEntityMigrate(VmGroup &group, const int16_t &newStart,
         int oldCpuIdx = entityMap_[pid].cpuIdx;
         entityMap_[pid].cpuIdx = newStart + (entityMap_[pid].cpuIdx - group.start);
         const auto cpu = cluster.GetStartCpu() + entityMap_[pid].cpuIdx;
-        if (const auto ret = SetVcpuAffinity(domainMap_[group.domainKey], pid,
-                                             Bitset::GenDynamicBitSetByArea(CpuHelper::MAX_CPU_NUM, cpu, 1));
-            isVasRetFail(ret)) {
+        if (const auto ret = SetVcpuAffinity(domainMap_[group.domainKey], pid, cpu, cluster.id); isVasRetFail(ret)) {
             // rollback changed cpuIdx
             for (const auto &[vcpuPid, cpuIdx] : cpuIdxBackup) {
                 entityMap_[vcpuPid].cpuIdx = cpuIdx;

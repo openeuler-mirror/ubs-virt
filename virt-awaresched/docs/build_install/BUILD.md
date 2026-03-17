@@ -8,6 +8,12 @@ git clone https://gitee.com/openeuler/ubs-virt.git
 cd virt-awaresched
 ```
 
+## 构建工具链准备
+
+```shell
+sudo yum install gcc-c++ gcc cmake make -y
+```
+
 ## 构建
 
 ### 构建依赖
@@ -17,7 +23,7 @@ virt-awaresched构建依赖信息已经记录在spec文件（virt-awaresched.spe
 具体内容如下：
 
 ```shell
-Requires: libvirt libsecurec libcap
+Requires: patch libvirt-devel libboundscheck
 ```
 
 ### 安装依赖
@@ -25,7 +31,7 @@ Requires: libvirt libsecurec libcap
 **方式一** yum命令手动安装
 
 ```shell
-yum install -y libsecurec
+sudo yum install patch libvirt-devel libboundscheck -y
 ```
 
 ### 执行构建
