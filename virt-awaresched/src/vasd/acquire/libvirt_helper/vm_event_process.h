@@ -14,7 +14,6 @@
 #define VM_EVENT_PROCESS_H
 
 #include <condition_variable>
-#include <mutex>
 #include <queue>
 
 #include "libvirt_helper.h"

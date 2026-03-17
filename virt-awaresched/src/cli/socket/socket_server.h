@@ -120,6 +120,8 @@ private:
      * @return True if binding successfully, false otherwise
      */
     bool BindSocket();
+
+    bool RebuildRundir(const fs::path& socketDir);
 };
 
 } // namespace vas::common

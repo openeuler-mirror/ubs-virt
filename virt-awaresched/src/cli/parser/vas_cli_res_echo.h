@@ -15,7 +15,6 @@
 
 #include <string>
 
-#include "error.h"
 #include "vas_cli_parse.h"
 
 namespace vas::cli::framework {

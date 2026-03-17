@@ -61,7 +61,7 @@ uint16_t StringUtil::StringToUint16(const char *in)
     unsigned long val;
     try {
         val = std::stoul(str);
-        if (val > std::numeric_limits<pid_t>::max()) {
+        if (val > std::numeric_limits<uint16_t>::max()) {
             throw std::out_of_range("Input string exceeds the maximum value for uint16_t");
         }
     } catch (const std::invalid_argument& e) {

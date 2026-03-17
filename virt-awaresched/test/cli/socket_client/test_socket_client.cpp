@@ -12,6 +12,8 @@
 
 #include "test_socket_client.h"
 
+#include <securec.h>
+
 #include <mockcpp/mockcpp.hpp>
 
 #include "socket_client.h"
@@ -44,6 +46,17 @@ TEST_F(TestSocketClient, testConnectToServer)
     EXPECT_FALSE(ret);
     ret = socketClient.ConnectToServer();
     EXPECT_TRUE(ret);
+}
+
+TEST_F(TestSocketClient, testConnectToServerException)
+{
+    MOCKER_CPP(&SocketClient::CloseConnection, void(SocketClient::*)()).stubs().will(ignoreReturnValue());
+    MOCKER(close).stubs().will(returnValue(1));
+    SocketClient socketClient;
+    MOCKER(socket).stubs().will(returnValue(1));
+    MOCKER(memcpy_s).stubs().will(returnValue(-1));
+    auto ret = socketClient.ConnectToServer();
+    EXPECT_FALSE(ret);
 }
 
 ssize_t ClientSendMock(int fd, const void *buf, size_t n, int flags)

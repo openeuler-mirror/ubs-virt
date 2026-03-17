@@ -11,6 +11,7 @@
  */
 #include "test_string_util.h"
 
+#include <limits>
 #include <set>
 #include <sstream>
 #include <string>
@@ -27,7 +28,12 @@ namespace vas::ut::util {
 
     TEST_F(TestStringUtil, testStringToPidtInvalid) {
         EXPECT_THROW(StringUtil::StringToPidt(""), std::invalid_argument);
+        EXPECT_THROW(StringUtil::StringToPidt(nullptr), std::invalid_argument);
         EXPECT_THROW(StringUtil::StringToPidt("abc"), std::invalid_argument);
+        pid_t maxPid = std::numeric_limits<pid_t>::max();
+        unsigned long val = static_cast<unsigned long>(maxPid) + 1;
+        std::string str = std::to_string(val);
+        EXPECT_THROW(StringUtil::StringToPidt(str.c_str()), std::out_of_range);
     }
 
     TEST_F(TestStringUtil, testStringToUint16Normal) {
@@ -37,8 +43,13 @@ namespace vas::ut::util {
 
     TEST_F(TestStringUtil, testStringToUint16Invalid) {
         EXPECT_THROW(StringUtil::StringToUint16(""), std::invalid_argument);
+        EXPECT_THROW(StringUtil::StringToUint16(nullptr), std::invalid_argument);
         EXPECT_THROW(StringUtil::StringToUint16("abc"), std::invalid_argument);
-        EXPECT_THROW(StringUtil::StringToUint16("65536165341352435531231"), std::out_of_range);
+
+        uint16_t maxUint16 = std::numeric_limits<uint16_t>::max();
+        uint32_t val = static_cast<uint32_t>(maxUint16) + 1;
+        std::string str = std::to_string(val);
+        EXPECT_THROW(StringUtil::StringToUint16(str.c_str()), std::out_of_range);
     }
 
     TEST_F(TestStringUtil, testTrimNormal) {

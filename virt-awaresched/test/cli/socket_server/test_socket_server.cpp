@@ -36,6 +36,65 @@ void TestSocketServer::TearDown()
 
 void SocketServerCloseServer(SocketServer *_this) {}
 
+TEST_F(TestSocketServer, testStartServerException)
+{
+    MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
+    MOCKER(close).stubs().will(returnValue(1));
+    MOCKER(socket).stubs().will(returnValue(-1)).then(returnValue(1));
+    MOCKER(vas::security::VasSecurityManager::ModifyEffectiveCapabilities).stubs()
+        .will(returnValue(-1));
+    SocketServer socketServer;
+    auto ret = socketServer.StartServer();
+    EXPECT_FALSE(ret);
+}
+
+TEST_F(TestSocketServer, testStartServerException2)
+{
+    MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
+    MOCKER(close).stubs().will(returnValue(1));
+    MOCKER(socket).stubs().will(returnValue(-1)).then(returnValue(1));
+    MOCKER(vas::security::VasSecurityManager::ModifyEffectiveCapabilities).stubs()
+        .will(returnValue(0)).then(returnValue(-1));
+    MOCKER(bind).stubs().will(returnValue(0));
+    SocketServer socketServer;
+    auto ret = socketServer.StartServer();
+    EXPECT_FALSE(ret);
+}
+
+TEST_F(TestSocketServer, testRebuildRundir)
+{
+    SocketServer socketServer{};
+    auto testPath = std::filesystem::current_path() / "test_socket_dir";
+    auto ret = socketServer.RebuildRundir(testPath);
+    EXPECT_TRUE(ret);
+    ret = socketServer.RebuildRundir(testPath);
+    EXPECT_TRUE(ret);
+    std::filesystem::remove_all(testPath);
+}
+
+TEST_F(TestSocketServer, testRebuildRundirException)
+{
+    SocketServer socketServer{};
+    auto testPath = std::filesystem::current_path() / "test_socket_dir";
+    MOCKER(std::filesystem::create_directory).stubs().will(returnValue(false));
+    auto ret = socketServer.RebuildRundir(testPath);
+    EXPECT_FALSE(ret);
+    MOCKER(chmod).stubs().will(returnValue(1));
+    ret = socketServer.RebuildRundir(testPath);
+    EXPECT_FALSE(ret);
+    std::filesystem::remove_all(testPath);
+}
+
+TEST_F(TestSocketServer, testBindSocket)
+{
+    MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
+    MOCKER(close).stubs().will(returnValue(1));
+    SocketServer socketServer{};
+    MOCKER(memcpy_s).stubs().will(returnValue(-1));
+    auto ret = socketServer.BindSocket();
+    EXPECT_FALSE(ret);
+}
+
 TEST_F(TestSocketServer, testAcceptClient)
 {
     MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
@@ -48,11 +107,34 @@ TEST_F(TestSocketServer, testAcceptClient)
     EXPECT_TRUE(ret);
 }
 
+TEST_F(TestSocketServer, testAcceptClientException)
+{
+    MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
+    MOCKER(close).stubs().will(returnValue(NUMBER_ONE));
+    SocketServer socketServer{};
+    socketServer.clientSocket = 1;
+    MOCKER(accept).stubs().will(returnValue(0));
+    auto ret = socketServer.AcceptClient();
+    EXPECT_TRUE(ret);
+}
+
 ssize_t ServerRecvMock(int fd, void *buf, size_t n, int flags)
 {
     auto *buff = static_cast<char *>(buf);
     *buff = 'a';
     return NUMBER_ONE;
+}
+
+TEST_F(TestSocketServer, testReceiveMessage)
+{
+    MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
+    MOCKER(close).stubs().will(returnValue(NUMBER_ONE));
+    SocketServer socketServer{};
+    MOCKER(recv).stubs().will(returnValue(static_cast<ssize_t>(NUMBER_NEGATIVE_ONE))).then(invoke(ServerRecvMock));
+    auto ret = socketServer.ReceiveMessage();
+    EXPECT_EQ(ret, "");
+    ret = socketServer.ReceiveMessage();
+    EXPECT_EQ(ret, "a");
 }
 
 ssize_t ServerSendMock(int fd, const void *buf, size_t n, int flags)

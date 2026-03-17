@@ -19,7 +19,6 @@
 #ifndef ERROR_H
 #define ERROR_H
 
-#include <cstdint>
 #include <sstream>
 #include <string>
 
