@@ -179,7 +179,7 @@ vCANN-RT支持两种方式启动服务：
         successPolicy: AllWorkers
         replicaSpecs:
             Master:
-                replocas: 1
+                replicas: 1
                 restartPolicy: Never
                 template:
                     spec:
@@ -218,14 +218,8 @@ vCANN-RT支持两种方式启动服务：
                             mountPath: /usr/local/sbin/
                           - name: ascend-driver
                             mountPath: /usr/local/Ascend/driver
-                            # 共享内存
-                          - name: dshm 
-                            mountPath: /dev/shm
                           - name: localtime
                             mountPath: /etc/localtime
-                            # 配置文件夹路径
-                          - name: share-device-config-dir
-                            mountPath: /etc/enpu/vcann-rt/
                             # 软切分动态库路径
                           - name: libpreload 
                             mountPath: /opt/enpu/vcann-rt/lib/libvruntime.so
@@ -239,19 +233,9 @@ vCANN-RT支持两种方式启动服务：
                         - name: ascend-driver
                           hostPath:
                             path: /usr/local/Ascend/driver
-                          # 共享内存  
-                        - name: dshm 
-                          hostPath:
-                            path: /dev/shm/
                         - name: localtime
                           hostPath:
                             path: /etc/localtime
-                          # 配置文件夹路径
-                        - name: share-device-config-dir 
-                          hostPath:
-                            # {配置文件夹路径}/${namespace}.${container_name}/
-                            path: /etc/enpu/vcann-rt/vnpu.vnpu-base/ 
-                            type: DirectoryOrCreate
                           # 软切分动态库路径
                         - name: libpreload 
                           hostPath:
@@ -270,9 +254,11 @@ vCANN-RT支持两种方式启动服务：
             - huawei.com/scheduler.softShareDev.aicoreQuota: 算力aicore配额，单位：%
             - huawei.com/scheduler.softShareDev.hbmQuota: 显存HBM配额，单位：MB
             - huawei.com/scheduler.softShareDev.policy: 调度策略，默认为弹性模式。
-              - 固定配额模式（fixed_share）
+              - 固定配额模式（fixed-share）
               - 弹性模式（elastic）
               - 争抢模式（best-effort）
+            
+            - 每种模式的详细介绍参见表6，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制。
     - containers:
         - image: 镜像名。
     - volumeMounts:
@@ -285,9 +271,16 @@ vCANN-RT支持两种方式启动服务：
         - name: preload # preload配置文件路径。
             - hostPath:
                 - path: ${preload_path}/ld.so.preload # [步骤2](#step2)中创建的ld.so.preload文件路径。
-    
-    使用yaml文件拉起容器：
 
+    **表 6 调度模式介绍**
+
+    |模式名称|特点描述|
+    |:---|:---|
+    |固定配额模式（fixed-share）|各vNPU按配比严格执行时间片。<br> a. 若有暂未分配的vNPU资源，则在最后一个vNPU时间片消耗完，睡眠一段时间。此时NPU将闲置空转。<br> b. 某vNPU上无任务运行，仍会给定比例消耗完该vNPU的时间片。|
+    |弹性模式（elastic）| 由于固定配额模式可能出现NPU资源浪费，在此模式下，在各vNPU按配比执行时间片的基础上，为提高卡资源利用率，优化了调度逻辑。<br> a. 最后一个vNPU时间片消耗完，马上将NPU使用权释放给下一个vNPU，跳过睡眠逻辑。 <br> b. 在某vNPU上无任务运行，则直接跳过未消耗完的时间片，切换至另一个vNPU。<br> c. 时间片借用机制：正在执行的vNPU在识别到卡资源空闲的情况下，允许其他vNPU借用该时间片内浪费的资源，使卡上资源不被浪费，进而提升整卡利用率。|
+    |争抢模式（best-effort）|vNPU之间自行争抢NPU资源，该模式的资源利用率最高，但无法保证vNPU的QoS。|
+
+    使用yaml文件拉起容器：
     ```shell
     kubectl apply -f ${container_name.yaml}
     # 查看容器
@@ -342,7 +335,7 @@ vCANN-RT支持两种方式启动服务：
       scheduling-policy=1
     ```
 
-    **表 6 配置项说明**
+    **表 7 配置项说明**
 
     |参数|参数选项|说明|
     |:---|:---|:---|
@@ -351,7 +344,7 @@ vCANN-RT支持两种方式启动服务：
     |aicore-quota|AI Core资源配额，单位为%|表示算力使用的时间比例。当前每个time slice默认为100ms, 通过软件硬编码，不支持动态配置。假如申请了20%的算力资源，那么该容器有20ms的NPU使用权。|
     |memory-quota|HBM资源配额，单位为MB|表示显存资源使用容量。当前容器内所有进程使用的HBM总量不能超过HBM资源配额。|
     |shm-id|共享内存文件名称|该文件名称采用物理NPU对应的VDie ID, 可以保证全局唯一。<br>通过`npu-smi info -t board -i ${id} -c ${chip_id}`命令查询VDie ID。<br>查询完成之后，可以通过`-`符号拼接成文件名称，例如：`shm-id=11111111-22222222-33333333-44444444-55555555` 用户需要确保宿主机中存在此共享内存文件。|
-    |scheduling-policy|<ul>默认配置为2。<li>1: fixed-share mode</li><li>2: elastic mode</li><li>3: best-effort mode</li></ul>|调度策略。|
+    |scheduling-policy|<ul>默认配置为2。<li>1: 固定配额模式 （fixed-share）</li><li>2: 弹性模式 （elastic）</li><li>3: 争抢模式 （best-effort）</li></ul>|调度策略（具体介绍可参见表6，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制）。|
 
     此外，需要设置配置文件具有合适的权限，建议为644。
 
@@ -386,13 +379,13 @@ vCANN-RT支持两种方式启动服务：
 
       3. 执行`export LD_PRELOAD=/opt/enpu/vcann-rt/lib/libvruntime.so`命令。
 
-    **表 7 参数说明**
+    **表 8 参数说明**
 
     |文件/工具|路径|
     |:---|:---|
     |软切分动态库|主机侧和容器内均为建议路径：`/opt/enpu/vcann-rt/lib/libvruntime.so`|
-    |物理NPU设备|主机侧和容器内均为建议路径：`/opt/enpu/vcann-rt/tools/enpu-monitor`|
-    |共享内存设备|主机侧和容器内均为固定路径：`/dev/davinci0`|
+    |监测工具|主机侧和容器内均为建议路径：`/opt/enpu/vcann-rt/tools/enpu-monitor`|
+    |物理NPU设备|主机侧和容器内均为固定路径：`/dev/davinci0`|
     |共享内存设备|主机侧和容器内均为固定路径：`/dev/shm`|
     |配置文件|<ul><li>主机侧可存放在自定义路径。</li><li>容器内为固定路径：`/etc/enpu/vcann-rt/npu_info.config`</li></ul>|
     |预加载动态库文件|主机侧可存放在自定义路径，容器内为固定路径：`/etc/ld.so.preload`|
@@ -430,8 +423,9 @@ vCANN-RT支持两种方式启动服务：
 ## 约束
 
 - 由于vCANN-RT解决方案使用了共享内存，因此用户需要确保在可信用户范围内使用。
-- 单个物理NPU卡支持的最大容器数量为100个，单个vNPU支持的最大进程数为128。
-- 当用户的配置文件错误时，只有在容器业务拉起之后才会报错。例如，若用户配置aicore-quota=120，此时算力资源配额已经超出100%，在容器启动时不会报错，只有当容器内的使用vNPU的进程启动后，才会返回报错，此时需要用户在主机侧修改配置文件，并重新拉起容器。
+- 由于硬件设备的限制(可以参考昇腾社区[使用约束](https://www.hiascend.com/document/detail/zh/canncommercial/850/appdevg/acldevg/aclcppdevg_000222.html))，单个device支持的最大用户进程数为63个，因此建议vCANN-RT最大切分数量不超过63个。
+- 用户对aicore算力资源的配额设置不能超过100%，对HBM显存资源的配额设置不能超过当前物理卡的可用显存资源总量，否则可能在容器拉起或者业务运行时出现异常。例如：HBM配额设置超限之后，可能会在业务运行时出现OOM异常报错。
+- 采用docker方式部署时，用户需要保证同一个device设置为同一种调度策略，否则可能会导致业务运行异常。
 - 若用户通过源码自行编译软切分动态库，则需要保证主机侧的CANN版本和容器镜像中的CANN版本保持一致。
 
 ## FAQ
