@@ -13,6 +13,7 @@
 
 #include <mockcpp/mokc.h>
 
+#include "cluster_sched.h"
 #include "cpu_helper.h"
 #include "error.h"
 #include "vasd_arg_parse.h"
@@ -138,6 +139,49 @@ CpuTopologyMap TestClusterSched::defaultCpuTopologyMap{{
 
 VasRet GetVmInfoListMockSuccess(LibvirtHelper *cls, VmInfoMap &vmInfoMap);
 
+TEST_F(TestClusterSched, testUpdateDomainInfo1)
+{
+    MOCKER_CPP(&LibvirtHelper::GetVmInfoList, VasRet(LibvirtHelper::*)(VmInfoMap &))
+        .stubs()
+        .will(invoke(GetVmInfoListMockSuccess));
+    MOCKER(&ClusterSched::SelectVmNuma).stubs().will(returnValue(VAS_OK));
+    MOCKER(&ClusterSched::Alloc).stubs().will(returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
+    MOCKER(&ClusterSched::Assign).stubs().will(returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
+    std::string domainKey = uuid01 + "_0";
+    EXPECT_EQ(ClusterSched::GetInstance().UpdateDomainInfosAndSched(), VAS_OK);
+    EXPECT_FALSE(ClusterSched::GetInstance().domainMap_[domainKey].isReScheded);
+    EXPECT_EQ(ClusterSched::GetInstance().UpdateDomainInfosAndSched(), VAS_OK);
+    EXPECT_FALSE(ClusterSched::GetInstance().domainMap_[domainKey].isReScheded);
+}
+
+TEST_F(TestClusterSched, testUpdateDomainInfo2)
+{
+    MOCKER_CPP(&LibvirtHelper::GetVmInfoList, VasRet(LibvirtHelper::*)(VmInfoMap &))
+        .stubs()
+        .will(returnValue(VAS_ERROR));
+    EXPECT_EQ(ClusterSched::GetInstance().UpdateDomainInfosAndSched(), VAS_ERROR);
+}
+
+TEST_F(TestClusterSched, testUpdateDomainInfo3)
+{
+    MOCKER_CPP(&LibvirtHelper::GetVmInfoList, VasRet(LibvirtHelper::*)(VmInfoMap &))
+        .stubs()
+        .will(invoke(GetVmInfoListMockSuccess));
+    MOCKER(&ClusterSched::SelectVmNuma).stubs().will(returnValue(VAS_ERROR));
+    MOCKER(&ClusterSched::Alloc).stubs().will(returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
+    MOCKER(&ClusterSched::Assign).stubs().will(returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
+    std::string domainKey = uuid01 + "_0";
+    EXPECT_EQ(ClusterSched::GetInstance().UpdateDomainInfosAndSched(), VAS_OK);
+}
+
+TEST_F(TestClusterSched, testSelectMinLayer)
+{
+    std::set<uint16_t> availableNumas = {0, 1, 3};
+    uint16_t selectedNumaId = 0;
+    VasRet ret = ClusterSched::GetInstance().SelectMinLayer(availableNumas, selectedNumaId);
+    EXPECT_EQ(ret, VAS_OK);
+}
+
 TEST_F(TestClusterSched, testInitClusterInfo1)
 {
     MOCKER(CpuHelper::GetClusterCpuSet).stubs().will(returnValue(cluster0CpuList));
@@ -213,6 +257,25 @@ TEST_F(TestClusterSched, testReSchedVm)
     EXPECT_EQ(ret, VAS_OK);
     ret = ClusterSched::GetInstance().ReSchedVm(uuid01);
     EXPECT_EQ(ret, VAS_OK);
+}
+
+TEST_F(TestClusterSched, testClusterCompaction)
+{
+    ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
+    ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
+    ClusterSched::GetInstance().vmNeedAssignTgIdCpu_ = defaultVmNeedAssignTgIdCpu;
+    ClusterSched::GetInstance().vmNeedAssignIoThreadCpu_ = defaultVmNeedAssignIoThreadCpu;
+    MOCKER_CPP(&ClusterSched::CleanDyingPid, VasRet(ClusterSched::*)()).stubs().will(returnValue(VAS_OK));
+    MOCKER_CPP(&ClusterSched::CompactionCluster, void(ClusterSched::*)(uint16_t, std::map<uint16_t, Cluster> &))
+        .stubs()
+        .will(ignoreReturnValue());
+    MOCKER_CPP(&ClusterSched::AssignIoThreadsCpuWithoutLock, void(ClusterSched::*)(std::vector<VmDomain> &))
+        .stubs()
+        .will(ignoreReturnValue());
+    MOCKER_CPP(&ClusterSched::AssignEmulatorCpuWithoutLock, void(ClusterSched::*)(std::vector<VmDomain> &))
+        .stubs()
+        .will(ignoreReturnValue());
+    EXPECT_NO_THROW(ClusterSched::GetInstance().ClusterCompaction());
 }
 
 VasRet GetVmInfoListMockSuccess(LibvirtHelper *cls, VmInfoMap &vmInfoMap)
@@ -528,6 +591,57 @@ TEST_F(TestClusterSched, testCleanDyingPidByGroup2)
     EXPECT_TRUE(ClusterSched::GetInstance().groupMap_["a1b2c3d4-e5f6-7890-abcd-ef1234567890_0_0_0"].entityPids.empty());
 }
 
+TEST_F(TestClusterSched, testCleanDyingPidByGroup3)
+{
+    ClusterSched scheduler;
+    scheduler.groupMap_ = GroupMap{{"test_0_0_1", VmGroup{
+        .domainKey = uuid01 + "_0",
+        .id = uuid01 + "_0_0_0",
+        .clusterId = 0,
+        .layerId = 0,
+        .start = 0,
+        .nrCpus = 3,
+        .usedBitmap = DynamicBitset(CpuHelper::CLUSTER_CPU_NUM, false),
+        .entityPids = {266987, 266988, 266989},
+    }}};
+    scheduler.numaClusterMap_ = NumaClusterMap{{0,
+                        {{0, Cluster{.id = 0,
+                                                .numaId = 0,
+                                                .cpuSet = {0, 1, 2, 3, 4, 5, 6, 7},
+                                                .clusterLayers = {ClusterLayer{
+                                                    .idle = 8,
+                                                    .total = 8,
+                                                    .usedBitmap = DynamicBitset(8),
+                                                    .groups = {},
+                                                    }}}}}}};
+    scheduler.entityMap_ = EntityMap{
+        {266987, VmEntity{
+            .pid = 266987,
+            .cpuIdx = 0,
+        }},
+        {266988, VmEntity{
+            .pid = 266987,
+            .cpuIdx = 1,
+        }},
+    };
+    VmDomain vmDomain;
+    int tgidNum = 4567;
+    vmDomain.uuid = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
+    vmDomain.name = "ProductionVM-01";
+    vmDomain.numaId = 0;
+    vmDomain.tgid = tgidNum;
+    vmDomain.ioThreadIds = {8001, 8002, 8003};
+    vmDomain.pidVcpuMap = {
+            {8001, 0},
+            {8002, 1},
+            {8003, 2}
+    };
+    vmDomain.groups = {"test_0_0_1"};
+    vmDomain.entityPids = {4567, 4568, 4569};
+    vmDomain.isReScheded = false;
+    scheduler.CleanDyingPidByGroup(vmDomain);
+}
+
 TEST_F(TestClusterSched, testAllocGroupFromCluster)
 {
     ClusterSched scheduler;
@@ -641,6 +755,17 @@ TEST_F(TestClusterSched, testDelGroupFromDomain)
 TEST_F(TestClusterSched, testCompactionGroupFromLastLayer)
 {
     ClusterSched scheduler;
+    int cpuNum = 128;
+    MOCKER(CpuHelper::GetClusterCpuSet).stubs().will(returnValue(cluster0CpuList));
+    MOCKER(CpuHelper::GetMaxCpuNum).stubs().will(returnValue(cpuNum));
+    MOCKER_CPP(&CpuHelper::GenCpuTopology, CpuTopologyMap(CpuHelper::*)()).
+        stubs().will(returnValue(defaultCpuTopologyMap));
+    scheduler.overProvision_ = {
+                            {0, 1},
+                            {1, 1},
+                            {2, 1},
+                            {3, 1}
+    };
     Cluster cluster1;
     int clusterLayersSize = 3;
     int clusterLayersIdle = 5;
@@ -650,6 +775,72 @@ TEST_F(TestClusterSched, testCompactionGroupFromLastLayer)
     cluster1.clusterLayers[0].idle = clusterLayersIdle;
     cluster1.clusterLayers[0].total = clusterLayersTotal;
     uint8_t layerId = 0;
+    scheduler.CompactionGroupFromLastLayer(cluster1, layerId);
+}
+
+TEST_F(TestClusterSched, testCompactionGroupFromLastLayer2)
+{
+    ClusterSched scheduler;
+    scheduler.numaClusterMap_ = NumaClusterMap{{1,
+                        {{0, Cluster{.id = 0,
+                                                .numaId = 0,
+                                                .cpuSet = {0, 1, 2, 3, 4, 5, 6, 7},
+                                                .clusterLayers = {ClusterLayer{
+                                                    .idle = 8,
+                                                    .total = 9,
+                                                    .usedBitmap = DynamicBitset(8),
+                                                    .groups = {"a1b2c3d4-e5f6-7890-abcd-ef1234567890_0_0_0"},
+                                                    }}}}}}};
+    scheduler.overProvision_ = {
+                {0, 1},
+                {1, 1},
+                {2, 1},
+                {3, 1}
+    };
+    Cluster cluster1;
+    int clusterLayersSize = 3;
+    int clusterLayersIdle = 5;
+    int clusterLayersTotal = 10;
+    cluster1.id = 0;
+    cluster1.clusterLayers.resize(clusterLayersSize);
+    cluster1.clusterLayers[0].idle = clusterLayersIdle;
+    cluster1.clusterLayers[0].total = clusterLayersTotal;
+    uint8_t layerId = 0;
+    scheduler.CompactionGroupFromLastLayer(cluster1, layerId);
+}
+
+TEST_F(TestClusterSched, testCompactionGroupFromLastLayer3)
+{
+    ClusterSched scheduler;
+    MOCKER(Bitset::FindFirstIdlePos).stubs().will(returnValue(0)).then(returnValue(0));
+    MOCKER(isIntInvalid).stubs().will(returnValue(false)).then(returnValue(false));
+    scheduler.numaClusterMap_ = NumaClusterMap{{1,
+                        {{0, Cluster{.id = 0,
+                                                .numaId = 0,
+                                                .cpuSet = {0, 1, 2, 3, 4, 5, 6, 7},
+                                                .clusterLayers = {ClusterLayer{
+                                                    .idle = 8,
+                                                    .total = 9,
+                                                    .usedBitmap = DynamicBitset(8),
+                                                    .groups = {"a1b2c3d4-e5f6-7890-abcd-ef1234567890_0_0_0"},
+                                                    }}}}}}};
+    scheduler.overProvision_ = {
+                    {0, 1},
+                    {1, 1},
+                    {2, 1},
+                    {3, 1}
+    };
+    Cluster cluster1;
+    int clusterLayersSize = 3;
+    int clusterLayersIdle = 5;
+    int clusterLayersTotal = 10;
+    cluster1.id = 0;
+    cluster1.clusterLayers.resize(clusterLayersSize);
+    cluster1.clusterLayers[0].idle = clusterLayersIdle;
+    cluster1.clusterLayers[0].total = clusterLayersTotal;
+    uint8_t layerId = 0;
+    scheduler.CompactionGroupFromLastLayer(cluster1, layerId);
+    MOCKER(&ClusterSched::GroupEntityMigrate).stubs().will(returnValue(VAS_ERROR));
     scheduler.CompactionGroupFromLastLayer(cluster1, layerId);
 }
 
@@ -808,8 +999,9 @@ TEST_F(TestClusterSched, testCompactionGroupWithinCluster)
     cluster2.clusterLayers.resize(clusterLayersSize);
     cluster2.clusterLayers[0].idle = clusterLayersIdle1;
     cluster2.clusterLayers[0].total = clusterLayersTotal1;
+    cluster2.clusterLayers[0].groups = {"a1b2c3d4-e5f6-7890-abcd-ef1234567890_0_0_0"};
 
-    uint8_t layerId = 0;
+    uint8_t layerId = 2;
     ClusterSched::GetInstance().groupMap_ = defaultGroupMap;
     uint16_t numaId = 0;
     std::map<uint16_t, Cluster> clusterMap;

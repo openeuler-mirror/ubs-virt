@@ -13,7 +13,6 @@
 #ifndef DYNAMIC_BITSET_H
 #define DYNAMIC_BITSET_H
 
-#include <cstdint>
 #include <set>
 #include <string>
 #include <vector>

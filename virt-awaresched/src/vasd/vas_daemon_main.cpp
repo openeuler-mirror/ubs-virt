@@ -30,8 +30,6 @@ using namespace vas::cli::reg;
 using namespace vas::sched::acquire;
 using namespace vas::security;
 
-constexpr int MAX_CLI_ARGS = 20;
-
 namespace vas::sched {
 void SignalHandler(int signum)
 {
@@ -48,6 +46,8 @@ void SignalHandler(int signum)
 
 int main(int argc, char *argv[])
 {
+    constexpr int maxCliArgs = 20;
+
     try {
         if (signal(SIGINT, SignalHandler) == SIG_ERR || signal(SIGTERM, SignalHandler) == SIG_ERR ||
             signal(SIGPIPE, SignalHandler) == SIG_ERR) {
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
         }
 
         // parameter verification
-        if (argc > MAX_CLI_ARGS) {
+        if (argc > maxCliArgs) {
             VasCliParse::PrintWithWordWrap("INFO: Unsupported number of parameters");
             return static_cast<int>(VAS_ERROR);
         }

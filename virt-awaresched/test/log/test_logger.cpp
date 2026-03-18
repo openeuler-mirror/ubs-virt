@@ -15,11 +15,55 @@
 #include <fstream>
 #include <string>
 
+#include <mockcpp/mockcpp.hpp>
+
 #include "logger.h"
 
 using namespace vas::common;
 
 namespace vas::ut::logger {
+
+    TEST_F(TestLogger, testRotateCheckWithOutFile)
+    {
+        Logger logger;
+        auto ret = logger.RotateCheck();
+        EXPECT_EQ(ret, VAS_ERROR);
+    }
+
+    TEST_F(TestLogger, testRotateCheckHasFile)
+    {
+        Logger logger;
+        auto testPath = std::filesystem::current_path() / "test_log_file";
+        logger.logFilePath_ = testPath;
+        auto ret = logger.RotateCheck();
+        EXPECT_EQ(ret, VAS_OK);
+        MOCKER(chmod).stubs().will(returnValue(-1)).then(returnValue(0));
+        ret = logger.RotateCheck(true);
+        EXPECT_EQ(ret, VAS_ERROR);
+        ret = logger.RotateCheck(true);
+        EXPECT_EQ(ret, VAS_OK);
+        std::filesystem::remove_all(testPath);
+    }
+
+    TEST_F(TestLogger, testRotateCheckHasFile2)
+    {
+        Logger logger;
+        logger.maxSize_ = 0;
+        auto ret = logger.RotateCheck(false);
+        EXPECT_EQ(ret, VAS_ERROR);
+    }
+
+    TEST_F(TestLogger, testRotateCheckHasFile3)
+    {
+        Logger logger;
+        logger.maxSize_ = 0;
+        auto testPath = std::filesystem::current_path() / "test_log_file3";
+        MOCKER(chmod).stubs().will(returnValue(-1));
+        auto ret = logger.RotateCheck(false);
+        EXPECT_EQ(ret, VAS_ERROR);
+        std::filesystem::remove_all(testPath);
+    }
+
     TEST_F(TestLogger, testLoggerInitialization)
     {
         VasRet ret = Logger::Instance().Init(logPath_, logFile_, 200 * 1024 * 1024, 5, OutputType::FILE);
@@ -72,6 +116,15 @@ namespace vas::ut::logger {
         }
     }
 
+    TEST_F(TestLogger, testLoggerInitException)
+    {
+        VasRet ret = Logger::Instance().Init(logPath_, logFile_, 1, 1, OutputType::FILE);
+        EXPECT_EQ(ret, VAS_OK);
+        MOCKER(fs::exists).stubs().will(returnValue(false));
+        ret = Logger::Instance().Init("logPath_", logFile_, MAX_LOGFILESIZE, MAX_LOGFILE, OutputType::FILE);
+        EXPECT_EQ(ret, VAS_OK);
+    }
+
     TEST_F(TestLogger, testLoggerRotateCheck)
     {
         VasRet ret = Logger::Instance().Init(logPath_, logFile_, 100, 5, OutputType::FILE);
@@ -121,5 +174,19 @@ namespace vas::ut::logger {
         EXPECT_TRUE(infoFound);
         EXPECT_TRUE(warnFound);
         EXPECT_TRUE(errorFound);
+    }
+
+    TEST_F(TestLogger, testLoggerLogLevelFilter2)
+    {
+        VasRet ret = Logger::Instance().Init(logPath_, logFile_, MAX_LOGFILESIZE, MAX_LOGFILE, OutputType::FILE);
+
+        Logger::Instance().logLevel_ = Level::INFO;
+        Logger::Instance().outputType_ = OutputType::STDOUT;
+        std::string logFilePath = logPath_ + "/" + logFile_;
+        std::ifstream file(logFilePath);
+        std::string line;
+        Logger::Instance().Log(Level::INFO, "Test message", __FILE__, __LINE__, __func__);
+        EXPECT_EQ(ret, VAS_OK);
+        Logger::Instance().outputType_ = OutputType::NONE;
     }
 } // namespace vas::ut::logger

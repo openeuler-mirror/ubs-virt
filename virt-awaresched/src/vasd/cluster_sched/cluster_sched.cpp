@@ -1255,19 +1255,23 @@ void ClusterSched::CleanDyingPidByGroup(VmDomain &domain)
             continue;
         }
         auto &cluster = numaClusterMap_[domain.numaId][group.clusterId];
-        for (auto &pid : group.entityPids) {
+        for (auto pidIt = group.entityPids.begin(); pidIt != group.entityPids.end();) {
+            auto pid = *pidIt;
             if (domain.pidVcpuMap.find(pid) != domain.pidVcpuMap.end()) {
+                ++pidIt;
                 continue;
             }
             // If the assigned process does not exist
             if (entityMap_.find(pid) == entityMap_.end()) {
+                ++pidIt;
                 continue;
             }
-            const auto entity = entityMap_[pid];
+
+            const auto& entity = entityMap_[pid];
             Bitset::DynamicBitsetClear(group.usedBitmap, entity.cpuIdx, 1);
             entityMap_.erase(pid);
-            group.entityPids.erase(pid);
             dyingPids.emplace(pid);
+            pidIt = group.entityPids.erase(pidIt);
         }
         for (auto &pid : dyingPids) {
             group.entityPids.erase(pid);

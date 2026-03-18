@@ -11,10 +11,10 @@ using namespace vas::cli::reg;
 using namespace vas::cli::framework;
 using namespace vas::common;
 using namespace vas::cli;
-constexpr int MAX_CLI_ARGS = 10;
 int main(int argc, char *argv[])
 {
-    if (argc > MAX_CLI_ARGS) {
+    constexpr int maxCliArgs = 10;
+    if (argc > maxCliArgs) {
         VasCliParse::PrintWithWordWrap("INFO: Unsupported number of parameters");
         return static_cast<int>(VAS_ERROR);
     }
