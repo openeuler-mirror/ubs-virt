@@ -125,7 +125,7 @@ int enpu_config_info_init()
     } else if (config.scheduling_policy == SCHED_POLICY_BEST_EFFORT) {
         g_npu_info.mem_limit_quota = (size_t)config.memory_quota * MB_TO_B;
         g_npu_info.is_core_limit = false;
-        g_npu_info.is_mem_limit = false;
+        g_npu_info.is_mem_limit = true;
     } else {
         LOG_ERROR("scheduling policy is illegal, %s = %d, should in range [0, %d]\n",
             OPTION_SCHEDULING_POLICY, config.scheduling_policy, SCHED_POLICY_BEST_EFFORT);

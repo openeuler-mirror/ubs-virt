@@ -135,7 +135,7 @@ TEST_F(NpuManagerTest, EnpuConfigInfoInitBestEffortPolicy)
 
     int ret = enpu_config_info_init();
     EXPECT_EQ(ret, ENPU_SUCCESS);
-    EXPECT_FALSE(is_mem_limit());
+    EXPECT_TRUE(is_mem_limit());
     EXPECT_FALSE(is_core_limit());
     EXPECT_EQ(get_mem_limit_quota(), 1024 * MB_TO_B);
     EXPECT_EQ(get_vnpu_id(), 1);
