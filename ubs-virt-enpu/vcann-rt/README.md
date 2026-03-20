@@ -135,7 +135,7 @@ vCANN-RT支持两种方式启动服务：
     /opt/enpu/vcann-rt/lib/libvruntime.so
     ```
 
-    ld.so.preload文件的路径用户可自定义，文档后续内容中使用${preload_path}表示。
+    主机侧ld.so.preload文件的路径用户可自定义，文档后续内容中使用${preload_path}表示，容器内为固定路径。
 
 2. <span id="step2">使用yaml启动容器。</span>
 
@@ -223,9 +223,12 @@ vCANN-RT支持两种方式启动服务：
                             # 软切分动态库路径
                           - name: libpreload 
                             mountPath: /opt/enpu/vcann-rt/lib/libvruntime.so
+                            # 监测工具路径
+                          - name: tools
+                            mountPath: /opt/enpu/vcann-rt/tools/enpu-monitor
                             # preload配置文件路径
                           - name: preload 
-                            mountPath: ${preload_path}/ld.so.preload
+                            mountPath: /etc/ld.so.preload
                         volumes: 
                         - name: sbin
                           hostPath: 
@@ -239,8 +242,12 @@ vCANN-RT支持两种方式启动服务：
                           # 软切分动态库路径
                         - name: libpreload 
                           hostPath:
-                            # preload配置文件路径
                             path: /opt/enpu/vcann-rt/lib/libvruntime.so
+                          # 监测工具路径
+                        - name: tools 
+                          hostPath:
+                            path: /opt/enpu/vcann-rt/tools/enpu-monitor
+                          # preload配置文件路径
                         - name: preload 
                           hostPath:
                             path: ${preload_path}/ld.so.preload
@@ -315,7 +322,7 @@ vCANN-RT支持两种方式启动服务：
     在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息：
 
     ```shell
-    ./opt/enpu/vcann-rt/tools/enpu-monitor
+    /opt/enpu/vcann-rt/tools/enpu-monitor
     ```
 
 #### 方式二：docker方式部署（不依赖kubernetes组件）
@@ -417,7 +424,7 @@ vCANN-RT支持两种方式启动服务：
     - 在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息。
 
       ```bash
-      ./opt/enpu/vcann-rt/tools/enpu-monitor
+      /opt/enpu/vcann-rt/tools/enpu-monitor
       ```
       
 ## 约束
