@@ -8,7 +8,7 @@
 
 ### 软件版本
 
-##### Atlas A2 推理系列产品
+#### Atlas A2 推理系列产品
 
 **表 1 软件版本**
 
@@ -70,6 +70,7 @@ npu-smi set -t device-share-cfg-recover -d ${value}
 ```shell
 npu-smi set -t multi-die-policy -d ${value}
 ```
+
 **表 5 参数说明**
 
 |参数|参数选项|说明|
@@ -279,7 +280,7 @@ vCANN-RT支持两种方式启动服务：
             - hostPath:
                 - path: ${preload_path}/ld.so.preload # [步骤2](#step2)中创建的ld.so.preload文件路径。
 
-    **表 6 调度模式介绍**
+    **表 6 调度模式介绍**<a id="table6"></a>
 
     |模式名称|特点描述|
     |:---|:---|
@@ -288,6 +289,7 @@ vCANN-RT支持两种方式启动服务：
     |争抢模式（best-effort）|vNPU之间自行争抢NPU资源，该模式的资源利用率最高，但无法保证vNPU的QoS。|
 
     使用yaml文件拉起容器：
+
     ```shell
     kubectl apply -f ${container_name.yaml}
     # 查看容器
@@ -351,7 +353,7 @@ vCANN-RT支持两种方式启动服务：
     |aicore-quota|AI Core资源配额，单位为%|表示算力使用的时间比例。当前每个time slice默认为100ms, 通过软件硬编码，不支持动态配置。假如申请了20%的算力资源，那么该容器有20ms的NPU使用权。|
     |memory-quota|HBM资源配额，单位为MB|表示显存资源使用容量。当前容器内所有进程使用的HBM总量不能超过HBM资源配额。|
     |shm-id|共享内存文件名称|该文件名称采用物理NPU对应的VDie ID, 可以保证全局唯一。<br>通过`npu-smi info -t board -i ${id} -c ${chip_id}`命令查询VDie ID。<br>查询完成之后，可以通过`-`符号拼接成文件名称，例如：`shm-id=11111111-22222222-33333333-44444444-55555555` 用户需要确保宿主机中存在此共享内存文件。|
-    |scheduling-policy|<ul>默认配置为2。<li>1: 固定配额模式 （fixed-share）</li><li>2: 弹性模式 （elastic）</li><li>3: 争抢模式 （best-effort）</li></ul>|调度策略（具体介绍可参见表6，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制）。|
+    |scheduling-policy|<ul>默认配置为2。<li>1: 固定配额模式（fixed-share）</li><li>2: 弹性模式（elastic）</li><li>3: 争抢模式（best-effort）</li></ul>|调度策略（具体介绍可参见[表6](#table6)，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制）。|
 
     此外，需要设置配置文件具有合适的权限，建议为644。
 

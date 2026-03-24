@@ -28,7 +28,7 @@ Requires: patch libvirt-devel libboundscheck
 
 ### 安装依赖
 
-**方式一** yum命令手动安装
+yum命令手动安装
 
 ```shell
 sudo yum install patch libvirt-devel libboundscheck -y
@@ -48,7 +48,7 @@ sudo yum install patch libvirt-devel libboundscheck -y
     bash build.sh -D
     ```
 
-## 形成rpm包
+## 生成rpm包
 
 构建项目，并打包成RPM文件输出到项目顶层目录下得output/目录下。
 

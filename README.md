@@ -14,4 +14,4 @@ Ubs-virt supports virtualization and pooling, live migration policy decision, fa
 
 1. ubs-virt-ovs: [ubs-virt-ovs使用说明](./ubs-virt-ovs/README.md)
 2. ubs-virt-enpu: [ubs-virt-enpu使用说明](./ubs-virt-enpu/README.md)
-3. virt-awaresched： [virt-awaresched使用说明](./virt-awaresched/README.md)
+3. virt-awaresched：[virt-awaresched使用说明](./virt-awaresched/README.md)

@@ -1,7 +1,7 @@
 # 贡献指南(Contributing to virt-awaresched)
 
-感谢您对 **virt-awaresched** 项目的关注与贡献！  
-本项目是是基于鲲鹏cpu拓扑的虚拟化调度调优服务，属于 openEuler 社区 **UB 计算系统** 的虚拟化组件。我们欢迎社区开发者通过提交 Issue、修复 Bug、新增功能或改进文档等方式参与共建。
+感谢您对 **virt-awaresched** 项目的关注与贡献！
+本项目是是基于鲲鹏CPU拓扑的虚拟化调度调优服务，属于 openEuler 社区 **UB 计算系统** 的虚拟化组件。我们欢迎社区开发者通过提交 Issue、修复 Bug、新增功能或改进文档等方式参与共建。
 
 为确保代码质量与社区协作效率，请在贡献前仔细阅读本指南。
 
@@ -48,15 +48,19 @@
 
 ### 构建与测试
 
-所有贡献代码必须通过以下验证：
+所有贡献代码必须通过以下验证流程：
 
-```bash
-# 1. 构建 Release 版本（默认）
-bash build.sh
+1. 构建 Release 版本（默认）。
 
-# 2. 运行单元测试（UT）, -C: (可选) 生成覆盖率报告
-bash build.sh test [-C]
-```
+    ```bash
+    bash build.sh
+    ```
+  
+2. 运行单元测试（UT），-C：（可选）生成覆盖率报告。
+
+    ```bash
+    bash build.sh test [-C]
+    ```
 
 > ✅ **要求**：PR 中所有测试必须 **100% 通过**，且不得降低整体代码覆盖率。
 
@@ -97,9 +101,9 @@ bash build.sh test [-C]
     - `refactor`：重构（无功能变更）
     - `ci`：CI/CD 配置
     - `perf`：性能优化
-- **scope**（可选）：模块名，如 `mem`, `sdk`, `ha`
-- **subject**：简明描述（≤50 字符）
-- **body**（可选）：详细说明、关联 Issue 等
+- **scope**（可选）：模块名，如 `mem`, `sdk`, `ha`。
+- **subject**：简明描述（≤50 字符）。
+- **body**（可选）：详细说明、关联 Issue 等。
 
 ✅ 示例：
 
