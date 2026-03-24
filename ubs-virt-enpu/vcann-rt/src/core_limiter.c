@@ -109,11 +109,20 @@ bool check_timeout(atomic_uint_fast64_t* timestamp, uint64_t timeout_period)
 {
     uint64_t last = atomic_load(timestamp);
     uint64_t now = ns_now();
-    return (now < last) || (now - last < timeout_period);
+    // Reboot will recount ns_now() from 0 but not reset timestamp which stored in shared memory.
+    // This check is necessary for the problem described above.
+    if (last < now) {
+        return (now - last <= timeout_period);
+    } else {
+        return (last - now <= timeout_period);
+    }
 }
 
 inline bool is_vnpu_alive(int vnpu_id)
 {
+    if (vnpu_id < 0 || vnpu_id >= MAX_VNPU) {
+        return false;
+    }
     return check_timeout(&g_vnpu_sched_context->last_alive_time_ns[vnpu_id], VNPU_TIMEOUT_PERIOD);
 }
 
@@ -199,7 +208,9 @@ void compensate_delta_time(void)
 {
     uint64_t begin = ns_now();
     synchronize_and_clear_streams();
-    set_core_cur_timeslice(get_core_cur_timeslice() - (ns_now() - begin));
+    uint64_t elapsed = ns_now() - begin;
+    uint64_t cur = get_core_cur_timeslice();
+    set_core_cur_timeslice(elapsed < cur ? cur - elapsed : 0ULL);
 }
 
 bool add_and_consume_time_slice(uint8_t *turn_id)
@@ -245,7 +256,7 @@ void *vnpu_scheduler_flush_thread(void *arg)
         atomic_store(&g_vnpu_sched_context->last_alive_time_ns[g_vnpu_id], now);
         ns_sleep(VNPU_FLUSH_PERIOD);
     }
-    return;
+    return NULL;
 }
 
 int calculate_alive_vnpu_num(void)
@@ -312,7 +323,7 @@ void *npu_utilization_monitor_thread(void *arg)
     if (new_window != current_window) {
         atomic_store(&g_vnpu_sched_context->slide_window_len, new_window);
     }
-    return;
+    return NULL;
 }
 
 bool slide_window_check(int owner)
@@ -407,7 +418,7 @@ void *vnpu_scheduler_thread(void *arg)
     pthread_mutex_unlock(&g_sched_mutex);
     hashmap_destroy(stream_map);
     hashmap_destroy(event_map);
-    return;
+    return NULL;
 }
 
 void share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
