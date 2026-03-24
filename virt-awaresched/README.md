@@ -23,24 +23,34 @@ cd virt-awaresched
 
 ### 构建项目
 
-```bash
-# 默认 Release 构建 RPM 包(生产环境编译)
-bash build.sh package
+- 默认 Release 构建 RPM 包（生产环境编译）
 
-# 使用 Debug 构建 RPM 包(包含Debug信息)
-bash build.sh -D package
-```
+    ```bash
+    bash build.sh package
+    ```
 
-构建产物位于 `cmake-build-*` 目录下, RPM 包输出至 `output/`. 
+- 使用 Debug 构建 RPM 包（包含Debug信息）
+
+    ```bash
+    bash build.sh -D package
+    ```
+
+构建产物位于 `cmake-build-*` 目录下, RPM 包输出至 `output/`目录。
 
 ---
 
 ## 🧩 核心特性
 
-- **采集虚拟机, CPU拓扑信息**: 采集虚拟机信息并监听虚拟机生命周期事件, 同时采集CPU拓扑信息, 用于虚拟机vCPU调度.
-- **CPU分配与整理**: VSched基于cluster拓扑在虚拟机绑核范围内为vCPU分配一个合适的CPU, 尽可能减少虚拟机跨cluster使用虚拟机. 在虚拟机销毁时, 回收CPU并整理CPU碎片.
-- **支持静态/动态两种绑核模式**: VSched为vCPU线程绑核, 支持静态绑核与动态绑核两种. 静态绑核下, vCPU将使用指定的CPU; 动态绑核下, vCPU将使用一个优选核, 当优选核CPU使用率高于阈值后, vCPU将使用绑定范围中性能更好的CPU上. 动态绑核需要内核支持潮汐亲和特性.
-- **支持CLI用户指令**: VSched提供给管理员运维指令, 方便进行vCPU绑定信息查询, 修改配置, 手动重调度.
+- **采集虚拟机, CPU拓扑信息**<br>
+    采集虚拟机信息并监听虚拟机生命周期事件, 同时采集CPU拓扑信息, 用于虚拟机vCPU调度。
+- **CPU分配与整理**<br>
+    VSched基于cluster拓扑在虚拟机绑核范围内为vCPU分配一个合适的CPU, 尽可能减少虚拟机跨cluster使用虚拟机. 在虚拟机销毁时, 回收CPU并整理CPU碎片。
+- **支持静态/动态两种绑核模式**<br>
+    VSched为vCPU线程绑核, 支持静态绑核与动态绑核两种：
+    - 静态绑核下, vCPU将使用指定的CPU。
+    - 动态绑核下, vCPU将使用一个优选核, 当优选核CPU使用率高于阈值后, vCPU将使用绑定范围中性能更好的CPU上. 动态绑核需要内核支持潮汐亲和特性。
+- **支持CLI用户指令**<br>
+    VSched提供给管理员运维指令, 方便进行vCPU绑定信息查询, 修改配置, 手动重调度。
 
 > 详细功能说明请参阅 [CLI 文档](./docs/cli/cli_docs_reference.md) 和 [设计文档](./docs/design/ARCHITECTURE.md). 
 
@@ -78,20 +88,28 @@ virt-awaresched
 
 ## 🧪 开发者测试
 
-项目包含完整的单元测试(UT)
+项目包含完整的单元测试(UT)。
 
-```bash
-# 仅运行 UT
-bash build.sh test
+- 仅运行UT
 
-# 运行特定测试用例
-bash build.sh test -- --gtest_filter="TestClusterSched.*"
+    ```bash
+    bash build.sh test
+    ```
 
-# 生成代码覆盖率报告
-bash build.sh test -C # 报告将生成与./coverage目录下
-```
+- 运行特定测试用例
 
-> 测试开发指南见 [单元测试开发指南](./docs/test/TEST.md). 
+    ```bash
+    bash build.sh test -- --gtest_filter="TestClusterSched.*"
+    ```
+
+- 生成代码覆盖率报告
+
+    ```bash
+    # 报告将生成与./coverage目录下
+    bash build.sh test -C
+    ```
+
+> 测试开发指南见 [单元测试开发指南](./docs/test/TEST.md)。
 
 ---
 
@@ -110,13 +128,13 @@ bash build.sh test -C # 报告将生成与./coverage目录下
 
 ## 🤝 参与贡献
 
-我们欢迎社区开发者提交 Issue、PR 或参与讨论！  
-请先阅读 [贡献指南](docs/contributing/CONTRIBUTING.md), 并遵守 openEuler 社区行为准则. 
+我们欢迎社区开发者提交 Issue、PR 或参与讨论！<br>
+请先阅读 [贡献指南](docs/contributing/CONTRIBUTING.md)，并遵守 openEuler 社区行为准则。
 
 ---
 
 ## 📄 许可证
 
-本项目采用 [Mulan PSL v2](https://license.coscl.org.cn/MulanPSL2) 开源许可证. 
+本项目采用 [Mulan PSL v2](https://license.coscl.org.cn/MulanPSL2) 开源许可证。
 
 ---

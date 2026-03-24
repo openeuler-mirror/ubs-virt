@@ -6,19 +6,19 @@
 
 ## 部署视图
 
-![部署视图](images/部署视图.png)
+![部署视图](images/部署视图.png "部署视图")
 
 ---
 
 ## 软件模块
 
-![软件模块](images/软件模块.png)
+![软件模块](images/软件模块.png "软件模块")
 
 ---
 
 ## 外部依赖
 
-![外部依赖](images/外部依赖.png)
+![外部依赖](images/外部依赖.png "外部依赖")
 
 ---
 
@@ -26,7 +26,7 @@
 
 **关键业务流程: 采集并调度CPU资源, 实现虚机vCPU绑核使用**
 
-![调度与整理并发处理](images/调度与整理并发处理.png)
+![调度与整理并发处理](images/调度与整理并发处理.png "调度与整并发处理")
 
 ### 调度与整理设计思路
 
@@ -39,61 +39,60 @@
 
 - 初步筛选
 
-```plantuml
-@startuml
-start
-if (vCPU数量 > numa_cpu_num) then
-    :跳过本虚拟机;
+    ```plantuml
+    @startuml
+    start
+    if (vCPU数量 > numa_cpu_num) then
+        :跳过本虚拟机;
+        stop
+    endif
+    :根据vCPU绑定范围, 计算交集获得可用绑定范围;
+    repeat
+        :选择资源足够的numa(vCPU数量 < numa空闲cpu数量);
+    repeat while (可用绑定范围)
+    if (无可用的numa) then
+        :跳过本虚拟机;
+        stop
+    endif
     stop
-endif
-:根据vCPU绑定范围, 计算交集获得可用绑定范围;
-repeat
-    :选择资源足够的numa(vCPU数量 < numa空闲cpu数量);
-repeat while (可用绑定范围)
-if (无可用的numa) then
-    :跳过本虚拟机;
-    stop
-endif
-stop
-@enduml
-```
+    @enduml
+    ```
+
 - 申请
 
-vCPU数量超过cluster_cpu_total: 即一定会跨cluster, 则要求尽可能分配完整空闲的cluster, 否则放弃调优
-`exp: vCPU = 12; cluster_cpu_total = 8; 只有一种调优结果, 8 + 4; 分两个cluster调优`
-vCPU数量不超过cluster_cpu_total: 即一定不会跨cluster, 则只能接收分配在一个cluster内, 否则放弃调优
-`exp: vCPU = 6; cluster_cpu_total = 8; 只有一种调优结果, 一个cluster中分配6个`
+    - vCPU数量超过cluster_cpu_total：即一定会跨cluster, 则要求尽可能分配完整空闲的cluster, 否则放弃调优`exp: vCPU = 12; cluster_cpu_total = 8; 只有一种调优结果, 8 + 4; 分两个cluster调优`<br>
+    - vCPU数量不超过cluster_cpu_total：即一定不会跨cluster, 则只能接收分配在一个cluster内, 否则放弃调优`exp: vCPU = 6; cluster_cpu_total = 8; 只有一种调优结果, 一个cluster中分配6个`
 
-```plantuml
-@startuml
-start
-repeat
+    ```plantuml
+    @startuml
+    start
     repeat
-        :虚机可用绑定范围 与 当前cluster可用范围取交集;
-        if (待申请vCPU数量 > cluster的数量) then
-            :本次向cluster申请cpu = cluster_cpu_total;
+        repeat
+            :虚机可用绑定范围 与 当前cluster可用范围取交集;
+            if (待申请vCPU数量 > cluster的数量) then
+                :本次向cluster申请cpu = cluster_cpu_total;
+            else
+                :本次想cluster申请cpu = 待申请vCPU数量;
+            endif
+            :从可分配的交集中, 申请cpu;
+            if (申请成功) then
+                break
+            endif
+        repeat while(遍历numa中所有cluster)
+        if (当前numa中没申请到vCPU) then
+            if (超分场景 && 超分比例未到上限) then
+                :增加一层超分, 重新申请;
+            else
+                :申请失败;
+                stop
+            endif
         else
-            :本次想cluster申请cpu = 待申请vCPU数量;
+            :申请vCPU数量 -= 本次申请数量;
         endif
-        :从可分配的交集中, 申请cpu;
-        if (申请成功) then
-            break
-        endif
-    repeat while(遍历numa中所有cluster)
-    if (当前numa中没申请到vCPU) then
-        if (超分场景 && 超分比例未到上限) then
-            :增加一层超分, 重新申请;
-        else
-            :申请失败;
-            stop
-        endif
-    else
-        :申请vCPU数量 -= 本次申请数量;
-    endif
-repeat while(待申请vCPU数量 != 0)
-stop
-@enduml
-```
+    repeat while(待申请vCPU数量 != 0)
+    stop
+    @enduml
+    ```
 
 #### 整理
 
@@ -101,11 +100,11 @@ stop
 
 - 1.cluster内整理
 
-![cluster内整理](./images/cluster内整理.png)
+    ![cluster内整理](./images/cluster内整理.png "cluster内整理")
 
 - 2.cluster间整理
 
-![cluster间整理](./images/cluster间整理.png)
+    ![cluster间整理](./images/cluster间整理.png "cluster间整理")
 
 #### 重调度
 
@@ -136,9 +135,9 @@ stop
 
 ### 威胁分析
 
-![威胁分析.png](images/威胁分析.png)
+![威胁分析.png](images/威胁分析.png "威胁分析")
 
-### 目录/文件 权限设计
+### 目录/文件权限设计
 
 | 元素                            | 类型     | owner     | 权限  | 其它说明              |
 |:------------------------------|:-------|:----------|:----|:------------------|
@@ -155,8 +154,8 @@ stop
 ### 暴露面设计
 
 - 基于UDS的对外接口安全设计
-- vas-daemon启动参数安全设计 (详见接口设计)
-- vas-cli指令参数安全设计 (详见接口设计)
+- vas-daemon启动参数安全设计（详见接口设计）
+- vas-cli指令参数安全设计（详见接口设计）
 - 环境变量
 - 依赖动态库
 
@@ -170,12 +169,12 @@ srw-------  root root /var/run/vas/vas_uds.sock
 
 #### 环境变量
 
-未指定特殊环境变量, 环境变量继承于root用户环境变量. 详见[vas-daemon.service](../../vas-daemon.service)
+未指定特殊环境变量, 环境变量继承于root用户环境变量。详见[vas-daemon.service](../../vas-daemon.service)。
 
 #### 依赖动态库
 
-依赖动态库包括libvirt.so, libsecurec.so. 依赖所有库均以root权限安装. 不存在引用低权限动态库导致的攻击行为.
+依赖动态库包括libvirt.so, libsecurec.so. 依赖所有库均以root权限安装，不存在引用低权限动态库导致的攻击行为。
 
-![依赖动态库.png](images/依赖动态库.png)
+![依赖动态库.png](images/依赖动态库.png "依赖动态库")
 
 ---
