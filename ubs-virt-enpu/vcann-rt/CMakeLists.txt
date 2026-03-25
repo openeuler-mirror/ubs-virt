@@ -59,12 +59,14 @@ else()
     )
 endif()
 
-
-
 set(LINK_LIBS dcmi)
 
 message(STATUS "CMakeList build start")
 add_library(vruntime SHARED src/ascend/hook.c ${SRC_LIST})
+add_custom_command(
+    TARGET vruntime POST_BUILD
+    COMMAND chmod 400 $<TARGET_FILE:vruntime>
+)
 
 target_link_options(vruntime PRIVATE
     -Wl,-z,relro,-z,now,-z,noexecstack
@@ -78,6 +80,10 @@ target_compile_options(vruntime PRIVATE ${SECURE_COMPILE_OPTIONS})
 target_compile_definitions(vruntime PRIVATE _GLIBCXX_USE_CXX11_ABI=0)
 
 add_executable(enpu-monitor src/tools/monitor.c ${SRC_LIST})
+add_custom_command(
+    TARGET enpu-monitor POST_BUILD
+    COMMAND chmod 500 $<TARGET_FILE:enpu-monitor>
+)
 
 target_link_options(enpu-monitor PRIVATE
     -Wl,-z,relro,-z,now,-z,noexecstack
@@ -86,7 +92,7 @@ target_link_options(enpu-monitor PRIVATE
 
 target_include_directories(enpu-monitor PRIVATE ${INCLUDE_DIRS})
 target_link_directories(enpu-monitor PRIVATE ${LINK_DIRS})
-target_link_libraries(enpu-monitor PRIVATE securec ${LINK_LIBS})
+target_link_libraries(enpu-monitor PRIVATE securec pthread dl rt ${LINK_LIBS})
 target_compile_options(enpu-monitor PRIVATE ${SECURE_COMPILE_OPTIONS})
 target_compile_definitions(enpu-monitor PRIVATE _GLIBCXX_USE_CXX11_ABI=0)
 

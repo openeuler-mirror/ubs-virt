@@ -341,7 +341,7 @@ vCANN-RT支持两种方式启动服务：
       aicore-quota=20
       memory-quota=1024
       shm-id=xxx
-      scheduling-policy=1
+      scheduling-policy=2
     ```
 
     **表 7 配置项说明**
@@ -380,13 +380,13 @@ vCANN-RT支持两种方式启动服务：
       image_name /bin/bash
     ```
 
-    如果遇到容器启动报错`libboundscheck.so: cannot open shared object file: No such file or directory`，则说明动态库libvruntime.so依赖的安全函数库在容器中无法找到。解决办法：
+    如果遇到容器启动报错`libboundscheck.so: cannot open shared object file: No such file or directory`或者`GLIBC_xxx not found`。解决办法：
 
-      1. 取消容器启动命令中的/etc/ld.so.preload的映射，并重新启动容器。
+      1. 取消容器启动命令中ld.so.preload文件的映射，并重新启动容器。
 
-      2. 参照文末FAQ中方法安装安全函数库，并确保动态库libvruntime.so能够正常链接。
+      2. 参照文末FAQ中对应的步骤执行。
 
-      3. 执行`export LD_PRELOAD=/opt/enpu/vcann-rt/lib/libvruntime.so`命令。
+      3. 执行`export LD_PRELOAD=/opt/enpu/vcann-rt/lib/libvruntime.so`命令加载动态库。
 
     **表 8 参数说明**
 
@@ -450,8 +450,8 @@ vCANN-RT支持两种方式启动服务：
 
 2. 容器启动或者业务运行时报错`GLIBC_xxx not found`:
     
-    由于GLIBC兼容性问题，容器使用的动态库要求的GLIBC版本和容器本身的版本不兼容，建议进行兼容适配。
+    由于GLIBC兼容性问题，运行环境和编译环境的GLIBC版本不兼容，建议运行环境的版本大于等于编译环境，或者在容器内编译。
 
 3. 容器启动或者业务运行时报错`libboundscheck.so: cannot open shared object file: No such file or directory`：
 
-    由于软切分动态库在运行时依赖安全函数库，因此用户需要确保容器中存在安全函数库，可以参考 [https://gitcode.com/openeuler/libboundscheck](https://gitcode.com/openeuler/libboundscheck) 完成构建部署。
+    由于软切分动态库在运行时依赖安全函数库，因此用户需要确保容器中存在安全函数库并能够被正常链接，可以参考 [https://gitcode.com/openeuler/libboundscheck](https://gitcode.com/openeuler/libboundscheck) 完成构建部署。
