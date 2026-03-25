@@ -172,7 +172,7 @@ int compress_file()
     ret = snprintf_s(rm_cmd, sizeof(rm_cmd), sizeof(rm_cmd), "%s%s %s%d%s%s%s", "find ", g_log_config.log_dir,
         "-type f -iname \"*_", getpid(), "_*.log\" ! -iwholename \"", g_log_config.log_path, "\" -exec rm -f {} \\;");
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get rm cmd.");
-    mode_t old_mask = umask(SET_UMASK_FOR_440); // 默认权限440
+    mode_t old_mask = umask(SET_UMASK_FOR_440);
     int tar_exe_result = system(tar_cmd);
     umask(old_mask);
     CHECK_COND_RETURN_ERROR_CODE_LOG(tar_exe_result != 0, "Compress files error, failed to execute tar command.");

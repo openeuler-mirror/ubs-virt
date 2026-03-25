@@ -26,7 +26,7 @@ extern "C" {
 #define FILE_LOCK_BASE_DIR "/run/enpu/vcann-rt/"
 #define MEMCTL_LOCK_PATH "/run/enpu/vcann-rt/memctl.lock"
 
-typedef int32_t rtError_t;    // 兼容 runtime 接口
+typedef int32_t rtError_t;
 static const int32_t RT_ERROR_INVALID_VALUE = 0x07110001;
 
 extern int guard_memory(size_t requested);

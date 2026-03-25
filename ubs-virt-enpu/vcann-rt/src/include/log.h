@@ -47,13 +47,13 @@ typedef enum {
 } EnpuLogLevel;
 
 typedef struct {
-    char log_dir[FILE_PATH_LEN];        // 日志文件夹路径
-    char log_path[FILE_PATH_LEN];       // 日志文件路径
-    size_t max_file_size;       // 单个日志文件最大大小
-    int max_backup_count;       // 最大未归档日志文件数
-    EnpuLogLevel min_log_level;     // 最小日志打印级别
-    pthread_mutex_t print_mutex;      // 日志打印锁
-    pthread_mutex_t compress_mutex;     // 日志压缩锁
+    char log_dir[FILE_PATH_LEN];
+    char log_path[FILE_PATH_LEN];
+    size_t max_file_size;
+    int max_backup_count;
+    EnpuLogLevel min_log_level;
+    pthread_mutex_t print_mutex;
+    pthread_mutex_t compress_mutex;
 } LogConfig;
 
 extern void log_print(EnpuLogLevel level, const char* filename, int line, const char* format, ...);

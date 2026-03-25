@@ -37,7 +37,6 @@ extern "C" {
 #define NS_PER_MS 1000000ULL
 #define NS_PER_S  1000000000ULL
 #define MAX_STREAK 2
-#define MAX_STREAK 2
 
 #define VNPU_SCHEULE_PERIOD             (400ULL * NS_PER_MS) // 400 ms
 #define VNPU_FLUSH_PERIOD               (1ULL * NS_PER_MS)   // 1ms
@@ -63,11 +62,11 @@ extern atomic_int hasModelExecuteSync;
 extern atomic_int waitEventCount;
 extern int aicore_limiter_initialize(void);
 extern void core_limiter(rtStream_t stream, core_function func, void* param);
-extern void set_stream_capture(rtStream_t stream, void* capture);
+extern void set_stream_capture(void* param, rtStream_t stream);
 extern void set_event_create_status(void* evt);
 extern void set_event_wait_status(void* evt, rtStream_t stm);
 extern void set_event_record_status(void* evt, rtStream_t stm);
-extern void remove_stream(rtEvent_t evt, rtStream_t stm);
+extern void remove_stream(void* unused, rtStream_t stm);
 extern void set_event_destroy_status(void* evt);
 uint64_t ns_now(void);
 
