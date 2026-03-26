@@ -30,6 +30,7 @@ FetchContent_Declare(
         GIT_REPOSITORY https://gitcode.com/GitHub_Trending/ra/rapidjson.git
         GIT_TAG master
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/rapidjson
+        GIT_SUBMODULES ""
 )
 FetchContent_Populate(rapidjson)
 
