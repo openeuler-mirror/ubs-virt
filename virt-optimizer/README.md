@@ -57,4 +57,4 @@ virt-optimizer/
 - **性能优化方法**：[性能优化方法.md](./docs/optimize_operations/性能优化方法.md)
 - **安全声明**：[安全声明.md](./docs/security/安全声明.md)
 ---
-> 项目主页：[https://codehub-y.huawei.com/BeiMing/service_domain/matrix_core/ubs-virt/virt-optimizer/files?ref=master](./)
+> 项目主页：[https://gitcode.com/openeuler/ubs-virt/tree/master](./)
