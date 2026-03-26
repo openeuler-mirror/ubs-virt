@@ -3,7 +3,7 @@
 ## 拉取源码
 
 ```shell
-git clone https://gitee.com/openeuler/ubs-virt.git
+git clone https://gitcode.com/openeuler/ubs-virt.git
 # 进入项目目录
 cd virt-awaresched
 ```
