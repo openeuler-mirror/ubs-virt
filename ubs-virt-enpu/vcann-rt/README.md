@@ -148,7 +148,7 @@ vCANN-RT支持两种方式启动服务：
     apiVersion: mindxdl.gitee.com/v1
     kind: AscendJob
     metadata:
-        # 容器名，需与yaml文件名一致
+        # 容器名, 建议与yaml文件名一致
         name: vnpu-base 
         # namespace
         namespace: vnpu 
@@ -259,8 +259,8 @@ vCANN-RT支持两种方式启动服务：
         - name: 容器名，与yaml文件名一致。
         - namespace: 命名空间。
         - labels:
-            - huawei.com/scheduler.softShareDev.aicoreQuota: 算力aicore配额，单位：%
-            - huawei.com/scheduler.softShareDev.hbmQuota: 显存HBM配额，单位：MB
+            - huawei.com/scheduler.softShareDev.aicoreQuota: 算力aicore配额（需配置为整数），单位：%
+            - huawei.com/scheduler.softShareDev.hbmQuota: 显存HBM配额（需配置为整数），单位：MB
             - huawei.com/scheduler.softShareDev.policy: 调度策略，默认为弹性模式。
               - 固定配额模式（fixed-share）
               - 弹性模式（elastic）
@@ -350,8 +350,8 @@ vCANN-RT支持两种方式启动服务：
     |:---|:---|:---|
     |physical-npu-id|物理NPU id|`physical-npu-id=0`表示使用第0张物理NPU。|
     |virtual-npu-id|vNPU id|需要从0开始配置，并且同一个物理NPU下的vNPU不允许重复。|
-    |aicore-quota|AI Core资源配额，单位为%|表示算力使用的时间比例。当前每个time slice默认为100ms, 通过软件硬编码，不支持动态配置。假如申请了20%的算力资源，那么该容器有20ms的NPU使用权。|
-    |memory-quota|HBM资源配额，单位为MB|表示显存资源使用容量。当前容器内所有进程使用的HBM总量不能超过HBM资源配额。|
+    |aicore-quota|AI Core资源配额，单位为%|表示算力使用的时间比例，需配置为整数。当前每个time slice默认为100ms, 通过软件硬编码，不支持动态配置。假如申请了20%的算力资源，那么该容器有20ms的NPU使用权。|
+    |memory-quota|HBM资源配额，单位为MB|表示显存资源使用容量，需配置为整数。当前容器内所有进程使用的HBM总量不能超过HBM资源配额。|
     |shm-id|共享内存文件名称|该文件名称采用物理NPU对应的VDie ID, 可以保证全局唯一。<br>通过`npu-smi info -t board -i ${id} -c ${chip_id}`命令查询VDie ID。<br>查询完成之后，可以通过`-`符号拼接成文件名称，例如：`shm-id=11111111-22222222-33333333-44444444-55555555` 用户需要确保宿主机中存在此共享内存文件。|
     |scheduling-policy|<ul>默认配置为2。<li>1: 固定配额模式（fixed-share）</li><li>2: 弹性模式（elastic）</li><li>3: 争抢模式（best-effort）</li></ul>|调度策略（具体介绍可参见[表6](#table6)，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制）。|
 
