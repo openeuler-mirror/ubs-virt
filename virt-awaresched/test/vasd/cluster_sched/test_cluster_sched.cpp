@@ -40,8 +40,6 @@ void TestClusterSched::SetUp()
         {2, 1},
         {3, 1}
     };
-    ClusterSched::GetInstance().vmNeedAssignTgIdCpu_.clear();
-    ClusterSched::GetInstance().vmNeedAssignIoThreadCpu_.clear();
 }
 
 void TestClusterSched::TearDown()
@@ -57,7 +55,6 @@ VmInfoMap TestClusterSched::oneVmInfo = VmInfoMap{{
         .uuid = uuid01,
         .name = "vm01",
         .tgid = 266956,
-        .ioThreadMap = {{1, IoThreadInfo{266990, DynamicBitset{}}}},
         .vcpuMap =
             VcpuNumaMap{
                 {0, VcpuInfo{266987, {0}, DynamicBitset{}}},
@@ -83,7 +80,6 @@ DomainMap TestClusterSched::defaultDomainMap{{
         .uuid = uuid01,
         .numaId = 0,
         .tgid = 266956,
-        .ioThreadIds = {1, 3},
         .pidVcpuMap =
             PidVcpuMap{
                 {266987, 0},
@@ -123,8 +119,6 @@ GroupMap TestClusterSched::defaultGroupMap = GroupMap{
                         }}};
 uint16_t TestClusterSched::defaultCompactionCount{};
 uint8_t TestClusterSched::defaultOverProvision = 1;
-std::set<std::string> TestClusterSched::defaultVmNeedAssignTgIdCpu{uuid01};
-std::set<std::string> TestClusterSched::defaultVmNeedAssignIoThreadCpu{uuid01};
 CpuSet TestClusterSched::cluster0CpuList{0, 1, 2, 3, 4, 5, 6, 7};
 CpuTopologyMap TestClusterSched::defaultCpuTopologyMap{{
     0,
@@ -233,19 +227,6 @@ TEST_F(TestClusterSched, testReSchedVm)
         .then(returnValue(VAS_OK));
     MOCKER_CPP(&ClusterSched::Unassign, void(ClusterSched::*)(VmDomain &)).stubs().will(returnValue(VAS_OK));
     MOCKER_CPP(&ClusterSched::Free, void(ClusterSched::*)(VmDomain &)).stubs().will(returnValue(VAS_OK));
-    MOCKER_CPP(&ClusterSched::AssignIoThreadsCpuWithoutLock, void(ClusterSched::*)(std::vector<VmDomain> &))
-        .stubs()
-        .will(ignoreReturnValue());
-    MOCKER_CPP(&ClusterSched::AssignEmulatorCpuWithoutLock, void(ClusterSched::*)(std::vector<VmDomain> &))
-        .stubs()
-        .will(ignoreReturnValue());
-    MOCKER_CPP(&ClusterSched::UnAssignIoThreadsCpuWithoutLock, void (*)(std::vector<VmDomain> &))
-        .stubs()
-        .will(ignoreReturnValue());
-    MOCKER_CPP(&vas::sched::ClusterSched::AssignEmulatorCpuWithoutLock,
-               void (vas::sched::ClusterSched::*)(std::vector<vas::common::VmDomain> &))
-        .stubs()
-        .will(ignoreReturnValue());
     ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
     ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
     const std::string domainKey = uuid01 + "_0";
@@ -263,16 +244,8 @@ TEST_F(TestClusterSched, testClusterCompaction)
 {
     ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
     ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
-    ClusterSched::GetInstance().vmNeedAssignTgIdCpu_ = defaultVmNeedAssignTgIdCpu;
-    ClusterSched::GetInstance().vmNeedAssignIoThreadCpu_ = defaultVmNeedAssignIoThreadCpu;
     MOCKER_CPP(&ClusterSched::CleanDyingPid, VasRet(ClusterSched::*)()).stubs().will(returnValue(VAS_OK));
     MOCKER_CPP(&ClusterSched::CompactionCluster, void(ClusterSched::*)(uint16_t, std::map<uint16_t, Cluster> &))
-        .stubs()
-        .will(ignoreReturnValue());
-    MOCKER_CPP(&ClusterSched::AssignIoThreadsCpuWithoutLock, void(ClusterSched::*)(std::vector<VmDomain> &))
-        .stubs()
-        .will(ignoreReturnValue());
-    MOCKER_CPP(&ClusterSched::AssignEmulatorCpuWithoutLock, void(ClusterSched::*)(std::vector<VmDomain> &))
         .stubs()
         .will(ignoreReturnValue());
     EXPECT_NO_THROW(ClusterSched::GetInstance().ClusterCompaction());
@@ -302,8 +275,6 @@ TEST_F(TestClusterSched, testReSchedStartedVms)
 {
     ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
     ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
-    ClusterSched::GetInstance().vmNeedAssignTgIdCpu_ = defaultVmNeedAssignTgIdCpu;
-    ClusterSched::GetInstance().vmNeedAssignIoThreadCpu_ = defaultVmNeedAssignIoThreadCpu;
     MOCKER_CPP(&LibvirtHelper::GetVmInfoList, VasRet(LibvirtHelper::*)(VmInfoMap &))
         .stubs()
         .will(returnValue(VAS_ERROR))
@@ -344,8 +315,6 @@ TEST_F(TestClusterSched, testRecoverVmVcpu)
 {
     ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
     ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
-    ClusterSched::GetInstance().vmNeedAssignTgIdCpu_ = defaultVmNeedAssignTgIdCpu;
-    ClusterSched::GetInstance().vmNeedAssignIoThreadCpu_ = defaultVmNeedAssignIoThreadCpu;
     MOCKER(ClusterSched::GetVmCgroupPath).stubs().will(returnValue(VAS_OK));
     MOCKER(ClusterSched::SetVmCpuset).stubs().will(returnValue(VAS_OK));
     EXPECT_NO_THROW(ClusterSched::GetInstance().RecoverVmVcpu(oneVmInfo));
@@ -419,7 +388,6 @@ TEST_F(TestClusterSched, testUnAssignPidCpu)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.ioThreadIds = {8001, 8002, 8003};
     vmDomain.pidVcpuMap = {
             {8001, 0},
             {8002, 1},
@@ -444,7 +412,6 @@ TEST_F(TestClusterSched, testUnAssignPidCpu2)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.ioThreadIds = {8001, 8002, 8003};
     vmDomain.pidVcpuMap = {
             {8001, 0},
             {8002, 1},
@@ -477,7 +444,6 @@ TEST_F(TestClusterSched, testAssignPidCpu)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.ioThreadIds = {8001, 8002, 8003};
     vmDomain.pidVcpuMap = {
             {8001, 0},
             {8002, 1},
@@ -509,7 +475,6 @@ TEST_F(TestClusterSched, testAllocClusterGroupToDomain)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.ioThreadIds = {8001, 8002, 8003};
     vmDomain.pidVcpuMap = {
             {8001, 0},
             {8002, 1},
@@ -541,7 +506,6 @@ TEST_F(TestClusterSched, testCleanDyingPidByGroup)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.ioThreadIds = {8001, 8002, 8003};
     vmDomain.pidVcpuMap = {
             {8001, 0},
             {8002, 1},
@@ -573,7 +537,6 @@ TEST_F(TestClusterSched, testCleanDyingPidByGroup2)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.ioThreadIds = {8001, 8002, 8003};
     vmDomain.pidVcpuMap = {
         {8001, 0},
         {8002, 1},
@@ -630,7 +593,6 @@ TEST_F(TestClusterSched, testCleanDyingPidByGroup3)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = 0;
     vmDomain.tgid = tgidNum;
-    vmDomain.ioThreadIds = {8001, 8002, 8003};
     vmDomain.pidVcpuMap = {
             {8001, 0},
             {8002, 1},
@@ -652,7 +614,6 @@ TEST_F(TestClusterSched, testAllocGroupFromCluster)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.ioThreadIds = {8001, 8002, 8003};
     vmDomain.pidVcpuMap = {
             {8001, 0},
             {8002, 1},
@@ -689,7 +650,6 @@ TEST_F(TestClusterSched, testAllocGroupFromCluster2)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.ioThreadIds = {8001, 8002, 8003};
     vmDomain.pidVcpuMap = {
         {8001, 0},
         {8002, 1},
@@ -967,17 +927,6 @@ TEST_F(TestClusterSched, testOverProvisionUp)
     EXPECT_EQ(ClusterSched::GetInstance().numaClusterMap_.size(), 1);
 }
 
-TEST_F(TestClusterSched, testSetIoThreadAffinity)
-{
-    ClusterSched scheduler;
-    VmDomain vmDomain;
-    std::set<pid_t> pids = {1001, 1002, 1005, 1003};
-    ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
-    MOCKER(scheduler.GetVmCgroupPath).stubs().will(returnValue(0));
-    auto ret = scheduler.SetIoThreadAffinity(uuid01, pids, DynamicBitset(CpuHelper::CLUSTER_CPU_NUM, false));
-    EXPECT_EQ(ret, VAS_OK);
-}
-
 TEST_F(TestClusterSched, testCompactionGroupWithinCluster)
 {
     ClusterSched scheduler;
@@ -1022,8 +971,6 @@ TEST_F(TestClusterSched, testSetVmCpuset)
     auto ret = scheduler.SetVmCpuset("test", VmThreadType::VCPU_CPUSET, bitset, 0);
     EXPECT_EQ(ret, VAS_ERROR);
     ret = scheduler.SetVmCpuset("test", VmThreadType::VCPU_PREFERRED_CPU, bitset, 0);
-    EXPECT_EQ(ret, VAS_ERROR);
-    ret = scheduler.SetVmCpuset("test", VmThreadType::EMULATOR_CPUSET, bitset, 0);
     EXPECT_EQ(ret, VAS_ERROR);
 }
 } // namespace vas::ut::sched

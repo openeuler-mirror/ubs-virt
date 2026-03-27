@@ -137,16 +137,6 @@ VasRet LibvirtHelper::GetVmInfo(virDomainPtr domain, VmInfo &vmInfo)
         LOG_ERROR("Get domain vcpu info failed. name=" + vmInfo.name + ". uuid=" + vmInfo.uuid);
         return ret;
     }
-    ret = GetVmIoThreadCpuMap(domain, vmInfo);
-    if (isVasRetFail(ret)) {
-        LOG_ERROR("Get domain io thread info failed. name=" + vmInfo.name + ". uuid=" + vmInfo.uuid);
-        return ret;
-    }
-    ret = GetVmEmulatorCpuMap(domain, vmInfo);
-    if (isVasRetFail(ret)) {
-        LOG_ERROR("Get domain emulator info failed. name=" + vmInfo.name + ". uuid=" + vmInfo.uuid);
-        return ret;
-    }
     if (IsReschedSkippedDomain(domain)) {
         LOG_WARN("Skip domain, name=" + vmInfo.name + ", uuid=" + vmInfo.uuid);
         return VAS_WARN;
@@ -271,12 +261,6 @@ void LibvirtHelper::FlushVmPidInfo(Vm2VcpuMap &vmVcpuPidList, Uuid2PidMap &uuid2
     // flush vcpu pid
     for (auto &[vcpuId, vcpuInfo] : vmInfo.vcpuMap) {
         vcpuInfo.pid = vmVcpuPidList[vmInfo.uuid][vcpuId];
-    }
-    // flush io thread pid
-    IoThread2PidMap ioThread2PidMap{};
-    ProcHelper::GetIOThreads(vmInfo.tgid, ioThread2PidMap);
-    for (auto &[ioThreadId, ioThreadInfo] : vmInfo.ioThreadMap) {
-        ioThreadInfo.pid = ioThread2PidMap[ioThreadId];
     }
 }
 
@@ -439,63 +423,6 @@ VasRet LibvirtHelper::GetVmVcpuMap(virDomainPtr domain, VmInfo &vmInfo)
             vmInfo.vcpuMap[vcpuId].cpuMaps = cpuMap;
         }
     }
-    return VAS_OK;
-}
-
-/**
- * Get domain io thread cpumap info
- * @param domain
- * @param vmInfo
- * @return
- */
-VasRet LibvirtHelper::GetVmIoThreadCpuMap(virDomainPtr domain, VmInfo &vmInfo)
-{
-    const uint16_t cpuMapLen = (CpuHelper::MAX_CPU_NUM + 7) / BYTE;
-    virDomainIOThreadInfo **ioThreadInfos{};
-    const int ioThreadCount = virDomainGetIOThreadInfo(
-        domain, &ioThreadInfos, static_cast<unsigned int>(virDomainModificationImpact::VIR_DOMAIN_AFFECT_LIVE));
-    if (ioThreadCount < 0) {
-        LOG_WARN("Get io thread cpumap failed.");
-        free(ioThreadInfos);
-        return VAS_OK;
-    }
-    for (size_t i = 0; i < ioThreadCount; ++i) {
-        DynamicBitset dynamicBitset{};
-        const virDomainIOThreadInfo *ioThreadInfo = ioThreadInfos[i];
-        Bitset::CpuMaskToDynamicBitset(ioThreadInfo->cpumap, cpuMapLen, dynamicBitset);
-        if (vmInfo.ioThreadMap.find(ioThreadInfo->iothread_id) == vmInfo.ioThreadMap.end()) {
-            vmInfo.ioThreadMap[ioThreadInfo->iothread_id] = IoThreadInfo{
-                .pid = 0,
-                .ioThreadCpuMaps = dynamicBitset,
-            };
-        } else {
-            vmInfo.ioThreadMap[ioThreadInfo->iothread_id].ioThreadCpuMaps = dynamicBitset;
-        }
-        virDomainIOThreadInfoFree(ioThreadInfos[i]);
-    }
-    free(ioThreadInfos);
-    return VAS_OK;
-}
-
-/**
- * Get domain emulator cpumap info
- * @param domain
- * @param vmInfo
- * @return
- */
-VasRet LibvirtHelper::GetVmEmulatorCpuMap(virDomainPtr domain, VmInfo &vmInfo)
-{
-    const uint16_t cpuMapLen = (CpuHelper::MAX_CPU_NUM + 7) / BYTE;
-    unsigned char cpuMap[cpuMapLen];
-    const int ret = virDomainGetEmulatorPinInfo(
-        domain, cpuMap, cpuMapLen, static_cast<unsigned int>(virDomainModificationImpact::VIR_DOMAIN_AFFECT_LIVE));
-    if (ret != 1) {
-        LOG_ERROR("Get emulator cpumap failed.");
-        return VAS_ERROR;
-    }
-    DynamicBitset dynamicBitset{};
-    Bitset::CpuMaskToDynamicBitset(cpuMap, cpuMapLen, dynamicBitset);
-    vmInfo.emulatorCpuMaps = dynamicBitset;
     return VAS_OK;
 }
 

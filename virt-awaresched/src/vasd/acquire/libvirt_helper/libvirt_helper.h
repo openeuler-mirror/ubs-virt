@@ -93,8 +93,6 @@ private:
     static void FreeDomains(virDomainPtr *domains, const size_t &domainNums);
     static VasRet GetVmName(virDomainPtr domain, std::string &name);
     static VasRet GetVmVcpuMap(virDomainPtr domain, VmInfo &vmInfo);
-    static VasRet GetVmIoThreadCpuMap(virDomainPtr domain, VmInfo &vmInfo);
-    static VasRet GetVmEmulatorCpuMap(virDomainPtr domain, VmInfo &vmInfo);
     static VasRet GetDomainInfo(virDomainPtr domain, virDomainInfo &virDomainInfo);
     static VasRet GetVmVcpuInfo(virDomainPtr domain, const int &nrVcpu, std::map<uint16_t, DynamicBitset> &vcpuMaps);
     static std::set<uint16_t> GetCpuInNumaRange(const std::set<uint16_t> &cpuSet);

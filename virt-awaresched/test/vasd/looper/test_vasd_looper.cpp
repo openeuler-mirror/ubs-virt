@@ -58,7 +58,6 @@ VasRet PopMockStart(VmEventInfo &vmEventInfo)
         .uuid = uuid01,
         .name = "vm01",
         .tgid = 266956,
-        .ioThreadMap = {{1, IoThreadInfo{266990, DynamicBitset{}}}},
         .vcpuMap =
             VcpuNumaMap{
                 {0, VcpuInfo{266987, {0}, DynamicBitset{}}},
@@ -81,7 +80,6 @@ VasRet PopMockShutdown(VmEventInfo &vmEventInfo)
         .uuid = uuid01,
         .name = "vm01",
         .tgid = 266956,
-        .ioThreadMap = {{1, IoThreadInfo{266990, DynamicBitset{}}}},
         .vcpuMap =
             VcpuNumaMap{
                 {0, VcpuInfo{266987, {0}, DynamicBitset{}}},

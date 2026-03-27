@@ -84,7 +84,6 @@ struct VmDomain {
     std::string name{};             // vm name
     uint16_t numaId{};              // numaId for vm
     pid_t tgid{};                   // thread group ID, i.e., process ID
-    std::set<pid_t> ioThreadIds{};  // IO Thread ID List
     PidVcpuMap pidVcpuMap{};        // CPU Thread List
     DynamicBitset commonCpuMap{};   // vcpu common available dynamic bitset
     std::set<std::string> groups{}; // groupId for vm
@@ -97,8 +96,6 @@ struct VmDomain {
         oss << R"({"uuid":")" << uuid << R"(",)";
         oss << R"("numaId":)" << numaId << R"(,)";
         oss << R"("tgid":)" << tgid << R"(,)";
-        oss << R"("ioThreadIds":)";
-        oss << StringUtil::SetToStr(ioThreadIds) << R"(,)";
         oss << R"("groups":)";
         oss << StringUtil::SetToStr(groups);
         oss << R"(})";
@@ -231,7 +228,6 @@ struct VmAffinity {
     std::string uuid{};                                                 // vm uuid
     std::string name{};                                                 // vm name
     pid_t tgid{};                                                       // thread group ID, i.e., process ID
-    std::set<pid_t> ioThreadIds{};                                      // IO ThreadId list
     std::unordered_map<uint16_t, VmDomainAffinity> domainAffinityMap{}; // NUMA granularity affinity configuration
 
     std::string ToStr() const
@@ -240,14 +236,6 @@ struct VmAffinity {
         oss << R"({"uuid":)" << uuid << R"(,)";
         oss << R"("name":)" << name << R"(,)";
         oss << R"("tgid":)" << tgid << R"(,)";
-        oss << R"("ioThreadIds":[)";
-        for (auto it = ioThreadIds.begin(); it != ioThreadIds.end(); ++it) {
-            oss << *it;
-            if (std::next(it) != ioThreadIds.end()) {
-                oss << R"(,)";
-            }
-        }
-        oss << R"(],)";
         oss << R"("domainAffinityMap":{)";
         for (auto it = domainAffinityMap.begin(); it != domainAffinityMap.end(); ++it) {
             oss << R"(")" << it->first << R"(":)" << it->second.ToStr();
