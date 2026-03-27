@@ -64,12 +64,9 @@ FetchContent_Populate(_mockcpp_src)
 
 # 检查是否已打过补丁（通过是否存在新增的 ARM64 文件）
 
-if (NOT CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64")
-    message(STATUS "CPU family is not aarch64, skip mockcpp aarch64 patch.")
-elseif (EXISTS "${_mockcpp_src_SOURCE_DIR}/src/JmpCodeAARCH64.h")
+if (EXISTS "${_mockcpp_src_SOURCE_DIR}/src/JmpCodeAARCH64.h")
     message(STATUS "ARM64 patch already applied, skipping.")
 else()
-
     set(PATCH_FILE_URL "https://raw.gitcode.com/openeuler/ubs-engine/blobs/b4c3419ac556a7fd9e169c67d5f05bb422c6a49e/mockcpp_support_arm64.patch")
     set(PATCH_FILE "${_mockcpp_src_SOURCE_DIR}/mockcpp_support_arm64.patch")
 

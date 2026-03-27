@@ -240,16 +240,6 @@ TEST_F(TestLibvirtHelper, GetVmInfoTest)
     MOCKER(LibvirtHelper::GetVmVcpuMap).reset();
 
     MOCKER(LibvirtHelper::GetVmVcpuMap).stubs().will(returnValue(VAS_OK));
-    MOCKER(LibvirtHelper::GetVmIoThreadCpuMap).stubs().will(returnValue(VAS_ERROR));
-    EXPECT_EQ(LibvirtHelper::GetInstance().GetVmInfo(domain, vmInfo), VAS_ERROR);
-    MOCKER(LibvirtHelper::GetVmIoThreadCpuMap).reset();
-
-    MOCKER(LibvirtHelper::GetVmIoThreadCpuMap).stubs().will(returnValue(VAS_OK));
-    MOCKER(LibvirtHelper::GetVmEmulatorCpuMap).stubs().will(returnValue(VAS_ERROR));
-    EXPECT_EQ(LibvirtHelper::GetInstance().GetVmInfo(domain, vmInfo), VAS_ERROR);
-    MOCKER(LibvirtHelper::GetVmEmulatorCpuMap).reset();
-    
-    MOCKER(LibvirtHelper::GetVmEmulatorCpuMap).stubs().will(returnValue(VAS_OK));
     MOCKER(LibvirtHelper::IsReschedSkippedDomain).stubs().will(returnValue(true));
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmInfo(domain, vmInfo), VAS_WARN);
     MOCKER(LibvirtHelper::IsReschedSkippedDomain).reset();
@@ -460,55 +450,6 @@ TEST_F(TestLibvirtHelper, GetVmVcpuMapTest)
     MOCKER(LibvirtHelper::GetCpuInNumaRange).stubs().will(returnValue(std::set<uint16_t>({0})));
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmVcpuMap(domain, vmInfo), VAS_OK);
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmVcpuMap(domain, vmInfo), VAS_OK); // update vmInfo
-}
-
-int VirDomainGetIOThreadInfo(virDomainPtr domain, virDomainIOThreadInfoPtr **ioThreadInfos, unsigned int flag)
-{
-    *ioThreadInfos = new virDomainIOThreadInfoPtr[1];
-    (*ioThreadInfos)[0] = new virDomainIOThreadInfo;
-    (*ioThreadInfos)[0]->iothread_id = 1;
-    (*ioThreadInfos)[0]->cpumaplen = DEFAULT_CPU_MAP_LEN;
-    (*ioThreadInfos)[0]->cpumap = new unsigned char[4];
-    for (int i = 0; i < (*ioThreadInfos)[0]->cpumaplen; ++i) {
-        (*ioThreadInfos)[0]->cpumap[i] = 1 << i;
-    }
-    return 1;
-}
-
-int VirDomainGetIOThreadInfoError(virDomainPtr domain, virDomainIOThreadInfoPtr **ioThreadInfos, unsigned int flag)
-{
-    return -1;
-}
-
-void VirDomainIOThreadInfoFree(virDomainIOThreadInfoPtr ioThreadInfos)
-{
-}
-
-TEST_F(TestLibvirtHelper, GetVmIoThreadCpuMapTest)
-{
-    virDomainPtr domain = reinterpret_cast<virDomainPtr>(0x1234);
-    VmInfo vmInfo{};
-    MOCKER(virDomainIOThreadInfoFree).stubs().will(invoke(VirDomainIOThreadInfoFree));
-
-    MOCKER(virDomainGetIOThreadInfo).stubs().will(invoke(VirDomainGetIOThreadInfoError));
-    EXPECT_EQ(LibvirtHelper::GetInstance().GetVmIoThreadCpuMap(domain, vmInfo), VAS_OK);
-    MOCKER(virDomainGetIOThreadInfo).reset();
-
-    MOCKER(virDomainGetIOThreadInfo).stubs().will(invoke(VirDomainGetIOThreadInfo));
-    EXPECT_EQ(LibvirtHelper::GetInstance().GetVmIoThreadCpuMap(domain, vmInfo), VAS_OK);
-}
-
-TEST_F(TestLibvirtHelper, GetVmEmulatorCpuMapTest)
-{
-    virDomainPtr domain = reinterpret_cast<virDomainPtr>(0x1234);
-    VmInfo vmInfo{};
-
-    MOCKER(virDomainGetEmulatorPinInfo).stubs().will(returnValue(-1));
-    EXPECT_EQ(LibvirtHelper::GetInstance().GetVmEmulatorCpuMap(domain, vmInfo), VAS_ERROR);
-    MOCKER(virDomainGetEmulatorPinInfo).reset();
-    
-    MOCKER(virDomainGetEmulatorPinInfo).stubs().will(returnValue(1));
-    EXPECT_EQ(LibvirtHelper::GetInstance().GetVmEmulatorCpuMap(domain, vmInfo), VAS_OK);
 }
 
 TEST_F(TestLibvirtHelper, FlushVmsPidInfoTest)

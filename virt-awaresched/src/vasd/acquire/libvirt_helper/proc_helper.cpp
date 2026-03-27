@@ -22,7 +22,6 @@ namespace vas::sched::acquire {
 using namespace vas::common;
 const fs::path ProcHelper::procPathPrefix = "/proc";
 const std::regex ProcHelper::vCPUCommP = std::regex(R"(CPU\s+(\d+)\/KVM)");
-const std::regex ProcHelper::ioThreadCommP = std::regex(R"(IO iothread(\d+))");
 
 /**
  * Retrieve the list of virtual machine process information
@@ -132,41 +131,5 @@ VasRet ProcHelper::GetVcpuList(const pid_t &pid, Vcpu2PidMap &vcpu2PidMap)
         }
     }
     return VAS_OK;
-}
-
-/**
- * Retrieve the vm io thread ids
- * @param pid vm process ID
- * @param ioThread2PidMap
- */
-void ProcHelper::GetIOThreads(const pid_t &pid, IoThread2PidMap &ioThread2PidMap)
-{
-    fs::path task = procPathPrefix / std::to_string(pid) / "task";
-    if (!exists(task) || !is_directory(task)) {
-        LOG_ERROR("Pid task dir not exists or is not dir. pid=" + std::to_string(pid));
-        return;
-    }
-    for (auto &dir : fs::directory_iterator(task)) {
-        const fs::path comm = dir.path() / "comm";
-        std::ifstream file(comm);
-        if (access(dir.path().c_str(), R_OK) == -1 || access(comm.c_str(), R_OK) == -1) {
-            continue;
-        }
-        if (!file.is_open()) {
-            LOG_WARN("Open task comm file failed, task=" + dir.path().string() + ", pid=" + std::to_string(pid));
-            continue;
-        }
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        std::string line = buffer.str();
-        if (std::smatch match; std::regex_search(line, match, ioThreadCommP)) {
-            try {
-                ioThread2PidMap[StringUtil::StringToUint16(match.str(1).c_str())] =
-                    StringUtil::StringToPidt(dir.path().filename().c_str());
-            } catch (const std::exception &e) {
-                LOG_WARN("ioThreadId str transform failed. err: " + std::string(e.what()));
-            }
-        }
-    }
 }
 } // namespace vas::sched::acquire

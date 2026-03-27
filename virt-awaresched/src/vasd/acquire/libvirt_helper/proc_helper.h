@@ -28,7 +28,6 @@ using namespace vas::common;
 namespace fs = std::filesystem;
 using Uuid2PidMap = std::unordered_map<std::string, pid_t>;
 using Vcpu2PidMap = std::unordered_map<uint16_t, pid_t>;
-using IoThread2PidMap = std::unordered_map<uint16_t, pid_t>;
 using Vm2VcpuMap = std::unordered_map<std::string, Vcpu2PidMap>; // key uuid
 
 class ProcHelper {
@@ -39,7 +38,6 @@ public:
         return instance;
     }
 
-    static void GetIOThreads(const pid_t &pid, IoThread2PidMap &ioThread2PidMap);
     Vm2VcpuMap GetVmProcList(const std::vector<std::string> &uuids);
     Uuid2PidMap GetUuid2PidMap()
     {
@@ -55,7 +53,6 @@ private:
 
     static const fs::path procPathPrefix;
     static const std::regex vCPUCommP;
-    static const std::regex ioThreadCommP;
 
     std::shared_mutex mutex{};
     Uuid2PidMap uuid2PidMap{};

@@ -64,8 +64,6 @@ VasRet ClusterSched::UpdateDomainInfosAndSched()
     if (needAllocDomains.empty()) {
         return VAS_OK;
     }
-    AssignEmulatorCpuWithoutLock(needAllocDomains);
-    AssignIoThreadsCpuWithoutLock(needAllocDomains);
     return VAS_OK;
 }
 
@@ -188,11 +186,10 @@ void ClusterSched::GetAffinityInfo(const std::string &value, std::unordered_map<
         if (ret.find(domain.uuid) == ret.end()) {
             ret[domain.uuid] = VmAffinity{};
         }
-        auto &[vmUuid, name, tgid, ioThreadIds, domainAffinityMap] = ret[domain.uuid];
+        auto &[vmUuid, name, tgid, domainAffinityMap] = ret[domain.uuid];
         vmUuid = domain.uuid;
         name = domain.name;
         tgid = domain.tgid;
-        ioThreadIds = domain.ioThreadIds;
         if (domainAffinityMap.find(domain.numaId) == domainAffinityMap.end()) {
             domainAffinityMap[domain.numaId] = VmDomainAffinity{};
         }
@@ -264,10 +261,6 @@ VasRet ClusterSched::ReSchedVm(const std::string &value)
         return VAS_ERROR_INVAL;
     }
     std::vector<VmDomain> domains = ClusterSched::GetInstance().GetDomainsByUuid(uuid);
-    UnAssignIoThreadsCpuWithoutLock(domains);
-    UnAssignEmulatorCpuWithoutLock(domains);
-    AssignEmulatorCpuWithoutLock(domains);
-    AssignIoThreadsCpuWithoutLock(domains);
     ClusterCompactionWithoutLock();
     LOG_INFO("Rescheduling VM vCPU affinity end.");
     return ret;
@@ -283,17 +276,6 @@ void ClusterSched::ClusterCompactionWithoutLock()
         CompactionCluster(numaId, clusterMap);
         LOG_DEBUG("End to compact cpu by numa, numa=" + std::to_string(numaId));
     }
-    std::vector<VmDomain> domains;
-    for (const auto &uuid : vmNeedAssignTgIdCpu_) {
-        domains = GetDomainsByUuid(uuid);
-        AssignEmulatorCpuWithoutLock(domains);
-    }
-    for (const auto &uuid : vmNeedAssignIoThreadCpu_) {
-        domains = GetDomainsByUuid(uuid);
-        AssignIoThreadsCpuWithoutLock(domains);
-    }
-    vmNeedAssignTgIdCpu_.clear();
-    vmNeedAssignIoThreadCpu_.clear();
     const auto duration = duration_cast<microseconds>(high_resolution_clock::now() - start);
     compactionCount_ += 1;
 
@@ -349,7 +331,6 @@ VasRet ClusterSched::UpdateDomainInfoWithoutLock(const VmInfo &vmInfo, NumaUsedC
             .name = vmInfo.name,
             .numaId = numaId,
             .tgid = vmInfo.tgid,
-            .ioThreadIds = ioThreadIds,
             .pidVcpuMap = pidVcpuMap,
             .commonCpuMap = VmDomain::GetCommonCpuMap(vcpu2CpuMap),
         };
@@ -688,8 +669,6 @@ VasRet ClusterSched::ReSched(std::vector<VmDomain> &domains)
         domain.isReScheded = isVasRetOk(ret);
         domainMap_[domain.uuid + "_" + std::to_string(domain.numaId)] = domain;
     }
-    AssignEmulatorCpuWithoutLock(domains);
-    AssignIoThreadsCpuWithoutLock(domains);
     return VAS_OK;
 }
 
@@ -700,8 +679,6 @@ VasRet ClusterSched::ReSched(std::vector<VmDomain> &domains)
  */
 VasRet ClusterSched::DeReSched(std::vector<VmDomain> &domains)
 {
-    UnAssignIoThreadsCpuWithoutLock(domains);
-    UnAssignEmulatorCpuWithoutLock(domains);
     for (auto &domain : domains) {
         Unassign(domain);
         domain.isReScheded = false;
@@ -754,76 +731,6 @@ VasRet ClusterSched::AssignPidCpu(VmDomain &domain, const pid_t &pid)
 }
 
 /**
- * assign cpu for emulator
- * @param domains domains for one vm
- */
-void ClusterSched::AssignEmulatorCpuWithoutLock(std::vector<VmDomain> &domains)
-{
-    if (domains.empty()) {
-        LOG_WARN("domains are empty");
-        return;
-    }
-    VasRet ret = SetEmulatorAffinity(domains[0].uuid, GetDomainCpuMask(domains));
-    if (isVasRetFail(ret)) {
-        LOG_ERROR("Assign emulator cpu failed, vm_uuid=" + domains[0].uuid);
-        return;
-    }
-    LOG_INFO("Assign emulator cpu successfully, vm_uuid=" + domains[0].uuid);
-    for (VmDomain &domain : domains) {
-        domain.entityPids.emplace(domains[0].tgid);
-    }
-    for (const auto &domain : domains) {
-        domainMap_[domain.uuid + "_" + std::to_string(domain.numaId)] = domain;
-    }
-}
-
-/**
- * assign cpu for ioThreads
- * @param domains domains for one vm
- */
-void ClusterSched::AssignIoThreadsCpuWithoutLock(std::vector<VmDomain> &domains)
-{
-    if (domains.empty() || domains[0].ioThreadIds.empty()) {
-        return;
-    }
-    std::set<pid_t> threadIds = domains[0].ioThreadIds;
-    VasRet ret = SetIoThreadAffinity(domains[0].uuid, threadIds, GetDomainCpuMask(domains));
-    if (isVasRetFail(ret)) {
-        LOG_ERROR("Assign ioThread cpu failed, vm_uuid=" + domains[0].uuid);
-        return;
-    }
-    LOG_INFO("Assign ioThread cpu successfully, vm_uuid=" + domains[0].uuid);
-    for (VmDomain &domain : domains) {
-        domain.entityPids.insert(threadIds.begin(), threadIds.end());
-    }
-    for (const auto &domain : domains) {
-        domainMap_[domain.uuid + "_" + std::to_string(domain.numaId)] = domain;
-    }
-}
-
-void ClusterSched::UnAssignEmulatorCpuWithoutLock(std::vector<VmDomain> &domains)
-{
-    if (domains.empty()) {
-        return;
-    }
-    for (VmDomain &domain : domains) {
-        domain.entityPids.erase(domains[0].tgid);
-    }
-}
-
-void ClusterSched::UnAssignIoThreadsCpuWithoutLock(std::vector<VmDomain> &domains)
-{
-    if (domains.empty() || domains[0].ioThreadIds.empty()) {
-        return;
-    }
-    for (VmDomain &domain : domains) {
-        for (const auto &ioThreadId : domains[0].ioThreadIds) {
-            domain.entityPids.erase(ioThreadId);
-        }
-    }
-}
-
-/**
  * unassign 1:1 core binding
  * @param domain VmDomain
  */
@@ -862,10 +769,6 @@ void ClusterSched::RecoverVmVcpu_(const VmInfoMap &vmInfoMap)
             SetVmCpuset(vmPathPre, VmThreadType::VCPU_CPUSET, vcpuInfo.cpuMaps, vcpuId);
             SetVmCpuset(vmPathPre, VmThreadType::VCPU_PREFERRED_CPU, emptyDynamicBitset, vcpuId);
         }
-        for (auto &[ioThreadId, ioThreadInfo] : vmInfo.ioThreadMap) {
-            SetVmCpuset(vmPathPre, VmThreadType::IOTHREAD_CPUSET, ioThreadInfo.ioThreadCpuMaps, ioThreadId);
-        }
-        SetVmCpuset(vmPathPre, VmThreadType::EMULATOR_CPUSET, vmInfo.emulatorCpuMaps);
     }
     LOG_INFO("Success to recover vm affinity setting.");
 }
@@ -1132,12 +1035,6 @@ VasRet ClusterSched::SetVmCpuset(const fs::path &vmPathPre, const VmThreadType &
         case VmThreadType::VCPU_PREFERRED_CPU:
             modifyPath = vmPathPre / ("vcpu" + std::to_string(id)) / "cpuset.preferred_cpus";
             break;
-        case VmThreadType::IOTHREAD_CPUSET:
-            modifyPath = vmPathPre / ("iothread" + std::to_string(id)) / "cpuset.cpus";
-            break;
-        case VmThreadType::EMULATOR_CPUSET:
-            modifyPath = vmPathPre / "emulator" / "cpuset.cpus";
-            break;
         default:
             LOG_ERROR("Invalid vm thread type.");
             return VAS_ERROR;
@@ -1167,48 +1064,6 @@ VasRet ClusterSched::SetVmCpuset(const fs::path &vmPathPre, const VmThreadType &
         LOG_ERROR("Delete capabilities failed.");
         return VAS_ERROR;
     }
-    return VAS_OK;
-}
-
-/**
- * set emulator cpu affinity
- * @param uuid
- * @param cpuBitSet
- * @return VasRet
- */
-VasRet ClusterSched::SetEmulatorAffinity(const std::string &uuid, const DynamicBitset &cpuBitSet)
-{
-    fs::path vmPathPre{};
-    if (const auto ret = GetVmCgroupPath(uuid, vmPathPre); isVasRetFail(ret)) {
-        return ret;
-    }
-    return SetVmCpuset(vmPathPre, VmThreadType::EMULATOR_CPUSET, cpuBitSet);
-}
-
-/**
- * set io thread cpu affinity
- * @param uuid
- * @param cpuBitSet
- * @return VasRet
- */
-VasRet ClusterSched::SetIoThreadAffinity(const std::string &uuid, std::set<pid_t> &ioThreadIds,
-                                         const DynamicBitset &cpuBitSet)
-{
-    fs::path vmPathPre{};
-    auto ret = GetVmCgroupPath(uuid, vmPathPre);
-    if (isVasRetFail(ret)) {
-        return ret;
-    }
-    std::set<pid_t> executedThreads;
-    for (const auto &ioThreadId : ioThreadIds) {
-        ret = SetVmCpuset(vmPathPre, VmThreadType::IOTHREAD_CPUSET, cpuBitSet, ioThreadId);
-        if (isVasRetFail(ret)) {
-            LOG_WARN("Set ioThread affinity error, ioThreadId=" + std::to_string(ioThreadId));
-            continue;
-        }
-        executedThreads.emplace(ioThreadId);
-    }
-    ioThreadIds = executedThreads;
     return VAS_OK;
 }
 
@@ -1286,23 +1141,6 @@ void ClusterSched::CleanDyingPidByGroup(VmDomain &domain)
     }
 }
 
-void ClusterSched::GetVmNeedAssign(const Cluster &cluster, const uint8_t &layerId)
-{
-    auto clusterLayer = cluster.clusterLayers[layerId];
-    for (const auto &groupId : clusterLayer.groups) {
-        auto &domain = domainMap_[groupMap_[groupId].domainKey];
-        if (domain.entityPids.find(domain.tgid) == domain.entityPids.end()) {
-            vmNeedAssignTgIdCpu_.insert(domain.uuid);
-        }
-        for (const auto &ioThreadId : domain.ioThreadIds) {
-            if (domain.entityPids.find(ioThreadId) == domain.entityPids.end()) {
-                vmNeedAssignIoThreadCpu_.insert(domain.uuid);
-                break;
-            }
-        }
-    }
-}
-
 /**
  * compress cluster CPU usage for one numa
  * @param clusterMap
@@ -1321,8 +1159,6 @@ void ClusterSched::CompactionClusterOneLayer(std::map<uint16_t, Cluster> &cluste
         // clusters that are completely empty or full do not participate in the compression process,
         // they will be merged after the process is completed.
         auto &cluster = clusterIt->second;
-        // get vm which needs assign tgId or ioThreadId.
-        GetVmNeedAssign(cluster, layerId);
         // skip full used cluster.
         if (cluster.clusterLayers[layerId].idle == 0) {
             continue;
@@ -1445,8 +1281,6 @@ void ClusterSched::CompactionGroupInCluster(Cluster &cluster, const uint8_t &lay
         }
         AddGroupToClusterLayer(group, clusterLayer);
         std::string uuid = domainMap_[group.domainKey].uuid;
-        vmNeedAssignTgIdCpu_.insert(uuid);
-        vmNeedAssignIoThreadCpu_.insert(uuid);
         groupIt = nextGroupIt;
     }
 }
@@ -1494,8 +1328,6 @@ void ClusterSched::CompactionGroupWithinCluster(Cluster &cluster, Cluster &nextC
 
         AddGroupToClusterLayer(group, clusterLayer);
         std::string uuid = domainMap_[group.domainKey].uuid;
-        vmNeedAssignTgIdCpu_.insert(uuid);
-        vmNeedAssignIoThreadCpu_.insert(uuid);
         groupIt = nextGroupIt;
     }
 }
@@ -1542,8 +1374,6 @@ void ClusterSched::CompactionGroupFromLastLayer(Cluster &cluster, const uint8_t 
             domainMap_[group.domainKey].groups.insert(group.id);
             AddGroupToClusterLayer(group, clusterLayer);
             std::string uuid = domainMap_[group.domainKey].uuid;
-            vmNeedAssignTgIdCpu_.insert(uuid);
-            vmNeedAssignIoThreadCpu_.insert(uuid);
             groupIt = nextGroupIt;
         }
         if (lastClusterLayer.total == lastClusterLayer.idle) {

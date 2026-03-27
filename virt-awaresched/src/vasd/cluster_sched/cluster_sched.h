@@ -28,8 +28,6 @@ namespace fs = std::filesystem;
 enum class VmThreadType {
     VCPU_CPUSET = 0,
     VCPU_PREFERRED_CPU,
-    IOTHREAD_CPUSET,
-    EMULATOR_CPUSET,
 };
 
 class ClusterSched {
@@ -61,16 +59,12 @@ private:
     GroupMap groupMap_{};
     uint16_t compactionCount_{};
     std::unordered_map<uint16_t, uint8_t> overProvision_{};
-    std::set<std::string> vmNeedAssignTgIdCpu_{};
-    std::set<std::string> vmNeedAssignIoThreadCpu_{};
 
     ClusterSched() = default;
     ~ClusterSched() = default;
     void GetVcpuAffinityInfoMap(VmDomain &domain, const std::list<VmGroup> &groups,
                                 std::map<uint16_t, VcpuAffinityInfo> &vcpuAffinityInfoMap);
     void ClusterCompactionWithoutLock();
-    void AssignEmulatorCpuWithoutLock(std::vector<VmDomain> &domains);
-    void AssignIoThreadsCpuWithoutLock(std::vector<VmDomain> &domains);
     void UpdateDomainInfosWithoutLock(const VmInfoMap &vmInfoMap);
     VasRet UpdateDomainInfoWithoutLock(const VmInfo &vmInfo, NumaUsedCpuMap &numaUsedCpuMap, VmDomain &vmDomain);
     uint16_t GetNumaCpuCount(const uint16_t &numaId);
@@ -98,7 +92,6 @@ private:
     void CleanDyingPidByGroup(VmDomain &domain);
     void CompactionCluster(uint16_t numaId, std::map<uint16_t, Cluster> &clusterMap);
     void CompactionClusterOneLayer(std::map<uint16_t, Cluster> &clusterMap, const uint8_t &layerId);
-    void GetVmNeedAssign(const Cluster &cluster, const uint8_t &layerId);
     void CompactionGroupInCluster(Cluster &cluster, const uint8_t &layerId);
     void CompactionGroupWithinCluster(Cluster &cluster, Cluster &nextCluster, const uint8_t &layerId);
     void CompactionGroupFromLastLayer(Cluster &cluster, const uint8_t &layerId);
@@ -118,11 +111,6 @@ private:
     static VasRet GetVmCgroupPath(const std::string &uuid, fs::path &cpuPath);
     static VasRet SetVmCpuset(const fs::path &vmPathPre, const VmThreadType &threadType, const DynamicBitset &cpuBitSet,
                               const int32_t &id = 0);
-    static VasRet SetEmulatorAffinity(const std::string &uuid, const DynamicBitset &cpuBitSet);
-    static VasRet SetIoThreadAffinity(const std::string &uuid, std::set<pid_t> &ioThreadIds,
-                                      const DynamicBitset &cpuBitSet);
-    static void UnAssignEmulatorCpuWithoutLock(std::vector<VmDomain> &domains);
-    static void UnAssignIoThreadsCpuWithoutLock(std::vector<VmDomain> &domains);
 };
 
 } // namespace vas::sched

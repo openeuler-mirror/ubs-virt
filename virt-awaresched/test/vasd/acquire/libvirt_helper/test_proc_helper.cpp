@@ -54,11 +54,4 @@ TEST_F(TestProcHelper, GetVcpuListTest)
     ProcHelper::GetVcpuList(PID, vcpu2PidMap);
     ProcHelper::GetVcpuList(-1, vcpu2PidMap);
 }
-
-TEST_F(TestProcHelper, GetIOThreadsTest)
-{
-    IoThread2PidMap ioThread2PidMap{};
-    ProcHelper::GetIOThreads(PID, ioThread2PidMap);
-    ProcHelper::GetIOThreads(-1, ioThread2PidMap);
-}
 }
