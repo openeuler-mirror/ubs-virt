@@ -43,6 +43,5 @@ IF(${CMAKE_BUILD_TYPE} MATCHES "Debug")
         -lgcov
     )
     add_subdirectory(src)
-    add_subdirectory(3rdparty/googletest)
     add_subdirectory(tests)
 ENDIF()

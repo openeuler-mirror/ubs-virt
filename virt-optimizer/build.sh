@@ -56,23 +56,6 @@ if [ "$CLEAN" = true ]; then
     [ -n "${BUILD_PATH}" ] && rm -rf "${BUILD_PATH}"
 fi
 
-if [[ "${BUILD_TYPE}" == "Debug" ]]; then
-    MOCKCPP_PATH="${CURRENT_PATH}/ebpf/3rdparty/mockcpp"
-    cd "${MOCKCPP_PATH}"/src/long_term
-    sh build.sh
-    cp -rf "${MOCKCPP_PATH}"/src/long_term/include "${MOCKCPP_PATH}"
-    if [ ! -d "${MOCKCPP_PATH}/include/fake_boost" ]; then
-        cp -rf "${MOCKCPP_PATH}"/src/long_term/3rdparty/fake_boost "${MOCKCPP_PATH}"/include
-    fi
-    if [ ! -d "${MOCKCPP_PATH}/include/msinttypes" ]; then
-        cp -rf "${MOCKCPP_PATH}"/src/long_term/3rdparty/msinttypes "${MOCKCPP_PATH}"/include
-    fi
-    if [ ! -d "${MOCKCPP_PATH}/lib" ]; then
-        mkdir "${MOCKCPP_PATH}"/lib
-    fi
-    cp -rf "${MOCKCPP_PATH}"/src/long_term/build_GNU/mockcpp/src/libmockcpp.a "${MOCKCPP_PATH}"/lib/libmockcpp.a
-fi
-
 USR_VMLINUX_H_PATH="/usr/include/vmlinux.h"
 VMLINUX_H_PATH="${CURRENT_PATH}"/ebpf/src/client/bpfs/vmlinux.h
 if [[ ! -f "${VMLINUX_H_PATH}" && ! -f "${USR_VMLINUX_H_PATH}" ]]; then
