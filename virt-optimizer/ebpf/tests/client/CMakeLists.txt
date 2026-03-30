@@ -6,13 +6,13 @@ file(GLOB_RECURSE TEST_SOURCE
 add_executable(test-client ${TEST_SOURCE} )
 
 target_include_directories(test-client PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/3rdparty/rapidjson/include" "${PROJECT_SOURCE_DIR}/3rdparty/mockcpp/include" "${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}/src/common"
-    "${libbpf_INCLUDE_DIRS}" "${PROJECT_SOURCE_DIR}/3rdparty/googletest/googletest/include"
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/3rdparty/rapidjson/include" "${PROJECT_SOURCE_DIR}/src" "${PROJECT_SOURCE_DIR}/src/common"
+    "${libbpf_INCLUDE_DIRS}"
 )
 
 target_compile_options(test-client PRIVATE -fno-access-control)
 
-TARGET_LINK_LIBRARIES(test-client ubs-opt-lib common-lib gtest ${PROJECT_SOURCE_DIR}/3rdparty/mockcpp/lib/libmockcpp.a ${libbpf_LIBRARIES}
+TARGET_LINK_LIBRARIES(test-client ubs-opt-lib common-lib gtest mockcpp ${libbpf_LIBRARIES}
     ${ELF_LIBRARIES}
     ${zlib_LIBRARIES}
     -lelf

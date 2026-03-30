@@ -52,7 +52,7 @@ TEST(ForkWithDirTest, ChdirFailure)
 {
     MOCKER(fork).expects(once()).will(returnValue(0));
     MOCKER(setsid).expects(once()).will(returnValue(1));
-    MOCKER(umask).expects(once()).will(returnValue(0));
+    MOCKER(umask).expects(once()).will(returnValue((unsigned int)0));
     MOCKER(chdir).expects(once()).will(returnValue(-1));
 
     pid_t result = utils::forkWithDir("/xxx");
