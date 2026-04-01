@@ -20,171 +20,127 @@
 using namespace vas::common;
 
 namespace vas::ut::util {
-    void TestDynamicBitset::SetUp()
-    {
-        testing::Test::SetUp();
-    }
+uint16_t g_bitsetLen = 5;
+uint16_t g_areaStart = 1;
+uint16_t g_areaLen = 3;
+uint16_t g_idleStart = 0;
+uint16_t g_idleLen = 2;
 
-    void TestDynamicBitset::TearDown()
-    {
-        testing::Test::TearDown();
-    }
+void TestDynamicBitset::SetUp()
+{
+    testing::Test::SetUp();
+}
 
-    TEST_F(TestDynamicBitset, testDynamicBitsetSet) {
-        DynamicBitset bitSet(5, false);
-        Bitset::DynamicBitsetSet(bitSet, 1, 3);
+void TestDynamicBitset::TearDown()
+{
+    testing::Test::TearDown();
+}
 
-        EXPECT_FALSE(bitSet[0]);
-        EXPECT_TRUE(bitSet[1]);
-        EXPECT_TRUE(bitSet[2]);
-        EXPECT_TRUE(bitSet[3]);
-        EXPECT_FALSE(bitSet[4]);
-    }
+TEST_F(TestDynamicBitset, testDynamicBitsetSet)
+{
+    DynamicBitset bitSet(g_bitsetLen, false);
+    Bitset::DynamicBitsetSet(bitSet, g_areaStart, g_areaLen);
+    EXPECT_EQ(bitSet, DynamicBitset({false, true, true, true, false}));
+}
 
-    TEST_F(TestDynamicBitset, testDynamicBitsetClear) {
-        DynamicBitset bitSet(5, true);
-        Bitset::DynamicBitsetClear(bitSet, 1, 3);
+TEST_F(TestDynamicBitset, testDynamicBitsetSetArea)
+{
+    DynamicBitset bitSet(g_bitsetLen, false);
+    Bitset::DynamicBitsetSetArea(bitSet, g_areaStart, g_areaLen, true);
+    EXPECT_EQ(bitSet, DynamicBitset({false, true, true, true, false}));
+}
 
-        EXPECT_TRUE(bitSet[0]);
-        EXPECT_FALSE(bitSet[1]);
-        EXPECT_FALSE(bitSet[2]);
-        EXPECT_FALSE(bitSet[3]);
-        EXPECT_TRUE(bitSet[4]);
-    }
+TEST_F(TestDynamicBitset, testDynamicBitsetClear)
+{
+    DynamicBitset bitSet(g_bitsetLen, true);
+    Bitset::DynamicBitsetClear(bitSet, g_areaStart, g_areaLen);
+    EXPECT_EQ(bitSet, DynamicBitset({true, false, false, false, true}));
+}
 
-    TEST_F(TestDynamicBitset, testDynamicBitsetNot) {
-        DynamicBitset src(3);
-        src[0] = true;
-        src[1] = false;
-        src[2] = true;
-        DynamicBitset dst = Bitset::DynamicBitsetNot(src);
+TEST_F(TestDynamicBitset, testDynamicBitsetNot)
+{
+    const DynamicBitset src({true, false, true});
+    const DynamicBitset dst = Bitset::DynamicBitsetNot(src);
+    EXPECT_EQ(dst, DynamicBitset({false, true, false}));
+}
 
-        EXPECT_FALSE(dst[0]);
-        EXPECT_TRUE(dst[1]);
-        EXPECT_FALSE(dst[2]);
-    }
+TEST_F(TestDynamicBitset, testDynamicBitsetOr)
+{
+    DynamicBitset src1({true, false, true});
+    const DynamicBitset src2({false, true, false});
+    Bitset::DynamicBitsetOr(src1, src2);
+    EXPECT_EQ(src1, DynamicBitset({true, true, true}));
+}
 
-    TEST_F(TestDynamicBitset, testDynamicBitsetOr) {
-        DynamicBitset src1(3);
-        src1[0] = true;
-        src1[1] = false;
-        src1[2] = true;
-        DynamicBitset src2(3);
-        src2[0] = false;
-        src2[1] = true;
-        src2[2] = false;
-        Bitset::DynamicBitsetOr(src1, src2);
+TEST_F(TestDynamicBitset, testDynamicBitsetAnd)
+{
+    DynamicBitset src1({true, false, true});
+    const DynamicBitset src2({false, true, true});
+    Bitset::DynamicBitsetAnd(src1, src2);
+    EXPECT_EQ(src1, DynamicBitset({false, false, true}));
+}
 
-        EXPECT_TRUE(src1[0]);
-        EXPECT_TRUE(src1[1]);
-        EXPECT_TRUE(src1[2]);
-    }
+TEST_F(TestDynamicBitset, testIsDynamicBitsetCross)
+{
+    const DynamicBitset first({true, false, true});
+    const DynamicBitset second({false, true, true});
+    EXPECT_TRUE(Bitset::IsDynamicBitsetCross(first, second));
+}
 
-    TEST_F(TestDynamicBitset, testDynamicBitsetAnd) {
-        DynamicBitset src1(3);
-        src1[0] = true;
-        src1[1] = false;
-        src1[2] = true;
-        DynamicBitset src2(3);
-        src2[0] = false;
-        src2[1] = true;
-        src2[2] = true;
-        Bitset::DynamicBitsetAnd(src1, src2);
+TEST_F(TestDynamicBitset, testGenDynamicBitSetByArea)
+{
+    const DynamicBitset bitSet = Bitset::GenDynamicBitSetByArea(g_bitsetLen, g_areaStart, g_areaLen);
+    EXPECT_EQ(bitSet.size(), g_bitsetLen);
+    EXPECT_EQ(bitSet, DynamicBitset({false, true, true, true, false}));
+}
 
-        EXPECT_FALSE(src1[0]);
-        EXPECT_FALSE(src1[1]);
-        EXPECT_TRUE(src1[2]);
-    }
+TEST_F(TestDynamicBitset, testFindFirstIdlePos1)
+{
+    const DynamicBitset bitSet({true, false, true, true, false});
+    EXPECT_EQ(Bitset::FindFirstIdlePos(bitSet, g_idleStart, g_idleLen), 1);
+}
 
-    TEST_F(TestDynamicBitset, testIsDynamicBitsetCross) {
-        DynamicBitset first(3);
-        first[0] = true;
-        first[1] = false;
-        first[2] = true;
-        DynamicBitset second(3);
-        second[0] = false;
-        second[1] = true;
-        second[2] = true;
-        EXPECT_TRUE(Bitset::IsDynamicBitsetCross(first, second));
-    }
+TEST_F(TestDynamicBitset, testFindFirstIdlePos2)
+{
+    const DynamicBitset bitSet({true, true, true, true, false});
+    EXPECT_EQ(Bitset::FindFirstIdlePos(bitSet, g_idleStart, g_idleLen), -1);
+}
 
-    TEST_F(TestDynamicBitset, testGenDynamicBitSetByArea) {
-        DynamicBitset bitSet = Bitset::GenDynamicBitSetByArea(5, 1, 3);
-        EXPECT_EQ(bitSet.size(), 5);
-        EXPECT_FALSE(bitSet[0]);
-        EXPECT_TRUE(bitSet[1]);
-        EXPECT_TRUE(bitSet[2]);
-        EXPECT_TRUE(bitSet[3]);
-        EXPECT_FALSE(bitSet[4]);
-    }
+TEST_F(TestDynamicBitset, testGetDynamicBitsetAreaSet)
+{
+    const DynamicBitset bitSet({true, false, true, false, true});
+    const auto areaSet = Bitset::GetDynamicBitsetAreaSet(bitSet);
+    const auto result = std::set<uint16_t>({0, 2, 4});
+    EXPECT_EQ(areaSet, result);
+}
 
-    TEST_F(TestDynamicBitset, testFindFirstIdlePos) {
-        DynamicBitset bitSet(5);
-        bitSet[0] = true;
-        bitSet[1] = false;
-        bitSet[2] = false;
-        bitSet[3] = true;
-        bitSet[4] = false;
-        EXPECT_EQ(Bitset::FindFirstIdlePos(bitSet, 0, 2), 1);
-    }
+TEST_F(TestDynamicBitset, testGenDynamicBitsetByCpuSet)
+{
+    const std::set<uint16_t> cpuSet = {0, 2, 4};
+    const DynamicBitset bitSet = Bitset::GenDynamicBitsetByCpuSet(g_bitsetLen, cpuSet);
+    EXPECT_EQ(bitSet, DynamicBitset({true, false, true, false, true}));
+}
 
-    TEST_F(TestDynamicBitset, testGetDynamicBitsetAreaSet) {
-        DynamicBitset bitSet(5);
-        bitSet[0] = true;
-        bitSet[2] = true;
-        bitSet[4] = true;
-        std::set<uint16_t> areaSet = Bitset::GetDynamicBitsetAreaSet(bitSet);
-        EXPECT_EQ(areaSet.size(), 3);
-        EXPECT_EQ(areaSet.count(0), 1);
-        EXPECT_EQ(areaSet.count(2), 1);
-        EXPECT_EQ(areaSet.count(4), 1);
-    }
+TEST_F(TestDynamicBitset, testCpuMaskToDynamicBitset)
+{
+    constexpr unsigned char cpuMask[] = {0b1001};
+    constexpr uint16_t byteCount = 1;
+    DynamicBitset bitSet;
+    Bitset::CpuMaskToDynamicBitset(cpuMask, byteCount, bitSet);
+    EXPECT_EQ(bitSet, DynamicBitset({true, false, false, true, false, false, false, false}));
+}
 
-    TEST_F(TestDynamicBitset, testGenDynamicBitsetByCpuSet) {
-        std::set<uint16_t> cpuSet = {0, 2, 4};
-        DynamicBitset bitSet = Bitset::GenDynamicBitsetByCpuSet(5, cpuSet);
-        EXPECT_EQ(bitSet.size(), 5);
-        EXPECT_TRUE(bitSet[0]);
-        EXPECT_FALSE(bitSet[1]);
-        EXPECT_TRUE(bitSet[2]);
-        EXPECT_FALSE(bitSet[3]);
-        EXPECT_TRUE(bitSet[4]);
-    }
+TEST_F(TestDynamicBitset, testDynamicBitsetToStr)
+{
+    const DynamicBitset bitSet({true, false, true, false, true});
+    const auto str = Bitset::DynamicBitsetToStr(bitSet);
+    EXPECT_EQ(str, "10101");
+}
 
-    TEST_F(TestDynamicBitset, testCpuMaskToDynamicBitset) {
-        unsigned char cpuMask[] = {0b1001};
-        DynamicBitset bitSet;
-        Bitset::CpuMaskToDynamicBitset(cpuMask, 1, bitSet);
-        EXPECT_EQ(bitSet.size(), 8);
-        EXPECT_TRUE(bitSet[0]);
-        EXPECT_TRUE(bitSet[3]);
-    }
-
-    TEST_F(TestDynamicBitset, testDynamicBitsetToStr) {
-        DynamicBitset bitSet(5);
-        bitSet[0] = true;
-        bitSet[2] = true;
-        bitSet[4] = true;
-        std::string str = Bitset::DynamicBitsetToStr(bitSet);
-        EXPECT_EQ(str, "10101");
-    }
-
-    TEST_F(TestDynamicBitset, testGetCpuSetFromDynamicBitset) {
-        DynamicBitset bitSet(5);
-        bitSet[0] = true;
-        bitSet[2] = true;
-        bitSet[4] = true;
-        std::string cpuSet = Bitset::GetCpuSetFromDynamicBitset(bitSet);
-        EXPECT_EQ(cpuSet, "0 2 4");
-    }
-
-    TEST_F(TestDynamicBitset, testDynamicBitsetSetArea) {
-        DynamicBitset bitSet(5, false);
-        Bitset::DynamicBitsetSetArea(bitSet, 1, 3, true);
-        EXPECT_FALSE(bitSet[0]);
-        EXPECT_TRUE(bitSet[1]);
-        EXPECT_TRUE(bitSet[2]);
-        EXPECT_TRUE(bitSet[3]);
-        EXPECT_FALSE(bitSet[4]);
-    }
-} // namespace vas::ut::common
+TEST_F(TestDynamicBitset, testGetCpuSetFromDynamicBitset)
+{
+    const DynamicBitset bitSet({true, false, true, false, true});
+    const auto cpuSet = Bitset::GetCpuSetFromDynamicBitset(bitSet);
+    EXPECT_EQ(cpuSet, "0 2 4");
+}
+} // namespace vas::ut::util

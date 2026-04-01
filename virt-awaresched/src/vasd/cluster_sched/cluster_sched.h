@@ -92,7 +92,6 @@ private:
     void CleanDyingPidByGroup(VmDomain &domain);
     void CompactionCluster(uint16_t numaId, std::map<uint16_t, Cluster> &clusterMap);
     void CompactionClusterOneLayer(std::map<uint16_t, Cluster> &clusterMap, const uint8_t &layerId);
-    void CompactionGroupInCluster(Cluster &cluster, const uint8_t &layerId);
     void CompactionGroupWithinCluster(Cluster &cluster, Cluster &nextCluster, const uint8_t &layerId);
     void CompactionGroupFromLastLayer(Cluster &cluster, const uint8_t &layerId);
     VasRet GroupEntityMigrate(VmGroup &group, const int16_t &newStart, const Cluster &cluster, const uint8_t &layerId);

@@ -29,7 +29,7 @@ void Bitset::DynamicBitsetSet(DynamicBitset &bitSet, uint16_t start, uint16_t si
 {
     try {
         DynamicBitsetSetArea(bitSet, start, size, true);
-    } catch (const std::out_of_range& e) {
+    } catch (const std::out_of_range &e) {
         LOG_ERROR(e.what());
     }
 }
@@ -44,7 +44,7 @@ void Bitset::DynamicBitsetClear(DynamicBitset &bitSet, uint16_t start, uint16_t 
 {
     try {
         DynamicBitsetSetArea(bitSet, start, size, false);
-    } catch (const std::out_of_range& e) {
+    } catch (const std::out_of_range &e) {
         LOG_ERROR(e.what());
     }
 }
@@ -139,7 +139,7 @@ DynamicBitset Bitset::GenClusterBitSetByCpuSet(const DynamicBitset &bitSet, cons
 
 /**
  * Find the next contiguous free area From the bitmap search.
- * @param dynamicBitset
+ * @param bitSet
  * @param size
  * @param start
  * @return int16_t first idle position
@@ -151,15 +151,22 @@ int16_t Bitset::FindFirstIdlePos(const DynamicBitset &bitSet, uint16_t start, ui
         return -1;
     }
 
-    int curLen = 0;
+    int16_t result = -1;
+    int16_t idleCount = 0;
     for (size_t i = start; i < bitSet.size(); ++i) {
+        if (idleCount == 0 && (bitSet.size() - i < size)) {
+            return -1;
+        }
+
         if (!bitSet[i]) {
-            curLen++;
-            if (curLen == size) {
-                return static_cast<int16_t>(i - size + 1);
+            if (idleCount == 0) {
+                result = static_cast<int16_t>(i);
             }
-        } else {
-            curLen = 0;
+            ++idleCount;
+        }
+
+        if (idleCount == size) {
+            return result;
         }
     }
     return -1;
@@ -266,4 +273,4 @@ void Bitset::DynamicBitsetSetArea(DynamicBitset &bitSet, uint16_t start, uint16_
         bitSet[index] = val;
     }
 }
-} // vas::common
+} // namespace vas::common

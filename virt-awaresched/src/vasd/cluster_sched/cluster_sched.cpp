@@ -1165,8 +1165,6 @@ void ClusterSched::CompactionClusterOneLayer(std::map<uint16_t, Cluster> &cluste
         }
         // full empty cluster need compaction from last layer.
         if (cluster.clusterLayers[layerId].idle != cluster.clusterLayers[layerId].total) {
-            // compaction in cluster.
-            CompactionGroupInCluster(cluster, layerId);
             // compaction between cluster.
             if (auto nextClusterIt = std::next(clusterIt); nextClusterIt != clusterMap.end()) {
                 CompactionGroupWithinCluster(cluster, nextClusterIt->second, layerId);
@@ -1249,40 +1247,6 @@ void ClusterSched::OverProvisionDown(uint16_t numaId)
         }
     }
     --overProvision_[numaId];
-}
-
-/**
- * traverse group in a cluster, migrate used group forward
- * @param cluster
- * @param layerId
- */
-void ClusterSched::CompactionGroupInCluster(Cluster &cluster, const uint8_t &layerId)
-{
-    auto &clusterLayer = cluster.clusterLayers[layerId];
-    for (auto groupIt = clusterLayer.groups.begin(); groupIt != clusterLayer.groups.end();) {
-        auto &group = groupMap_[*groupIt];
-        const auto nextGroupIt = std::next(groupIt);
-        auto availableCpuMap = Bitset::DynamicBitsetNot(Bitset::DynamicBitsetCut(
-            domainMap_[group.domainKey].commonCpuMap, cluster.GetStartCpu(), cluster.cpuSet.size()));
-        Bitset::DynamicBitsetOr(availableCpuMap, cluster.clusterLayers[layerId].usedBitmap);
-        const auto start = Bitset::FindFirstIdlePos(availableCpuMap, 0, group.nrCpus);
-        if (isIntInvalid(start) || start >= group.start) {
-            ++groupIt;
-            continue;
-        }
-        LOG_WARN("Compact group in cluster from start " + std::to_string(group.start) + " to " + std::to_string(start) +
-                 ", clusterId=" + std::to_string(cluster.id) + ", groupId=" + group.id);
-        DelGroupFromClusterLayer(group, clusterLayer);
-        if (isVasRetFail(GroupEntityMigrate(group, start, cluster, layerId))) {
-            LOG_WARN("Vm group migrate failed.");
-            AddGroupToClusterLayer(group, clusterLayer);
-            groupIt = nextGroupIt;
-            continue;
-        }
-        AddGroupToClusterLayer(group, clusterLayer);
-        std::string uuid = domainMap_[group.domainKey].uuid;
-        groupIt = nextGroupIt;
-    }
 }
 
 /**
