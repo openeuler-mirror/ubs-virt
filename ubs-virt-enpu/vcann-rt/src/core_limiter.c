@@ -285,7 +285,7 @@ void *npu_utilization_monitor_thread(void *arg)
     uint64_t now = ns_now();
     uint64_t diff_ns = now - begin;
     if (diff_ns > DCMI_TIMEOUT_THRESHOLD) {
-        LOG_ERROR("DCMI call timeout.");
+        LOG_DEBUG("The DCMI interface is overloaded, reuse the NPU utilization status from the last time.");
         return NULL;
     }
 

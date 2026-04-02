@@ -48,7 +48,6 @@ extern "C" {
 #define DCMI_TIMEOUT_THRESHOLD          (100ULL * NS_PER_MS)   // 100ms
 #define UTILIZATION_RATE_MAX            (95)
 #define UTILIZATION_RATE_MIN            (80)
-#define DCMI_TIMEOUT_THRESHOLD          (100ULL * NS_PER_MS)   // 100ms
 
 typedef struct cache_streams {
     int num_streams;

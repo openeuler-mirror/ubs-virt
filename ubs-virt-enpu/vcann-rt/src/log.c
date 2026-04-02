@@ -240,6 +240,17 @@ int log_init()
     return ENPU_SUCCESS;
 }
 
+void do_compress()
+{
+    pthread_mutex_lock(&g_log_config.compress_mutex);
+    int log_file_count = count_log_files();
+    if (log_file_count > g_log_config.max_backup_count) {
+        int ret = compress_file();
+        CHECK_ERROR_CODE_LOG(ret, "Failed to compress log files, log_dir is %s.", g_log_config.log_dir);
+    }
+    pthread_mutex_unlock(&g_log_config.compress_mutex);
+}
+
 void log_print(EnpuLogLevel level, const char* filename, int line, const char* format, ...)
 {
     if (level > g_log_config.min_log_level) {
@@ -260,31 +271,31 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
     struct tm tm_now;
     localtime_r(&now, &tm_now);
     char time_str[64];
-    ret = strftime(time_str, sizeof(time_str), "%Y%m%d%H%M%S", &tm_now);
-    CHECK_COND_RETURN_LOG(ret == 0, "Failed to get timestamp.");
+    ret = strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm_now);
+    CHECK_COND_LOG_PRINT(ret == 0, "Failed to get timestamp.");
     ret = fprintf(fp, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level],
         MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), basename(filename), line);
-    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fprint log content to file.");
-    ret = fprintf(stderr, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level],
-        MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), basename(filename), line);
-    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fprint log content to stderr.");
+    CHECK_COND_LOG_PRINT(ret < 0, "Failed to fprint log content to file.");
     va_list args;
     va_start(args, format);
     ret = vfprintf(fp, format, args);
-    CHECK_COND_RETURN_LOG(ret < 0, "Failed to vfprint log content to file.");
+    CHECK_COND_LOG_PRINT(ret < 0, "Failed to vfprint log content to file.");
     va_end(args);
     ret = fprintf(fp, "\n");
-    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fprint log content end to file.");
+    CHECK_COND_LOG_PRINT(ret < 0, "Failed to fprint log content end to file.");
     ret = fflush(fp);
-    CHECK_COND_RETURN_LOG(ret < 0, "Failed to fflush log content to file.");
+    CHECK_COND_LOG_PRINT(ret < 0, "Failed to fflush log content to file.");
     ret = fclose(fp);
-    CHECK_COND_RETURN_LOG(ret < 0, "Failed to close log file.");
+    CHECK_COND_LOG_PRINT(ret < 0, "Failed to close log file.");
+    va_start(args, format);
+    int buffer_size = 1024;
+    char buffer[buffer_size];
+    ret = vsnprintf_s(buffer, sizeof(buffer), sizeof(buffer), format, args);
+    CHECK_COND_LOG_PRINT(ret < 0, "Failed to vsnprintf_s log content.");
+    ret = fprintf(stderr, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] %s\n", time_str, log_level_str[level],
+        MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), basename(filename), line, buffer);
+    CHECK_COND_LOG_PRINT(ret < 0, "Failed to fprint log content to stderr.");
+    va_end(args);
     pthread_mutex_unlock(&g_log_config.print_mutex);
-    pthread_mutex_lock(&g_log_config.compress_mutex);
-    int log_file_count = count_log_files();
-    if (log_file_count > g_log_config.max_backup_count) {
-        ret = compress_file();
-        CHECK_ERROR_CODE_LOG(ret, "Failed to compress log files, log_dir is %s.", g_log_config.log_dir);
-    }
-    pthread_mutex_unlock(&g_log_config.compress_mutex);
+    do_compress();
 }
