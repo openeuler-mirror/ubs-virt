@@ -35,7 +35,10 @@
 主机侧通过`npu-smi`工具开启容器共享模式。若配合MindCluster使用，要求整节点开启容器共享模式。
 
 ```shell
+# 设置容器共享模式
 npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
+# 查询设备容器共享模式
+npu-smi info -t device-share -i ${id}
 ```
 
 **表 3 参数说明**
@@ -47,10 +50,11 @@ npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
 |value|<ul>默认值：禁用<li>禁用(0)</li><li>使能(1)</li></ul>|容器共享模式使能状态。|
     
   示例：
-  开启设备0所有芯片的容器共享模式。
+  开启设备0所有芯片的容器共享模式，查询设备0容器共享模式。
 
   ```shell
   npu-smi set -t device-share -i 0 -d 1
+  npu-smi info -t device-share -i 0
   ```
 
 主机侧可设置容器共享持久化使能状态。
@@ -106,7 +110,7 @@ git clone <ubs-virt-enpu-vcann-rt-url>
 
 在编译vCANN-RT源码前，用户需要先设置CANN的环境变量。
 
-`vCANN-RT`在代码仓中提供了统一的编译构建脚本（即`make_build.sh`文件），可以直接执行该脚本文件进行编译构建。默认无需任何配置项，直接执行即可。
+`vCANN-RT`在代码仓中提供了统一的编译构建脚本（即`make_build.sh`文件），可以直接执行该脚本文件进行编译构建。
 
 ```shell
 bash make_build.sh 8.5.0
@@ -136,7 +140,7 @@ vCANN-RT支持两种方式启动服务：
     /opt/enpu/vcann-rt/lib/libvruntime.so
     ```
 
-    主机侧ld.so.preload文件的路径用户可自定义，文档后续内容中使用${preload_path}表示，容器内为固定路径。
+    主机侧ld.so.preload文件的路径用户可自定义，文档后续内容中使用${preload_path}表示，容器内为固定路径。不建议将ld.so.preload文件放置在主机的`/etc`目录，否则将在主机侧预加载软切分动态库，可能影响主机侧业务。
 
 2. <span id="step2">使用yaml启动容器。</span>
 
@@ -154,16 +158,13 @@ vCANN-RT支持两种方式启动服务：
         namespace: vnpu 
         labels:
             framework: pytorch
-            # 该标签为任务是否使用交换机亲和性调度，配置项如下：
-              # null/不配置：不使用
-              # large-model-schema：大模型任务
-              # normal-schema：普通任务
-            tor-affinity: "null"
+            ring-controller.atlas: ascend-910b
             fault-scheduling: "force"
+            fault-retry-times: "10"
             # 算力aicore配额，单位：%
             huawei.com/scheduler.softShareDev.aicoreQuota: "20" 
             # 显存HBM配额，单位：MB
-            huawei.com/scheduler.softShareDev.hbmQuota: "65536" 
+            huawei.com/scheduler.softShareDev.hbmQuota: "60000" 
             # 调度策略，默认弹性模式(elastic)，可选fixed-share，elastic，best-effort
             huawei.com/scheduler.softShareDev.policy: "elastic" 
         annotations:
@@ -175,7 +176,8 @@ vCANN-RT支持两种方式启动服务：
         runPolicy:
             # work when enableGangScheduling is true
             schedulingPolicy: 
-                minAvailable: 1
+                # soft share dev tasks with multiple replicas are only supported for single-machine scenarios.
+                minAvailable: 2
                 queue: default
         successPolicy: AllWorkers
         replicaSpecs:
@@ -183,9 +185,25 @@ vCANN-RT支持两种方式启动服务：
                 replicas: 1
                 restartPolicy: Never
                 template:
+                    metadata:
+                      labels:
+                        ring-controller.atlas: ascend-910b
                     spec:
+                        affinity:
+                          podAntiAffinity:
+                          requiredDuringSchedulingIgnoredDuringExecution:
+                            - labelSelector:
+                                matchExpressions:
+                                  - key: job-name
+                                    operator: In
+                                    values:
+                                      # 与job名保持一致
+                                      - vnpu-base
+                              topologyKey: kubernetes.io/hostname
+                        automountServiceAccountToken: false
                         nodeSelector:
                             host-arch: huawei-arm
+                            # depend on your device model, 910bx8 is module-910b-8 ,910bx16 is module-910b-16
                             accelerator-type: module-910b-8
                         containers:
                         # do not modify
@@ -210,10 +228,12 @@ vCANN-RT支持两种方式启动服务：
                               # do not modify 
                               name: ascendjob-port 
                           resources:
-                            limits:
-                                huawei.com/Ascend910: 1
                             requests:
-                                huawei.com/Ascend910: 1
+                                # should be equal to huawei.com/scheduler.softShareDev.aicoreQuota
+                                huawei.com/Ascend910: 20
+                            limits:
+                                # should be equal to huawei.com/scheduler.softShareDev.aicoreQuota
+                                huawei.com/Ascend910: 20
                           volumeMounts:
                           - name: sbin
                             mountPath: /usr/local/sbin/
@@ -252,11 +272,92 @@ vCANN-RT支持两种方式启动服务：
                         - name: preload 
                           hostPath:
                             path: ${preload_path}/ld.so.preload
+            Worker:
+              replicas: 1
+              restartPolicy: Never
+              template:
+                metadata:
+                  labels:
+                    ring-controller.atlas: ascend-910b
+                spec:
+                  affinity:
+                    podAntiAffinity:
+                      requiredDuringSchedulingIgnoredDuringExecution:
+                        - labelSelector:
+                            matchExpressions:
+                              - key: job-name
+                                operator: In
+                                values:
+                                  # 与job名保持一致
+                                  - vnpu-base
+                          topologyKey: kubernetes.io/hostname
+                  automountServiceAccountToken: false
+                  nodeSelector:
+                    host-arch: huawei-arm
+                    # depend on your device model, 910bx8 is module-910b-8 ,910bx16 is module-910b-16
+                    accelerator-type: module-910b-8 
+                  containers:
+                    # do not modify
+                    - name: ascend 
+                      image: ${image_name}
+                      imagePullPolicy: IfNotPresent
+                      env:
+                        - name: XDL_IP 
+                          valueFrom:
+                            fieldRef:
+                              fieldPath: status.hostIP
+                      command: 
+                        - /bin/bash
+                        - -c
+                      args: [ "sleep 3000000;" ]
+                      ports: 
+                        - containerPort: 2222
+                          # do not modify         
+                          name: ascendjob-port        
+                      resources:
+                        requests:
+                          # should be equal to huawei.com/scheduler.softShareDev.aicoreQuota
+                          huawei.com/Ascend910: 20 
+                        limits:
+                          # should be equal to huawei.com/scheduler.softShareDev.aicoreQuota
+                          huawei.com/Ascend910: 20 
+                      volumeMounts:
+                        - name: sbin
+                          mountPath: /usr/local/sbin/
+                        - name: ascend-driver
+                          mountPath: /usr/local/Ascend/driver
+                        - name: localtime
+                          mountPath: /etc/localtime
+                        - name: libpreload 
+                          mountPath: /opt/enpu/vcann-rt/lib/libvruntime.so
+                        - name: tools
+                          mountPath: /opt/enpu/vcann-rt/tools/enpu-monitor
+                        - name: preload 
+                          mountPath: /etc/ld.so.preload
+                  volumes:
+                    - name: sbin
+                      hostPath: 
+                        path: /usr/local/sbin/
+                    - name: ascend-driver
+                      hostPath:
+                        path: /usr/local/Ascend/driver
+                    - name: localtime
+                      hostPath:
+                        path: /etc/localtime
+                    - name: libpreload 
+                      hostPath:
+                        path: /opt/enpu/vcann-rt/lib/libvruntime.so
+                    - name: tools 
+                      hostPath:
+                        path: /opt/enpu/vcann-rt/tools/enpu-monitor
+                    - name: preload 
+                      hostPath:
+                        path: ${preload_path}/ld.so.preload
     ```
 
     可根据实际业务进行参数配置：
     - metadata:
-        - name: 容器名，与yaml文件名一致。
+        - name: 容器名,建议与yaml文件名一致。
         - namespace: 命名空间。
         - labels:
             - huawei.com/scheduler.softShareDev.aicoreQuota: 算力aicore配额（需配置为整数），单位：%
@@ -269,13 +370,13 @@ vCANN-RT支持两种方式启动服务：
             - 每种模式的详细介绍参见表6，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制。
     - containers:
         - image: 镜像名。
-    - volumeMounts:
-        - name: preload # preload配置文件路径。
-        - mountPath: ${preload_path}/ld.so.preload # [步骤2](#step2)中创建的ld.so.preload文件路径。
     - volumes:
-        - name: share-device-config-dir # 配置文件夹路径。
+        - name: libpreload 
             - hostPath:
-                - path: /etc/enpu/vcann-rt/${namespace}.${container_name}/
+                - path: /opt/enpu/vcann-rt/lib/libvruntime.so # 软切分动态库路径，根据实际路径进行修改
+        - name: tools 
+            - hostPath:
+                - path: /opt/enpu/vcann-rt/tools/enpu-monitor # 检测工具路径，根据实际路径进行修改
         - name: preload # preload配置文件路径。
             - hostPath:
                 - path: ${preload_path}/ld.so.preload # [步骤2](#step2)中创建的ld.so.preload文件路径。
@@ -350,16 +451,18 @@ vCANN-RT支持两种方式启动服务：
     |:---|:---|:---|
     |physical-npu-id|物理NPU id|`physical-npu-id=0`表示使用第0张物理NPU。|
     |virtual-npu-id|vNPU id|需要从0开始配置，并且同一个物理NPU下的vNPU不允许重复。|
-    |aicore-quota|AI Core资源配额，单位为%|表示算力使用的时间比例，需配置为整数。当前每个time slice默认为100ms, 通过软件硬编码，不支持动态配置。假如申请了20%的算力资源，那么该容器有20ms的NPU使用权。|
+    |aicore-quota|AI Core资源配额，单位为%|表示算力使用的时间比例，需配置为整数。假设当前每个time slice为100ms, 申请了20%的算力资源，那么该容器有20ms的NPU使用权。|
     |memory-quota|HBM资源配额，单位为MB|表示显存资源使用容量，需配置为整数。当前容器内所有进程使用的HBM总量不能超过HBM资源配额。|
-    |shm-id|共享内存文件名称|该文件名称采用物理NPU对应的VDie ID, 可以保证全局唯一。<br>通过`npu-smi info -t board -i ${id} -c ${chip_id}`命令查询VDie ID。<br>查询完成之后，可以通过`-`符号拼接成文件名称，例如：`shm-id=11111111-22222222-33333333-44444444-55555555` 用户需要确保宿主机中存在此共享内存文件。|
+    |shm-id|共享内存文件名称|该文件名称采用物理NPU对应的VDie ID, 可以保证全局唯一。<br>通过`npu-smi info -t board -i ${id} -c ${chip_id}`命令查询VDie ID。<br>查询完成之后，可以通过`-`符号拼接成文件名称，例如：`shm-id=11111111-22222222-33333333-44444444-55555555` |
     |scheduling-policy|<ul>默认配置为2。<li>1: 固定配额模式（fixed-share）</li><li>2: 弹性模式（elastic）</li><li>3: 争抢模式（best-effort）</li></ul>|调度策略（具体介绍可参见[表6](#table6)，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制）。|
 
     此外，需要设置配置文件具有合适的权限，建议为644。
 
-2. 预加载配置文件（若使用指定容器镜像，可以跳过此步骤）。
+2. 预加载配置文件。
 
-    在主机侧创建预加载动态库文件`ld.so.preload`, 文件内容为libvruntime.so的路径，例如：`/opt/enpu/vcann-rt/lib/libvruntime.so`
+    在主机侧创建预加载动态库文件`ld.so.preload`, 文件内容为libvruntime.so的路径，例如：`/opt/enpu/vcann-rt/lib/libvruntime.so`。
+
+    不建议将`ld.so.preload`文件放置在主机的`/etc`目录，否则将在主机侧预加载软切分动态库，可能影响主机侧业务。
 
 3. 启动业务容器。
 
@@ -397,21 +500,8 @@ vCANN-RT支持两种方式启动服务：
     |物理NPU设备|主机侧和容器内均为固定路径：`/dev/davinci0`|
     |共享内存设备|主机侧和容器内均为固定路径：`/dev/shm`|
     |配置文件|<ul><li>主机侧可存放在自定义路径。</li><li>容器内为固定路径：`/etc/enpu/vcann-rt/npu_info.config`</li></ul>|
-    |预加载动态库文件|主机侧可存放在自定义路径，容器内为固定路径：`/etc/ld.so.preload`|
+    |预加载动态库文件|主机侧可存放在自定义路径，容器内为固定路径：`/etc/ld.so.preload`。不建议将`ld.so.preload`文件放置在主机的`/etc`目录，否则将在主机侧预加载软切分动态库，可能影响主机侧业务。|
 
-    若用户使用指定镜像，则启动命令可以简化为：
-
-    ```bash
-      docker run -it --name=container_name \
-      --device=/dev/davinci0:/dev/davinci0 \
-      --device=/dev/davinci_manager \
-      --device=/dev/hisi_hdc:/dev/hisi_hdc \
-      -v /usr/local/sbin:/usr/local/sbin \
-      -v /usr/local/Ascend/driver:/usr/local/Ascend/driver \
-      -v /dev/shm:/dev/shm \
-      -v /xxx/npu_info.config:/etc/enpu/vcann-rt/npu_info.config \
-      image_name /bin/bash
-    ```
 
 4. 启动业务，使用vCANN-RT服务
 
