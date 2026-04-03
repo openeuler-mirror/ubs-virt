@@ -70,30 +70,25 @@ int rotate_log_by_size(void);
 #define LOG_DEBUG(msg, ...) do { \
     if (g_log_config.min_log_level >= 4) { \
         log_print(ENPU_LOG_DEBUG, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-        fprintf(stderr, msg"\n", ##__VA_ARGS__); \
     } \
 } while (false)
 #define LOG_INFO(msg, ...) do { \
     if (g_log_config.min_log_level >= 3) { \
         log_print(ENPU_LOG_INFO, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-        fprintf(stderr, msg"\n", ##__VA_ARGS__); \
     } \
 } while (false)
 #define LOG_WARN(msg, ...) do { \
     if (g_log_config.min_log_level >= 2) { \
         log_print(ENPU_LOG_WARN, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-        fprintf(stderr, msg"\n", ##__VA_ARGS__); \
     } \
 } while (false)
 #define LOG_ERROR(msg, ...) do { \
     if (g_log_config.min_log_level >= 1) { \
         log_print(ENPU_LOG_ERROR, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-        fprintf(stderr, msg"\n", ##__VA_ARGS__); \
     } \
 } while (false)
 #define LOG_FATAL(msg, ...) do { \
     log_print(ENPU_LOG_FATAL, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-    fprintf(stderr, msg"\n", ##__VA_ARGS__); \
 } while (false)
 
 #if defined(__cplusplus)
