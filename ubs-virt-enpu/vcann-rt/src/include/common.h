@@ -74,11 +74,10 @@ extern "C" {
         }                                                       \
     } while (false)
 
-#define CHECK_COND_RETURN_LOG(err, error_msg, ...)          \
+#define CHECK_COND_LOG_PRINT(err, error_msg, ...)          \
     do {                                                        \
         if (unlikely((err) != ENPU_SUCCESS)) {                  \
             fprintf(stderr, error_msg"\n", ##__VA_ARGS__);      \
-            return;                                             \
         }                                                       \
     } while (false)
 
