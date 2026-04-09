@@ -441,6 +441,7 @@ vCANN-RT支持两种方式启动服务：
   - 若多容器配置的aicore总量超出100%， 各容器无法按照原先设定的资源使用。
   - 若多容器配置的HBM总量超出当前单Device可用内存大小，某一容器内的业务运行时，可能因为实际内存不足，导致报错OOM内存不足。
   - 若单卡上各容器配置的调度策略不相同，各容器无法按照原先设定的资源使用，建议各容器配置的调度策略相同。
+- 当前vCANN-RT方案适配CANN软件版本为商发版本8.5.0，由于版本限制，暂时不支持persistent task的使用。
 
 ## FAQ
 
@@ -455,3 +456,7 @@ vCANN-RT支持两种方式启动服务：
 3. 容器启动或者业务运行时报错`libboundscheck.so: cannot open shared object file: No such file or directory`：
 
     由于软切分动态库在运行时依赖安全函数库，因此用户需要确保容器中存在安全函数库并能够被正常链接，可以参考 [https://gitcode.com/openeuler/libboundscheck](https://gitcode.com/openeuler/libboundscheck) 完成构建部署。
+
+4. 容器内模型业务运行时报错`[SqCqManage] Alloc sq cq fail......`:
+    
+    由于模型在推理框架中运行时，推理框架使用的stream流资源过多，超出了NPU硬件资源的限制导致报错。
