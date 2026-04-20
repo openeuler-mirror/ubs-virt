@@ -8,7 +8,7 @@
 ### build.sh --- build project
 ###
 ### Usage:
-###     build.sh <target> [-D] [-C] [-t <target>]
+###     build.sh <target> [-D] [-C] [-t <target>] [-- <pass-through-args>]
 ###
 ### Options:
 ###     <target>        Build target used by Make
@@ -20,6 +20,9 @@
 ###                         `all`       build all target in source code
 ###                         `3rdparty`  build 3rdparty libs
 ###                         `test`      build all tests in test/ directory
+
+trans_params=()
+trans_flag=false
 
 # exit when background cmd fail
 set -o errtrace
@@ -88,6 +91,14 @@ function build_cmake() {
     if [[ $build_target == 'test' ]]; then
         enable_test='ON'
     fi
+
+    if [ ${#trans_params[@]} -ne 0 ]; then
+        export TRANS_PARAMS="${trans_params[*]}"
+        log_info "Pass-through parameters detected: ${trans_params[*]}"
+    else
+        unset TRANS_PARAMS
+    fi
+
     cmake .. -DCMAKE_BUILD_TYPE=${build_type} -DBUILD_TESTS=${enable_test} -DENABLE_COVERAGE=${enable_coverage} -DSOURCE_COMPILING=${enable_source_compiling} -DCMAKE_INSTALL_PREFIX=../output
 
     N_CPUS=$(grep processor /proc/cpuinfo | wc -l)
@@ -142,8 +153,16 @@ function parse_args() {
             clean
             shift
             ;;
+        --)
+            trans_flag=true
+            shift
+            ;;
         *)
-            [ "$1" != "" ] &&build_target="$1"
+            if $trans_flag; then
+                trans_params+=("$1")
+            else
+                [ "$1" != "" ] &&build_target="$1"
+            fi
             shift
             ;;
         esac
