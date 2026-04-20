@@ -14,6 +14,7 @@
 #include <mockcpp/mockcpp.hpp>
 #include <sys/file.h>
 #include <runtime/rt.h>
+#include "acl/acl.h"
 #include "securec.h"
 #include "runtime_stub.h"
 #include "log.h"

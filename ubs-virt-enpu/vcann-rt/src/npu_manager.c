@@ -12,6 +12,7 @@
 
 #include <runtime/rt.h>
 #include "include/common.h"
+#include "acl/acl.h"
 #include "runtime_hook.h"
 #include "common.h"
 #include "dcmi_wrapper.h"
@@ -45,9 +46,19 @@ uint8_t get_core_limit_quota(void)
     return g_npu_info.core_limit_quota;
 }
 
-uint8_t get_device_id(void)
+int get_device_id(void)
 {
     return g_npu_info.device_id;
+}
+
+int get_logic_id(void)
+{
+    return g_npu_info.logic_id;
+}
+
+uint8_t get_soc_version(void)
+{
+    return g_npu_info.soc_version;
 }
 
 uint8_t get_vnpu_id(void)
@@ -80,7 +91,7 @@ void set_core_cur_timeslice(uint64_t time)
     g_npu_info.core_cur_timeslice = time;
 }
 
-uint8_t get_card_id(void)
+int get_card_id(void)
 {
     return g_npu_info.card_id;
 }
@@ -103,7 +114,7 @@ int get_mem_used(size_t *used)
     }
 
     npu_info *npu = &g_npu_info;
-    int rc = enpu_dcmi_get_device_resource_info(npu->card_id, npu->device_id, used);
+    int rc = enpu_dcmi_get_device_resource_info(npu->logic_id, npu->card_id, npu->device_id, used);
     CHECK_RETURN_ERROR_CODE(rc, "Failed to get device resource info.");
     return ENPU_SUCCESS;
 }
@@ -149,16 +160,36 @@ int enpu_load_config(void)
     return enpu_config_info_init();
 }
 
+int enpu_soc_init(void)
+{
+    const char *socName = aclrtGetSocName();
+    CHECK_COND_RETURN_ERROR_CODE(socName == NULL, "Call aclrtGetSocName fails.");
+    LOG_INFO("Get socName: %s.", socName);
+
+    if (strstr(socName, "Ascend950") != NULL) {
+        g_npu_info.soc_version = SOC_VERSION_ASCEND_950;
+    } else {
+        g_npu_info.soc_version = SOC_VERSION_NOT_ASCEND_950;
+    }
+
+    int ret = register_callback(g_npu_info.soc_version);
+    CHECK_RETURN_ERROR_CODE(ret, "Failed to register callback.");
+
+    return ENPU_SUCCESS;
+}
+
 int enpu_device_init(void)
 {
     int card_id = -1;
     int device_id = -1;
-    int logic_id = g_npu_info.pnpu_id;
-    int rc = enpu_dcmi_get_card_info(0, &card_id, &device_id);
-    CHECK_RETURN_ERROR_CODE(rc, "Failed to get card info by enpu_device_init, err:%d npu:%d", rc, logic_id);
+    int logic_id = -1;
+
+    int rc = enpu_dcmi_get_card_info(g_npu_info.pnpu_id, &card_id, &device_id, &logic_id, g_npu_info.soc_version);
+    CHECK_RETURN_ERROR_CODE(rc, "Failed to get card info by enpu_device_init, err:%d npu:%d", rc, g_npu_info.pnpu_id);
 
     g_npu_info.card_id = card_id;
     g_npu_info.device_id = device_id;
+    g_npu_info.logic_id = logic_id;
     return ENPU_SUCCESS;
 }
 
@@ -169,6 +200,9 @@ static void __enpu_global_init(void)
 
     rc = enpu_load_config();
     CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to load npu config.");
+
+    rc = enpu_soc_init();
+    CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to initialize enpu soc.");
 
     rc = enpu_device_init();
     CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to initialize enpu device.");

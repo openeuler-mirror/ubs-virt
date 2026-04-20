@@ -222,6 +222,8 @@ vCANN-RT支持两种方式启动业务容器：
                             mountPath: /usr/local/sbin/
                           - name: ascend-driver
                             mountPath: /usr/local/Ascend/driver
+                          - name: dshm
+                            mountPath: /dev/shm
                           - name: localtime
                             mountPath: /etc/localtime
                             # 软切分动态库路径
@@ -240,6 +242,9 @@ vCANN-RT支持两种方式启动业务容器：
                         - name: ascend-driver
                           hostPath:
                             path: /usr/local/Ascend/driver
+                        - name: dshm
+                          emptyDir:
+                            medium: Memory
                         - name: localtime
                           hostPath:
                             path: /etc/localtime
@@ -298,6 +303,8 @@ vCANN-RT支持两种方式启动业务容器：
                           mountPath: /usr/local/sbin/
                         - name: ascend-driver
                           mountPath: /usr/local/Ascend/driver
+                        - name: dshm
+                          mountPath: /dev/shm
                         - name: localtime
                           mountPath: /etc/localtime
                         - name: libpreload 
@@ -313,6 +320,9 @@ vCANN-RT支持两种方式启动业务容器：
                     - name: ascend-driver
                       hostPath:
                         path: /usr/local/Ascend/driver
+                    - name: dshm
+                      emptyDir:
+                        medium: Memory
                     - name: localtime
                       hostPath:
                         path: /etc/localtime

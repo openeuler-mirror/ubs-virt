@@ -49,6 +49,7 @@ set(VNPU_TESTCASE_FILES
 )
 
 set(VNPU_STUB_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/stub/acl_stub.c
     ${CMAKE_CURRENT_SOURCE_DIR}/stub/runtime_stub.c
     ${CMAKE_CURRENT_SOURCE_DIR}/stub/dcmi_stub.c
 )
@@ -63,6 +64,7 @@ target_include_directories(vnpu_test PRIVATE
     ${PROJECT_SOURCE_DIR}/src/include
     ${CMAKE_CURRENT_SOURCE_DIR}/stub
 )
+
 
 target_link_libraries(vnpu_test PRIVATE
     gtest
