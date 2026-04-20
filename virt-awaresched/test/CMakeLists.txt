@@ -39,8 +39,26 @@ target_link_libraries(${UT_BINARY} PUBLIC
 )
 set_target_properties(${UT_BINARY} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/test)
 
-add_custom_target(build_test COMMAND export "VIRT_CURL_PATH=/usr/lib64"
-        && ${PROJECT_SOURCE_DIR}/test/${UT_BINARY} --gtest_output=xml:${PROJECT_SOURCE_DIR}/build/test_detail.xml WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/test)
+set(TEST_EXTRA_ARGS $ENV{TRANS_PARAMS})
+
+set(TEST_COMMAND_BASE "${PROJECT_SOURCE_DIR}/test/${UT_BINARY}")
+
+if(TEST_EXTRA_ARGS)
+    set(TEST_FULL_COMMAND ${TEST_COMMAND_BASE} ${TEST_EXTRA_ARGS})
+else()
+    set(TEST_FULL_COMMAND ${TEST_COMMAND_BASE} --gtest_output=xml:${PROJECT_SOURCE_DIR}/build/test_detail.xml)
+endif()
+
+if(TEST_EXTRA_ARGS)
+    add_custom_target(build_test COMMAND export "VIRT_CURL_PATH=/usr/lib64"
+            && ${TEST_FULL_COMMAND}
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/test)
+else()
+    add_custom_target(build_test COMMAND export "VIRT_CURL_PATH=/usr/lib64"
+            && ${TEST_FULL_COMMAND}
+            WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/test)
+endif()
+
 add_dependencies(build_test ${UT_BINARY})
 
 include(GoogleTest)

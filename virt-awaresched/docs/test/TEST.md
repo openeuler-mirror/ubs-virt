@@ -34,8 +34,7 @@
 3. 执行以下命令：
 
     ```shell
-    bash build.sh 3rdparty
-    bash build.sh ut
+    bash build.sh test
     ```
 
 ---
@@ -78,7 +77,7 @@ TEST_F(TestClusterSched, testUpdateDomainInfo1)
 执行以下命令：
 
 ```bash
-bash build.sh ut -- --gtest_filter="TestClusterSched.testUpdateDomainInfo1"
+bash build.sh test -- --gtest_filter="TestClusterSched.testUpdateDomainInfo1"
 ```
 
 其中，`TestClusterSched`为**`TestSuite`**名，`testUpdateDomainInfo1`为**`TestName`**。
@@ -111,4 +110,4 @@ add_ut(ubse_log)
 
 #### 运行模块的UT代码
 
-在virt-awaresched目录下, 运行`bash build.sh ut -- --gtest_filter="TestApi.*"`查看用例运行情况。
+在virt-awaresched目录下, 运行`bash build.sh test -- --gtest_filter="TestApi.*"`查看用例运行情况。
