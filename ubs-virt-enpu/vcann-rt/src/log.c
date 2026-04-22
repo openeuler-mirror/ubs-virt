@@ -15,26 +15,35 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <fcntl.h>
-#include <sys/file.h>
+#include <stdbool.h>
+#include <sys/wait.h>
+#include <errno.h>
 
 #include "securec.h"
 #include "common.h"
 #include "log.h"
 
+#define EXIT_CODE_CMD_NOT_FOUND 127
+
 LogConfig g_log_config = {
     .log_dir = "/var/log/enpu/vcann-rt/",
     .log_path = "vCann.log",
-    .max_file_size = 10 * 1024 * 1024,  // 10MB
-    .max_backup_count = 10,
+    .max_file_size = LOG_MAX_FILE_SIZE,
+    .max_backup_count = LOG_MAX_BACKUP_COUNT,
     .min_log_level = ENPU_LOG_INFO,
+    .stderr_level = LOG_STDERR_LEVEL_DEFAULT,
+    .flush_counter = 0,
+    .compress_check_counter = 0,
+    .compress_disabled = false,
 };
- 
+
 static const char* log_level_str[] = {
     "FATAL", "ERROR", "WARN", "INFO", "DEBUG"
 };
 
-// bytes
-long get_file_size(const char* filepath)
+static void* log_consumer_thread(void* arg);
+
+static long get_file_size(const char* filepath)
 {
     struct stat st;
     if (stat(filepath, &st) < 0) {
@@ -43,7 +52,62 @@ long get_file_size(const char* filepath)
     return st.st_size;
 }
 
-int is_current_process(const char* filename)
+static int wait_process_timeout(pid_t pid, int timeout_sec)
+{
+    struct timespec deadline;
+    clock_gettime(CLOCK_REALTIME, &deadline);
+    deadline.tv_sec += timeout_sec;
+
+    int status;
+    pid_t result = 0;
+    while (result == 0) {
+        result = waitpid(pid, &status, WNOHANG);
+        if (result < 0) {
+            return ENPU_FAIL;
+        }
+        if (result == 0) {
+            struct timespec now;
+            clock_gettime(CLOCK_REALTIME, &now);
+            if (now.tv_sec > deadline.tv_sec ||
+                (now.tv_sec == deadline.tv_sec && now.tv_nsec >= deadline.tv_nsec)) {
+                return ENPU_FAIL;
+            }
+            usleep(SAFE_EXEC_POLL_INTERVAL_US);
+        }
+    }
+
+    if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+        return ENPU_FAIL;
+    }
+    return ENPU_SUCCESS;
+}
+
+static int safe_exec_timeout(char* const argv[], int timeout_sec)
+{
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("safe_exec: fork failed");
+        return ENPU_FAIL;
+    }
+    if (pid == 0) {
+        execvp(argv[0], argv);
+        perror("safe_exec: execvp failed");
+        _exit(EXIT_CODE_CMD_NOT_FOUND);
+    }
+
+    int ret = wait_process_timeout(pid, timeout_sec);
+    if (ret != ENPU_SUCCESS) {
+        fprintf(stderr, "safe_exec: command '%s' failed or timed out.\n", argv[0]);
+    }
+    return ret;
+}
+
+static int safe_exec(char* const argv[])
+{
+    return safe_exec_timeout(argv, SAFE_EXEC_TIMEOUT_SEC);
+}
+
+static int extract_pid_from_filename(const char* filename, long* pid_from_filename)
 {
     char* path_copy = strdup(filename);
     if (!path_copy) {
@@ -55,15 +119,18 @@ int is_current_process(const char* filename)
         return ENPU_FAIL;
     }
 
-    char* token;
     char* temp = strdup(base);
+    if (!temp) {
+        free(path_copy);
+        return ENPU_FAIL;
+    }
+
     const int tokens_num = 5;
     char* tokens[tokens_num];
     int token_count = 0;
-
     const char* delimiter = "_";
     char* saveptr;
-    token = strtok_r(temp, delimiter, &saveptr);
+    char* token = strtok_r(temp, delimiter, &saveptr);
     while ((token != NULL) && (token_count < tokens_num)) {
         tokens[token_count++] = token;
         token = strtok_r(NULL, delimiter, &saveptr);
@@ -77,10 +144,8 @@ int is_current_process(const char* filename)
 
     char* endptr;
     const int pid_token_index = 3;
-    const int pid_base = 10;
-    long pid_from_filename = strtol(tokens[pid_token_index], &endptr, pid_base);
-    const char flag = '\0';
-    if (*endptr != flag) {
+    *pid_from_filename = strtol(tokens[pid_token_index], &endptr, DECIMAL_BASE);
+    if (*endptr != '\0') {
         fprintf(stderr, "Failed to get pid from log filename. now log filename is %s.\n", g_log_config.log_path);
         free(temp);
         free(path_copy);
@@ -89,12 +154,22 @@ int is_current_process(const char* filename)
 
     free(temp);
     free(path_copy);
+    return ENPU_SUCCESS;
+}
+
+static int is_current_process(const char* filename)
+{
+    long pid_from_filename;
+    int ret = extract_pid_from_filename(filename, &pid_from_filename);
+    if (ret != ENPU_SUCCESS) {
+        return ret;
+    }
+
     pid_t current_pid = getpid();
     if (pid_from_filename == (long)current_pid) {
         return ENPU_SUCCESS;
-    } else {
-        return ENPU_FAIL;
     }
+    return ENPU_FAIL;
 }
 
 int is_log_file(const char* filename)
@@ -108,7 +183,28 @@ int is_log_file(const char* filename)
     return is_current_process(filename);
 }
 
-int count_log_files()
+static int check_entry_is_log(const char* dir_path, const char* entry_name)
+{
+    if (strcmp(entry_name, ".") == 0 || strcmp(entry_name, "..") == 0) {
+        return ENPU_FAIL;
+    }
+    char full_path[FILE_PATH_LEN];
+    int ret = snprintf_s(full_path, sizeof(full_path), sizeof(full_path) - 1, "%s%s",
+        dir_path, entry_name);
+    if (ret < 0) {
+        return ENPU_FAIL;
+    }
+    struct stat statbuf;
+    if (stat(full_path, &statbuf) != 0) {
+        return ENPU_FAIL;
+    }
+    if (S_ISREG(statbuf.st_mode) && (is_log_file(full_path) == ENPU_SUCCESS)) {
+        return ENPU_SUCCESS;
+    }
+    return ENPU_FAIL;
+}
+
+static int count_log_files(void)
 {
     DIR* dir = opendir(g_log_config.log_dir);
     if (dir == NULL) {
@@ -117,24 +213,8 @@ int count_log_files()
     }
     int file_count = 0;
     struct dirent* entry;
-    struct stat statbuf;
     while ((entry = readdir(dir)) != NULL) {
-        if ((strcmp(entry->d_name, ".") == 0) || (strcmp(entry->d_name, "..") == 0)) {
-            continue;
-        }
-        char full_path[FILE_PATH_LEN];
-        int ret = snprintf_s(full_path, sizeof(full_path), sizeof(full_path), "%s%s",
-            g_log_config.log_dir, entry->d_name);
-        if (ret < 0) {
-            if (closedir(dir) == -1) {
-                return -1;
-            }
-            return -1;
-        }
-        if (stat(full_path, &statbuf) != 0) {
-            continue;
-        }
-        if (S_ISREG(statbuf.st_mode) && (is_log_file(full_path) == ENPU_SUCCESS)) {
+        if (check_entry_is_log(g_log_config.log_dir, entry->d_name) == ENPU_SUCCESS) {
             file_count++;
         }
     }
@@ -145,57 +225,158 @@ int count_log_files()
     return file_count;
 }
 
-int compress_file()
+static int wait_find_process(pid_t pid, const char* list_file)
 {
-    char zip_file[FILE_PATH_LEN];
-    char tar_cmd[MAX_CMD_LEN];
-    char rm_cmd[MAX_CMD_LEN];
+    int ret = wait_process_timeout(pid, SAFE_EXEC_TIMEOUT_SEC);
+    if (ret != ENPU_SUCCESS) {
+        fprintf(stderr, "Compress files error: find command failed or timed out.\n");
+        unlink(list_file);
+    }
+    return ret;
+}
+
+static int find_log_files(const char* list_file, const char* pid_pattern)
+{
+    int fd = open(list_file, O_WRONLY | O_CREAT | O_TRUNC, FILE_OPEN_MODE);
+    if (fd < 0) {
+        perror("Compress files error: failed to create list file");
+        return ENPU_FAIL;
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        perror("Compress files error: fork failed for find");
+        close(fd);
+        unlink(list_file);
+        return ENPU_FAIL;
+    }
+    if (pid == 0) {
+        if (dup2(fd, STDOUT_FILENO) < 0) { _exit(EXIT_CODE_EXEC_FAILED); }
+        close(fd);
+        char* find_argv[] = {
+            "find", (char*)g_log_config.log_dir,
+            "-type", "f",
+            "-iname", (char*)pid_pattern,
+            "!", "-iwholename", (char*)g_log_config.log_path,
+            NULL
+        };
+        execvp("find", find_argv);
+        _exit(EXIT_CODE_CMD_NOT_FOUND);
+    }
+    close(fd);
+
+    return wait_find_process(pid, list_file);
+}
+
+static int delete_compressed_sources(const char* list_file)
+{
+    FILE* lf = fopen(list_file, "r");
+    if (!lf) {
+        return ENPU_FAIL;
+    }
+    char fpath[FILE_PATH_LEN];
+    while (fgets(fpath, sizeof(fpath), lf) != NULL) {
+        size_t flen = strlen(fpath);
+        if (flen > 0 && fpath[flen - 1] == '\n') {
+            fpath[flen - 1] = '\0';
+        }
+        if (fpath[0] != '\0') {
+            unlink(fpath);
+        }
+    }
+    if (ferror(lf) != 0) {
+        fclose(lf);
+        return ENPU_FAIL;
+    }
+    if (fclose(lf) != 0) {
+        return ENPU_FAIL;
+    }
+    return ENPU_SUCCESS;
+}
+
+static int build_compress_paths(char* zip_file, char* list_file, char* pid_pattern)
+{
     time_t now = time(NULL);
     struct tm* tm_info = localtime(&now);
     if (tm_info == NULL) {
         perror("Compress files error, failed to get current time");
         return ENPU_FAIL;
     }
-    char timestamp[20];
+    char timestamp[TIMESTAMP_FILE_LEN];
     if (strftime(timestamp, sizeof(timestamp), "%Y%m%d%H%M%S", tm_info) == 0) {
         perror("Compress files error, failed to format timestamp");
         return ENPU_FAIL;
     }
-    int ret = snprintf_s(zip_file, sizeof(zip_file), sizeof(zip_file), "%s%s_%s",
-        g_log_config.log_dir, SUB_MODULE_NAME, timestamp);
-    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get zip file name with timestamp.");
-    ret = snprintf_s(zip_file + strlen(zip_file), sizeof(zip_file), sizeof(zip_file) - strlen(zip_file), "%s", ZIP_EXT);
-    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get full zip file name.");
-    ret = snprintf_s(tar_cmd, sizeof(tar_cmd), sizeof(tar_cmd), "%s%s %s%s %s%s%d%s", TAR_CMD_PREFIX, zip_file,
-        "--exclude=", g_log_config.log_path, g_log_config.log_dir, "*_", getpid(), "_*.log");
-    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get tar cmd.");
-    ret = snprintf_s(rm_cmd, sizeof(rm_cmd), sizeof(rm_cmd), "%s%s %s%d%s%s%s", "find ", g_log_config.log_dir,
-        "-type f -iname \"*_", getpid(), "_*.log\" ! -iwholename \"", g_log_config.log_path, "\" -exec rm -f {} \\;");
-    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get rm cmd.");
+
+    int ret = snprintf_s(zip_file, FILE_PATH_LEN, FILE_PATH_LEN - 1, "%s%s_%s%s",
+        g_log_config.log_dir, SUB_MODULE_NAME, timestamp, ZIP_EXT);
+    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to build zip file path.");
+
+    ret = snprintf_s(list_file, FILE_PATH_LEN, FILE_PATH_LEN - 1, "%s.tar_list_%d",
+        g_log_config.log_dir, (int)getpid());
+    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to build list file path.");
+
+    ret = snprintf_s(pid_pattern, PID_PATTERN_LEN, PID_PATTERN_LEN - 1, "*_%d_*.log", (int)getpid());
+    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to build pid pattern.");
+
+    return ENPU_SUCCESS;
+}
+
+int compress_file(void)
+{
+    char zip_file[FILE_PATH_LEN];
+    char list_file[FILE_PATH_LEN];
+    char pid_pattern[PID_PATTERN_LEN];
+
+    int ret = build_compress_paths(zip_file, list_file, pid_pattern);
+    if (ret != ENPU_SUCCESS) {
+        return ret;
+    }
+
+    ret = find_log_files(list_file, pid_pattern);
+    if (ret != ENPU_SUCCESS) {
+        return ret;
+    }
+
     mode_t old_mask = umask(SET_UMASK_FOR_440);
-    int tar_exe_result = system(tar_cmd);
+    char* tar_argv[] = {
+        "tar", "-czpf", zip_file, "-T", list_file, NULL
+    };
+    int tar_ret = safe_exec(tar_argv);
     umask(old_mask);
-    CHECK_COND_RETURN_ERROR_CODE_LOG(tar_exe_result != 0, "Compress files error, failed to execute tar command.");
-    int rm_exe_result = system(rm_cmd);
-    CHECK_COND_RETURN_ERROR_CODE_LOG(rm_exe_result != 0, "Compress files error, failed to execute rm command.");
+
+    if (tar_ret != ENPU_SUCCESS) {
+        fprintf(stderr, "Compress files error: tar command failed.\n");
+        unlink(list_file);
+        return ENPU_FAIL;
+    }
+
+    ret = delete_compressed_sources(list_file);
+    unlink(list_file);
+
+    if (ret != ENPU_SUCCESS) {
+        fprintf(stderr, "Compress files error: failed to delete source files.\n");
+        return ENPU_FAIL;
+    }
+
     printf("Compressed .log files into %s and deleted the original files.\n", g_log_config.log_dir);
     return ENPU_SUCCESS;
 }
 
-int update_log_file()
+int update_log_file(void)
 {
     time_t now = time(NULL);
     struct tm tm_now;
     localtime_r(&now, &tm_now);
-    char time_str[64];
+    char time_str[TIMESTAMP_STR_LEN];
     int ret = strftime(time_str, sizeof(time_str), "%Y%m%d%H%M%S", &tm_now);
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret == 0, "Update log file error: failed to get timestamp.");
 
     char log_path[FILE_PATH_LEN];
-    ret = snprintf_s(log_path, sizeof(log_path), sizeof(log_path), "%s%s_%s_%d_%s%s", g_log_config.log_dir,
+    ret = snprintf_s(log_path, sizeof(log_path), sizeof(log_path) - 1, "%s%s_%s_%d_%s%s", g_log_config.log_dir,
         MODULE_NAME, SUB_MODULE_NAME, getpid(), time_str, LOG_FILE_SUFFIX);
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get log file name.");
-    ret = strncpy_s(g_log_config.log_path, sizeof(g_log_config.log_path), log_path, sizeof(g_log_config.log_path) - 1);
+    ret = strncpy_s(g_log_config.log_path, sizeof(g_log_config.log_path), log_path, strlen(log_path));
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret != 0, "Failed to set g_log_config.log_path %s.", log_path);
 
     if (creat(g_log_config.log_path, LOG_FILE_RIGHT) < 0) {
@@ -205,10 +386,10 @@ int update_log_file()
     return ENPU_SUCCESS;
 }
 
-int rotate_log_by_size()
+static int rotate_log_by_size(void)
 {
     long file_size = get_file_size(g_log_config.log_path);
-    if (file_size < g_log_config.max_file_size) {
+    if ((size_t)file_size < g_log_config.max_file_size) {
         return ENPU_SUCCESS;
     }
 
@@ -217,31 +398,316 @@ int rotate_log_by_size()
     return ENPU_SUCCESS;
 }
 
-int log_init()
+static bool g_log_initialized = false;
+static volatile bool g_log_running = false;
+
+static void parse_level_env(const char* env_name, EnpuLogLevel default_val, EnpuLogLevel* target)
 {
+    char* env_val = getenv(env_name);
+    if (env_val != NULL) {
+        char* endptr;
+        errno = 0;
+        long level_val = strtol(env_val, &endptr, DECIMAL_BASE);
+        if (errno != 0 || *endptr != '\0' ||
+            level_val < (long)ENPU_LOG_FATAL || level_val >= (long)ENPU_LOG_LEVEL_MAX) {
+            fprintf(stderr, "Log init: invalid %s='%s', using default.\n", env_name, env_val);
+            *target = default_val;
+        } else {
+            *target = (EnpuLogLevel)level_val;
+        }
+    } else {
+        *target = default_val;
+    }
+}
+
+int log_init(void)
+{
+    if (g_log_initialized) {
+        return ENPU_SUCCESS;
+    }
+
     pthread_mutex_init(&g_log_config.print_mutex, NULL);
     pthread_mutex_init(&g_log_config.compress_mutex, NULL);
 
     printf("dir_path: %s\n", g_log_config.log_dir);
-    char mkdir_cmd[MAX_CMD_LEN];
-    int ret = snprintf_s(mkdir_cmd, sizeof(mkdir_cmd), sizeof(mkdir_cmd), "%s%s",
-        MKDIR_CMD_PREFIX, g_log_config.log_dir);
-    CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Log init: Failed to get log dir path.");
-    system(mkdir_cmd);
 
-    ret = is_current_process(g_log_config.log_path);
+    char* mkdir_argv[] = { "mkdir", "-p", (char*)g_log_config.log_dir, NULL };
+    (void)safe_exec(mkdir_argv);
+
+    int ret = update_log_file();
+    CHECK_RETURN_ERROR_CODE_LOG(ret, "Failed to update log file, now log file is %s.", g_log_config.log_path);
+
+    parse_level_env("ENPU_LOG_LEVEL", ENPU_LOG_INFO, &g_log_config.min_log_level);
+    parse_level_env("ENPU_LOG_STDERR_LEVEL", LOG_STDERR_LEVEL_DEFAULT, &g_log_config.stderr_level);
+
+    ret = log_queue_init(&g_log_config.log_queue);
     if (ret != ENPU_SUCCESS) {
-        ret = update_log_file();
-        CHECK_RETURN_ERROR_CODE_LOG(ret, "Failed to update log file, now log file is %s.", g_log_config.log_path);
+        fprintf(stderr, "Log init failed: unable to init log queue.\n");
+        pthread_mutex_destroy(&g_log_config.print_mutex);
+        pthread_mutex_destroy(&g_log_config.compress_mutex);
+        return ENPU_FAIL;
     }
 
-    char* enpu_log_level = getenv("ENPU_LOG_LEVEL");
-    g_log_config.min_log_level = (enpu_log_level == NULL) ? ENPU_LOG_INFO : (EnpuLogLevel)atoi(enpu_log_level);
+    g_log_running = true;
+    ret = pthread_create(&g_log_config.consumer_thread, NULL, log_consumer_thread, NULL);
+    if (ret != 0) {
+        fprintf(stderr, "Log init failed: unable to create log consumer thread.\n");
+        g_log_running = false;
+        log_queue_destroy(&g_log_config.log_queue);
+        pthread_mutex_destroy(&g_log_config.print_mutex);
+        pthread_mutex_destroy(&g_log_config.compress_mutex);
+        return ENPU_FAIL;
+    }
+
+    printf("Async logging enabled with queue size %d.\n", LOG_QUEUE_SIZE);
+    g_log_initialized = true;
     return ENPU_SUCCESS;
 }
 
-void do_compress()
+void log_print(EnpuLogLevel level, const char* filename, int line, const char* format, ...)
 {
+    if (level > __atomic_load_n(&g_log_config.min_log_level, __ATOMIC_ACQUIRE)) {
+        return;
+    }
+
+    if (!g_log_initialized) {
+        fprintf(stderr, "[ENPU-PRE-INIT] log module not initialized, cannot print log.\n");
+        return;
+    }
+
+    LogMessage msg;
+    msg.level = level;
+    msg.line = line;
+
+    char path_buf[FILE_PATH_LEN];
+    int ret = strncpy_s(path_buf, sizeof(path_buf), filename, strlen(filename));
+    CHECK_COND_LOG_PRINT(ret, "strncpy_s path_buf failed");
+    char* bname = strrchr(path_buf, '/');
+    if (bname != NULL) {
+        bname = bname + 1;
+    } else {
+        bname = path_buf;
+    }
+    ret = strncpy_s(msg.basename, sizeof(msg.basename), bname, strlen(bname));
+    CHECK_COND_LOG_PRINT(ret, "strncpy_s msg.basename failed");
+
+    clock_gettime(CLOCK_REALTIME, &msg.timestamp);
+
+    va_list args;
+    va_start(args, format);
+    ret = vsnprintf_s(msg.message, sizeof(msg.message), sizeof(msg.message) - 1, format, args);
+    va_end(args);
+    if (ret < 0) {
+        msg.message[0] = '\0';
+    }
+
+    if (log_queue_push(&g_log_config.log_queue, &msg) != ENPU_SUCCESS) {
+        static int drop_count = 0;
+        if (drop_count < LOG_DROP_WARN_LIMIT) {
+            drop_count++;
+            fprintf(stderr, "Log queue push failed: log system unavailable (queue full or shut down).\n");
+        }
+    }
+}
+
+int log_queue_init(LogQueue* queue)
+{
+    if (!queue) {
+        return ENPU_FAIL;
+    }
+
+    queue->head = 0;
+    queue->tail = 0;
+    queue->shutdown = false;
+
+    int ret = pthread_mutex_init(&queue->mutex, NULL);
+    if (ret != 0) {
+        fprintf(stderr, "Failed to init log queue mutex.\n");
+        return ENPU_FAIL;
+    }
+
+    ret = pthread_cond_init(&queue->not_empty, NULL);
+    if (ret != 0) {
+        pthread_mutex_destroy(&queue->mutex);
+        fprintf(stderr, "Failed to init log queue not_empty condition.\n");
+        return ENPU_FAIL;
+    }
+
+    ret = pthread_cond_init(&queue->not_full, NULL);
+    if (ret != 0) {
+        pthread_mutex_destroy(&queue->mutex);
+        pthread_cond_destroy(&queue->not_empty);
+        fprintf(stderr, "Failed to init log queue not_full condition.\n");
+        return ENPU_FAIL;
+    }
+
+    return ENPU_SUCCESS;
+}
+
+void log_queue_destroy(LogQueue* queue)
+{
+    if (!queue) {
+        return;
+    }
+
+    pthread_mutex_lock(&queue->mutex);
+    queue->shutdown = true;
+    pthread_cond_broadcast(&queue->not_empty);
+    pthread_cond_broadcast(&queue->not_full);
+    pthread_mutex_unlock(&queue->mutex);
+}
+
+int log_queue_pop(LogQueue* queue, LogMessage* msg)
+{
+    if (!queue || !msg) {
+        return ENPU_FAIL;
+    }
+
+    pthread_mutex_lock(&queue->mutex);
+
+    while (queue->head == queue->tail && !queue->shutdown) {
+        pthread_cond_wait(&queue->not_empty, &queue->mutex);
+    }
+
+    if (queue->shutdown && queue->head == queue->tail) {
+        pthread_mutex_unlock(&queue->mutex);
+        return ENPU_FAIL;
+    }
+
+    *msg = queue->messages[queue->head];
+    queue->head = (queue->head + 1) % LOG_QUEUE_SIZE;
+
+    pthread_cond_signal(&queue->not_full);
+    pthread_mutex_unlock(&queue->mutex);
+
+    return ENPU_SUCCESS;
+}
+
+static int log_queue_wait_for_space(LogQueue* queue)
+{
+    struct timespec wait_deadline;
+    clock_gettime(CLOCK_REALTIME, &wait_deadline);
+    wait_deadline.tv_sec += LOG_PUSH_WAIT_TIMEOUT_SEC;
+
+    while ((queue->tail + 1) % LOG_QUEUE_SIZE == queue->head && !queue->shutdown) {
+        int wait_ret = pthread_cond_timedwait(&queue->not_full, &queue->mutex, &wait_deadline);
+        if (wait_ret == ETIMEDOUT) {
+            return ENPU_FAIL;
+        }
+    }
+
+    if (queue->shutdown) {
+        return ENPU_FAIL;
+    }
+    return ENPU_SUCCESS;
+}
+
+int log_queue_push(LogQueue* queue, const LogMessage* msg)
+{
+    if (!queue || !msg) {
+        fprintf(stderr, "Log queue push failed: queue or message is NULL.\n");
+        return ENPU_FAIL;
+    }
+
+    pthread_mutex_lock(&queue->mutex);
+
+    if (queue->shutdown) {
+        pthread_mutex_unlock(&queue->mutex);
+        return ENPU_FAIL;
+    }
+
+    if ((queue->tail + 1) % LOG_QUEUE_SIZE == queue->head) {
+        int wait_ret = log_queue_wait_for_space(queue);
+        if (wait_ret != ENPU_SUCCESS) {
+            pthread_mutex_unlock(&queue->mutex);
+            return ENPU_FAIL;
+        }
+    }
+
+    queue->messages[queue->tail] = *msg;
+    queue->tail = (queue->tail + 1) % LOG_QUEUE_SIZE;
+
+    pthread_cond_signal(&queue->not_empty);
+    pthread_mutex_unlock(&queue->mutex);
+
+    return ENPU_SUCCESS;
+}
+
+static int prepare_log_file(void)
+{
+    if (!g_log_config.log_file || (strcmp(g_log_config.log_path, g_log_config.log_file_path) != 0)) {
+        if (g_log_config.log_file) {
+            fclose(g_log_config.log_file);
+        }
+        int ret = strncpy_s(g_log_config.log_file_path,
+            sizeof(g_log_config.log_file_path),
+            g_log_config.log_path, strlen(g_log_config.log_path));
+        if (ret != 0) {
+            return ret;
+        }
+        g_log_config.log_file = fopen(g_log_config.log_path, "a");
+        if (!g_log_config.log_file) {
+            return ENPU_FAIL;
+        }
+    }
+    return ENPU_SUCCESS;
+}
+
+static int write_log_message(const LogMessage* msg, char* time_str, char* log_line)
+{
+    int ret = rotate_log_by_size();
+    if (ret != ENPU_SUCCESS) {
+        return ret;
+    }
+
+    ret = prepare_log_file();
+    if (ret != ENPU_SUCCESS) {
+        return ret;
+    }
+
+    struct tm tm_now;
+    localtime_r(&msg->timestamp.tv_sec, &tm_now);
+    if (strftime(time_str, TIMESTAMP_STR_LEN, "%Y%m%d%H%M%S", &tm_now) == 0) {
+        ret = strcpy_s(time_str, TIMESTAMP_STR_LEN, "TIME_ERROR");
+        CHECK_COND_LOG_PRINT(ret, "strcpy_s time_str failed");
+    }
+
+    ret = snprintf_s(log_line, LOG_MSG_MAX_LEN + LOG_LINE_EXTRA_LEN,
+        LOG_MSG_MAX_LEN + LOG_LINE_EXTRA_LEN - 1,
+        "[%s] [%s] [%s] [%s] [%d:%lu:%s:%d] %s\n",
+        time_str, log_level_str[msg->level], MODULE_NAME, SUB_MODULE_NAME,
+        getpid(), (unsigned long)pthread_self(), msg->basename, msg->line, msg->message);
+    if (ret > 0 && (size_t)ret < LOG_MSG_MAX_LEN + LOG_LINE_EXTRA_LEN) {
+        fprintf(g_log_config.log_file, "%s", log_line);
+        if (msg->level <= g_log_config.stderr_level) {
+            fprintf(stderr, "%s", log_line);
+        }
+    }
+
+    if (msg->level <= ENPU_LOG_ERROR) {
+        fflush(g_log_config.log_file);
+        g_log_config.flush_counter = 0;
+    } else {
+        if (++g_log_config.flush_counter >= LOG_FLUSH_INTERVAL) {
+            fflush(g_log_config.log_file);
+            g_log_config.flush_counter = 0;
+        }
+    }
+
+    return ENPU_SUCCESS;
+}
+
+static void check_compress_log(void)
+{
+    if (g_log_config.compress_disabled) {
+        return;
+    }
+
+    if (++g_log_config.compress_check_counter < COMPRESS_CHECK_INTERVAL) {
+        return;
+    }
+    g_log_config.compress_check_counter = 0;
+
     pthread_mutex_lock(&g_log_config.compress_mutex);
     int log_file_count = count_log_files();
     if (log_file_count > g_log_config.max_backup_count) {
@@ -251,51 +717,54 @@ void do_compress()
     pthread_mutex_unlock(&g_log_config.compress_mutex);
 }
 
-void log_print(EnpuLogLevel level, const char* filename, int line, const char* format, ...)
+void* log_consumer_thread(void* arg)
 {
-    if (level > g_log_config.min_log_level) {
-        return;
-    }
-    pthread_mutex_lock(&g_log_config.print_mutex);
-    int ret = rotate_log_by_size();
-    if (ret != ENPU_SUCCESS) {
+    (void)arg;
+    LogMessage msg;
+    char time_str[TIMESTAMP_STR_LEN];
+    char log_line[LOG_MSG_MAX_LEN + LOG_LINE_EXTRA_LEN];
+
+    while (g_log_running) {
+        if (log_queue_pop(&g_log_config.log_queue, &msg) != ENPU_SUCCESS) {
+            continue;
+        }
+
+        pthread_mutex_lock(&g_log_config.print_mutex);
+        (void)write_log_message(&msg, time_str, log_line);
         pthread_mutex_unlock(&g_log_config.print_mutex);
+
+        check_compress_log();
+    }
+
+    return NULL;
+}
+
+void log_shutdown(void)
+{
+    if (g_log_config.log_queue.shutdown) {
         return;
     }
-    FILE* fp = fopen(g_log_config.log_path, "a");
-    if (!fp) {
-        pthread_mutex_unlock(&g_log_config.print_mutex);
-        return;
+
+    g_log_running = false;
+    log_queue_destroy(&g_log_config.log_queue);
+
+    if (g_log_config.consumer_thread != 0) {
+        pthread_join(g_log_config.consumer_thread, NULL);
+        g_log_config.consumer_thread = 0;
     }
-    time_t now = time(NULL);
-    struct tm tm_now;
-    localtime_r(&now, &tm_now);
-    char time_str[64];
-    ret = strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm_now);
-    CHECK_COND_LOG_PRINT(ret == 0, "Failed to get timestamp.");
-    ret = fprintf(fp, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level],
-        MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), basename(filename), line);
-    CHECK_COND_LOG_PRINT(ret < 0, "Failed to fprint log content to file.");
-    va_list args;
-    va_start(args, format);
-    ret = vfprintf(fp, format, args);
-    CHECK_COND_LOG_PRINT(ret < 0, "Failed to vfprint log content to file.");
-    va_end(args);
-    ret = fprintf(fp, "\n");
-    CHECK_COND_LOG_PRINT(ret < 0, "Failed to fprint log content end to file.");
-    ret = fflush(fp);
-    CHECK_COND_LOG_PRINT(ret < 0, "Failed to fflush log content to file.");
-    ret = fclose(fp);
-    CHECK_COND_LOG_PRINT(ret < 0, "Failed to close log file.");
-    va_start(args, format);
-    int buffer_size = 1024;
-    char buffer[buffer_size];
-    ret = vsnprintf_s(buffer, sizeof(buffer), sizeof(buffer), format, args);
-    CHECK_COND_LOG_PRINT(ret < 0, "Failed to vsnprintf_s log content.");
-    ret = fprintf(stderr, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] %s\n", time_str, log_level_str[level],
-        MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), basename(filename), line, buffer);
-    CHECK_COND_LOG_PRINT(ret < 0, "Failed to fprint log content to stderr.");
-    va_end(args);
-    pthread_mutex_unlock(&g_log_config.print_mutex);
-    do_compress();
+
+    pthread_mutex_destroy(&g_log_config.log_queue.mutex);
+    pthread_cond_destroy(&g_log_config.log_queue.not_empty);
+    pthread_cond_destroy(&g_log_config.log_queue.not_full);
+
+    if (g_log_config.log_file) {
+        fflush(g_log_config.log_file);
+        fclose(g_log_config.log_file);
+        g_log_config.log_file = NULL;
+    }
+
+    pthread_mutex_destroy(&g_log_config.print_mutex);
+    pthread_mutex_destroy(&g_log_config.compress_mutex);
+
+    g_log_initialized = false;
 }

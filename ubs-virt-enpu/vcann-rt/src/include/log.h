@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
 
 #if defined(__cplusplus)
@@ -24,19 +25,31 @@ extern "C" {
 #endif
 
 #define ZIP_EXT ".tar.gz"
-#define TAR_CMD_PREFIX "tar -czpf "
-#define RM_CMD_PREFIX "rm -f "
-#define MKDIR_CMD_PREFIX "mkdir -p "
 #define LOG_FILE_SUFFIX ".log"
 #define MODULE_NAME "eNPU"
 #define SUB_MODULE_NAME "vCANN_RT"
-#define MAX_CMD_LEN 1024
 #define FILE_PATH_LEN 256
-#define SET_UMASK_FOR_666 0000
 #define SET_UMASK_FOR_440 0226
 #define LOG_FILE_RIGHT 0640
 
-extern FILE *fp1;
+#define LOG_QUEUE_SIZE 256
+#define LOG_MSG_MAX_LEN 512
+#define LOG_MAX_FILE_SIZE (10 * 1024 * 1024)
+#define LOG_MAX_BACKUP_COUNT 10
+#define LOG_FLUSH_INTERVAL 10
+#define LOG_STDERR_LEVEL_DEFAULT ENPU_LOG_INFO
+#define COMPRESS_CHECK_INTERVAL 64
+#define SAFE_EXEC_TIMEOUT_SEC 5
+#define SAFE_EXEC_POLL_INTERVAL_US 10000
+#define LOG_PUSH_WAIT_TIMEOUT_SEC 5
+#define LOG_DROP_WARN_LIMIT 10
+#define TIMESTAMP_STR_LEN 64
+#define TIMESTAMP_FILE_LEN 20
+#define PID_PATTERN_LEN 64
+#define LOG_LINE_EXTRA_LEN 256
+#define EXIT_CODE_EXEC_FAILED 1
+#define DECIMAL_BASE 10
+#define FILE_OPEN_MODE 0600
 
 typedef enum {
     ENPU_LOG_FATAL = 0,
@@ -44,46 +57,77 @@ typedef enum {
     ENPU_LOG_WARN,
     ENPU_LOG_INFO,
     ENPU_LOG_DEBUG,
+    ENPU_LOG_LEVEL_MAX,
 } EnpuLogLevel;
+
+typedef struct {
+    EnpuLogLevel level;
+    char filename[FILE_PATH_LEN];
+    char basename[FILE_PATH_LEN];
+    int line;
+    char message[LOG_MSG_MAX_LEN];
+    struct timespec timestamp;
+} LogMessage;
+
+typedef struct {
+    LogMessage messages[LOG_QUEUE_SIZE];
+    size_t head;
+    size_t tail;
+    pthread_mutex_t mutex;
+    pthread_cond_t not_empty;
+    pthread_cond_t not_full;
+    bool shutdown;
+} LogQueue;
 
 typedef struct {
     char log_dir[FILE_PATH_LEN];
     char log_path[FILE_PATH_LEN];
+    char log_file_path[FILE_PATH_LEN];
     size_t max_file_size;
     int max_backup_count;
     EnpuLogLevel min_log_level;
+    EnpuLogLevel stderr_level;
     pthread_mutex_t print_mutex;
     pthread_mutex_t compress_mutex;
+    LogQueue log_queue;
+    pthread_t consumer_thread;
+    FILE* log_file;
+    int flush_counter;
+    int compress_check_counter;
+    bool compress_disabled;
 } LogConfig;
 
 extern void log_print(EnpuLogLevel level, const char* filename, int line, const char* format, ...);
 extern int log_init(void);
+extern void log_shutdown(void);
 extern LogConfig g_log_config;
-long get_file_size(const char* filepath);
-int is_current_process(const char* filename);
-int is_log_file(const char* filename);
-int count_log_files(void);
-int compress_file(void);
-int update_log_file(void);
-int rotate_log_by_size(void);
+
+extern int log_queue_init(LogQueue* queue);
+extern void log_queue_destroy(LogQueue* queue);
+extern int log_queue_push(LogQueue* queue, const LogMessage* msg);
+extern int log_queue_pop(LogQueue* queue, LogMessage* msg);
+
+extern int compress_file(void);
+extern int is_log_file(const char* filename);
+extern int update_log_file(void);
 
 #define LOG_DEBUG(msg, ...) do { \
-    if (g_log_config.min_log_level >= 4) { \
+    if (g_log_config.min_log_level >= ENPU_LOG_DEBUG) { \
         log_print(ENPU_LOG_DEBUG, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
     } \
 } while (false)
 #define LOG_INFO(msg, ...) do { \
-    if (g_log_config.min_log_level >= 3) { \
+    if (g_log_config.min_log_level >= ENPU_LOG_INFO) { \
         log_print(ENPU_LOG_INFO, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
     } \
 } while (false)
 #define LOG_WARN(msg, ...) do { \
-    if (g_log_config.min_log_level >= 2) { \
+    if (g_log_config.min_log_level >= ENPU_LOG_WARN) { \
         log_print(ENPU_LOG_WARN, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
     } \
 } while (false)
 #define LOG_ERROR(msg, ...) do { \
-    if (g_log_config.min_log_level >= 1) { \
+    if (g_log_config.min_log_level >= ENPU_LOG_ERROR) { \
         log_print(ENPU_LOG_ERROR, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
     } \
 } while (false)
