@@ -74,6 +74,17 @@ void restore_streams(rtStream_t stream)
     return;
 }
 
+void add_stream(rtStream_t stream)
+{
+    if (hashmap_contains(stream_map, (void*)stream)) {
+        return;
+    }
+    int ret = hashmap_put(stream_map, (void*)stream, NULL, false);
+    CHECK_COND_RETURN(ret == -1, "Failed to put stream %p to the hash map.", (void*)stream);
+    LOG_DEBUG("Stream %p is added in stream hash map.", (void*)stream);
+    return;
+}
+
 void core_limiter(rtStream_t stream, core_function func, void* param)
 {
     // when schedule policy is 3

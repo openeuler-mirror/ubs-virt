@@ -38,6 +38,11 @@ typedef void *rtKernelLaunchNames_t;
 typedef uint32_t rtMemType_t;
 typedef void *rtModel_t;
 typedef void *rtNotify_t;
+typedef void *rtCntNotify_t;
+typedef void *rtCntNtyRecordInfo_t;
+typedef void *rtCntNtyWaitInfo_t;
+typedef void *rtCntNotifyRecordInfo_t;
+typedef void *rtCntNotifyWaitInfo_t;
 typedef void *rtSmDesc_t;
 typedef void *rtStream_t;
 typedef void *rtEvent_t;
@@ -45,6 +50,13 @@ typedef void *rtTaskCfgInfo_t;
 typedef void *rtDrvMemHandle;
 typedef void *rtFuncHandle;
 typedef void *rtLaunchArgsHandle;
+typedef void *rtKernelLaunchCfg_t;
+typedef void *rtPlaceHolderInfo_t;
+typedef void *rtCpuKernelArgs_t;
+typedef void *rtArgsHandle;
+typedef void *rtRandomNumTaskInfo_t;
+typedef void *rtReduceInfo_t;
+typedef void *rtTaskUpdateCfg_t;
 
 typedef enum tagRtStreamCaptureMode {
     RT_STREAM_CAPTURE_MODE_GLOBAL = 0,
@@ -220,7 +232,35 @@ typedef enum tagRtMemInfoType {
     RUNTIME_FUNCTION_ENTRY(rtStreamWaitEventWithTimeout, rtStream_t stm, rtEvent_t evt, uint32_t timeout)    \
     RUNTIME_FUNCTION_ENTRY(rtNotifyWait, rtNotify_t notify, rtStream_t stm)                                  \
     RUNTIME_FUNCTION_ENTRY(rtNotifyWaitWithTimeOut, rtNotify_t notify, rtStream_t stm, uint32_t timeOut)     \
-    RUNTIME_FUNCTION_ENTRY(rtNotifyCreateWithFlag, int32_t deviceId, rtNotify_t *notify, uint32_t flag)
+    RUNTIME_FUNCTION_ENTRY(rtNotifyCreateWithFlag, int32_t deviceId, rtNotify_t *notify, uint32_t flag)      \
+    RUNTIME_FUNCTION_ENTRY(rtCntNotifyCreate, const int32_t deviceId, rtCntNotify_t * const cntNotify)       \
+    RUNTIME_FUNCTION_ENTRY(rtCntNotifyCreateWithFlag, const int32_t deviceId, rtCntNotify_t *                \
+                           const cntNotify, const uint32_t flags)                                            \
+    RUNTIME_FUNCTION_ENTRY(rtCntNotifyRecord, rtCntNotify_t const inCntNotify, rtStream_t const stm,         \
+                           const rtCntNtyRecordInfo_t * const info)                                          \
+    RUNTIME_FUNCTION_ENTRY(rtCntNotifyWaitWithTimeout, rtCntNotify_t const inCntNotify,                      \
+                           rtStream_t const stm, const rtCntNtyWaitInfo_t * const info)                      \
+    RUNTIME_FUNCTION_ENTRY(rtCntNotifyDestroy, rtCntNotify_t const inCntNotify)                              \
+    RUNTIME_FUNCTION_ENTRY(rtsCntNotifyRecord, rtCntNotify_t cntNotify, rtStream_t stm,                      \
+                           rtCntNotifyRecordInfo_t *info)                                                    \
+    RUNTIME_FUNCTION_ENTRY(rtsCntNotifyWaitWithTimeout, rtCntNotify_t cntNotify, rtStream_t stm,             \
+                           rtCntNotifyWaitInfo_t *info)                                                      \
+    RUNTIME_FUNCTION_ENTRY(rtsLaunchKernelWithHostArgs, rtFuncHandle funcHandle, uint32_t numBlocks,         \
+                           rtStream_t stm, rtKernelLaunchCfg_t *cfg, void *hostArgs, uint32_t argsSize,      \
+                           rtPlaceHolderInfo_t *placeHolderArray, uint32_t placeHolderNum)                   \
+    RUNTIME_FUNCTION_ENTRY(rtsLaunchCpuKernel, const rtFuncHandle funcHandle, uint32_t numBlocks,            \
+                           rtStream_t stm, const rtKernelLaunchCfg_t *cfg, rtCpuKernelArgs_t *argsInfo)      \
+    RUNTIME_FUNCTION_ENTRY(rtsLaunchKernelWithConfig, rtFuncHandle funcHandle, uint32_t numBlocks,           \
+                           rtStream_t stm, rtKernelLaunchCfg_t *cfg, rtArgsHandle argsHandle, void *reserve) \
+    RUNTIME_FUNCTION_ENTRY(rtsLaunchKernelWithDevArgs, rtFuncHandle funcHandle, uint32_t numBlocks,          \
+                           rtStream_t stm, rtKernelLaunchCfg_t *cfg, const void *args,                       \
+                           uint32_t argsSize, void *reserve)                                                 \
+    RUNTIME_FUNCTION_ENTRY(rtsLaunchRandomNumTask, const rtRandomNumTaskInfo_t * taskInfo,                   \
+                           const rtStream_t stm, void *reserve)                                              \
+    RUNTIME_FUNCTION_ENTRY(rtsLaunchReduceAsyncTask, const rtReduceInfo_t *reduceInfo,                       \
+                           const rtStream_t stm, const void *reserve)                                        \
+    RUNTIME_FUNCTION_ENTRY(rtsLaunchUpdateTask, rtStream_t destStm, uint32_t destTaskId,                     \
+                           rtStream_t stm, rtTaskUpdateCfg_t *cfg)
 
 #define RUNTIME_FUNCTION_ENTRY(name, ...) rtError_t name(__VA_ARGS__);
 RUNTIME_FUNCTION_LIST

@@ -22,6 +22,7 @@
 #include "npu_manager.h"
 #include "mem_limiter.h"
 #include "core_limiter.h"
+#include "rts_event.h"
 
 using namespace testing;
 
@@ -65,7 +66,6 @@ TEST_F(EventTest, rtEventDestroySync)
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
-// huaZiShuo PART
 TEST_F(EventTest, rtEventCreateTest)
 {
     rtEvent_t event;
@@ -109,7 +109,6 @@ TEST_F(EventTest, rtStreamWaitEventTest)
 {
     rtEvent_t event = nullptr;
     rtStream_t stream = nullptr;
-    MOCKER(core_limiter).stubs().with(mockcpp::any(), mockcpp::any(), mockcpp::any());
     rtError_t ret = rtStreamWaitEvent(stream, event);
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
@@ -118,7 +117,6 @@ TEST_F(EventTest, rtEventRecordTest)
 {
     rtEvent_t event = nullptr;
     rtStream_t stream = nullptr;
-    MOCKER(core_limiter).stubs().with(mockcpp::any(), mockcpp::any(), mockcpp::any());
     MOCKER(set_event_record_status).stubs().with(mockcpp::any(), mockcpp::any());
     rtError_t ret = rtEventRecord(event, stream);
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
@@ -161,7 +159,6 @@ TEST_F(EventTest, rtNotifyRecordTest)
 {
     rtNotify_t notify = nullptr;
     rtStream_t stm = nullptr;
-    MOCKER(core_limiter).stubs().with(mockcpp::any(), mockcpp::any(), mockcpp::any());
     rtError_t ret = rtNotifyRecord(notify, stm);
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
@@ -214,5 +211,65 @@ TEST_F(EventTest, rtNotifyCreateWithFlagTest)
     rtNotify_t notify = nullptr;
     uint32_t flag = 0;
     rtError_t ret = rtNotifyCreateWithFlag(deviceId, &notify, flag);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
+TEST_F(EventTest, rtCntNotifyCreate)
+{
+    int32_t deviceId = 0;
+    rtCntNotify_t cntNotify = nullptr;
+    rtError_t ret = rtCntNotifyCreate(deviceId, &cntNotify);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
+TEST_F(EventTest, rtCntNotifyCreateWithFlag)
+{
+    int32_t deviceId = 0;
+    rtCntNotify_t cntNotify = nullptr;
+    uint32_t flags = 0;
+    rtError_t ret = rtCntNotifyCreateWithFlag(deviceId, &cntNotify, flags);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
+TEST_F(EventTest, rtCntNotifyRecord)
+{
+    rtCntNotify_t inCntNotify = nullptr;
+    rtStream_t stm = nullptr;
+    rtCntNtyRecordInfo_t info = nullptr;
+    rtError_t ret = rtCntNotifyRecord(inCntNotify, stm, &info);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
+TEST_F(EventTest, rtCntNotifyWaitWithTimeout)
+{
+    rtCntNotify_t inCntNotify = nullptr;
+    rtStream_t stm = nullptr;
+    rtCntNtyWaitInfo_t info = nullptr;
+    rtError_t ret = rtCntNotifyWaitWithTimeout(inCntNotify, stm, &info);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
+TEST_F(EventTest, rtCntNotifyDestroy)
+{
+    rtCntNotify_t inCntNotify = nullptr;
+    rtError_t ret = rtCntNotifyDestroy(inCntNotify);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
+TEST_F(EventTest, rtsCntNotifyRecord)
+{
+    rtCntNotify_t cntNotify = nullptr;
+    rtStream_t stm = nullptr;
+    rtCntNotifyRecordInfo_t info = nullptr;
+    rtError_t ret = rtsCntNotifyRecord(cntNotify, stm, &info);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
+TEST_F(EventTest, rtsCntNotifyWaitWithTimeout)
+{
+    rtCntNotify_t cntNotify = nullptr;
+    rtStream_t stm = nullptr;
+    rtCntNotifyWaitInfo_t info = nullptr;
+    rtError_t ret = rtsCntNotifyWaitWithTimeout(cntNotify, stm, &info);
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
