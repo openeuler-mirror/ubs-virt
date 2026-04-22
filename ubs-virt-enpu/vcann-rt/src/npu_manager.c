@@ -180,6 +180,9 @@ static void __enpu_global_init(void)
     rc = aicore_limiter_initialize();
     CHECK_ERROR_CODE(rc, "Failed to initialize aicore limiter");
 
+    rc = setenv("ENPU_ENABLE", "True", 1);
+    CHECK_ERROR_CODE(rc, "Failed to set environment variable");
+
     LOG_INFO("Successfully to initialize all module.");
 }
 

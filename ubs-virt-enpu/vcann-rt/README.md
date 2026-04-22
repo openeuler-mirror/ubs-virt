@@ -414,7 +414,7 @@ vCANN-RT支持两种方式启动服务：
     export ENPU_LOG_LEVEL=3
     ```
 
-    启动推理任务时，会自动拉起vCANN-RT算力控制和显存控制服务。
+    启动推理任务时，会自动拉起vCANN-RT算力控制和显存控制服务。软切分服务启动成功之后会设置一个进程级环境变量`ENPU_ENABLE=True`。
 
     在容器内可查询配置文件获取vNPU资源配额等信息：
 
@@ -511,7 +511,7 @@ vCANN-RT支持两种方式启动服务：
       export ENPU_LOG_LEVEL=3
       ```
 
-    - 推理任务启动时，会自动拉起vCANN-RT服务进行算力控制和显存控制，如果日志回显内容为`"Successfully to initialize all module."`, 则表示vCANN-RT服务启动成功。
+    - 推理任务启动时，会自动拉起vCANN-RT服务进行算力控制和显存控制，软切分服务启动成功之后会设置一个进程级环境变量`ENPU_ENABLE=True`。如果日志回显内容为`"Successfully to initialize all module."`, 则表示vCANN-RT服务启动成功。
 
     - 在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息。
 
