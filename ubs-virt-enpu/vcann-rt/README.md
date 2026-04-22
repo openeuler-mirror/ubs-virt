@@ -106,7 +106,7 @@ git clone <ubs-virt-enpu-vcann-rt-url>
 
 ## 编译
 
-在编译vCANN-RT源码前，用户需要先设置CANN的环境变量。
+在编译vCANN-RT源码前，用户需要设置CANN的环境变量。如果驱动安装在非默认路径，还需要设置驱动路径环境变量。
 
 `vCANN-RT`在代码仓中提供了统一的编译构建脚本（即`make_build.sh`文件），可以直接执行该脚本文件进行编译构建。
 
@@ -467,7 +467,18 @@ vCANN-RT支持两种方式启动业务容器：
     ```bash
     /opt/enpu/vcann-rt/tools/enpu-monitor
     ```
-      
+
+### 环境变量汇总
+
+**表 9 环境变量列表**
+
+| 环境变量 | 范围 | 默认值 | 说明 |
+|-|-|-|-|
+| `ASCEND_HOME_PATH` | 编译 | `/usr/local/Ascend/cann` | CANN安装路径，可通过 `source /path/to/cann/set_env.sh` 设置。 |
+| `ENPU_ASCEND_DRIVER_PATH` | 编译 | `/usr/local/Ascend` | HDK driver安装路径。 |
+| `ENPU_LOG_LEVEL` | 运行 | `3` | 日志级别，FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。 |
+| `ENPU_ENABLE` | 运行 | `True` | vCANN-RT启动成功之后设置的进程级环境变量。 |
+
 ## 约束
 
 - 由于vCANN-RT解决方案使用了共享内存，因此用户需要确保在可信用户范围内使用。
@@ -481,17 +492,6 @@ vCANN-RT支持两种方式启动业务容器：
   - 若多容器配置的HBM总量超出当前单Device可用内存大小，某一容器内的业务运行时，可能因为实际内存不足，导致报错OOM内存不足。
   - 若单卡上各容器配置的调度策略不相同，各容器无法按照原先设定的资源使用，建议各容器配置的调度策略相同。
 - 当前vCANN-RT方案适配CANN软件版本为商发版本8.5.0，由于版本限制，暂时不支持persistent task的使用。
-
-## 环境变量参考
-
-**表 9 环境变量**
-
-| 环境变量 | 范围 | 默认值 | 说明 |
-|-|-|-|-|
-| `ASCEND_HOME_PATH` | 编译 | `/usr/local/Ascend/cann` | CANN安装路径，可通过 `source /path/to/cann/set_env.sh` 设置。 |
-| `ENPU_ASCEND_DRIVER_PATH` | 编译 | `/usr/local/Ascend` | HDK driver安装路径。 |
-| `ENPU_LOG_LEVEL` | 运行 | `3` | 日志级别，FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。 |
-| `ENPU_ENABLE` | 运行 | `True` | vCANN-RT传递给进程。 |
 
 ## FAQ
 

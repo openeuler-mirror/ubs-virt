@@ -71,7 +71,7 @@ target_link_libraries(vnpu_test PRIVATE
     pthread
     rt
     dl
-    securec
+    c_sec
 )
 
 foreach(stub_file IN LISTS VNPU_STUB_FILES)
