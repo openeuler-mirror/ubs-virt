@@ -37,7 +37,6 @@ extern "C" {
 #define LOG_MAX_FILE_SIZE (10 * 1024 * 1024)
 #define LOG_MAX_BACKUP_COUNT 10
 #define LOG_FLUSH_INTERVAL 10
-#define LOG_STDERR_LEVEL_DEFAULT ENPU_LOG_INFO
 #define COMPRESS_CHECK_INTERVAL 64
 #define SAFE_EXEC_TIMEOUT_SEC 5
 #define SAFE_EXEC_POLL_INTERVAL_US 10000
@@ -57,7 +56,6 @@ typedef enum {
     ENPU_LOG_WARN,
     ENPU_LOG_INFO,
     ENPU_LOG_DEBUG,
-    ENPU_LOG_LEVEL_MAX,
 } EnpuLogLevel;
 
 typedef struct {
@@ -86,7 +84,6 @@ typedef struct {
     size_t max_file_size;
     int max_backup_count;
     EnpuLogLevel min_log_level;
-    EnpuLogLevel stderr_level;
     pthread_mutex_t print_mutex;
     pthread_mutex_t compress_mutex;
     LogQueue log_queue;

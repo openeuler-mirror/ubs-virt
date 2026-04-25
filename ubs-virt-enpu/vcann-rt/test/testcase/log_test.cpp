@@ -83,7 +83,6 @@ static void SetLogConfig(const LogConfig* log_config)
     g_log_config.max_file_size = log_config->max_file_size;
     g_log_config.max_backup_count = log_config->max_backup_count;
     g_log_config.min_log_level = log_config->min_log_level;
-    g_log_config.stderr_level = log_config->stderr_level;
     g_log_config.flush_counter = log_config->flush_counter;
     g_log_config.compress_check_counter = log_config->compress_check_counter;
     g_log_config.compress_disabled = log_config->compress_disabled;
@@ -101,7 +100,6 @@ protected:
         mockLogConfig.max_file_size = MOCK_MAX_FILE_SIZE;
         mockLogConfig.max_backup_count = MOCK_MAX_BACKUP_COUNT;
         mockLogConfig.min_log_level = ENPU_LOG_INFO;
-        mockLogConfig.stderr_level = LOG_STDERR_LEVEL_DEFAULT;
         mockLogConfig.flush_counter = 0;
         mockLogConfig.compress_check_counter = 0;
         mockLogConfig.compress_disabled = true;
@@ -199,7 +197,7 @@ TEST_F(LogTest, LogTest_log_queue_after_destroy)
 
 TEST_F(LogTest, LogTest_log_print)
 {
-    __atomic_store_n(&g_log_config.min_log_level, ENPU_LOG_DEBUG, __ATOMIC_RELEASE);
+    g_log_config.min_log_level = ENPU_LOG_DEBUG;
     
     LOG_DEBUG("Debug log test");
     LOG_INFO("Info log test");
@@ -209,12 +207,12 @@ TEST_F(LogTest, LogTest_log_print)
     
     usleep(WAIT_FOR_LOG_WRITE_US);
     
-    __atomic_store_n(&g_log_config.min_log_level, ENPU_LOG_INFO, __ATOMIC_RELEASE);
+    g_log_config.min_log_level = ENPU_LOG_INFO;
 }
 
 TEST_F(LogTest, LogTest_log_level_filter)
 {
-    __atomic_store_n(&g_log_config.min_log_level, ENPU_LOG_WARN, __ATOMIC_RELEASE);
+    g_log_config.min_log_level = ENPU_LOG_WARN;
     
     LOG_DEBUG("This should be filtered");
     LOG_INFO("This should be filtered");
@@ -224,7 +222,7 @@ TEST_F(LogTest, LogTest_log_level_filter)
     
     usleep(WAIT_FOR_LOG_WRITE_US);
     
-    __atomic_store_n(&g_log_config.min_log_level, ENPU_LOG_INFO, __ATOMIC_RELEASE);
+    g_log_config.min_log_level = ENPU_LOG_INFO;
 }
 
 TEST_F(LogTest, LogTest_basename_extraction)
@@ -253,32 +251,6 @@ TEST_F(LogTest, LogTest_basename_extraction)
     EXPECT_STREQ(popped.basename, "test.cpp");
     
     log_queue_destroy(&queue);
-}
-
-TEST_F(LogTest, LogTest_stderr_level_filter)
-{
-    __atomic_store_n(&g_log_config.stderr_level, ENPU_LOG_ERROR, __ATOMIC_RELEASE);
-    __atomic_store_n(&g_log_config.min_log_level, ENPU_LOG_DEBUG, __ATOMIC_RELEASE);
-    LOG_DEBUG("Debug - should not output to stderr");
-    LOG_INFO("Info - should not output to stderr");
-    LOG_WARN("Warn - should not output to stderr");
-    LOG_ERROR("Error - should output to stderr");
-    LOG_FATAL("Fatal - should output to stderr");
-    usleep(WAIT_FOR_LOG_WRITE_US);
-
-    __atomic_store_n(&g_log_config.stderr_level, ENPU_LOG_WARN, __ATOMIC_RELEASE);
-    LOG_WARN("Warn - should output to stderr");
-    LOG_ERROR("Error - should output to stderr");
-    LOG_FATAL("Fatal - should output to stderr");
-    usleep(WAIT_FOR_LOG_WRITE_US);
-
-    __atomic_store_n(&g_log_config.stderr_level, ENPU_LOG_DEBUG, __ATOMIC_RELEASE);
-    LOG_DEBUG("Debug - should output to stderr");
-    LOG_INFO("Info - should output to stderr");
-    usleep(WAIT_FOR_LOG_WRITE_US);
-
-    __atomic_store_n(&g_log_config.min_log_level, ENPU_LOG_INFO, __ATOMIC_RELEASE);
-    __atomic_store_n(&g_log_config.stderr_level, LOG_STDERR_LEVEL_DEFAULT, __ATOMIC_RELEASE);
 }
 
 static void CreateMockLogFile(const char* name)
@@ -368,10 +340,10 @@ TEST_F(LogTest, LogTest_log_init_env_log_level)
     setenv("ENPU_LOG_LEVEL", "2", 1);
     int ret = log_init();
     EXPECT_EQ(ret, ENPU_SUCCESS);
-    EXPECT_EQ(__atomic_load_n(&g_log_config.min_log_level, __ATOMIC_ACQUIRE), ENPU_LOG_WARN);
+    EXPECT_EQ(g_log_config.min_log_level, ENPU_LOG_WARN);
     unsetenv("ENPU_LOG_LEVEL");
 
-    __atomic_store_n(&g_log_config.min_log_level, ENPU_LOG_INFO, __ATOMIC_RELEASE);
+    g_log_config.min_log_level = ENPU_LOG_INFO;
 }
 
 TEST_F(LogTest, LogTest_log_init_env_invalid_log_level)
@@ -380,27 +352,6 @@ TEST_F(LogTest, LogTest_log_init_env_invalid_log_level)
     setenv("ENPU_LOG_LEVEL", "invalid", 1);
     int ret = log_init();
     EXPECT_EQ(ret, ENPU_SUCCESS);
-    EXPECT_EQ(__atomic_load_n(&g_log_config.min_log_level, __ATOMIC_ACQUIRE), ENPU_LOG_INFO);
+    EXPECT_EQ(g_log_config.min_log_level, ENPU_LOG_INFO);
     unsetenv("ENPU_LOG_LEVEL");
-}
-
-TEST_F(LogTest, LogTest_log_init_env_stderr_level)
-{
-    log_shutdown();
-    setenv("ENPU_LOG_STDERR_LEVEL", "1", 1);
-    int ret = log_init();
-    EXPECT_EQ(ret, ENPU_SUCCESS);
-    EXPECT_EQ(__atomic_load_n(&g_log_config.stderr_level, __ATOMIC_ACQUIRE), ENPU_LOG_ERROR);
-    unsetenv("ENPU_LOG_STDERR_LEVEL");
-    __atomic_store_n(&g_log_config.stderr_level, LOG_STDERR_LEVEL_DEFAULT, __ATOMIC_RELEASE);
-}
-
-TEST_F(LogTest, LogTest_log_init_env_invalid_stderr_level)
-{
-    log_shutdown();
-    setenv("ENPU_LOG_STDERR_LEVEL", "99", 1);
-    int ret = log_init();
-    EXPECT_EQ(ret, ENPU_SUCCESS);
-    EXPECT_EQ(__atomic_load_n(&g_log_config.stderr_level, __ATOMIC_ACQUIRE), LOG_STDERR_LEVEL_DEFAULT);
-    unsetenv("ENPU_LOG_STDERR_LEVEL");
 }

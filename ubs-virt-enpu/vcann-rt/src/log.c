@@ -31,7 +31,6 @@ LogConfig g_log_config = {
     .max_file_size = LOG_MAX_FILE_SIZE,
     .max_backup_count = LOG_MAX_BACKUP_COUNT,
     .min_log_level = ENPU_LOG_INFO,
-    .stderr_level = LOG_STDERR_LEVEL_DEFAULT,
     .flush_counter = 0,
     .compress_check_counter = 0,
     .compress_disabled = false,
@@ -297,13 +296,13 @@ static int delete_compressed_sources(const char* list_file)
 static int build_compress_paths(char* zip_file, char* list_file, char* pid_pattern)
 {
     time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
-    if (tm_info == NULL) {
+    struct tm tm_info;
+    if (localtime_r(&now, &tm_info) == NULL) {
         perror("Compress files error, failed to get current time");
         return ENPU_FAIL;
     }
     char timestamp[TIMESTAMP_FILE_LEN];
-    if (strftime(timestamp, sizeof(timestamp), "%Y%m%d%H%M%S", tm_info) == 0) {
+    if (strftime(timestamp, sizeof(timestamp), "%Y%m%d%H%M%S", &tm_info) == 0) {
         perror("Compress files error, failed to format timestamp");
         return ENPU_FAIL;
     }
@@ -409,8 +408,8 @@ static void parse_level_env(const char* env_name, EnpuLogLevel default_val, Enpu
         errno = 0;
         long level_val = strtol(env_val, &endptr, DECIMAL_BASE);
         if (errno != 0 || *endptr != '\0' ||
-            level_val < (long)ENPU_LOG_FATAL || level_val >= (long)ENPU_LOG_LEVEL_MAX) {
-            fprintf(stderr, "Log init: invalid %s='%s', using default.\n", env_name, env_val);
+            level_val < (long)ENPU_LOG_FATAL || level_val > (long)ENPU_LOG_DEBUG) {
+            fprintf(stderr, "[eNPU] Log init: invalid %s='%s', using default.\n", env_name, env_val);
             *target = default_val;
         } else {
             *target = (EnpuLogLevel)level_val;
@@ -438,7 +437,6 @@ int log_init(void)
     CHECK_RETURN_ERROR_CODE_LOG(ret, "Failed to update log file, now log file is %s.", g_log_config.log_path);
 
     parse_level_env("ENPU_LOG_LEVEL", ENPU_LOG_INFO, &g_log_config.min_log_level);
-    parse_level_env("ENPU_LOG_STDERR_LEVEL", LOG_STDERR_LEVEL_DEFAULT, &g_log_config.stderr_level);
 
     ret = log_queue_init(&g_log_config.log_queue);
     if (ret != ENPU_SUCCESS) {
@@ -466,7 +464,7 @@ int log_init(void)
 
 void log_print(EnpuLogLevel level, const char* filename, int line, const char* format, ...)
 {
-    if (level > __atomic_load_n(&g_log_config.min_log_level, __ATOMIC_ACQUIRE)) {
+    if (level > g_log_config.min_log_level) {
         return;
     }
 
@@ -503,8 +501,8 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
 
     if (log_queue_push(&g_log_config.log_queue, &msg) != ENPU_SUCCESS) {
         static int drop_count = 0;
-        if (drop_count < LOG_DROP_WARN_LIMIT) {
-            drop_count++;
+        int current = __atomic_fetch_add(&drop_count, 1, __ATOMIC_RELAXED);
+        if (current < LOG_DROP_WARN_LIMIT) {
             fprintf(stderr, "Log queue push failed: log system unavailable (queue full or shut down).\n");
         }
     }
@@ -560,6 +558,7 @@ void log_queue_destroy(LogQueue* queue)
 int log_queue_pop(LogQueue* queue, LogMessage* msg)
 {
     if (!queue || !msg) {
+        fprintf(stderr, "[eNPU] Log queue pop failed: queue or message is NULL.\n");
         return ENPU_FAIL;
     }
 
@@ -605,7 +604,7 @@ static int log_queue_wait_for_space(LogQueue* queue)
 int log_queue_push(LogQueue* queue, const LogMessage* msg)
 {
     if (!queue || !msg) {
-        fprintf(stderr, "Log queue push failed: queue or message is NULL.\n");
+        fprintf(stderr, "[eNPU] Log queue push failed: queue or message is NULL.\n");
         return ENPU_FAIL;
     }
 
@@ -677,9 +676,17 @@ static int write_log_message(const LogMessage* msg, char* time_str, char* log_li
         "[%s] [%s] [%s] [%s] [%d:%lu:%s:%d] %s\n",
         time_str, log_level_str[msg->level], MODULE_NAME, SUB_MODULE_NAME,
         getpid(), (unsigned long)pthread_self(), msg->basename, msg->line, msg->message);
-    if (ret > 0 && (size_t)ret < LOG_MSG_MAX_LEN + LOG_LINE_EXTRA_LEN) {
+    if (ret > 0) {
+        size_t buf_size = LOG_MSG_MAX_LEN + LOG_LINE_EXTRA_LEN;
+        if ((size_t)ret >= buf_size) {
+            const char* trunc_marker = "...[TRUNCATED]\n";
+            size_t marker_len = strlen(trunc_marker);
+            size_t pos = buf_size - marker_len - 1;
+            int copy_ret = memcpy_s(log_line + pos, buf_size - pos, trunc_marker, marker_len + 1);
+            CHECK_COND_LOG_PRINT(copy_ret, "memcpy_s truncation marker failed");
+        }
         fprintf(g_log_config.log_file, "%s", log_line);
-        if (msg->level <= g_log_config.stderr_level) {
+        if (msg->level <= ENPU_LOG_INFO) {
             fprintf(stderr, "%s", log_line);
         }
     }
@@ -724,17 +731,19 @@ void* log_consumer_thread(void* arg)
     char time_str[TIMESTAMP_STR_LEN];
     char log_line[LOG_MSG_MAX_LEN + LOG_LINE_EXTRA_LEN];
 
-    while (g_log_running) {
+    do {
         if (log_queue_pop(&g_log_config.log_queue, &msg) != ENPU_SUCCESS) {
-            continue;
+            break;
         }
 
         pthread_mutex_lock(&g_log_config.print_mutex);
         (void)write_log_message(&msg, time_str, log_line);
         pthread_mutex_unlock(&g_log_config.print_mutex);
 
-        check_compress_log();
-    }
+        if (g_log_running) {
+            check_compress_log();
+        }
+    } while (g_log_running);
 
     return NULL;
 }
