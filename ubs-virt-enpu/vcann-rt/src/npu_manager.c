@@ -11,6 +11,7 @@
 */
 
 #include <runtime/rt.h>
+#include "include/common.h"
 #include "runtime_hook.h"
 #include "common.h"
 #include "dcmi_wrapper.h"
@@ -23,11 +24,6 @@
 pthread_once_t once_init = PTHREAD_ONCE_INIT;
 pthread_once_t post_init_flag = PTHREAD_ONCE_INIT;
 static struct npu_info g_npu_info = {0};
-
-bool is_mem_limit(void)
-{
-    return g_npu_info.is_mem_limit;
-}
 
 bool is_core_limit(void)
 {
@@ -94,6 +90,11 @@ schedule_policy_t get_sched_policy(void)
     return g_npu_info.sched_policy;
 }
 
+bool check_init_success(void)
+{
+    return g_npu_info.initialization;
+}
+
 int get_mem_used(size_t *used)
 {
     if (used == NULL) {
@@ -121,11 +122,9 @@ int enpu_config_info_init()
         g_npu_info.core_limit_quota = (uint8_t)config.aicore_quota;
         g_npu_info.mem_limit_quota = (size_t)config.memory_quota * MB_TO_B;
         g_npu_info.is_core_limit = true;
-        g_npu_info.is_mem_limit = true;
     } else if (config.scheduling_policy == SCHED_POLICY_BEST_EFFORT) {
         g_npu_info.mem_limit_quota = (size_t)config.memory_quota * MB_TO_B;
         g_npu_info.is_core_limit = false;
-        g_npu_info.is_mem_limit = true;
     } else {
         LOG_ERROR("scheduling policy is illegal, %s = %d, should in range [0, %d]\n",
             OPTION_SCHEDULING_POLICY, config.scheduling_policy, SCHED_POLICY_BEST_EFFORT);
@@ -166,23 +165,24 @@ int enpu_device_init(void)
 static void __enpu_global_init(void)
 {
     int rc = log_init();
-    CHECK_ERROR_CODE_LOG(rc, "Failed to init log module.");
+    CHECK_COND_RETURN_LOG(rc != ENPU_SUCCESS, "Failed to init log module.");
 
     rc = enpu_load_config();
-    CHECK_ERROR_CODE(rc, "Failed to load npu config.");
+    CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to load npu config.");
 
     rc = enpu_device_init();
-    CHECK_ERROR_CODE(rc, "Failed to initialize enpu device.");
+    CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to initialize enpu device.");
 
     rc = memory_limiter_init();
-    CHECK_ERROR_CODE(rc, "Failed to initialize memory limiter");
+    CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to initialize memory limiter");
 
     rc = aicore_limiter_initialize();
-    CHECK_ERROR_CODE(rc, "Failed to initialize aicore limiter");
+    CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to initialize aicore limiter");
 
     rc = setenv("ENPU_ENABLE", "True", 1);
-    CHECK_ERROR_CODE(rc, "Failed to set environment variable");
+    CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to set environment variable");
 
+    g_npu_info.initialization = true;
     LOG_INFO("Successfully to initialize all module.");
 }
 

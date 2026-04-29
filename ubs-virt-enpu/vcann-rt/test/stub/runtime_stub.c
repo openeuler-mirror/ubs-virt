@@ -19,6 +19,7 @@
 #include "common.h"
 #include "runtime_hook.h"
 #include "config.h"
+#include "npu_manager.h"
 #include "runtime_stub.h"
 
 #define RUNTIME_STUB_FUNCTION_NAME(name) RUNTIME_STUB_##name
@@ -59,5 +60,5 @@ int stub_enpu_load_config(void)
     printf("enter stub_enpu_load_config\n");
     int rc = load_config(MOCK_NPU_CONFIG_PATH);
     CHECK_RETURN_ERROR_CODE(rc, "Failed to initialize npu manager.");
-    return enpu_config_info_init(config);
+    return enpu_config_info_init();
 }

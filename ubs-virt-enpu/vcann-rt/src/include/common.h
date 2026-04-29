@@ -89,6 +89,14 @@ extern "C" {
         }                                           \
     } while (false)
 
+#define CHECK_COND_RETURN_LOG(cond, error_msg, ...)              \
+    do {                                                        \
+        if (unlikely(cond)) {                  \
+            fprintf(stderr, error_msg"\n", ##__VA_ARGS__);      \
+            return;                                             \
+        }                                                       \
+    } while (false)
+
 #define CHECK_COND_RETURN_ERROR_CODE(cond, error_msg, ...)      \
     do {                                                        \
         if (unlikely(cond)) {                                   \

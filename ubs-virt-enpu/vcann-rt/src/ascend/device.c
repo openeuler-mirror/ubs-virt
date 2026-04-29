@@ -35,6 +35,8 @@ void load_rt_libraries(void)
 RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
 {
     enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
     if (devId != 0) {
         LOG_WARN("SetDevice should only pass devId=0. And devId will be overwrited to %d.", get_device_id());
     }
@@ -53,6 +55,8 @@ RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
 RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
 {
     enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
     if (devId != 0) {
         LOG_WARN("SetDevice should only pass devId=0. And devId will be overwrited to %d.", get_device_id());
     }
@@ -71,6 +75,8 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
 RUNTIME_HOOK_DEFINE(rtSetDeviceWithFlags, int32_t devId, uint64_t flags)
 {
     enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
     if (devId != 0) {
         LOG_WARN("SetDevice should only pass devId=0. And devId will be overwrited to %d.", get_device_id());
     }
@@ -89,6 +95,8 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceWithFlags, int32_t devId, uint64_t flags)
 RUNTIME_HOOK_DEFINE(rtSetDeviceWithoutTsd, int32_t devId)
 {
     enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
     if (devId != 0) {
         LOG_WARN("SetDevice should only pass devId=0. And devId will be overwrited to %d.", get_device_id());
     }
