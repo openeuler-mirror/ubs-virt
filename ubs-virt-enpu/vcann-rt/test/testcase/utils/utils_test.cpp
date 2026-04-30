@@ -62,7 +62,7 @@ TEST_F(UtilsTest, UtilsMemFailedTest)
     size_t size = 0;
     map_share_mem(shmIdNullptr, size);
     MOCKER(mmap, void *(void *, size_t, int, int, int, off_t)).stubs().will(returnValue(MAP_FAILED));
-    char *shmIdNew = "Id";
+    const char *shmIdNew = "Id";
     map_share_mem(shmIdNew, size);
     char *pathNullptr = nullptr;
     int operation = 1;

@@ -140,6 +140,8 @@ execute_process(
     -DCMAKE_C_FLAGS=-Wall\ -Wextra\ -Wformat-nonliteral\ -Wformat-security\ -Wformat-y2k\ -Wfloat-equal\ -std=gnu11\ -fPIC\ -fstack-protector-strong\ -fvisibility=hidden\ -fno-common
     -DCMAKE_CXX_FLAGS=-Wall\ -Wextra\ -Wformat-nonliteral\ -Wformat-security\ -Wformat-y2k\ -Wfloat-equal\ -std=c++11\ -fPIC\ -fstack-protector-strong\ -fvisibility=hidden\ -fno-common
     -DCMAKE_EXE_LINKER_FLAGS=-Wl,-z,relro,-z,now,-z,noexecstack\ -s
+    OUTPUT_QUIET
+    ERROR_QUIET
     RESULT_VARIABLE res
 )
 
@@ -150,6 +152,8 @@ endif()
 # 构建
 execute_process(
     COMMAND ${CMAKE_COMMAND} --build "${SUB_BUILD}" --target install -j8
+    OUTPUT_QUIET
+    ERROR_QUIET
 )
 
 # 确保源目录存在

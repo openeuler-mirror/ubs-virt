@@ -36,7 +36,6 @@ if(ENABLE_NEW_BUILD)
         $ENV{ASCEND_HOME_PATH}/pkg_inc/
         $ENV{ASCEND_HOME_PATH}/pkg_inc/msprof
         $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/include
     )
     set(LINK_DIRS
         $ENV{ASCEND_HOME_PATH}/runtime
@@ -50,7 +49,6 @@ else()
         $ENV{ASCEND_HOME_PATH}/include/experiment/runtime
         $ENV{ASCEND_HOME_PATH}/include/experiment/msprof
         $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/include
     )
     set(LINK_DIRS
         $ENV{ASCEND_HOME_PATH}/runtime
@@ -73,7 +71,8 @@ target_link_options(vruntime PRIVATE
     -s
 )
 
-target_include_directories(vruntime PRIVATE ${INCLUDE_DIRS})
+target_include_directories(vruntime PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
+target_include_directories(vruntime SYSTEM PRIVATE ${INCLUDE_DIRS})
 target_link_directories(vruntime PRIVATE ${LINK_DIRS})
 target_link_libraries(vruntime PRIVATE securec ${LINK_LIBS})
 target_compile_options(vruntime PRIVATE ${SECURE_COMPILE_OPTIONS})
@@ -90,7 +89,8 @@ target_link_options(enpu-monitor PRIVATE
     -s
 )
 
-target_include_directories(enpu-monitor PRIVATE ${INCLUDE_DIRS})
+target_include_directories(enpu-monitor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
+target_include_directories(enpu-monitor SYSTEM PRIVATE ${INCLUDE_DIRS})
 target_link_directories(enpu-monitor PRIVATE ${LINK_DIRS})
 target_link_libraries(enpu-monitor PRIVATE securec pthread dl rt ${LINK_LIBS})
 target_compile_options(enpu-monitor PRIVATE ${SECURE_COMPILE_OPTIONS})

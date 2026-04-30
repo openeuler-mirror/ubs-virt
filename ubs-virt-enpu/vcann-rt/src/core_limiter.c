@@ -63,7 +63,7 @@ void restore_streams(rtStream_t stream)
 
     if (g_cache_streams.num_streams >= MAX_STREAMS_PER_PROCESS) {
         LOG_ERROR("Failed to add stream %p to the cache. Maximum capacity (%d) reached.",
-                    (void*)stream, MAX_STREAMS_PER_PROCESS);
+            (void*)stream, MAX_STREAMS_PER_PROCESS);
         return;
     }
 
@@ -527,11 +527,11 @@ void set_stream_capture(void* param, rtStream_t stream)
             rtStream_t stm = g_cache_streams.streams[i];
             void* head_stream = NULL;
             int rc = hashmap_get_ptr(stream_map, (void*)stm, &head_stream);
-            CHECK_COND_RETURN(ret == -1, "Failed to get stream %p ptr from the hash map.", (void*)stm);
+            CHECK_COND_RETURN(rc == -1, "Failed to get stream %p ptr from the hash map.", (void*)stm);
             if (head_stream == (void*)stream) {
                 LOG_DEBUG("Stream %p capture state set to: 0.", (void*)stream);
                 rc = hashmap_put(stream_map, (void*)stm, NULL, false);
-                CHECK_COND_RETURN(ret == -1, "Failed to put stream %p to the hash map.", (void*)stm);
+                CHECK_COND_RETURN(rc == -1, "Failed to put stream %p to the hash map.", (void*)stm);
             }
         }
     } else {
@@ -580,6 +580,7 @@ void set_event_record_status(void* evt, rtStream_t stm)
 
 void remove_stream(void* unused, rtStream_t stm)
 {
+    (void)unused;
     LOG_DEBUG("Remove stream %p", stm);
     for (int i = 0; i < g_cache_streams.num_streams; ++i) {
         if (stm == g_cache_streams.streams[i]) {

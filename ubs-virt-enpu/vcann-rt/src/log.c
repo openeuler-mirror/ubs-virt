@@ -228,7 +228,8 @@ int log_init()
     int ret = snprintf_s(mkdir_cmd, sizeof(mkdir_cmd), sizeof(mkdir_cmd), "%s%s",
         MKDIR_CMD_PREFIX, g_log_config.log_dir);
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Log init: Failed to get log dir path.");
-    system(mkdir_cmd);
+    ret = system(mkdir_cmd);
+    CHECK_COND_RETURN_ERROR_CODE_LOG(ret != 0, "Log init: Failed to mkdir.");
 
     ret = is_current_process(g_log_config.log_path);
     if (ret != ENPU_SUCCESS) {

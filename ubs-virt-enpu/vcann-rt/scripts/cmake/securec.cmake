@@ -37,6 +37,8 @@ set(SUB_BUILD "${_securec_src_SOURCE_DIR}")
 execute_process(
     COMMAND make
     WORKING_DIRECTORY "${SUB_BUILD}"
+    OUTPUT_QUIET
+    ERROR_QUIET
     RESULT_VARIABLE res
 )
 
