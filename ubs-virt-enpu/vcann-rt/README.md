@@ -482,6 +482,17 @@ vCANN-RT支持两种方式启动业务容器：
   - 若单卡上各容器配置的调度策略不相同，各容器无法按照原先设定的资源使用，建议各容器配置的调度策略相同。
 - 当前vCANN-RT方案适配CANN软件版本为商发版本8.5.0，由于版本限制，暂时不支持persistent task的使用。
 
+## 环境变量参考
+
+**表 9 环境变量**
+
+| 环境变量 | 范围 | 默认值 | 说明 |
+|-|-|-|-|
+| `ASCEND_HOME_PATH` | 编译 | `/usr/local/Ascend/cann` | CANN安装路径，可通过 `source /path/to/cann/set_env.sh` 设置。 |
+| `ENPU_ASCEND_DRIVER_PATH` | 编译 | `/usr/local/Ascend` | HDK driver安装路径。 |
+| `ENPU_LOG_LEVEL` | 运行 | `3` | 日志级别，FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。 |
+| `ENPU_ENABLE` | 运行 | `True` | vCANN-RT传递给进程。 |
+
 ## FAQ
 
 1. hook拦截runtime API提示`can't find function`:

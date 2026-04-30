@@ -5,9 +5,14 @@ VERSION=1.0
 
 CURRENT_PATH=$(cd "$(dirname "$0")"; pwd)
 
-if [ -z "$ASCEND_HOME_PATH" ] || [ -z "$ASCEND_TOOLKIT_HOME" ]; then
-    echo "[ERROR] ASCEND_HOME_PATH OR ASCEND_TOOLKIT_HOME is not set!"
-    exit 1
+if [ -z "$ASCEND_HOME_PATH" ]; then
+    export ASCEND_HOME_PATH="/usr/local/Ascend/cann"
+    echo "[WARNING] ASCEND_HOME_PATH is not set, using default: $ASCEND_HOME_PATH"
+fi
+
+if [ -z "$ENPU_ASCEND_DRIVER_PATH" ]; then
+    export ENPU_ASCEND_DRIVER_PATH="/usr/local/Ascend"
+    echo "[WARNING] ENPU_ASCEND_DRIVER_PATH is not set, using default: $ENPU_ASCEND_DRIVER_PATH"
 fi
 
 # ========== CANN Verison =========
