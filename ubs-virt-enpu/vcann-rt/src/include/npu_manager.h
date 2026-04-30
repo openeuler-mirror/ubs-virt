@@ -30,7 +30,7 @@ extern "C" {
 
 #define NPU_CONFIG_PATH  "/etc/enpu/vcann-rt/npu_info.config"
 #define MAX_PIDS 1024
-#define MAX_NPU_COUNT 16
+#define MAX_NPU_COUNT 15
 #define MAX_VNPU 100
 #define MAX_CORE_QUOTA 100
 #define MB_TO_B (1024 * 1024)
@@ -64,16 +64,15 @@ typedef struct npu_info {
     uint8_t core_limit_quota;
     uint64_t core_quota_timeslice;
     uint64_t core_cur_timeslice;
-    bool is_mem_limit;
     bool is_core_limit;
     schedule_policy_t sched_policy;
     char shm_id[SHM_ID_LEN];
+    bool initialization;
 } npu_info;
 
 extern void enpu_global_init(void);
 
 extern bool is_core_limit(void);
-extern bool is_mem_limit(void);
 extern uint8_t get_core_limit_quota(void);
 extern size_t get_mem_limit_quota(void);
 extern void set_mem_limit_quota(size_t mem);
@@ -87,6 +86,7 @@ extern uint64_t get_core_cur_timeslice(void);
 extern void set_core_cur_timeslice(uint64_t time);
 extern uint8_t get_card_id(void);
 extern schedule_policy_t get_sched_policy(void);
+extern bool check_init_success(void);
 
 extern int enpu_load_config(void);
 extern int enpu_device_init(void);
