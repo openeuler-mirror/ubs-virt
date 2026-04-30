@@ -110,11 +110,11 @@ int get_mem_used(size_t *used)
 
 int enpu_config_info_init()
 {
-    CHECK_RETURN_RANGE_INT(config.phy_npu_id, 0, MAX_NPU_COUNT);
+    CHECK_RETURN_RANGE_INT(config.phy_npu_id, 0, MAX_NPU_ID);
     CHECK_RETURN_RANGE_INT(config.vnpu_id, 0, MAX_VNPU);
 
     size_t max_memory_quota = SIZE_MAX / MB_TO_B;
-    CHECK_RETURN_RANGE_INT(config.memory_quota, 1, max_memory_quota);
+    CHECK_RETURN_RANGE_INT((size_t)config.memory_quota, 1, max_memory_quota);
     if (config.scheduling_policy == SCHED_POLICY_FIXED_SHARE ||
         config.scheduling_policy == SCHED_POLICY_ELASTIC) {
         CHECK_RETURN_RANGE_INT(config.aicore_quota, 1, MAX_CORE_QUOTA);

@@ -77,7 +77,6 @@ int load_int32(const char *key, const char *value, int32_t *ret_value)
     return ENPU_SUCCESS;
 }
 
-
 int load_str(const char *key, const char *value, char *ret_value, size_t ret_len)
 {
     CHECK_COND_RETURN_ERROR_CODE(((key == NULL) || (value == NULL) || (ret_value == NULL)),

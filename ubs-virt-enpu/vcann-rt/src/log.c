@@ -28,7 +28,7 @@ LogConfig g_log_config = {
     .max_backup_count = 10,
     .min_log_level = ENPU_LOG_INFO,
 };
- 
+
 static const char* log_level_str[] = {
     "FATAL", "ERROR", "WARN", "INFO", "DEBUG"
 };
@@ -208,7 +208,8 @@ int update_log_file()
 int rotate_log_by_size()
 {
     long file_size = get_file_size(g_log_config.log_path);
-    if (file_size < g_log_config.max_file_size) {
+    CHECK_COND_RETURN_ERROR_CODE_LOG(file_size < 0, "File_size is negative.");
+    if ((size_t)file_size < g_log_config.max_file_size) {
         return ENPU_SUCCESS;
     }
 
@@ -274,7 +275,7 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
     ret = strftime(time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S", &tm_now);
     CHECK_COND_LOG_PRINT(ret == 0, "Failed to get timestamp.");
     ret = fprintf(fp, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] ", time_str, log_level_str[level],
-        MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), basename(filename), line);
+        MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), basename((char*)filename), line);
     CHECK_COND_LOG_PRINT(ret < 0, "Failed to fprint log content to file.");
     va_list args;
     va_start(args, format);
@@ -293,7 +294,7 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
     ret = vsnprintf_s(buffer, sizeof(buffer), sizeof(buffer), format, args);
     CHECK_COND_LOG_PRINT(ret < 0, "Failed to vsnprintf_s log content.");
     ret = fprintf(stderr, "[%s] [%s] [%s] [%s] [%d:%ld:%s:%d] %s\n", time_str, log_level_str[level],
-        MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), basename(filename), line, buffer);
+        MODULE_NAME, SUB_MODULE_NAME, getpid(), pthread_self(), basename((char*)filename), line, buffer);
     CHECK_COND_LOG_PRINT(ret < 0, "Failed to fprint log content to stderr.");
     va_end(args);
     pthread_mutex_unlock(&g_log_config.print_mutex);

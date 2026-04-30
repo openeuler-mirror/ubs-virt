@@ -30,7 +30,7 @@ extern "C" {
 
 #define NPU_CONFIG_PATH  "/etc/enpu/vcann-rt/npu_info.config"
 #define MAX_PIDS 1024
-#define MAX_NPU_COUNT 15
+#define MAX_NPU_ID 15
 #define MAX_VNPU 100
 #define MAX_CORE_QUOTA 100
 #define MB_TO_B (1024 * 1024)
@@ -71,6 +71,7 @@ typedef struct npu_info {
 } npu_info;
 
 extern void enpu_global_init(void);
+extern void enpu_global_init_post(void);
 
 extern bool is_core_limit(void);
 extern uint8_t get_core_limit_quota(void);
