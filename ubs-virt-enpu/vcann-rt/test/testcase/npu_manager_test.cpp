@@ -25,6 +25,7 @@
 extern "C" {
     int stub_load_config(const char *path)
     {
+        (void)path;
         config.phy_npu_id = 0;
         config.vnpu_id = 1;
         config.scheduling_policy = SCHED_POLICY_FIXED_SHARE;
@@ -36,6 +37,7 @@ extern "C" {
 
     int stub_enpu_dcmi_get_card_info(int index, int *card_id, int *device_id)
     {
+        (void)index;
         *card_id = 0;
         *device_id = 0;
         return ENPU_SUCCESS;
@@ -43,6 +45,8 @@ extern "C" {
 
     int stub_enpu_dcmi_get_device_resource_info(int card_id, int device_id, size_t *used)
     {
+        (void)card_id;
+        (void)device_id;
         *used = 512 * MB_TO_B;
         return ENPU_SUCCESS;
     }

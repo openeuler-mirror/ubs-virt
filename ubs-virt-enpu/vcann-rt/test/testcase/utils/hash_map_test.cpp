@@ -74,6 +74,7 @@ TEST_F(HashMapTest, hashmap_put_success)
     void* key = reinterpret_cast<void*>(100);
     void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
+    EXPECT_EQ(ret, 0);
     EXPECT_EQ(map->size, 1);
     void* ptr1 = reinterpret_cast<void*>(120);
     ret = hashmap_put(map, key, ptr1, false);
@@ -87,6 +88,7 @@ TEST_F(HashMapTest, hashmap_put_old_node)
     void* key = reinterpret_cast<void*>(100);
     void* ptr = reinterpret_cast<void*>(110);
     int ret = hashmap_put(map, key, ptr, true);
+    EXPECT_EQ(ret, 0);
     EXPECT_EQ(map->size, 1);
     void* ptr1 = reinterpret_cast<void*>(120);
     void* ret_ptr = nullptr;

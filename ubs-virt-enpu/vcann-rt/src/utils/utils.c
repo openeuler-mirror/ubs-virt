@@ -10,6 +10,8 @@
 * See the Mulan PSL v2 for more details.
 */
 #include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "../include/common.h"
 #include "../include/utils.h"
 
@@ -23,7 +25,12 @@ void *map_share_mem(const char *shmID, size_t size)
     CHECK_COND_RETURN_(fd == -1, NULL, "Failed to shm_open, fd = %d.", fd);
 
     struct stat st;
-    if (fstat(fd, &st) == 0 && st.st_size < size) {
+    if (fstat(fd, &st) != 0) {
+            LOG_ERROR("Failed to fstat");
+            close(fd);
+            return NULL;
+    }
+    if (st.st_size >= 0 && (size_t)st.st_size < size) {
         if (ftruncate(fd, size) == -1) {
             LOG_ERROR("Failed to ftruncate");
             close(fd);

@@ -22,6 +22,7 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include "log.h"
+#include "securec.h"
 
 #if defined(__cplusplus)
 extern "C" {
