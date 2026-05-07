@@ -3,7 +3,13 @@ repos:
     hooks:
       - id: run-build
         name: Run Release Build
-        entry: bash build.sh
+        entry: >
+          bash -c '
+          cd ubs-virt-ovs/build &&
+          cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .. &&
+          cd ../../virt-awaresched &&
+          bash build.sh
+          '
         language: system
         pass_filenames: false
         files: ^(?!test/).*(\.(h|c|cpp|sh|cmake)|CMakeLists\.txt)$
@@ -15,7 +21,7 @@ repos:
         args: [-style=file, -i]
       - id: clang-tidy
         name: Run clang-tidy check
-        entry: clang-tidy
+        entry: ./clang-tidy-multi.sh
         language: system
         files: ^(?!test/).*\.(h|c|cpp)$
-        args: [-p=cmake-build-release, -header-filter=.*, --fix]
+        pass_filenames: true
