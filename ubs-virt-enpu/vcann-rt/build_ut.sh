@@ -5,8 +5,8 @@ echo "[DEBUG] Building tests..."
 echo "[DEBUG] $(pwd)"
 
 if [ -z "$ASCEND_HOME_PATH" ]; then
-    export ASCEND_HOME_PATH="/usr/local/Ascend/cann"
-    echo "[WARNING] ASCEND_HOME_PATH is not set, using default: $ASCEND_HOME_PATH"
+    echo "[ERROR] ASCEND_HOME_PATH is not set!"
+    exit 1
 fi
 
 mkdir -p __build

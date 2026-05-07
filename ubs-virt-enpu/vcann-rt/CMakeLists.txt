@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 project(vcann-runtime)
-
+set(CMAKE_SKIP_RPATH TRUE)
 message(STATUS "CMakeList start ${CMAKE_CURRENT_SOURCE_DIR}")
 
 file(GLOB SRC_LIST
@@ -74,7 +74,7 @@ target_link_options(vruntime PRIVATE
 target_include_directories(vruntime PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
 target_include_directories(vruntime SYSTEM PRIVATE ${INCLUDE_DIRS})
 target_link_directories(vruntime PRIVATE ${LINK_DIRS})
-target_link_libraries(vruntime PRIVATE securec ${LINK_LIBS})
+target_link_libraries(vruntime PRIVATE c_sec ${LINK_LIBS})
 target_compile_options(vruntime PRIVATE ${SECURE_COMPILE_OPTIONS})
 target_compile_definitions(vruntime PRIVATE _GLIBCXX_USE_CXX11_ABI=0)
 
@@ -92,7 +92,7 @@ target_link_options(enpu-monitor PRIVATE
 target_include_directories(enpu-monitor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
 target_include_directories(enpu-monitor SYSTEM PRIVATE ${INCLUDE_DIRS})
 target_link_directories(enpu-monitor PRIVATE ${LINK_DIRS})
-target_link_libraries(enpu-monitor PRIVATE securec pthread dl rt ${LINK_LIBS})
+target_link_libraries(enpu-monitor PRIVATE c_sec pthread dl rt ${LINK_LIBS})
 target_compile_options(enpu-monitor PRIVATE ${SECURE_COMPILE_OPTIONS})
 target_compile_definitions(enpu-monitor PRIVATE _GLIBCXX_USE_CXX11_ABI=0)
 

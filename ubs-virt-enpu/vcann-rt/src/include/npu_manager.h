@@ -29,7 +29,6 @@ extern "C" {
 #endif
 
 #define NPU_CONFIG_PATH  "/etc/enpu/vcann-rt/npu_info.config"
-#define MAX_PIDS 1024
 #define MAX_NPU_ID 15
 #define MAX_VNPU 100
 #define MAX_CORE_QUOTA 100

@@ -1,52 +1,59 @@
-if(TARGET securec)
-    message(STATUS "securec already added.")
+if (C_SEC_FOUND)
+    message(STATUS "Package c_sec has been found.")
     return()
 endif()
 
-set(DEPS_DIR "${CMAKE_BINARY_DIR}/_deps" CACHE PATH "Dependencies directory")
-set(SECUREC_INSTALL_DIR "${DEPS_DIR}/securec")
+find_path(
+    C_SEC_INCLUDE
+    NAMES securec.h
+    PATHS
+        $ENV{ASCEND_HOME_PATH}/include
+        /usr/include
+)
 
-if(EXISTS "${SECUREC_INSTALL_DIR}")
-    message(STATUS "securec already built. Install directory found: ${SECUREC_INSTALL_DIR}")
+find_library(
+    C_SEC_SHARED_LIBRARY
+    NAMES libc_sec.so libboundscheck.so
+    PATHS
+        $ENV{ASCEND_HOME_PATH}
+        /usr/lib64
+    PATH_SUFFIXES lib64
+)
 
-    add_library(securec INTERFACE)
-    target_include_directories(securec SYSTEM INTERFACE ${SECUREC_INSTALL_DIR}/include)
-    target_link_libraries(securec INTERFACE ${SECUREC_INSTALL_DIR}/lib/libboundscheck.so)
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(c_sec
+    FOUND_VAR
+        C_SEC_FOUND
+    REQUIRED_VARS
+        C_SEC_INCLUDE
+        C_SEC_SHARED_LIBRARY
+)
 
-    return()
+if(C_SEC_FOUND)
+    set(C_SEC_INCLUDE_DIR ${C_SEC_INCLUDE})
+    get_filename_component(C_SEC_LIBRARY_DIR ${C_SEC_SHARED_LIBRARY} DIRECTORY)
+
+    include(CMakePrintHelpers)
+    message(STATUS "Variables in c_sec module:")
+    cmake_print_variables(C_SEC_INCLUDE)
+    cmake_print_variables(C_SEC_LIBRARY_DIR)
+    cmake_print_variables(C_SEC_SHARED_LIBRARY)
+
+    add_library(c_sec_headers INTERFACE IMPORTED)
+    target_include_directories(c_sec_headers INTERFACE ${C_SEC_INCLUDE})
+
+    add_library(c_sec SHARED IMPORTED)
+    set_target_properties(c_sec PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${C_SEC_INCLUDE}"
+        IMPORTED_LOCATION             "${C_SEC_SHARED_LIBRARY}"
+    )
 else()
-    message(STATUS "securec not found at: ${SECUREC_INSTALL_DIR}.")
+    message(FATAL_ERROR
+            "libboundscheck not found! Please install the RPM package as shown in the example:\n"
+            "  sudo rpm -ivh libboundscheck-v1.1.11-6.oe2403.aarch64.rpm\n"
+            "Or via yum/dnf:\n"
+            "  sudo yum install libboundscheck\n"
+            "Or via source code of version 1.1.16:\n"
+            "  https://gitcode.com/openeuler/libboundscheck.git"
+    )
 endif()
-
-include(FetchContent)
-set(SECUREC_REPO "https://gitcode.com/openeuler/libboundscheck.git")
-set(SECUREC_TAG "v1.1.16")
-
-message(STATUS "Downloading securec ${SECUREC_TAG} from: ${SECUREC_REPO}.")
-FetchContent_Declare(
-    _securec_src
-    GIT_REPOSITORY "${SECUREC_REPO}"
-    GIT_TAG "${SECUREC_TAG}"
-    GIT_SHALLOW TRUE
-    QUIET
-)
-FetchContent_Populate(_securec_src)
-
-set(SUB_BUILD "${_securec_src_SOURCE_DIR}")
-
-execute_process(
-    COMMAND make
-    WORKING_DIRECTORY "${SUB_BUILD}"
-    OUTPUT_QUIET
-    ERROR_QUIET
-    RESULT_VARIABLE res
-)
-
-file(REMOVE_RECURSE "${SECUREC_INSTALL_DIR}")
-file(MAKE_DIRECTORY "${SECUREC_INSTALL_DIR}")
-file(COPY "${SUB_BUILD}/include" DESTINATION "${SECUREC_INSTALL_DIR}")
-file(COPY "${SUB_BUILD}/lib" DESTINATION "${SECUREC_INSTALL_DIR}")
-
-add_library(securec INTERFACE)
-target_include_directories(securec SYSTEM INTERFACE ${SECUREC_INSTALL_DIR}/include)
-target_link_libraries(securec INTERFACE ${SECUREC_INSTALL_DIR}/lib/libboundscheck.so)
