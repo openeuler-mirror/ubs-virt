@@ -12,6 +12,8 @@
 #ifndef UBSVIRTOVS_CONFIG_COMMON_DEF_H
 #define UBSVIRTOVS_CONFIG_COMMON_DEF_H
 
+#include <cstdint>
+
 namespace virt::ovs::config {
 constexpr int CONFIG_MAX_LINES = 1000;
 constexpr int CONFIG_SECTION_MAX_FIELD_LENGTH = 32;
