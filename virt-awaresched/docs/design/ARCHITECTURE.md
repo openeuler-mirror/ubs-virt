@@ -173,7 +173,7 @@ srw-------  root root /var/run/vas/vas_uds.sock
 
 #### 依赖动态库
 
-依赖动态库包括libvirt.so, libsecurec.so. 依赖所有库均以root权限安装，不存在引用低权限动态库导致的攻击行为。
+依赖动态库包括libvirt.so, libboundscheck.so. 依赖所有库均以root权限安装，不存在引用低权限动态库导致的攻击行为。
 
 ![依赖动态库.png](images/依赖动态库.png "依赖动态库")
 
