@@ -49,7 +49,7 @@ std::mutex &LogMutex()
 
 void EnsureLogDir()
 {
-    struct stat st{};
+    struct stat st {};
     if (stat(LOG_DIR, &st) != 0) {
         mkdir(LOG_DIR, LOG_DIR_MODE);
     }
@@ -57,7 +57,7 @@ void EnsureLogDir()
 
 size_t GetFileSize(const char *path)
 {
-    struct stat st{};
+    struct stat st {};
     if (stat(path, &st) != 0) {
         return 0;
     }
@@ -129,7 +129,7 @@ void CleanupOldRotateLogFile()
         }
 
         std::string fullPath = std::string(LOG_DIR) + "/" + name;
-        struct tm tm{};
+        struct tm tm {};
         if (strptime(name.c_str() + prefixLen, TIME_FMT, &tm) == nullptr) {
             continue;
         }

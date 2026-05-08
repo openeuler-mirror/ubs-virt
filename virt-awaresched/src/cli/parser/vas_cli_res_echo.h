@@ -30,10 +30,10 @@ public:
 private:
     VasCliResEcho() {}
     VasCliResEcho(const VasCliResEcho &) = delete;
-    VasCliResEcho &operator = (const VasCliResEcho &) = delete;
+    VasCliResEcho &operator=(const VasCliResEcho &) = delete;
     VasCliSdkCmdInfo cliSdkCmdInfo{};
     VasRet StringPrintDisplay(const std::string &content);
     VasRet IndividualWordsDisplay(const std::string &content);
 };
-}
+} // namespace vas::cli::framework
 #endif // VAS_CLI_SDK_ECHO_H

@@ -140,9 +140,7 @@ TEST_F(TestSocketClient, testCloseConnection)
 
 TEST_F(TestSocketClient, testSendSingleMessage)
 {
-    MOCKER_CPP(&SocketClient::CloseConnection, void(SocketClient::*)())
-        .stubs()
-        .will(ignoreReturnValue());
+    MOCKER_CPP(&SocketClient::CloseConnection, void(SocketClient::*)()).stubs().will(ignoreReturnValue());
     MOCKER(close).stubs().will(returnValue(1));
     MOCKER_CPP(&SocketClient::ConnectToServer, bool(SocketClient::*)())
         .stubs()

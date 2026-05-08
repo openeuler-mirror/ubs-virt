@@ -25,5 +25,5 @@ private:
 
     void TearDown() override;
 };
-}
+} // namespace vas::ut::security
 #endif // TEST_VAS_SECURITY_MANAGER_H

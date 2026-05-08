@@ -22,6 +22,6 @@ public:
     void SetUp() override;
     void TearDown() override;
 };
-}
+} // namespace ovs::ut
 
 #endif

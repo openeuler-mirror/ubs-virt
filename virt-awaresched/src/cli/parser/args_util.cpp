@@ -21,4 +21,4 @@ std::vector<std::string> ArgsUtil::ArgsToVector(const int &argc, char *argv[])
     }
     return args;
 }
-} // vas::common
+} // namespace vas::common

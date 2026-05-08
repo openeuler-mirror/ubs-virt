@@ -12,8 +12,8 @@
 
 #include "test_socket_server.h"
 
-#include <mockcpp/mockcpp.hpp>
 #include <securec.h>
+#include <mockcpp/mockcpp.hpp>
 
 #include "socket_server.h"
 #include "vas_security_manager.h"
@@ -41,8 +41,7 @@ TEST_F(TestSocketServer, testStartServerException)
     MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
     MOCKER(close).stubs().will(returnValue(1));
     MOCKER(socket).stubs().will(returnValue(-1)).then(returnValue(1));
-    MOCKER(vas::security::VasSecurityManager::ModifyEffectiveCapabilities).stubs()
-        .will(returnValue(-1));
+    MOCKER(vas::security::VasSecurityManager::ModifyEffectiveCapabilities).stubs().will(returnValue(-1));
     SocketServer socketServer;
     auto ret = socketServer.StartServer();
     EXPECT_FALSE(ret);
@@ -53,8 +52,10 @@ TEST_F(TestSocketServer, testStartServerException2)
     MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
     MOCKER(close).stubs().will(returnValue(1));
     MOCKER(socket).stubs().will(returnValue(-1)).then(returnValue(1));
-    MOCKER(vas::security::VasSecurityManager::ModifyEffectiveCapabilities).stubs()
-        .will(returnValue(0)).then(returnValue(-1));
+    MOCKER(vas::security::VasSecurityManager::ModifyEffectiveCapabilities)
+        .stubs()
+        .will(returnValue(0))
+        .then(returnValue(-1));
     MOCKER(bind).stubs().will(returnValue(0));
     SocketServer socketServer;
     auto ret = socketServer.StartServer();

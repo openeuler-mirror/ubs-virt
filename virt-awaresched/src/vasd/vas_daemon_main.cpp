@@ -87,9 +87,8 @@ int main(int argc, char *argv[])
         }
         LOG_INFO("Success to set config before start server");
         // Init args, libvirt connect, cluster info
-        if (VasdArgParse::Init() == VAS_ERROR
-            || isVasRetFail(LibvirtHelper::GetInstance().Init())
-            || isVasRetFail(ClusterSched::GetInstance().InitClusterInfo())) {
+        if (VasdArgParse::Init() == VAS_ERROR || isVasRetFail(LibvirtHelper::GetInstance().Init()) ||
+            isVasRetFail(ClusterSched::GetInstance().InitClusterInfo())) {
             LOG_ERROR("Init failed, please check if param valid.");
             LibvirtHelper::GetInstance().DeInit();
             return VAS_ERROR;

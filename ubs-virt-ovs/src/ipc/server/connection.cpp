@@ -13,9 +13,9 @@
 #include "logger.h"
 
 #include <arpa/inet.h>
+#include <securec.h>
 #include <sys/epoll.h>
 #include <unistd.h>
-#include <securec.h>
 
 namespace virt::ovs::ipc::server {
 Connection::Connection(int fd) : fd_(fd)
@@ -71,7 +71,7 @@ bool Connection::HandleReadLen()
             return true;
         }
         uint32_t lenBE = 0;
-        errno_t rc  = memcpy_s(&lenBE, sizeof(lenBE), readBuf_.data(), sizeof(lenBE));
+        errno_t rc = memcpy_s(&lenBE, sizeof(lenBE), readBuf_.data(), sizeof(lenBE));
         if (rc != EOK) {
             LOG_WARN << "fd=" << fd_ << " READ_LEN error, rc=" << rc;
             return false;
@@ -116,8 +116,8 @@ bool Connection::HandleReadBody(bool &blocked)
     }
 
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG_DEBUG << "fd= " << fd_ << " READ_BODY EAGAIN or EWOULDBLOCK， current= "
-                  << readBuf_.size() << "/" << expectLen_;
+        LOG_DEBUG << "fd= " << fd_ << " READ_BODY EAGAIN or EWOULDBLOCK， current= " << readBuf_.size() << "/"
+                  << expectLen_;
         blocked = true;
         return true;
     }

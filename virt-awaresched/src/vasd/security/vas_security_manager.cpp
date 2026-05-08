@@ -12,12 +12,12 @@
 
 #include "vas_security_manager.h"
 
-#include <bitset>
 #include <unistd.h>
+#include <bitset>
 #include <vector>
 
-#include <sys/syscall.h>
 #include <securec.h>
+#include <sys/syscall.h>
 
 #include <linux/capability.h>
 
@@ -72,12 +72,10 @@ void SetCapabilitiesData(__user_cap_data_struct *capData)
     };
 
     // Effective Set: Currently active capabilities
-    const std::vector<__u32> eCapabilities = {
-    };
+    const std::vector<__u32> eCapabilities = {};
 
     // Inheritable Set: Capabilities Inheritable by Child Processes
-    const std::vector<__u32> iCapabilities = {
-    };
+    const std::vector<__u32> iCapabilities = {};
 
     // set capabilities
     for (const auto cap : pCapabilities) {
@@ -195,12 +193,12 @@ void VasSecurityManager::ClearCapabilities(const std::vector<__u32> &caps)
     }
 }
 
-int VasSecurityManager::GetCap(__user_cap_header_struct* capHeader, __user_cap_data_struct* capData)
+int VasSecurityManager::GetCap(__user_cap_header_struct *capHeader, __user_cap_data_struct *capData)
 {
     return static_cast<int>(syscall(SYS_capget, capHeader, capData));
 }
 
-int VasSecurityManager::SetCap(__user_cap_header_struct* capHeader, __user_cap_data_struct* capData)
+int VasSecurityManager::SetCap(__user_cap_header_struct *capHeader, __user_cap_data_struct *capData)
 {
     return static_cast<int>(syscall(SYS_capset, capHeader, capData));
 }

@@ -42,7 +42,7 @@ namespace vas::cli::reg {
  * - invalid param message: Invalid parameter message
  */
 constexpr auto INVALID_PARAM = "ERROR: Missing the specific param."
-                                            " Please try 'vasctl --help' for more info.";
+                               " Please try 'vasctl --help' for more info.";
 constexpr auto SUCCESS_EXECUTE = "Success to execute command";
 constexpr auto FAILED_EXECUTE = "Failed to execute command";
 constexpr auto FAILED_SERIALIZE = "Failed to serialize command";

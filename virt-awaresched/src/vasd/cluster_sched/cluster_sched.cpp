@@ -1122,7 +1122,7 @@ void ClusterSched::CleanDyingPidByGroup(VmDomain &domain)
                 continue;
             }
 
-            const auto& entity = entityMap_[pid];
+            const auto &entity = entityMap_[pid];
             Bitset::DynamicBitsetClear(group.usedBitmap, entity.cpuIdx, 1);
             entityMap_.erase(pid);
             dyingPids.emplace(pid);

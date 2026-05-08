@@ -11,9 +11,9 @@
  */
 #include "vas_cli_process_ctl.h"
 
+#include <sys/time.h>
 #include <csignal>
 #include <iostream>
-#include <sys/time.h>
 
 #include "args_util.h"
 #include "def.h"

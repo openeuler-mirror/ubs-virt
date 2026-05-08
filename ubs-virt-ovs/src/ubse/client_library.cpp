@@ -21,7 +21,7 @@ ClientLibrary &ClientLibrary::Instance(const std::string &soPath)
     return instance;
 }
 
-ClientLibrary::ClientLibrary(std::string soPath) : path(std::move(soPath)) {};
+ClientLibrary::ClientLibrary(std::string soPath) : path(std::move(soPath)){};
 
 ClientLibrary::~ClientLibrary()
 {

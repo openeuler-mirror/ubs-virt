@@ -54,4 +54,4 @@ TEST_F(TestProcHelper, GetVcpuListTest)
     ProcHelper::GetVcpuList(PID, vcpu2PidMap);
     ProcHelper::GetVcpuList(-1, vcpu2PidMap);
 }
-}
+} // namespace vas::ut::acquire

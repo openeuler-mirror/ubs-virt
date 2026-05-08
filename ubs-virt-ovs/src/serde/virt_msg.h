@@ -55,9 +55,9 @@ struct IpcResponse : MsgBase {
     uint32_t code_{};
     std::string payload_{};
 
-    IpcResponse(const int32_t code, std::string payload) : code_(code), payload_(std::move(payload)) {};
+    IpcResponse(const int32_t code, std::string payload) : code_(code), payload_(std::move(payload)){};
 
-    explicit IpcResponse(const int32_t code) : code_(code) {};
+    explicit IpcResponse(const int32_t code) : code_(code){};
 
     void Serialize(VirtMsgPacker &packer) const override
     {

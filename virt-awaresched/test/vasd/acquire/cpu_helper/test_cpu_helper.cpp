@@ -47,4 +47,4 @@ TEST_F(TestCpuHelper, GetCpuTopologyTest)
     VasdArgParse::skippedCPUSet = "";
     EXPECT_EQ(cpuHelper.GetCpuTopology(), topology);
 }
-}
+} // namespace vas::ut::acquire

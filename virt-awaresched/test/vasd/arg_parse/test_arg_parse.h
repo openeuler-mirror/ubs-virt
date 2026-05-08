@@ -18,14 +18,14 @@
 #include "vasd_arg_parse.h"
 
 namespace vas::ut::arg {
-    class TestArgParse : public testing::Test {
-    protected:
-        TestArgParse() = default;
+class TestArgParse : public testing::Test {
+protected:
+    TestArgParse() = default;
 
-        void SetUp() override;
+    void SetUp() override;
 
-        void TearDown() override;
-    };
-}
+    void TearDown() override;
+};
+} // namespace vas::ut::arg
 
 #endif // VIRTAWARESCHED_TEST_ARG_PARSE_H

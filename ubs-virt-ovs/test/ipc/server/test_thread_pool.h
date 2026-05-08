@@ -22,6 +22,6 @@ class TestThreadPool : public testing::Test {
 public:
     TestThreadPool() = default;
 }; // ovs::ut
-}
+} // namespace ovs::ut
 
 #endif // UBSVIRTOVS_TEST_THREAD_POOL_H

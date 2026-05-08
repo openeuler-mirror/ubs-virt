@@ -49,11 +49,11 @@ using CpuInfoList = std::vector<CpuInfo>;
 struct ClusterInfo {
     ClusterInfo() = default;
 
-    uint16_t id{};                // clusterId
-    uint16_t numaId{};            // numaId
-    uint16_t total{};             // cpu total number
-    std::set<uint16_t> cpuSet{};  // CPU set in Cluster. example: [8,9,10,...,15]
-    DynamicBitset bitMap;         // bitMap for skipping cluster
+    uint16_t id{};               // clusterId
+    uint16_t numaId{};           // numaId
+    uint16_t total{};            // cpu total number
+    std::set<uint16_t> cpuSet{}; // CPU set in Cluster. example: [8,9,10,...,15]
+    DynamicBitset bitMap;        // bitMap for skipping cluster
 
     std::string ToStr() const
     {
@@ -64,7 +64,7 @@ struct ClusterInfo {
         return oss.str();
     }
 
-    bool operator==(const ClusterInfo& rhs) const
+    bool operator==(const ClusterInfo &rhs) const
     {
         return id == rhs.id;
     }

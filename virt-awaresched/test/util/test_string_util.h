@@ -22,17 +22,15 @@
 #include "string_util.h"
 
 namespace vas::ut::util {
-    class TestStringUtil : public testing::Test {
-    protected:
-        TestStringUtil() = default;
+class TestStringUtil : public testing::Test {
+protected:
+    TestStringUtil() = default;
 
-    private:
-        void SetUp() override {
-        }
+private:
+    void SetUp() override {}
 
-        void TearDown() override {
-        }
-    };
+    void TearDown() override {}
+};
 } // namespace vas::ut::util
 
 #endif // VIRTAWARESCHED_TEST_STRING_UTIL_H

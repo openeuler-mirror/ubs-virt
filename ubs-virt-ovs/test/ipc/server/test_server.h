@@ -22,6 +22,6 @@ class TestServer : public testing::Test {
 public:
     TestServer() = default;
 }; // ovs::ut
-}
+} // namespace ovs::ut
 
 #endif // UBSVIRTOVS_TEST_SERVER_H

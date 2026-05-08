@@ -11,17 +11,14 @@
  */
 #include "test_config_module.h"
 
-
-#include "config_module.h"
 #include "config_manager.h"
-
+#include "config_module.h"
 
 using namespace virt::ovs::config;
 
 namespace ovs::ut {
 
-void TestConfigModule::SetUp()
-{}
+void TestConfigModule::SetUp() {}
 void TestConfigModule::TearDown()
 {
     GlobalMockObject::verify();
@@ -46,7 +43,7 @@ TEST_F(TestConfigModule, TrimConf)
 
 TEST_F(TestConfigModule, GetConf_Types)
 {
-    auto& mgr = ConfigManager::GetInstance();
+    auto &mgr = ConfigManager::GetInstance();
     mgr.configMap["type_sec"]["uint_key"] = "42";
     mgr.configMap["type_sec"]["ulong_key"] = "10000000000";
     mgr.configMap["type_sec"]["float_key"] = "3.14";
@@ -81,4 +78,4 @@ TEST_F(TestConfigModule, GetConf_InvalidType)
     int unsupported;
     EXPECT_EQ(mod.GetConf("type_sec", "any", unsupported), ConfigCode::VALUE_TYPE_NOT_SUPPORTED);
 }
-}
+} // namespace ovs::ut

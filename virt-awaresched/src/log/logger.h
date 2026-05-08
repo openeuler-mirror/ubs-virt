@@ -13,8 +13,8 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 #include <mutex>
 
 #include "def.h"

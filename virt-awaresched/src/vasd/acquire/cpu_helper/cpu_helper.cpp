@@ -35,7 +35,7 @@ VasRet CpuHelper::Init()
 {
     if (CLUSTER_CPU_NUM == 0 || MAX_CPU_NUM == 0) {
         LOG_ERROR("get CLUSTER_CPU_NUM or MAX_CPU_NUM error, CLUSTER_CPU_NUM=" + std::to_string(CLUSTER_CPU_NUM) +
-            ", MAX_CPU_NUM=" + std::to_string(MAX_CPU_NUM));
+                  ", MAX_CPU_NUM=" + std::to_string(MAX_CPU_NUM));
         return VAS_ERROR;
     }
     return VAS_OK;
@@ -320,4 +320,4 @@ uint16_t CpuHelper::GetMaxCpuNum() noexcept
         return static_cast<uint16_t>(0);
     }
 }
-} // vas::sched::acquire
+} // namespace vas::sched::acquire

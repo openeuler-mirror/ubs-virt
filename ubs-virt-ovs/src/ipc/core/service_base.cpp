@@ -11,8 +11,8 @@
  */
 
 #include "service_base.h"
-#include "protocol.h"
 #include "logger.h"
+#include "protocol.h"
 
 namespace virt::ovs {
 void Service::RegisterMethod(const std::string &method, HandlerFunc handler)

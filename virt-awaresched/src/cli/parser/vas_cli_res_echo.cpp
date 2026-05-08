@@ -63,10 +63,9 @@ VasRet VasCliResEcho::ExecuteCommand()
         return VAS_ERROR;
     }
     VasCliSdkResult result = cliSdkCmdInfo.vasCliSdkCmdFun(VasCliParse::GetInstance().GetInputOptionMap());
-    auto EndFunc = [ &ret ]() {
+    auto EndFunc = [&ret]() {
         if (ret != VAS_OK) {
-            VasCliParse::PrintWithWordWrap(
-                "ERROR: Failed to display table. Please try '--help' for more info.\n");
+            VasCliParse::PrintWithWordWrap("ERROR: Failed to display table. Please try '--help' for more info.\n");
         }
     };
     switch (result.vasCliSdkResultType) {

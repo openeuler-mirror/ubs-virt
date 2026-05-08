@@ -64,8 +64,8 @@ void VmEventProcess::RunListener()
  * @param detail
  * @return
  */
-int VmEventProcess::EventCallback(virConnectPtr /* conn */, virDomainPtr domain,
-    int event, int detail, void * /* opaque */)
+int VmEventProcess::EventCallback(virConnectPtr /* conn */, virDomainPtr domain, int event, int detail,
+                                  void * /* opaque */)
 {
     if (domain == nullptr) {
         LOG_ERROR("Domain ptr is nullptr, event callback handle failed.");

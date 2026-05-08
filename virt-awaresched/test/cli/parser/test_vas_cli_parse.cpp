@@ -11,11 +11,11 @@
  */
 #include "test_vas_cli_parse.h"
 
-#include <vector>
 #include <string>
+#include <vector>
 
-#include "vas_cli_reg_builder.h"
 #include "vas_cli_parse.h"
+#include "vas_cli_reg_builder.h"
 
 using namespace vas::cli::framework;
 
@@ -67,18 +67,18 @@ TEST_F(TestVasCliParse, testCliRegisterSdkCmdInfoInputNull)
 TEST_F(TestVasCliParse, testCliRegisterSdkCmdInfoCmdNull)
 {
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "test1", "this is option test1" });
+    params.push_back({"t1", "test1", "this is option test1"});
     std::vector<VasCliSdkOptionsInfo> params1;
-    params1.push_back({ "", "test1", "this is option test1" });
+    params1.push_back({"", "test1", "this is option test1"});
     std::vector<VasCliSdkOptionsInfo> params2;
-    params2.push_back({ "t1", "", "this is option test1" });
+    params2.push_back({"t1", "", "this is option test1"});
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ "command1", "type1", "", {}, nullptr });
-    sdkRegInfo.push_back({ "command2", "type2", "", params, nullptr });
-    sdkRegInfo.push_back({ "command3", "type3", "", params1, nullptr });
-    sdkRegInfo.push_back({ "command4", "type4", "", params2, nullptr });
-    sdkRegInfo.push_back({ "", "type5", "", params, nullptr });
-    sdkRegInfo.push_back({ "command6", "", "", params, nullptr });
+    sdkRegInfo.push_back({"command1", "type1", "", {}, nullptr});
+    sdkRegInfo.push_back({"command2", "type2", "", params, nullptr});
+    sdkRegInfo.push_back({"command3", "type3", "", params1, nullptr});
+    sdkRegInfo.push_back({"command4", "type4", "", params2, nullptr});
+    sdkRegInfo.push_back({"", "type5", "", params, nullptr});
+    sdkRegInfo.push_back({"command6", "", "", params, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
     auto info = VasCliParse::GetInstance().GetSdkCmdInfo();
     int infoSize = 2;
@@ -92,9 +92,9 @@ TEST_F(TestVasCliParse, testCliRegisterSdkCmdInfoCmdNull)
 TEST_F(TestVasCliParse, testCliRegisterSdkCmdInfoModuleNull)
 {
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "test1", "this is option test1" });
+    params.push_back({"t1", "test1", "this is option test1"});
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ "command1", "type1", "", params, nullptr });
+    sdkRegInfo.push_back({"command1", "type1", "", params, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
     auto info = VasCliParse::GetInstance().GetSdkCmdInfo();
     EXPECT_EQ(info.size(), VAS_ERROR);
@@ -103,10 +103,10 @@ TEST_F(TestVasCliParse, testCliRegisterSdkCmdInfoModuleNull)
 TEST_F(TestVasCliParse, testSetSdkCmdInfoWithOptsMapNormal)
 {
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "test1", "this is option test1" });
-    params.push_back({ "t2", "test2", "this is option test2" });
-    params.push_back({ "t3", "test3", "this is option test3" });
-    VasCliSdkCmdInfo sdkRegInfo{ "command1", "type1", "", params, nullptr };
+    params.push_back({"t1", "test1", "this is option test1"});
+    params.push_back({"t2", "test2", "this is option test2"});
+    params.push_back({"t3", "test3", "this is option test3"});
+    VasCliSdkCmdInfo sdkRegInfo{"command1", "type1", "", params, nullptr};
 
     VasCliParse::GetInstance().SetSdkCmdInfoWithOptsMap(sdkRegInfo);
     std::string command = "command1";
@@ -122,9 +122,9 @@ TEST_F(TestVasCliParse, testSetSdkCmdInfoWithOptsMapCommandLenLong)
     std::string command = "command1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
     std::string type = "type1";
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "test1", "this is option test1" });
+    params.push_back({"t1", "test1", "this is option test1"});
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ command, type, "", params, nullptr });
+    sdkRegInfo.push_back({command, type, "", params, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
     auto info = VasCliParse::GetInstance().GetSdkCmdInfo();
     EXPECT_TRUE(info.empty());
@@ -135,9 +135,9 @@ TEST_F(TestVasCliParse, testSetSdkCmdInfoWithOptsMapTypeLenLong)
     std::string command = "command1";
     std::string type = "type1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "test1", "this is option test1" });
+    params.push_back({"t1", "test1", "this is option test1"});
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ command, type, "", params, nullptr });
+    sdkRegInfo.push_back({command, type, "", params, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
     auto info = VasCliParse::GetInstance().GetSdkCmdInfo();
     EXPECT_TRUE(info.empty());
@@ -148,10 +148,10 @@ TEST_F(TestVasCliParse, testSetSdkCmdInfoWithOptsMapNameLenLong)
     std::string command = "command1";
     std::string type = "type1";
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "longnamexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-                       "this is option test1" });
+    params.push_back(
+        {"t1", "longnamexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "this is option test1"});
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ command, type, "", params, nullptr });
+    sdkRegInfo.push_back({command, type, "", params, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
     auto info = VasCliParse::GetInstance().GetSdkCmdInfo();
     EXPECT_TRUE(info.empty());
@@ -160,13 +160,13 @@ TEST_F(TestVasCliParse, testSetSdkCmdInfoWithOptsMapNameLenLong)
 TEST_F(TestVasCliParse, testGetSdkCommandInfoNoExit)
 {
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "test1", "this is option test1" });
+    params.push_back({"t1", "test1", "this is option test1"});
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ "command1", "type1", "", params, nullptr });
-    sdkRegInfo.push_back({ "command2", "type2", "", {}, nullptr });
-    sdkRegInfo.push_back({ "command3", "type3", "", {}, nullptr });
+    sdkRegInfo.push_back({"command1", "type1", "", params, nullptr});
+    sdkRegInfo.push_back({"command2", "type2", "", {}, nullptr});
+    sdkRegInfo.push_back({"command3", "type3", "", {}, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
-    std::vector<std::string> args{ "vasctl", "command4", "type1" };
+    std::vector<std::string> args{"vasctl", "command4", "type1"};
     VasCliParse::GetInstance().SdkCliParse(args);
     auto info = VasCliParse::GetInstance().GetSdkCommandInfo();
     EXPECT_EQ(info.command, "");
@@ -176,9 +176,9 @@ TEST_F(TestVasCliParse, testGetSdkCommandInfoNoExit)
 TEST_F(TestVasCliParse, testParseOneCommandPrtHelpInfo)
 {
     std::vector<VasCliSdkOptionsInfo> sdkParams;
-    sdkParams.push_back({ "t1", "test1", "this is option test1" });
+    sdkParams.push_back({"t1", "test1", "this is option test1"});
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ "command1", "type1", "", sdkParams, nullptr });
+    sdkRegInfo.push_back({"command1", "type1", "", sdkParams, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
     ASSERT_NO_THROW(VasCliParse::GetInstance().ParseOneCommandPrtHelpInfo("command1", "type1"));
 }
@@ -186,8 +186,8 @@ TEST_F(TestVasCliParse, testParseOneCommandPrtHelpInfo)
 TEST_F(TestVasCliParse, testCommandTypeParamsHelpInfo)
 {
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "test1", "this is option test1" });
-    params.push_back({ "t2", "test2", "this is option test2" });
+    params.push_back({"t1", "test1", "this is option test1"});
+    params.push_back({"t2", "test2", "this is option test2"});
     ASSERT_NO_THROW(VasCliParse::GetInstance().CommandTypeParamsHelpInfo(params, NUMBER_ONE));
     ASSERT_NO_THROW(VasCliParse::GetInstance().CommandTypeParamsHelpInfo(params, BUFFER_SIZE));
 }
@@ -195,13 +195,13 @@ TEST_F(TestVasCliParse, testCommandTypeParamsHelpInfo)
 TEST_F(TestVasCliParse, testGetInputOptionMapNormal)
 {
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "test1", "this is option test1" });
+    params.push_back({"t1", "test1", "this is option test1"});
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ "command1", "type1", "", params, nullptr });
-    sdkRegInfo.push_back({ "command2", "type2", "", {}, nullptr });
-    sdkRegInfo.push_back({ "command3", "type3", "", {}, nullptr });
+    sdkRegInfo.push_back({"command1", "type1", "", params, nullptr});
+    sdkRegInfo.push_back({"command2", "type2", "", {}, nullptr});
+    sdkRegInfo.push_back({"command3", "type3", "", {}, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
-    std::vector<std::string> args{ "vasctl", "command1", "type1", "--test1", "aaa" };
+    std::vector<std::string> args{"vasctl", "command1", "type1", "--test1", "aaa"};
     VasCliParse::GetInstance().SdkCliParse(args);
     auto info = VasCliParse::GetInstance().GetSdkCommandInfo();
     EXPECT_EQ(info.command, "command1");
@@ -213,11 +213,11 @@ TEST_F(TestVasCliParse, testGetInputOptionMapNormal)
 TEST_F(TestVasCliParse, testGetInputOptionMapNoExit)
 {
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "test1", "this is option test1" });
+    params.push_back({"t1", "test1", "this is option test1"});
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ "command1", "type1", "", params, nullptr });
+    sdkRegInfo.push_back({"command1", "type1", "", params, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
-    std::vector<std::string> args{ "vasctl", "command4", "type1", "-t1", "aaa" };
+    std::vector<std::string> args{"vasctl", "command4", "type1", "-t1", "aaa"};
     auto res = VasCliParse::GetInstance().SdkCliParse(args);
     EXPECT_EQ(res, VAS_ERROR);
 }
@@ -225,11 +225,11 @@ TEST_F(TestVasCliParse, testGetInputOptionMapNoExit)
 TEST_F(TestVasCliParse, testInputDupOpt)
 {
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "test1", "this is option test1" });
+    params.push_back({"t1", "test1", "this is option test1"});
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ "command1", "type1", "", params, nullptr });
+    sdkRegInfo.push_back({"command1", "type1", "", params, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
-    std::vector<std::string> args{ "vasctl", "command1", "type1", "-t1", "aaa", "--test1", "aaa" };
+    std::vector<std::string> args{"vasctl", "command1", "type1", "-t1", "aaa", "--test1", "aaa"};
     auto res = VasCliParse::GetInstance().SdkCliParse(args);
     EXPECT_EQ(res, VAS_ERROR);
 }
@@ -237,11 +237,11 @@ TEST_F(TestVasCliParse, testInputDupOpt)
 TEST_F(TestVasCliParse, testInputOptNoParam)
 {
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "test1", "this is option test1" });
+    params.push_back({"t1", "test1", "this is option test1"});
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ "command1", "type1", "", params, nullptr });
+    sdkRegInfo.push_back({"command1", "type1", "", params, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
-    std::vector<std::string> args{ "vasctl", "command1", "type1", "-t1" };
+    std::vector<std::string> args{"vasctl", "command1", "type1", "-t1"};
     auto res = VasCliParse::GetInstance().SdkCliParse(args);
     EXPECT_EQ(res, VAS_ERROR);
 }
@@ -249,11 +249,11 @@ TEST_F(TestVasCliParse, testInputOptNoParam)
 TEST_F(TestVasCliParse, testInputUnknownOpt)
 {
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "test1", "this is option test1" });
+    params.push_back({"t1", "test1", "this is option test1"});
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ "command1", "type1", "", params, nullptr });
+    sdkRegInfo.push_back({"command1", "type1", "", params, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
-    std::vector<std::string> args{ "vasctl", "command1", "type1", "-t2", "aaa" };
+    std::vector<std::string> args{"vasctl", "command1", "type1", "-t2", "aaa"};
     auto res = VasCliParse::GetInstance().SdkCliParse(args);
     EXPECT_EQ(res, VAS_ERROR);
 }
@@ -261,9 +261,9 @@ TEST_F(TestVasCliParse, testInputUnknownOpt)
 TEST_F(TestVasCliParse, testGetInputOptionMapNoOptExit)
 {
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ "command1", "type1", "", {}, nullptr });
+    sdkRegInfo.push_back({"command1", "type1", "", {}, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
-    std::vector<std::string> args{ "vasctl", "command1", "type1", "-t1", "aaa" };
+    std::vector<std::string> args{"vasctl", "command1", "type1", "-t1", "aaa"};
     auto res = VasCliParse::GetInstance().SdkCliParse(args);
     EXPECT_EQ(res, VAS_ERROR);
 }
@@ -271,9 +271,9 @@ TEST_F(TestVasCliParse, testGetInputOptionMapNoOptExit)
 TEST_F(TestVasCliParse, testGetInputOptionMapNoOpt)
 {
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ "command1", "type1", "", {}, nullptr });
+    sdkRegInfo.push_back({"command1", "type1", "", {}, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
-    std::vector<std::string> args{ "vasctl", "command1", "type1" };
+    std::vector<std::string> args{"vasctl", "command1", "type1"};
     auto res = VasCliParse::GetInstance().SdkCliParse(args);
     EXPECT_EQ(res, VAS_OK);
 }
@@ -281,13 +281,13 @@ TEST_F(TestVasCliParse, testGetInputOptionMapNoOpt)
 TEST_F(TestVasCliParse, testInputTooLongValue)
 {
     std::vector<VasCliSdkOptionsInfo> params;
-    params.push_back({ "t1", "test1", "this is option test1" });
+    params.push_back({"t1", "test1", "this is option test1"});
     std::vector<VasCliSdkCmdInfo> sdkRegInfo;
-    sdkRegInfo.push_back({ "command1", "type1", "", params, nullptr });
+    sdkRegInfo.push_back({"command1", "type1", "", params, nullptr});
     VasCliParse::VasCliRegisterSdkCmdInfo(sdkRegInfo);
-    std::vector<std::string> args{ "vasctl", "command1", "type1", "-t1", std::string("a", 1025) };
+    std::vector<std::string> args{"vasctl", "command1", "type1", "-t1", std::string("a", 1025)};
     auto res = VasCliParse::GetInstance().SdkCliParse(args);
     EXPECT_EQ(res, VAS_ERROR);
 }
 
-}
+} // namespace vas::ut::cli
