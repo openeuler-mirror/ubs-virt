@@ -12,6 +12,9 @@
 #include "log.h"
 #include "runtime_hook.h"
 #include "core_limiter.h"
+#include "rts_kernel.h"
+#include "rts_stars.h"
+#include "rts_model.h"
 
 RUNTIME_HOOK_DEFINE(rtKernelLaunch, const void *stubFunc, uint32_t blockDim,
     void *args, uint32_t argsSize, rtSmDesc_t *smDesc, rtStream_t stm)
@@ -135,4 +138,56 @@ RUNTIME_HOOK_DEFINE(rtVectorCoreKernelLaunch, const void *stubFunc, uint32_t blo
     core_limiter(stm, NULL, NULL);
     return RUNTIME_HOOK_CALL(rt_library_entry, rtVectorCoreKernelLaunch, stubFunc, blockDim, argsInfo, smDesc, stm,
         flags, cfgInfo);
+}
+
+RUNTIME_HOOK_DEFINE(rtsLaunchKernelWithHostArgs, rtFuncHandle funcHandle, uint32_t numBlocks, rtStream_t stm,
+    rtKernelLaunchCfg_t *cfg, void *hostArgs, uint32_t argsSize,
+    rtPlaceHolderInfo_t *placeHolderArray, uint32_t placeHolderNum)
+{
+    core_limiter(stm, NULL, NULL);
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtsLaunchKernelWithHostArgs, funcHandle, numBlocks, stm, cfg, hostArgs,
+        argsSize, placeHolderArray, placeHolderNum);
+}
+
+RUNTIME_HOOK_DEFINE(rtsLaunchCpuKernel, const rtFuncHandle funcHandle, uint32_t numBlocks, rtStream_t stm,
+    const rtKernelLaunchCfg_t *cfg, rtCpuKernelArgs_t *argsInfo)
+{
+    core_limiter(stm, NULL, NULL);
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtsLaunchCpuKernel, funcHandle, numBlocks, stm, cfg, argsInfo);
+}
+
+RUNTIME_HOOK_DEFINE(rtsLaunchKernelWithConfig, rtFuncHandle funcHandle, uint32_t numBlocks, rtStream_t stm,
+    rtKernelLaunchCfg_t *cfg, rtArgsHandle argsHandle, void *reserve)
+{
+    core_limiter(stm, NULL, NULL);
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtsLaunchKernelWithConfig, funcHandle, numBlocks, stm, cfg,
+        argsHandle, reserve);
+}
+
+RUNTIME_HOOK_DEFINE(rtsLaunchKernelWithDevArgs, rtFuncHandle funcHandle, uint32_t numBlocks, rtStream_t stm,
+    rtKernelLaunchCfg_t *cfg, const void *args, uint32_t argsSize, void *reserve)
+{
+    core_limiter(stm, NULL, NULL);
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtsLaunchKernelWithDevArgs, funcHandle, numBlocks, stm, cfg,
+        args, argsSize, reserve);
+}
+
+RUNTIME_HOOK_DEFINE(rtsLaunchRandomNumTask, const rtRandomNumTaskInfo_t * taskInfo, const rtStream_t stm, void *reserve)
+{
+    core_limiter(stm, NULL, NULL);
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtsLaunchRandomNumTask, taskInfo, stm, reserve);
+}
+
+RUNTIME_HOOK_DEFINE(rtsLaunchReduceAsyncTask, const rtReduceInfo_t *reduceInfo,
+    const rtStream_t stm, const void *reserve)
+{
+    core_limiter(stm, NULL, NULL);
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtsLaunchReduceAsyncTask, reduceInfo, stm, reserve);
+}
+
+RUNTIME_HOOK_DEFINE(rtsLaunchUpdateTask, rtStream_t destStm, uint32_t destTaskId,
+    rtStream_t stm, rtTaskUpdateCfg_t *cfg)
+{
+    core_limiter(stm, NULL, NULL);
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtsLaunchUpdateTask, destStm, destTaskId, stm, cfg);
 }

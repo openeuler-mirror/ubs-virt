@@ -245,3 +245,84 @@ TEST_F(KernelTest, rtVectorCoreKernelLaunchTest)
     rtError_t ret = rtVectorCoreKernelLaunch(stubFunc, blockDim, argsInfo, smDesc, stm, flags, cfgInfo);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
+
+TEST_F(KernelTest, rtsLaunchKernelWithHostArgs)
+{
+    rtFuncHandle funcHandle = nullptr;
+    uint32_t numBlocks = 0;
+    rtStream_t stm = nullptr;
+    rtKernelLaunchCfg_t *cfg = nullptr;
+    void *hostArgs = nullptr;
+    uint32_t argsSize = 0;
+    rtPlaceHolderInfo_t *placeHolderArray = nullptr;
+    uint32_t placeHolderNum = 0;
+    rtError_t ret = rtsLaunchKernelWithHostArgs(funcHandle, numBlocks, stm, cfg, hostArgs,
+        argsSize, placeHolderArray, placeHolderNum);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, rtsLaunchCpuKernel)
+{
+    rtFuncHandle funcHandle = nullptr;
+    uint32_t numBlocks = 0;
+    rtStream_t stm = nullptr;
+    rtKernelLaunchCfg_t *cfg = nullptr;
+    rtCpuKernelArgs_t *argsInfo = nullptr;
+    rtError_t ret = rtsLaunchCpuKernel(funcHandle, numBlocks, stm, cfg, argsInfo);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, rtsLaunchKernelWithConfig)
+{
+    rtFuncHandle funcHandle = nullptr; 
+    uint32_t numBlocks = 0;
+    rtStream_t stm = nullptr;
+    rtKernelLaunchCfg_t *cfg = nullptr; 
+    rtArgsHandle argsHandle = nullptr;
+    void *reserve = nullptr;
+    rtError_t ret = rtsLaunchKernelWithConfig(funcHandle, numBlocks, stm, cfg,
+        argsHandle, reserve);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, rtsLaunchKernelWithDevArgs)
+{
+    rtFuncHandle funcHandle = nullptr; 
+    uint32_t numBlocks = 0;
+    rtStream_t stm = nullptr;
+    rtKernelLaunchCfg_t *cfg = nullptr; 
+    void *args = nullptr;
+    uint32_t argsSize = 0;
+    void *reserve = nullptr;
+    rtError_t ret = rtsLaunchKernelWithDevArgs(funcHandle, numBlocks, stm, cfg,
+        args, argsSize, reserve);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, rtsLaunchRandomNumTask)
+{
+    rtRandomNumTaskInfo_t * taskInfo = nullptr;
+    rtStream_t stm = nullptr;
+    void *reserve = nullptr;
+    rtError_t ret = rtsLaunchRandomNumTask(taskInfo, stm, reserve);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, rtsLaunchReduceAsyncTask)
+{
+    rtReduceInfo_t *reduceInfo = nullptr;
+    rtStream_t stm = nullptr;
+    void *reserve = nullptr;
+    rtError_t ret = rtsLaunchReduceAsyncTask(reduceInfo, stm, reserve);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, rtsLaunchUpdateTask)
+{
+    rtStream_t destStm = nullptr; 
+    uint32_t destTaskId = 0;
+    rtStream_t stm = nullptr;
+    rtTaskUpdateCfg_t *cfg = nullptr;
+    rtError_t ret = rtsLaunchUpdateTask(destStm, destTaskId, stm, cfg);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}

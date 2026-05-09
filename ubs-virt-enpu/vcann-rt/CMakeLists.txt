@@ -32,6 +32,8 @@ if(ENABLE_NEW_BUILD)
     set(INCLUDE_DIRS
         $ENV{ASCEND_HOME_PATH}/include
         $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime
+        $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime/runtime
+        $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime/runtime/rts
         $ENV{ASCEND_HOME_PATH}/pkg_inc/profiling
         $ENV{ASCEND_HOME_PATH}/pkg_inc/
         $ENV{ASCEND_HOME_PATH}/pkg_inc/msprof
