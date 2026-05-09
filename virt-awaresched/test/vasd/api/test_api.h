@@ -18,14 +18,14 @@
 #include "api.h"
 
 namespace vas::sched::ut {
-    class TestApi : public testing::Test {
-    protected:
-        TestApi() = default;
+class TestApi : public testing::Test {
+protected:
+    TestApi() = default;
 
-        void SetUp() override;
+    void SetUp() override;
 
-        void TearDown() override;
-    };
-}
+    void TearDown() override;
+};
+} // namespace vas::sched::ut
 
 #endif // TEST_API_H

@@ -16,12 +16,12 @@
 #include <gtest/gtest.h>
 
 namespace vas::ut::util {
-    class TestDynamicBitset : public testing::Test {
-    protected:
-        TestDynamicBitset() = default;
-        void SetUp() override;
-        void TearDown() override;
-    };
+class TestDynamicBitset : public testing::Test {
+protected:
+    TestDynamicBitset() = default;
+    void SetUp() override;
+    void TearDown() override;
+};
 } // namespace vas::ut::util
 
 #endif // VIRTAWARESCHED_DYNAMIC_BITSET_H

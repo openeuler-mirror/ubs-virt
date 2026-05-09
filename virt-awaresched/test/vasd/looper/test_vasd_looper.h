@@ -29,6 +29,6 @@ private:
     void TearDown() override;
 };
 
-} // vas::ut::vasd
+} // namespace vas::ut::vasd
 
 #endif // TEST_VASD_LOOPER_H

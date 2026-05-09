@@ -13,6 +13,6 @@
 #include "conf.h"
 
 namespace vas::sched {
-    // Process graceful exit flag initialization
-    std::atomic<bool> Conf::exitFlag(false);
+// Process graceful exit flag initialization
+std::atomic<bool> Conf::exitFlag(false);
 } // namespace vas::sched

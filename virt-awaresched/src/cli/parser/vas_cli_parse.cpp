@@ -57,7 +57,8 @@ bool VasCliParse::CheckCommandTypeLength(const std::string &command, const std::
  * @return bool True if option is duplicate, false otherwise
  */
 bool VasCliParse::CheckDuplicateOptions(const std::unordered_set<std::string> &shortOptions,
-    const std::unordered_set<std::string> &longOptions, const std::string &shortOpt, const std::string &longOpt)
+                                        const std::unordered_set<std::string> &longOptions, const std::string &shortOpt,
+                                        const std::string &longOpt)
 {
     if (shortOptions.find(shortOpt) != shortOptions.end()) {
         return true;
@@ -473,7 +474,8 @@ void VasCliParse::PrintWithLineLimit(const std::string &str, int lineLimit, cons
  * @return VasRet Parsing result status
  */
 VasRet VasCliParse::GenSdkCmdOptParaMap(const std::vector<std::string> &args, const std::string &param,
-    const std::vector<VasCliSdkOptionsInfo> &cmdOptions, size_t &paramIndex, std::map<std::string, std::string> &params)
+                                        const std::vector<VasCliSdkOptionsInfo> &cmdOptions, size_t &paramIndex,
+                                        std::map<std::string, std::string> &params)
 {
     bool isLongOption;
     // 0 and 2 represent that the first two characters are both "-".
@@ -636,17 +638,17 @@ VasRet VasCliParse::SdkCliParse(const std::vector<std::string> &args)
  *
  * @return Reference to the input option map
  */
-const std::map<std::string, std::string>& VasCliParse::GetInputOptionMap() const
+const std::map<std::string, std::string> &VasCliParse::GetInputOptionMap() const
 {
     return inputOptionMap;
 }
 
-const std::vector<VasCliSdkCmdInfo>& VasCliParse::GetSdkCmdInfo() const
+const std::vector<VasCliSdkCmdInfo> &VasCliParse::GetSdkCmdInfo() const
 {
     return sdkCmdInfo;
 }
 
-const std::unordered_map<std::string, std::vector<VasCliSdkOptionsInfo>>& VasCliParse::GetSdkCommandWithOptions() const
+const std::unordered_map<std::string, std::vector<VasCliSdkOptionsInfo>> &VasCliParse::GetSdkCommandWithOptions() const
 {
     return sdkCommandWithOptions;
 }

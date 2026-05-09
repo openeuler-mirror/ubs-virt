@@ -34,12 +34,7 @@ void TestClusterSched::SetUp()
     ClusterSched::GetInstance().entityMap_.clear();
     ClusterSched::GetInstance().groupMap_.clear();
     ClusterSched::GetInstance().compactionCount_ = NUMBER_ZERO;
-    ClusterSched::GetInstance().overProvision_ = {
-        {0, 1},
-        {1, 1},
-        {2, 1},
-        {3, 1}
-    };
+    ClusterSched::GetInstance().overProvision_ = {{0, 1}, {1, 1}, {2, 1}, {3, 1}};
 }
 
 void TestClusterSched::TearDown()
@@ -106,17 +101,17 @@ EntityMap TestClusterSched::defaultEntityMap = EntityMap{
          .cpuIdx = 2,
      }},
 };
-GroupMap TestClusterSched::defaultGroupMap = GroupMap{
-    {uuid01 + "_0_0_0", VmGroup{
-                            .domainKey = uuid01 + "_0",
-                            .id = uuid01 + "_0_0_0",
-                            .clusterId = 0,
-                            .layerId = 0,
-                            .start = 0,
-                            .nrCpus = 3,
-                            .usedBitmap = DynamicBitset(CpuHelper::CLUSTER_CPU_NUM, false),
-                            .entityPids = {266987, 266988, 266989},
-                        }}};
+GroupMap TestClusterSched::defaultGroupMap =
+    GroupMap{{uuid01 + "_0_0_0", VmGroup{
+                                     .domainKey = uuid01 + "_0",
+                                     .id = uuid01 + "_0_0_0",
+                                     .clusterId = 0,
+                                     .layerId = 0,
+                                     .start = 0,
+                                     .nrCpus = 3,
+                                     .usedBitmap = DynamicBitset(CpuHelper::CLUSTER_CPU_NUM, false),
+                                     .entityPids = {266987, 266988, 266989},
+                                 }}};
 uint16_t TestClusterSched::defaultCompactionCount{};
 uint8_t TestClusterSched::defaultOverProvision = 1;
 CpuSet TestClusterSched::cluster0CpuList{0, 1, 2, 3, 4, 5, 6, 7};
@@ -192,12 +187,13 @@ TEST_F(TestClusterSched, testInitClusterInfo1)
     int cpuSetSize = 8;
     EXPECT_EQ(ClusterSched::GetInstance().numaClusterMap_[NUMBER_ZERO][NUMBER_ZERO].cpuSet.size(), cpuSetSize);
     EXPECT_EQ(ClusterSched::GetInstance().numaClusterMap_[NUMBER_ZERO][NUMBER_ZERO].clusterLayers.size(), NUMBER_ONE);
-    EXPECT_EQ(ClusterSched::GetInstance()
-        .numaClusterMap_[NUMBER_ZERO][NUMBER_ZERO].clusterLayers[NUMBER_ZERO].idle, cpuSetSize);
-    EXPECT_EQ(ClusterSched::GetInstance()
-        .numaClusterMap_[NUMBER_ZERO][NUMBER_ZERO].clusterLayers[NUMBER_ZERO].total, cpuSetSize);
-    EXPECT_EQ(ClusterSched::GetInstance()
-        .numaClusterMap_[NUMBER_ZERO][NUMBER_ZERO].clusterLayers[NUMBER_ZERO].groups.size(), NUMBER_ZERO);
+    EXPECT_EQ(ClusterSched::GetInstance().numaClusterMap_[NUMBER_ZERO][NUMBER_ZERO].clusterLayers[NUMBER_ZERO].idle,
+              cpuSetSize);
+    EXPECT_EQ(ClusterSched::GetInstance().numaClusterMap_[NUMBER_ZERO][NUMBER_ZERO].clusterLayers[NUMBER_ZERO].total,
+              cpuSetSize);
+    EXPECT_EQ(
+        ClusterSched::GetInstance().numaClusterMap_[NUMBER_ZERO][NUMBER_ZERO].clusterLayers[NUMBER_ZERO].groups.size(),
+        NUMBER_ZERO);
 }
 
 TEST_F(TestClusterSched, testInitClusterInfo2)
@@ -388,11 +384,7 @@ TEST_F(TestClusterSched, testUnAssignPidCpu)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.pidVcpuMap = {
-            {8001, 0},
-            {8002, 1},
-            {8003, 2}
-    };
+    vmDomain.pidVcpuMap = {{8001, 0}, {8002, 1}, {8003, 2}};
     vmDomain.groups = {"production", "highperformance", "webcluster"};
     vmDomain.entityPids = {4567, 4568, 4569};
     vmDomain.isReScheded = false;
@@ -412,11 +404,7 @@ TEST_F(TestClusterSched, testUnAssignPidCpu2)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.pidVcpuMap = {
-            {8001, 0},
-            {8002, 1},
-            {8003, 2}
-    };
+    vmDomain.pidVcpuMap = {{8001, 0}, {8002, 1}, {8003, 2}};
     vmDomain.groups = {"production", "highperformance", "webcluster"};
     vmDomain.entityPids = {4567, 4568, 4569};
     vmDomain.isReScheded = false;
@@ -436,7 +424,7 @@ TEST_F(TestClusterSched, testGetGranularity)
 
 TEST_F(TestClusterSched, testAssignPidCpu)
 {
-    auto& clusterSched = ClusterSched::GetInstance();
+    auto &clusterSched = ClusterSched::GetInstance();
     VmDomain vmDomain;
     int numaIdNum = 2;
     int tgidNum = 4567;
@@ -444,16 +432,12 @@ TEST_F(TestClusterSched, testAssignPidCpu)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.pidVcpuMap = {
-            {8001, 0},
-            {8002, 1},
-            {8003, 2}
-    };
+    vmDomain.pidVcpuMap = {{8001, 0}, {8002, 1}, {8003, 2}};
     vmDomain.groups = {"production", "highperformance", "webcluster"};
     vmDomain.entityPids = {4567, 4568, 4569};
     vmDomain.isReScheded = false;
 
-    for (const auto& pid : vmDomain.entityPids) {
+    for (const auto &pid : vmDomain.entityPids) {
         VasRet result = clusterSched.AssignPidCpu(vmDomain, pid);
         EXPECT_EQ(result, VAS_ERROR);
     }
@@ -467,7 +451,7 @@ TEST_F(TestClusterSched, testGetNumaTotalCpus)
 
 TEST_F(TestClusterSched, testAllocClusterGroupToDomain)
 {
-    auto& clusterSched = ClusterSched::GetInstance();
+    auto &clusterSched = ClusterSched::GetInstance();
     VmDomain vmDomain;
     int numaIdNum = 2;
     int tgidNum = 4567;
@@ -475,11 +459,7 @@ TEST_F(TestClusterSched, testAllocClusterGroupToDomain)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.pidVcpuMap = {
-            {8001, 0},
-            {8002, 1},
-            {8003, 2}
-    };
+    vmDomain.pidVcpuMap = {{8001, 0}, {8002, 1}, {8003, 2}};
     vmDomain.groups = {"production", "highperformance", "webcluster"};
     vmDomain.entityPids = {4567, 4568, 4569};
     vmDomain.isReScheded = false;
@@ -492,7 +472,7 @@ TEST_F(TestClusterSched, testGenEntity)
 {
     ClusterSched scheduler;
     pid_t myThreadPid = getpid();
-    VmEntity& entity = scheduler.GenEntity(myThreadPid, 2);
+    VmEntity &entity = scheduler.GenEntity(myThreadPid, 2);
     EXPECT_EQ(entity.pid, myThreadPid);
 }
 
@@ -506,11 +486,7 @@ TEST_F(TestClusterSched, testCleanDyingPidByGroup)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.pidVcpuMap = {
-            {8001, 0},
-            {8002, 1},
-            {8003, 2}
-    };
+    vmDomain.pidVcpuMap = {{8001, 0}, {8002, 1}, {8003, 2}};
     vmDomain.groups = {"production", "highperformance", "webcluster"};
     vmDomain.entityPids = {4567, 4568, 4569};
     vmDomain.isReScheded = false;
@@ -527,9 +503,7 @@ TEST_F(TestClusterSched, testCleanDyingPidByGroup)
 TEST_F(TestClusterSched, testCleanDyingPidByGroup2)
 {
     ClusterSched scheduler;
-    ClusterSched::GetInstance().groupMap_ = {
-        {"a1b2c3d4-e5f6-7890-abcd-ef1234567890_0_0_0", {}}
-    };
+    ClusterSched::GetInstance().groupMap_ = {{"a1b2c3d4-e5f6-7890-abcd-ef1234567890_0_0_0", {}}};
     VmDomain vmDomain;
     int numaIdNum = 2;
     int tgidNum = 4567;
@@ -537,11 +511,7 @@ TEST_F(TestClusterSched, testCleanDyingPidByGroup2)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.pidVcpuMap = {
-        {8001, 0},
-        {8002, 1},
-        {8003, 2}
-    };
+    vmDomain.pidVcpuMap = {{8001, 0}, {8002, 1}, {8003, 2}};
     vmDomain.groups = {"a1b2c3d4-e5f6-7890-abcd-ef1234567890_0_0_0"};
     vmDomain.entityPids = {4567, 4568, 4569};
     vmDomain.isReScheded = false;
@@ -558,34 +528,36 @@ TEST_F(TestClusterSched, testCleanDyingPidByGroup3)
 {
     ClusterSched scheduler;
     scheduler.groupMap_ = GroupMap{{"test_0_0_1", VmGroup{
-        .domainKey = uuid01 + "_0",
-        .id = uuid01 + "_0_0_0",
-        .clusterId = 0,
-        .layerId = 0,
-        .start = 0,
-        .nrCpus = 3,
-        .usedBitmap = DynamicBitset(CpuHelper::CLUSTER_CPU_NUM, false),
-        .entityPids = {266987, 266988, 266989},
-    }}};
+                                                      .domainKey = uuid01 + "_0",
+                                                      .id = uuid01 + "_0_0_0",
+                                                      .clusterId = 0,
+                                                      .layerId = 0,
+                                                      .start = 0,
+                                                      .nrCpus = 3,
+                                                      .usedBitmap = DynamicBitset(CpuHelper::CLUSTER_CPU_NUM, false),
+                                                      .entityPids = {266987, 266988, 266989},
+                                                  }}};
     scheduler.numaClusterMap_ = NumaClusterMap{{0,
-                        {{0, Cluster{.id = 0,
-                                                .numaId = 0,
-                                                .cpuSet = {0, 1, 2, 3, 4, 5, 6, 7},
-                                                .clusterLayers = {ClusterLayer{
-                                                    .idle = 8,
-                                                    .total = 8,
-                                                    .usedBitmap = DynamicBitset(8),
-                                                    .groups = {},
-                                                    }}}}}}};
+                                                {{0, Cluster{.id = 0,
+                                                             .numaId = 0,
+                                                             .cpuSet = {0, 1, 2, 3, 4, 5, 6, 7},
+                                                             .clusterLayers = {ClusterLayer{
+                                                                 .idle = 8,
+                                                                 .total = 8,
+                                                                 .usedBitmap = DynamicBitset(8),
+                                                                 .groups = {},
+                                                             }}}}}}};
     scheduler.entityMap_ = EntityMap{
-        {266987, VmEntity{
-            .pid = 266987,
-            .cpuIdx = 0,
-        }},
-        {266988, VmEntity{
-            .pid = 266987,
-            .cpuIdx = 1,
-        }},
+        {266987,
+         VmEntity{
+             .pid = 266987,
+             .cpuIdx = 0,
+         }},
+        {266988,
+         VmEntity{
+             .pid = 266987,
+             .cpuIdx = 1,
+         }},
     };
     VmDomain vmDomain;
     int tgidNum = 4567;
@@ -593,11 +565,7 @@ TEST_F(TestClusterSched, testCleanDyingPidByGroup3)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = 0;
     vmDomain.tgid = tgidNum;
-    vmDomain.pidVcpuMap = {
-            {8001, 0},
-            {8002, 1},
-            {8003, 2}
-    };
+    vmDomain.pidVcpuMap = {{8001, 0}, {8002, 1}, {8003, 2}};
     vmDomain.groups = {"test_0_0_1"};
     vmDomain.entityPids = {4567, 4568, 4569};
     vmDomain.isReScheded = false;
@@ -614,11 +582,7 @@ TEST_F(TestClusterSched, testAllocGroupFromCluster)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.pidVcpuMap = {
-            {8001, 0},
-            {8002, 1},
-            {8003, 2}
-    };
+    vmDomain.pidVcpuMap = {{8001, 0}, {8002, 1}, {8003, 2}};
     vmDomain.groups = {"production", "highperformance", "webcluster"};
     vmDomain.entityPids = {4567, 4568, 4569};
     vmDomain.isReScheded = false;
@@ -650,11 +614,7 @@ TEST_F(TestClusterSched, testAllocGroupFromCluster2)
     vmDomain.name = "ProductionVM-01";
     vmDomain.numaId = numaIdNum;
     vmDomain.tgid = tgidNum;
-    vmDomain.pidVcpuMap = {
-        {8001, 0},
-        {8002, 1},
-        {8003, 2}
-    };
+    vmDomain.pidVcpuMap = {{8001, 0}, {8002, 1}, {8003, 2}};
     vmDomain.groups = {"production", "highperformance", "webcluster"};
     vmDomain.entityPids = {4567, 4568, 4569};
     vmDomain.isReScheded = false;
@@ -718,14 +678,10 @@ TEST_F(TestClusterSched, testCompactionGroupFromLastLayer)
     int cpuNum = 128;
     MOCKER(CpuHelper::GetClusterCpuSet).stubs().will(returnValue(cluster0CpuList));
     MOCKER(CpuHelper::GetMaxCpuNum).stubs().will(returnValue(cpuNum));
-    MOCKER_CPP(&CpuHelper::GenCpuTopology, CpuTopologyMap(CpuHelper::*)()).
-        stubs().will(returnValue(defaultCpuTopologyMap));
-    scheduler.overProvision_ = {
-                            {0, 1},
-                            {1, 1},
-                            {2, 1},
-                            {3, 1}
-    };
+    MOCKER_CPP(&CpuHelper::GenCpuTopology, CpuTopologyMap(CpuHelper::*)())
+        .stubs()
+        .will(returnValue(defaultCpuTopologyMap));
+    scheduler.overProvision_ = {{0, 1}, {1, 1}, {2, 1}, {3, 1}};
     Cluster cluster1;
     int clusterLayersSize = 3;
     int clusterLayersIdle = 5;
@@ -741,22 +697,18 @@ TEST_F(TestClusterSched, testCompactionGroupFromLastLayer)
 TEST_F(TestClusterSched, testCompactionGroupFromLastLayer2)
 {
     ClusterSched scheduler;
-    scheduler.numaClusterMap_ = NumaClusterMap{{1,
+    scheduler.numaClusterMap_ =
+        NumaClusterMap{{1,
                         {{0, Cluster{.id = 0,
-                                                .numaId = 0,
-                                                .cpuSet = {0, 1, 2, 3, 4, 5, 6, 7},
-                                                .clusterLayers = {ClusterLayer{
-                                                    .idle = 8,
-                                                    .total = 9,
-                                                    .usedBitmap = DynamicBitset(8),
-                                                    .groups = {"a1b2c3d4-e5f6-7890-abcd-ef1234567890_0_0_0"},
-                                                    }}}}}}};
-    scheduler.overProvision_ = {
-                {0, 1},
-                {1, 1},
-                {2, 1},
-                {3, 1}
-    };
+                                     .numaId = 0,
+                                     .cpuSet = {0, 1, 2, 3, 4, 5, 6, 7},
+                                     .clusterLayers = {ClusterLayer{
+                                         .idle = 8,
+                                         .total = 9,
+                                         .usedBitmap = DynamicBitset(8),
+                                         .groups = {"a1b2c3d4-e5f6-7890-abcd-ef1234567890_0_0_0"},
+                                     }}}}}}};
+    scheduler.overProvision_ = {{0, 1}, {1, 1}, {2, 1}, {3, 1}};
     Cluster cluster1;
     int clusterLayersSize = 3;
     int clusterLayersIdle = 5;
@@ -774,22 +726,18 @@ TEST_F(TestClusterSched, testCompactionGroupFromLastLayer3)
     ClusterSched scheduler;
     MOCKER(Bitset::FindFirstIdlePos).stubs().will(returnValue(0)).then(returnValue(0));
     MOCKER(isIntInvalid).stubs().will(returnValue(false)).then(returnValue(false));
-    scheduler.numaClusterMap_ = NumaClusterMap{{1,
+    scheduler.numaClusterMap_ =
+        NumaClusterMap{{1,
                         {{0, Cluster{.id = 0,
-                                                .numaId = 0,
-                                                .cpuSet = {0, 1, 2, 3, 4, 5, 6, 7},
-                                                .clusterLayers = {ClusterLayer{
-                                                    .idle = 8,
-                                                    .total = 9,
-                                                    .usedBitmap = DynamicBitset(8),
-                                                    .groups = {"a1b2c3d4-e5f6-7890-abcd-ef1234567890_0_0_0"},
-                                                    }}}}}}};
-    scheduler.overProvision_ = {
-                    {0, 1},
-                    {1, 1},
-                    {2, 1},
-                    {3, 1}
-    };
+                                     .numaId = 0,
+                                     .cpuSet = {0, 1, 2, 3, 4, 5, 6, 7},
+                                     .clusterLayers = {ClusterLayer{
+                                         .idle = 8,
+                                         .total = 9,
+                                         .usedBitmap = DynamicBitset(8),
+                                         .groups = {"a1b2c3d4-e5f6-7890-abcd-ef1234567890_0_0_0"},
+                                     }}}}}}};
+    scheduler.overProvision_ = {{0, 1}, {1, 1}, {2, 1}, {3, 1}};
     Cluster cluster1;
     int clusterLayersSize = 3;
     int clusterLayersIdle = 5;

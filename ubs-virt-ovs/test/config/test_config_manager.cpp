@@ -11,19 +11,16 @@
  */
 #include "test_config_manager.h"
 
-
 #include "config_manager.h"
 
-
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 
 using namespace virt::ovs::config;
 
 namespace ovs::ut {
 
-void TestConfigManager::SetUp()
-{}
+void TestConfigManager::SetUp() {}
 void TestConfigManager::TearDown()
 {
     GlobalMockObject::verify();
@@ -79,7 +76,7 @@ TEST_F(TestConfigManager, ParseConf_Valid)
     ConfigManager mgr;
     std::string tempSection = "section1";
     mgr.ParseConf("file.conf", "key1=value1", 1, tempSection);
-    
+
     std::string val;
     EXPECT_EQ(mgr.GetConf("section1", "key1", val), ConfigCode::OK);
     EXPECT_EQ(val, "value1");
@@ -118,7 +115,7 @@ TEST_F(TestConfigManager, ReadConfFile_Success)
 
     ConfigManager mgr;
     EXPECT_EQ(mgr.ReadConfFile(testFile), ConfigCode::OK);
-    
+
     std::string val;
     EXPECT_EQ(mgr.GetConf("sec1", "key1", val), ConfigCode::OK);
     EXPECT_EQ(val, "val1");
@@ -141,4 +138,4 @@ TEST_F(TestConfigManager, TravelDepthLimitedFiles_Success)
 
     std::filesystem::remove_all("test_conf_dir");
 }
-}
+} // namespace ovs::ut

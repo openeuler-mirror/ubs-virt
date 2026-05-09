@@ -26,6 +26,6 @@ private:
     void TearDown() override;
 };
 
-} // vas::ut::common
+} // namespace vas::ut::common
 
 #endif // TEST_SOCKET_SERVER_H

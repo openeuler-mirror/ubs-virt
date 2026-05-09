@@ -38,7 +38,7 @@ namespace vas::common {
 #define QUERY_AFFINITY_DES "Query vm cpu affinity info"
 #define AFFINITY_SCOPE "scope"
 #define AFFINITY_SCOPE_SHORT "s"
-#define AFFINITY_SCOPE_DES                                                 \
+#define AFFINITY_SCOPE_DES                                              \
     "Query virtual machine vCPU affinity: "                             \
     "'all' to retrieve affinity information for all virtual machines, " \
     "'uuid' to fetch affinity details for a specific virtual machine."
@@ -50,7 +50,7 @@ namespace vas::common {
 #define REASSIGN_DES "Reassign vm cpu affinity"
 #define REASSIGN_SCOPE "scope"
 #define REASSIGN_SCOPE_SHORT "s"
-#define REASSIGN_SCOPE_DES                          \
+#define REASSIGN_SCOPE_DES                       \
     "Realign virtual machine vCPU: "             \
     "'all' to reschedule all virtual machines, " \
     "'uuid' to reconfigure a specific virtual machine's CPU affinity."

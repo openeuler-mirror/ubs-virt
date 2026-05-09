@@ -92,7 +92,7 @@ VasRet LibvirtHelper::GetVmInfoList(VmInfoMap &vmInfoMap)
     skipVmInfoMap.insert(vmInfoMap.begin(), vmInfoMap.end());
     if (!skipVmInfoMap.empty()) {
         LOG_DEBUG("Get " + std::to_string(skipVmInfoMap.size()) + " vm. " + std::to_string(vmInfoMap.size()) +
-                 " vms need sched.");
+                  " vms need sched.");
     }
     UpdateCache(skipVmInfoMap);
     return VAS_OK;
@@ -626,8 +626,8 @@ VasRet LibvirtHelper::CheckWithReconnect()
  */
 VasRet LibvirtHelper::GetDomainList(virDomainPtr *&domains, int &numDomains) const
 {
-    numDomains = virConnectListAllDomains(virConnect, &domains,
-        virConnectListAllDomainsFlags::VIR_CONNECT_LIST_DOMAINS_ACTIVE);
+    numDomains =
+        virConnectListAllDomains(virConnect, &domains, virConnectListAllDomainsFlags::VIR_CONNECT_LIST_DOMAINS_ACTIVE);
     if (numDomains < 0 || !domains) {
         LOG_ERROR("Get vmDomain infos failed by libvirt.");
         GetLastError();

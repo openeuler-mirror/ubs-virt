@@ -32,6 +32,6 @@ constexpr int16_t NO_2 = 2;
 constexpr int16_t NO_3 = 3;
 constexpr int16_t NO_4 = 4;
 constexpr int16_t NO_32 = 32;
-}
+} // namespace vas::common
 
 #endif // DEF_H

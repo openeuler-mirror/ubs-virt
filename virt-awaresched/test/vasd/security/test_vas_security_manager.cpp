@@ -55,8 +55,9 @@ TEST_F(TestVasSecurityManager, testModifyEffectiveCapabilities)
     MOCKER(VasSecurityManager::SetCap).stubs().will(returnValue(0)).then(returnValue(0));
     EXPECT_EQ(VasSecurityManager::ModifyEffectiveCapabilities(caps, VasCapOperateType::CAP_ADD), VAS_OK);
     EXPECT_EQ(VasSecurityManager::ModifyEffectiveCapabilities(caps, VasCapOperateType::CAP_DELETE), VAS_OK);
-    EXPECT_EQ(VasSecurityManager::ModifyEffectiveCapabilities(
-        caps, static_cast<VasCapOperateType>(effectiveCapabilities)), VAS_ERROR_INVAL);
+    EXPECT_EQ(
+        VasSecurityManager::ModifyEffectiveCapabilities(caps, static_cast<VasCapOperateType>(effectiveCapabilities)),
+        VAS_ERROR_INVAL);
 }
 
 TEST_F(TestVasSecurityManager, testClearCapabilities)
@@ -70,4 +71,4 @@ TEST_F(TestVasSecurityManager, testClearCapabilities)
     VasSecurityManager::ClearCapabilities(caps);
 }
 
-}
+} // namespace vas::ut::security

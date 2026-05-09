@@ -24,5 +24,5 @@ private:
 
     void TearDown() override;
 };
-}
+} // namespace vas::ut::cli
 #endif // VIRT_AWARESCHED_TEST_VAS_CLI_PROCESS_H

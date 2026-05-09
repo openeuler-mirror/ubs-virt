@@ -42,8 +42,8 @@ public:
 } // namespace vas::sched
 
 namespace vas::cli::reg {
-    cli::framework::VasCliSdkResult CliSetServerConfFunc(const std::map<std::string, std::string> &params);
-    void RegisterServerModuleSDK();
-}
+cli::framework::VasCliSdkResult CliSetServerConfFunc(const std::map<std::string, std::string> &params);
+void RegisterServerModuleSDK();
+} // namespace vas::cli::reg
 
 #endif // VAS_CLI_ARG_H

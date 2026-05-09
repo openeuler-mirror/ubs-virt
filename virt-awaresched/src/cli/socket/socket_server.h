@@ -121,7 +121,7 @@ private:
      */
     bool BindSocket();
 
-    bool RebuildRundir(const fs::path& socketDir);
+    bool RebuildRundir(const fs::path &socketDir);
 };
 
 } // namespace vas::common

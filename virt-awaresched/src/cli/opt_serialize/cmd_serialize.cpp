@@ -63,4 +63,4 @@ VasRet CmdSerialize::DeSerialize(const std::string &cmdStr, CmdOption &cmdOpt)
     }
     return VAS_OK;
 }
-} // vas::common
+} // namespace vas::common

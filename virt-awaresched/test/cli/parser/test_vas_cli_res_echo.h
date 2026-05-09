@@ -15,14 +15,14 @@
 #include "gtest/gtest.h"
 
 namespace vas::ut::cli {
-    class TestVasCliResEcho : public testing::Test {
-    protected:
-        TestVasCliResEcho() = default;
+class TestVasCliResEcho : public testing::Test {
+protected:
+    TestVasCliResEcho() = default;
 
-    private:
-        void SetUp() override;
+private:
+    void SetUp() override;
 
-        void TearDown() override;
-    };
-}
+    void TearDown() override;
+};
+} // namespace vas::ut::cli
 #endif // VIRT_AWARESCHED_TEST_VAS_CLI_RES_ECHO_H
