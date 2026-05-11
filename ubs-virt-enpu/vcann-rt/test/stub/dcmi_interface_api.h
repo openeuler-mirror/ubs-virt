@@ -31,6 +31,12 @@ int dcmi_get_card_id_device_id_from_logicid(int *card_id, int *device_id, unsign
 int dcmi_get_device_resource_info(int card_id, int device_id, struct dcmi_proc_mem_info *proc_info,
                                   int *proc_num);
 int dcmi_get_device_utilization_rate(int card_id, int device_id, int input_type, unsigned int* utilization_rate);
+int dcmi_get_card_id_device_id_from_phyid(int *card_id, int *device_id, unsigned int device_phy_id);
+
+int dcmiv2_init(void);
+int dcmiv2_get_device_utilization_rate(int dev_id, int input_type, unsigned int *utilization_rate);
+int dcmiv2_get_device_proc_mem_info(int dev_id, struct dcmi_proc_mem_info *proc_info, int *proc_num);
+int dcmiv2_get_device_list(int *device_list, int *device_count, int list_len);
 
 #if defined(__cplusplus)
 }

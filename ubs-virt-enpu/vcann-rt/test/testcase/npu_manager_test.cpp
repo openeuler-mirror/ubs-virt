@@ -43,8 +43,9 @@ extern "C" {
         return ENPU_SUCCESS;
     }
 
-    int stub_enpu_dcmi_get_device_resource_info(int card_id, int device_id, size_t *used)
+    int stub_enpu_dcmi_get_device_resource_info(int logic_id, int card_id, int device_id, size_t *used)
     {
+        (void)logic_id;
         (void)card_id;
         (void)device_id;
         *used = 512 * MB_TO_B;

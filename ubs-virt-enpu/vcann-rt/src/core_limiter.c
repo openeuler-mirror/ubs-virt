@@ -289,7 +289,7 @@ void *npu_utilization_monitor_thread(void *arg)
     unsigned int utilization_rate = 0;
     uint64_t begin = ns_now();
     atomic_store(&g_vnpu_sched_context->last_slide_window_time_ns, begin);
-    int ret = enpu_dcmi_get_device_utilization_rate(get_card_id(), get_device_id(), &utilization_rate);
+    int ret = enpu_dcmi_get_device_utilization_rate(get_logic_id(), get_card_id(), get_device_id(), &utilization_rate);
     if (ret != ENPU_SUCCESS) {
         LOG_ERROR("DCMI call failed with ret: %d.", ret);
         return NULL;
