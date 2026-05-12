@@ -11,6 +11,8 @@
 */
 
 #include <runtime/rt.h>
+#include "include/common.h"
+#include "acl/acl.h"
 #include "runtime_hook.h"
 #include "common.h"
 #include "dcmi_wrapper.h"
@@ -23,11 +25,6 @@
 pthread_once_t once_init = PTHREAD_ONCE_INIT;
 pthread_once_t post_init_flag = PTHREAD_ONCE_INIT;
 static struct npu_info g_npu_info = {0};
-
-bool is_mem_limit(void)
-{
-    return g_npu_info.is_mem_limit;
-}
 
 bool is_core_limit(void)
 {
@@ -49,9 +46,19 @@ uint8_t get_core_limit_quota(void)
     return g_npu_info.core_limit_quota;
 }
 
-uint8_t get_device_id(void)
+int get_device_id(void)
 {
     return g_npu_info.device_id;
+}
+
+int get_logic_id(void)
+{
+    return g_npu_info.logic_id;
+}
+
+uint8_t get_soc_version(void)
+{
+    return g_npu_info.soc_version;
 }
 
 uint8_t get_vnpu_id(void)
@@ -84,7 +91,7 @@ void set_core_cur_timeslice(uint64_t time)
     g_npu_info.core_cur_timeslice = time;
 }
 
-uint8_t get_card_id(void)
+int get_card_id(void)
 {
     return g_npu_info.card_id;
 }
@@ -92,6 +99,11 @@ uint8_t get_card_id(void)
 schedule_policy_t get_sched_policy(void)
 {
     return g_npu_info.sched_policy;
+}
+
+bool check_init_success(void)
+{
+    return g_npu_info.initialization;
 }
 
 int get_mem_used(size_t *used)
@@ -102,18 +114,18 @@ int get_mem_used(size_t *used)
     }
 
     npu_info *npu = &g_npu_info;
-    int rc = enpu_dcmi_get_device_resource_info(npu->card_id, npu->device_id, used);
+    int rc = enpu_dcmi_get_device_resource_info(npu->logic_id, npu->card_id, npu->device_id, used);
     CHECK_RETURN_ERROR_CODE(rc, "Failed to get device resource info.");
     return ENPU_SUCCESS;
 }
 
 int enpu_config_info_init()
 {
-    CHECK_RETURN_RANGE_INT(config.phy_npu_id, 0, MAX_NPU_COUNT);
+    CHECK_RETURN_RANGE_INT(config.phy_npu_id, 0, MAX_NPU_ID);
     CHECK_RETURN_RANGE_INT(config.vnpu_id, 0, MAX_VNPU);
 
     size_t max_memory_quota = SIZE_MAX / MB_TO_B;
-    CHECK_RETURN_RANGE_INT(config.memory_quota, 1, max_memory_quota);
+    CHECK_RETURN_RANGE_INT((size_t)config.memory_quota, 1, max_memory_quota);
     if (config.scheduling_policy == SCHED_POLICY_FIXED_SHARE ||
         config.scheduling_policy == SCHED_POLICY_ELASTIC) {
         CHECK_RETURN_RANGE_INT(config.aicore_quota, 1, MAX_CORE_QUOTA);
@@ -121,11 +133,9 @@ int enpu_config_info_init()
         g_npu_info.core_limit_quota = (uint8_t)config.aicore_quota;
         g_npu_info.mem_limit_quota = (size_t)config.memory_quota * MB_TO_B;
         g_npu_info.is_core_limit = true;
-        g_npu_info.is_mem_limit = true;
     } else if (config.scheduling_policy == SCHED_POLICY_BEST_EFFORT) {
         g_npu_info.mem_limit_quota = (size_t)config.memory_quota * MB_TO_B;
         g_npu_info.is_core_limit = false;
-        g_npu_info.is_mem_limit = true;
     } else {
         LOG_ERROR("scheduling policy is illegal, %s = %d, should in range [0, %d]\n",
             OPTION_SCHEDULING_POLICY, config.scheduling_policy, SCHED_POLICY_BEST_EFFORT);
@@ -150,39 +160,63 @@ int enpu_load_config(void)
     return enpu_config_info_init();
 }
 
+int enpu_soc_init(void)
+{
+    const char *socName = aclrtGetSocName();
+    CHECK_COND_RETURN_ERROR_CODE(socName == NULL, "Call aclrtGetSocName fails.");
+    LOG_INFO("Get socName: %s.", socName);
+
+    if (strstr(socName, "Ascend950") != NULL) {
+        g_npu_info.soc_version = SOC_VERSION_ASCEND_950;
+    } else {
+        g_npu_info.soc_version = SOC_VERSION_NOT_ASCEND_950;
+    }
+
+    int ret = register_callback(g_npu_info.soc_version);
+    CHECK_RETURN_ERROR_CODE(ret, "Failed to register callback.");
+
+    return ENPU_SUCCESS;
+}
+
 int enpu_device_init(void)
 {
     int card_id = -1;
     int device_id = -1;
-    int logic_id = g_npu_info.pnpu_id;
-    int rc = enpu_dcmi_get_card_info(0, &card_id, &device_id);
-    CHECK_RETURN_ERROR_CODE(rc, "Failed to get card info by enpu_device_init, err:%d npu:%d", rc, logic_id);
+    int logic_id = -1;
+
+    int rc = enpu_dcmi_get_card_info(g_npu_info.pnpu_id, &card_id, &device_id, &logic_id, g_npu_info.soc_version);
+    CHECK_RETURN_ERROR_CODE(rc, "Failed to get card info by enpu_device_init, err:%d npu:%d", rc, g_npu_info.pnpu_id);
 
     g_npu_info.card_id = card_id;
     g_npu_info.device_id = device_id;
+    g_npu_info.logic_id = logic_id;
     return ENPU_SUCCESS;
 }
 
 static void __enpu_global_init(void)
 {
     int rc = log_init();
-    CHECK_ERROR_CODE_LOG(rc, "Failed to init log module.");
+    CHECK_COND_RETURN_LOG(rc != ENPU_SUCCESS, "Failed to init log module.");
 
     rc = enpu_load_config();
-    CHECK_ERROR_CODE(rc, "Failed to load npu config.");
+    CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to load npu config.");
+
+    rc = enpu_soc_init();
+    CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to initialize enpu soc.");
 
     rc = enpu_device_init();
-    CHECK_ERROR_CODE(rc, "Failed to initialize enpu device.");
+    CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to initialize enpu device.");
 
     rc = memory_limiter_init();
-    CHECK_ERROR_CODE(rc, "Failed to initialize memory limiter");
+    CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to initialize memory limiter");
 
     rc = aicore_limiter_initialize();
-    CHECK_ERROR_CODE(rc, "Failed to initialize aicore limiter");
+    CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to initialize aicore limiter");
 
     rc = setenv("ENPU_ENABLE", "True", 1);
-    CHECK_ERROR_CODE(rc, "Failed to set environment variable");
+    CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to set environment variable");
 
+    g_npu_info.initialization = true;
     LOG_INFO("Successfully to initialize all module.");
 }
 

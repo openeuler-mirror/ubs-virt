@@ -37,7 +37,7 @@ SocketServer::~SocketServer()
     CloseServer();
 }
 
-    bool SocketServer::RebuildRundir(const fs::path& socketDir)
+bool SocketServer::RebuildRundir(const fs::path &socketDir)
 {
     if (!exists(socketDir)) {
         LOG_WARN("Run dir not exist, try to rebuild.");

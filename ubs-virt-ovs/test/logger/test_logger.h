@@ -14,14 +14,14 @@
 #define UBSVIRTOVS_TEST_LOGGER_H
 
 #include "gtest/gtest.h"
-#include "mockcpp/mockcpp.hpp"
 #include "logger.h"
+#include "mockcpp/mockcpp.hpp"
 
 namespace ovs::ut {
 class TestLogger : public testing::Test {
 public:
     TestLogger() = default;
 }; // ovs::ut
-}
+} // namespace ovs::ut
 
 #endif // UBSVIRTOVS_TEST_LOGGER_H

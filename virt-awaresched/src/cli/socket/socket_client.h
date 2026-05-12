@@ -52,7 +52,7 @@ public:
      * @param message Message string to be sent
      * @return bool True if message sent successfully, false otherwise
      */
-    bool SendMessage(const std::string& message);
+    bool SendMessage(const std::string &message);
 
     /**
      * @brief Receive a message from the server
@@ -87,6 +87,6 @@ private:
 };
 
 bool SendSingleMessage(const std::string &message);
-} // vas::common
+} // namespace vas::common
 
 #endif // SOCKET_CLIENT_H

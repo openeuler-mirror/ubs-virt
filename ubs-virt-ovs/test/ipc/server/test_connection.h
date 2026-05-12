@@ -12,15 +12,15 @@
 
 #ifndef UBSVIRTOVS_TEST_CONNECTION_H
 #define UBSVIRTOVS_TEST_CONNECTION_H
+#include "connection.h"
 #include "gtest/gtest.h"
 #include "mockcpp/mockcpp.hpp"
-#include "connection.h"
 
 namespace ovs::ut {
 class TestConnection : public testing::Test {
 public:
     TestConnection() = default;
 }; // ovs::ut
-}
+} // namespace ovs::ut
 
 #endif // UBSVIRTOVS_TEST_CONNECTION_H

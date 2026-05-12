@@ -36,7 +36,7 @@ pid_t StringUtil::StringToPidt(const char *in)
         if (val > std::numeric_limits<pid_t>::max()) {
             throw std::out_of_range("Input string exceeds the maximum value for pid_t");
         }
-    } catch (const std::invalid_argument& e) {
+    } catch (const std::invalid_argument &e) {
         throw std::invalid_argument("Invalid argument: '" + str + "' to pid_t: " + e.what());
     } catch (const std::out_of_range &e) {
         throw std::out_of_range("Out of range: " + str);
@@ -64,7 +64,7 @@ uint16_t StringUtil::StringToUint16(const char *in)
         if (val > std::numeric_limits<uint16_t>::max()) {
             throw std::out_of_range("Input string exceeds the maximum value for uint16_t");
         }
-    } catch (const std::invalid_argument& e) {
+    } catch (const std::invalid_argument &e) {
         throw std::invalid_argument("Invalid argument: '" + str + "' to uint16_t: " + e.what());
     } catch (const std::out_of_range &e) {
         throw std::out_of_range("Out of range: " + str);
@@ -110,8 +110,7 @@ std::set<uint16_t> StringUtil::ParseStringRange(const std::string &line)
             std::string endStr = Trim(tmp.substr(dashPos + 1));
             uint16_t start;
             uint16_t end;
-            auto [ptr, ec] =
-                    std::from_chars(startStr.data(), startStr.data() + startStr.size(), start);
+            auto [ptr, ec] = std::from_chars(startStr.data(), startStr.data() + startStr.size(), start);
             if (ec == std::errc::invalid_argument || ptr != startStr.data() + startStr.size()) {
                 throw std::invalid_argument("Invalid argument in range start: " + startStr);
             } else if (ec == std::errc::result_out_of_range) {
@@ -143,4 +142,4 @@ std::set<uint16_t> StringUtil::ParseStringRange(const std::string &line)
     }
     return cpus;
 }
-} // vas::common
+} // namespace vas::common

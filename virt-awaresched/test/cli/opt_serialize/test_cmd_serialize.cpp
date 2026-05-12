@@ -15,24 +15,21 @@
 
 using namespace vas::common;
 namespace vas::ut::serialize {
-    void TestCmdSerialize::SetUp()
-    {
-        Test::SetUp();
-    }
+void TestCmdSerialize::SetUp()
+{
+    Test::SetUp();
+}
 
-    void TestCmdSerialize::TearDown()
-    {
-        Test::TearDown();
-    }
+void TestCmdSerialize::TearDown()
+{
+    Test::TearDown();
+}
 
 TEST_F(TestCmdSerialize, serializeTest)
 {
     CmdOption cmdOpt;
     cmdOpt.option = "test_option";
-    cmdOpt.params = {
-            {"key1", "value1"},
-            {"key2", "value2"}
-    };
+    cmdOpt.params = {{"key1", "value1"}, {"key2", "value2"}};
 
     std::string cmdStr;
     EXPECT_EQ(CmdSerialize::Serialize(cmdOpt, cmdStr), VAS_OK);
@@ -55,4 +52,4 @@ TEST_F(TestCmdSerialize, DeSerializeBasicTest)
     EXPECT_EQ(cmdOpt.params["key1"], "value1");
     EXPECT_EQ(cmdOpt.params["key2"], "value2");
 }
-}
+} // namespace vas::ut::serialize

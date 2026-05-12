@@ -10,7 +10,9 @@
 * See the Mulan PSL v2 for more details.
 */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <dlfcn.h>
 #include "log.h"
 #include "runtime_hook.h"
@@ -25,7 +27,7 @@ void load_rt_libraries(void)
     for (i = 0; i < RUNTIME_ENTRY_END; i++) {
         rt_library_entry[i].func_ptr = dlsym(RTLD_NEXT, rt_library_entry[i].name);
         if (rt_library_entry[i].func_ptr == NULL) {
-            LOG_INFO("Failed to find function %s, because the runtime version you are using is different "
+            LOG_WARN("Failed to find function %s, because the runtime version you are using is different "
             "from our preset version.", rt_library_entry[i].name);
         }
     }
@@ -35,6 +37,8 @@ void load_rt_libraries(void)
 RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
 {
     enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
     if (devId != 0) {
         LOG_WARN("SetDevice should only pass devId=0. And devId will be overwrited to %d.", get_device_id());
     }
@@ -53,6 +57,8 @@ RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
 RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
 {
     enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
     if (devId != 0) {
         LOG_WARN("SetDevice should only pass devId=0. And devId will be overwrited to %d.", get_device_id());
     }
@@ -71,6 +77,8 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
 RUNTIME_HOOK_DEFINE(rtSetDeviceWithFlags, int32_t devId, uint64_t flags)
 {
     enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
     if (devId != 0) {
         LOG_WARN("SetDevice should only pass devId=0. And devId will be overwrited to %d.", get_device_id());
     }
@@ -89,6 +97,8 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceWithFlags, int32_t devId, uint64_t flags)
 RUNTIME_HOOK_DEFINE(rtSetDeviceWithoutTsd, int32_t devId)
 {
     enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
     if (devId != 0) {
         LOG_WARN("SetDevice should only pass devId=0. And devId will be overwrited to %d.", get_device_id());
     }

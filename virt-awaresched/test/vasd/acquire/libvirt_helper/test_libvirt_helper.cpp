@@ -11,8 +11,8 @@
  */
 #include "test_libvirt_helper.h"
 
-#include "cpu_helper.h"
 #include "conf.h"
+#include "cpu_helper.h"
 #include "libvirt_helper.h"
 #include "vasd_arg_parse.h"
 
@@ -53,13 +53,11 @@ int TestVirEventRegisterDefaultImpl()
 
 TEST_F(TestLibvirtHelper, RegisterEventDefaultImplTest)
 {
-    MOCKER(virEventRegisterDefaultImpl).stubs()
-        .will(invoke(TestVirEventRegisterDefaultImplError));
+    MOCKER(virEventRegisterDefaultImpl).stubs().will(invoke(TestVirEventRegisterDefaultImplError));
     EXPECT_EQ(LibvirtHelper::GetInstance().RegisterEventDefaultImpl(), VAS_ERROR);
     MOCKER(virEventRegisterDefaultImpl).reset();
 
-    MOCKER(virEventRegisterDefaultImpl).stubs()
-        .will(invoke(TestVirEventRegisterDefaultImpl));
+    MOCKER(virEventRegisterDefaultImpl).stubs().will(invoke(TestVirEventRegisterDefaultImpl));
     EXPECT_EQ(LibvirtHelper::GetInstance().RegisterEventDefaultImpl(), VAS_OK);
     MOCKER(virEventRegisterDefaultImpl).reset();
 }
@@ -129,14 +127,14 @@ int TestVirDomainGetInfo(virDomainPtr vmDomain, virDomainInfo *info)
     return 1;
 }
 
-int TestVirDomainGetVcpuPinInfo(virDomainPtr domain, int nrVcpu, unsigned char *cpuMaps,
-    int cpuMapLen, unsigned int flag)
+int TestVirDomainGetVcpuPinInfo(virDomainPtr domain, int nrVcpu, unsigned char *cpuMaps, int cpuMapLen,
+                                unsigned int flag)
 {
     return nrVcpu;
 }
 
-int TestVirDomainGetVcpusError(virDomainPtr domain, int nrVcpu, unsigned char *cpuMaps,
-    int cpuMapLen, unsigned int flag)
+int TestVirDomainGetVcpusError(virDomainPtr domain, int nrVcpu, unsigned char *cpuMaps, int cpuMapLen,
+                               unsigned int flag)
 {
     return 0;
 }
@@ -172,7 +170,7 @@ TEST_F(TestLibvirtHelper, GetVmInfoListTest)
     MOCKER(&LibvirtHelper::CheckWithReconnect).stubs().will(returnValue(VAS_ERROR));
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmInfoList(vmInfoMap), VAS_ERROR);
     MOCKER(&LibvirtHelper::CheckWithReconnect).reset();
-    
+
     MOCKER(&LibvirtHelper::CheckWithReconnect).stubs().will(returnValue(VAS_OK));
     MOCKER(&LibvirtHelper::GetDomainList).stubs().will(returnValue(VAS_ERROR));
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmInfoList(vmInfoMap), VAS_ERROR);
@@ -215,7 +213,7 @@ TEST_F(TestLibvirtHelper, GetDomainConnByUUIDTest)
     MOCKER(virDomainLookupByUUIDString).stubs().will(invoke(VirDomainLookupByUUIDStringFuncError));
     EXPECT_EQ(LibvirtHelper::GetInstance().GetDomainConnByUUID(UUID, domainConn), VAS_ERROR);
     MOCKER(virDomainLookupByUUIDString).reset();
-    
+
     MOCKER(virDomainLookupByUUIDString).stubs().will(invoke(MockVirDomainLookupByUUIDStringFunc));
     EXPECT_EQ(LibvirtHelper::GetInstance().GetDomainConnByUUID(UUID, domainConn), VAS_OK);
     delete domainConn;
@@ -243,7 +241,7 @@ TEST_F(TestLibvirtHelper, GetVmInfoTest)
     MOCKER(LibvirtHelper::IsReschedSkippedDomain).stubs().will(returnValue(true));
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmInfo(domain, vmInfo), VAS_WARN);
     MOCKER(LibvirtHelper::IsReschedSkippedDomain).reset();
-    
+
     MOCKER(LibvirtHelper::IsReschedSkippedDomain).stubs().will(returnValue(false));
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmInfo(domain, vmInfo), VAS_OK);
 }
@@ -260,7 +258,10 @@ TEST_F(TestLibvirtHelper, RunEventDefaultImplTest)
     EXPECT_EQ(LibvirtHelper::GetInstance().RunEventDefaultImpl(func), VAS_ERROR);
     MOCKER(&LibvirtHelper::RegisterDomainEvent).reset();
 
-    MOCKER(&LibvirtHelper::RegisterDomainEvent).stubs().will(returnValue(VAS_OK)).then(returnValue(VAS_OK))
+    MOCKER(&LibvirtHelper::RegisterDomainEvent)
+        .stubs()
+        .will(returnValue(VAS_OK))
+        .then(returnValue(VAS_OK))
         .then(returnValue(VAS_ERROR));
     MOCKER(virEventRunDefaultImpl).stubs().will(invoke(VirEventRunDefaultImplError));
     MOCKER(&LibvirtHelper::IsConnectAlive).stubs().will(returnValue(false));
@@ -307,7 +308,7 @@ TEST_F(TestLibvirtHelper, FreeDomainTest)
 {
     virDomainPtr domain = nullptr;
     LibvirtHelper::FreeDomain(domain);
-    
+
     domain = reinterpret_cast<virDomainPtr>(new char[1]);
 
     MOCKER(virDomainFree).stubs().will(invoke(TestVirDomainFree));
@@ -339,12 +340,12 @@ TEST_F(TestLibvirtHelper, GetVmNameTest)
 {
     virDomainPtr domain = reinterpret_cast<virDomainPtr>(0x1234);
     std::string name;
- 
+
     MOCKER(virDomainGetName).stubs().will(invoke(VirDomainGetNameError));
     MOCKER(LibvirtHelper::GetLastError).stubs();
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmName(domain, name), VAS_ERROR);
     MOCKER(virDomainGetName).reset();
-    
+
     MOCKER(virDomainGetName).stubs().will(invoke(TestVirDomainGetNameFunc));
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmName(domain, name), VAS_OK);
     EXPECT_EQ(name, VM_NAME);
@@ -366,12 +367,12 @@ TEST_F(TestLibvirtHelper, GetVmUUIDTest)
 {
     virDomainPtr domain = reinterpret_cast<virDomainPtr>(0x1234);
     std::string uuid;
- 
+
     MOCKER(virDomainGetUUIDString).stubs().will(invoke(TestVirDomainGetUUIDStringError));
     MOCKER(LibvirtHelper::GetLastError).stubs();
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmUUID(domain, uuid), VAS_ERROR);
     MOCKER(virDomainGetUUIDString).reset();
-    
+
     MOCKER(virDomainGetUUIDString).stubs().will(invoke(TestVirDomainGetUUIDString));
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmUUID(domain, uuid), VAS_OK);
     EXPECT_EQ(uuid, UUID);
@@ -416,7 +417,7 @@ TEST_F(TestLibvirtHelper, GetVmIDTest)
     MOCKER(virDomainGetID).stubs().will(invoke(VirDomainGetID));
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmID(domain, id), VAS_OK);
     MOCKER(virDomainGetID).reset();
-    
+
     MOCKER(virDomainGetID).stubs().will(invoke(VirDomainGetIDError));
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmID(domain, id), VAS_ERROR);
 }
@@ -474,7 +475,7 @@ TEST_F(TestLibvirtHelper, GetDomainListTest)
 {
     virDomainPtr *domains = nullptr;
     int numDomains = 0;
- 
+
     MOCKER(virConnectListAllDomains).stubs().will(returnValue(-1));
     MOCKER(LibvirtHelper::GetLastError).stubs();
     EXPECT_EQ(LibvirtHelper::GetInstance().GetDomainList(domains, numDomains), VAS_ERROR);
@@ -497,8 +498,8 @@ TEST_F(TestLibvirtHelper, IsVcpuPinNumaTest)
     MOCKER(&CpuHelper::GetNuma2CpusetMap).stubs().will(returnValue(Numa2CpusetMap{{0, {0, 1}}, {1, {2, 3}}}));
     EXPECT_EQ(LibvirtHelper::GetInstance().IsVcpuPinNuma(cpuSet), true);
     MOCKER(&CpuHelper::GetNuma2CpusetMap).reset();
-    
+
     MOCKER(&CpuHelper::GetNuma2CpusetMap).stubs().will(returnValue(Numa2CpusetMap{{0, {0, 1, 2}}, {1, {2, 3}}}));
     EXPECT_EQ(LibvirtHelper::GetInstance().IsVcpuPinNuma(cpuSet), false);
 }
-}
+} // namespace vas::ut::acquire

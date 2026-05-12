@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 project(vcann-runtime)
-
+set(CMAKE_SKIP_RPATH TRUE)
 message(STATUS "CMakeList start ${CMAKE_CURRENT_SOURCE_DIR}")
 
 file(GLOB SRC_LIST
@@ -30,32 +30,32 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmake/securec.cmake)
 if(ENABLE_NEW_BUILD)
     message(STATUS "CANN version greater than or equal to 8.5.0, using new include dirs.")
     set(INCLUDE_DIRS
-        $ENV{ASCEND_TOOLKIT_HOME}/include
-        $ENV{ASCEND_HOME_PATH}/../driver/include
+        $ENV{ASCEND_HOME_PATH}/include
         $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime
+        $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime/runtime
+        $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime/runtime/rts
         $ENV{ASCEND_HOME_PATH}/pkg_inc/profiling
         $ENV{ASCEND_HOME_PATH}/pkg_inc/
         $ENV{ASCEND_HOME_PATH}/pkg_inc/msprof
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/include
+        $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/include
     )
     set(LINK_DIRS
         $ENV{ASCEND_HOME_PATH}/runtime
         $ENV{ASCEND_HOME_PATH}/lib64
-        $ENV{ASCEND_HOME_PATH}/../driver/lib64/driver
+        $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/lib64/driver
     )
 else()
     message(STATUS "CANN version less than 8.5.0, using old include dirs.")
     set(INCLUDE_DIRS
-        $ENV{ASCEND_TOOLKIT_HOME}/include
-        $ENV{ASCEND_HOME_PATH}/../../driver/include
+        $ENV{ASCEND_HOME_PATH}/include
         $ENV{ASCEND_HOME_PATH}/include/experiment/runtime
         $ENV{ASCEND_HOME_PATH}/include/experiment/msprof
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/include
+        $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/include
     )
     set(LINK_DIRS
         $ENV{ASCEND_HOME_PATH}/runtime
         $ENV{ASCEND_HOME_PATH}/lib64
-        $ENV{ASCEND_HOME_PATH}/../../driver/lib64/driver
+        $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/lib64/driver
     )
 endif()
 
@@ -73,9 +73,10 @@ target_link_options(vruntime PRIVATE
     -s
 )
 
-target_include_directories(vruntime PRIVATE ${INCLUDE_DIRS})
+target_include_directories(vruntime PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
+target_include_directories(vruntime SYSTEM PRIVATE ${INCLUDE_DIRS})
 target_link_directories(vruntime PRIVATE ${LINK_DIRS})
-target_link_libraries(vruntime PRIVATE securec ${LINK_LIBS})
+target_link_libraries(vruntime PRIVATE ${LINK_LIBS} c_sec ascendcl)
 target_compile_options(vruntime PRIVATE ${SECURE_COMPILE_OPTIONS})
 target_compile_definitions(vruntime PRIVATE _GLIBCXX_USE_CXX11_ABI=0)
 
@@ -90,9 +91,10 @@ target_link_options(enpu-monitor PRIVATE
     -s
 )
 
-target_include_directories(enpu-monitor PRIVATE ${INCLUDE_DIRS})
+target_include_directories(enpu-monitor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
+target_include_directories(enpu-monitor SYSTEM PRIVATE ${INCLUDE_DIRS})
 target_link_directories(enpu-monitor PRIVATE ${LINK_DIRS})
-target_link_libraries(enpu-monitor PRIVATE securec pthread dl rt ${LINK_LIBS})
+target_link_libraries(enpu-monitor PRIVATE ${LINK_LIBS} c_sec ascendcl pthread dl rt)
 target_compile_options(enpu-monitor PRIVATE ${SECURE_COMPILE_OPTIONS})
 target_compile_definitions(enpu-monitor PRIVATE _GLIBCXX_USE_CXX11_ABI=0)
 

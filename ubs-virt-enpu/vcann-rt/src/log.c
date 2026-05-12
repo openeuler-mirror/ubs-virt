@@ -85,18 +85,18 @@ static int safe_exec_timeout(char* const argv[], int timeout_sec)
 {
     pid_t pid = fork();
     if (pid < 0) {
-        perror("safe_exec: fork failed");
+        perror("[eNPU] safe_exec: fork failed");
         return ENPU_FAIL;
     }
     if (pid == 0) {
         execvp(argv[0], argv);
-        perror("safe_exec: execvp failed");
+        perror("[eNPU] safe_exec: execvp failed");
         _exit(EXIT_CODE_CMD_NOT_FOUND);
     }
 
     int ret = wait_process_timeout(pid, timeout_sec);
     if (ret != ENPU_SUCCESS) {
-        fprintf(stderr, "safe_exec: command '%s' failed or timed out.\n", argv[0]);
+        fprintf(stderr, "[eNPU] safe_exec: command '%s' failed or timed out.\n", argv[0]);
     }
     return ret;
 }
@@ -145,7 +145,7 @@ static int extract_pid_from_filename(const char* filename, long* pid_from_filena
     const int pid_token_index = 3;
     *pid_from_filename = strtol(tokens[pid_token_index], &endptr, DECIMAL_BASE);
     if (*endptr != '\0') {
-        fprintf(stderr, "Failed to get pid from log filename. now log filename is %s.\n", g_log_config.log_path);
+        fprintf(stderr, "[eNPU] Failed to get pid from log filename. now log filename is %s.\n", g_log_config.log_path);
         free(temp);
         free(path_copy);
         return ENPU_FAIL;
@@ -207,7 +207,7 @@ static int count_log_files(void)
 {
     DIR* dir = opendir(g_log_config.log_dir);
     if (dir == NULL) {
-        printf("Count log files error, failed to open directory %s\n", g_log_config.log_dir);
+        fprintf(stderr, "[eNPU] Count log files error, failed to open directory %s\n", g_log_config.log_dir);
         return -1;
     }
     int file_count = 0;
@@ -228,7 +228,7 @@ static int wait_find_process(pid_t pid, const char* list_file)
 {
     int ret = wait_process_timeout(pid, SAFE_EXEC_TIMEOUT_SEC);
     if (ret != ENPU_SUCCESS) {
-        fprintf(stderr, "Compress files error: find command failed or timed out.\n");
+        fprintf(stderr, "[eNPU] Compress files error: find command failed or timed out.\n");
         unlink(list_file);
     }
     return ret;
@@ -238,13 +238,13 @@ static int find_log_files(const char* list_file, const char* pid_pattern)
 {
     int fd = open(list_file, O_WRONLY | O_CREAT | O_TRUNC, FILE_OPEN_MODE);
     if (fd < 0) {
-        perror("Compress files error: failed to create list file");
+        perror("[eNPU] Compress files error: failed to create list file");
         return ENPU_FAIL;
     }
 
     pid_t pid = fork();
     if (pid < 0) {
-        perror("Compress files error: fork failed for find");
+        perror("[eNPU] Compress files error: fork failed for find");
         close(fd);
         unlink(list_file);
         return ENPU_FAIL;
@@ -298,12 +298,12 @@ static int build_compress_paths(char* zip_file, char* list_file, char* pid_patte
     time_t now = time(NULL);
     struct tm tm_info;
     if (localtime_r(&now, &tm_info) == NULL) {
-        perror("Compress files error, failed to get current time");
+        perror("[eNPU] Compress files error, failed to get current time");
         return ENPU_FAIL;
     }
     char timestamp[TIMESTAMP_FILE_LEN];
-    if (strftime(timestamp, sizeof(timestamp), "%Y%m%d%H%M%S", &tm_info) == 0) {
-        perror("Compress files error, failed to format timestamp");
+    if (strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &tm_info) == 0) {
+        perror("[eNPU] Compress files error, failed to format timestamp");
         return ENPU_FAIL;
     }
 
@@ -345,7 +345,7 @@ int compress_file(void)
     umask(old_mask);
 
     if (tar_ret != ENPU_SUCCESS) {
-        fprintf(stderr, "Compress files error: tar command failed.\n");
+        fprintf(stderr, "[eNPU] Compress files error: tar command failed.\n");
         unlink(list_file);
         return ENPU_FAIL;
     }
@@ -354,11 +354,11 @@ int compress_file(void)
     unlink(list_file);
 
     if (ret != ENPU_SUCCESS) {
-        fprintf(stderr, "Compress files error: failed to delete source files.\n");
+        fprintf(stderr, "[eNPU] Compress files error: failed to delete source files.\n");
         return ENPU_FAIL;
     }
 
-    printf("Compressed .log files into %s and deleted the original files.\n", g_log_config.log_dir);
+    printf("[eNPU] Compressed .log files into %s and deleted the original files.\n", g_log_config.log_dir);
     return ENPU_SUCCESS;
 }
 
@@ -379,7 +379,7 @@ int update_log_file(void)
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret != 0, "Failed to set g_log_config.log_path %s.", log_path);
 
     if (creat(g_log_config.log_path, LOG_FILE_RIGHT) < 0) {
-        perror("update log file error: Create new log file");
+        perror("[eNPU] update log file error: Create new log file");
         return ENPU_FAIL;
     }
     return ENPU_SUCCESS;
@@ -388,6 +388,7 @@ int update_log_file(void)
 static int rotate_log_by_size(void)
 {
     long file_size = get_file_size(g_log_config.log_path);
+    CHECK_COND_RETURN_ERROR_CODE_LOG(file_size < 0, "File_size is negative.");
     if ((size_t)file_size < g_log_config.max_file_size) {
         return ENPU_SUCCESS;
     }
@@ -428,7 +429,7 @@ int log_init(void)
     pthread_mutex_init(&g_log_config.print_mutex, NULL);
     pthread_mutex_init(&g_log_config.compress_mutex, NULL);
 
-    printf("dir_path: %s\n", g_log_config.log_dir);
+    printf("[eNPU] dir_path: %s\n", g_log_config.log_dir);
 
     char* mkdir_argv[] = { "mkdir", "-p", (char*)g_log_config.log_dir, NULL };
     (void)safe_exec(mkdir_argv);
@@ -440,7 +441,7 @@ int log_init(void)
 
     ret = log_queue_init(&g_log_config.log_queue);
     if (ret != ENPU_SUCCESS) {
-        fprintf(stderr, "Log init failed: unable to init log queue.\n");
+        fprintf(stderr, "[eNPU] Log init failed: unable to init log queue.\n");
         pthread_mutex_destroy(&g_log_config.print_mutex);
         pthread_mutex_destroy(&g_log_config.compress_mutex);
         return ENPU_FAIL;
@@ -449,7 +450,7 @@ int log_init(void)
     g_log_running = true;
     ret = pthread_create(&g_log_config.consumer_thread, NULL, log_consumer_thread, NULL);
     if (ret != 0) {
-        fprintf(stderr, "Log init failed: unable to create log consumer thread.\n");
+        fprintf(stderr, "[eNPU] Log init failed: unable to create log consumer thread.\n");
         g_log_running = false;
         log_queue_destroy(&g_log_config.log_queue);
         pthread_mutex_destroy(&g_log_config.print_mutex);
@@ -457,7 +458,7 @@ int log_init(void)
         return ENPU_FAIL;
     }
 
-    printf("Async logging enabled with queue size %d.\n", LOG_QUEUE_SIZE);
+    printf("[eNPU] Async logging enabled with queue size %d.\n", LOG_QUEUE_SIZE);
     g_log_initialized = true;
     return ENPU_SUCCESS;
 }
@@ -469,7 +470,7 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
     }
 
     if (!g_log_initialized) {
-        fprintf(stderr, "[ENPU-PRE-INIT] log module not initialized, cannot print log.\n");
+        fprintf(stderr, "[eNPU] Log module not initialized, cannot print log.\n");
         return;
     }
 
@@ -503,7 +504,7 @@ void log_print(EnpuLogLevel level, const char* filename, int line, const char* f
         static int drop_count = 0;
         int current = __atomic_fetch_add(&drop_count, 1, __ATOMIC_RELAXED);
         if (current < LOG_DROP_WARN_LIMIT) {
-            fprintf(stderr, "Log queue push failed: log system unavailable (queue full or shut down).\n");
+            fprintf(stderr, "[eNPU] Log queue push failed: log system unavailable (queue full or shut down).\n");
         }
     }
 }
@@ -520,14 +521,14 @@ int log_queue_init(LogQueue* queue)
 
     int ret = pthread_mutex_init(&queue->mutex, NULL);
     if (ret != 0) {
-        fprintf(stderr, "Failed to init log queue mutex.\n");
+        fprintf(stderr, "[eNPU] Failed to init log queue mutex.\n");
         return ENPU_FAIL;
     }
 
     ret = pthread_cond_init(&queue->not_empty, NULL);
     if (ret != 0) {
         pthread_mutex_destroy(&queue->mutex);
-        fprintf(stderr, "Failed to init log queue not_empty condition.\n");
+        fprintf(stderr, "[eNPU] Failed to init log queue not_empty condition.\n");
         return ENPU_FAIL;
     }
 
@@ -535,7 +536,7 @@ int log_queue_init(LogQueue* queue)
     if (ret != 0) {
         pthread_mutex_destroy(&queue->mutex);
         pthread_cond_destroy(&queue->not_empty);
-        fprintf(stderr, "Failed to init log queue not_full condition.\n");
+        fprintf(stderr, "[eNPU] Failed to init log queue not_full condition.\n");
         return ENPU_FAIL;
     }
 

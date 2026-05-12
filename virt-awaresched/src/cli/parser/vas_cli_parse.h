@@ -38,18 +38,19 @@ public:
     static void VasCliRegisterSdkCmdInfo(std::vector<VasCliSdkCmdInfo> &vasCliSdkCmdInfo);
     VasRet SdkCliParse(const std::vector<std::string> &args);
     VasCliSdkCmdInfo GetSdkCommandInfo();
-    const std::map<std::string, std::string>& GetInputOptionMap() const;
+    const std::map<std::string, std::string> &GetInputOptionMap() const;
     static void PrintWithWordWrap(const std::string &text);
     void PrtHelp(const std::vector<std::string> &args);
     bool needPrtHelp = false;
     const std::vector<VasCliSdkCmdInfo> &GetSdkCmdInfo() const;
     const std::unordered_map<std::string, std::vector<VasCliSdkOptionsInfo>> &GetSdkCommandWithOptions() const;
     void Reset();
+
 private:
     std::map<std::string, std::string> inputOptionMap{}; // Input parameter mapping
-    VasCliSdkCmdInfo sdkCommandInfo;                    // Matched SDK command information
-    std::vector<VasCliSdkCmdInfo> sdkCmdInfo;           // Command information registered for SDK invocation
-    std::unordered_set<std::string> fullCommand;        // Complete command keys
+    VasCliSdkCmdInfo sdkCommandInfo;                     // Matched SDK command information
+    std::vector<VasCliSdkCmdInfo> sdkCmdInfo;            // Command information registered for SDK invocation
+    std::unordered_set<std::string> fullCommand;         // Complete command keys
     std::unordered_map<std::string, std::vector<VasCliSdkOptionsInfo>> sdkCommandWithOptions; // Commands parameters
 
     static bool CheckDuplicateOptions(const std::unordered_set<std::string> &shortOptions,
@@ -76,8 +77,8 @@ private:
 
     // Parse command line arguments
     VasRet GenSdkCmdOptParaMap(const std::vector<std::string> &args, const std::string &param,
-                                   const std::vector<VasCliSdkOptionsInfo> &cmdOptions, size_t &paramIndex,
-                                   std::map<std::string, std::string> &params);
+                               const std::vector<VasCliSdkOptionsInfo> &cmdOptions, size_t &paramIndex,
+                               std::map<std::string, std::string> &params);
     VasRet GetSdkRegCmdInfo(const std::vector<std::string> &args);
     VasRet SdkCmdOptParse(const std::vector<std::string> &args, std::map<std::string, std::string> &inputOptionMap);
     static bool CheckOptionValueLength(const std::string &optionValue);

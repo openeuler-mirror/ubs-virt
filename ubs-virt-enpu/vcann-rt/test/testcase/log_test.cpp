@@ -355,3 +355,11 @@ TEST_F(LogTest, LogTest_log_init_env_invalid_log_level)
     EXPECT_EQ(g_log_config.min_log_level, ENPU_LOG_INFO);
     unsetenv("ENPU_LOG_LEVEL");
 }
+
+TEST_F(LogTest, LogTest_log_print_not_initialized)
+{
+    log_shutdown();
+    LOG_INFO("This should be silently ignored");
+    int ret = log_init();
+    EXPECT_EQ(ret, ENPU_SUCCESS);
+}

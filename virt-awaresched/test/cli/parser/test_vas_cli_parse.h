@@ -24,6 +24,6 @@ private:
 
     void TearDown() override;
 };
-}
+} // namespace vas::ut::cli
 
 #endif // TEST_VAS_CLI_PARSE_H

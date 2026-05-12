@@ -82,8 +82,8 @@ TEST_F(TestLogger, CleanupOldRotateLogFile_NoDelete)
     MOCKER(mktime)
         .stubs()
         .will(returnValue(time_t(1)))
-        .then(returnValue(time_t(2))) // mock file stat time is 2
-        .then(returnValue(time_t(3))) // mock file stat time is 3
+        .then(returnValue(time_t(2)))  // mock file stat time is 2
+        .then(returnValue(time_t(3)))  // mock file stat time is 3
         .then(returnValue(time_t(4))); // mock file stat time is 4
 
     MOCKER(unlink).expects(never());
@@ -129,9 +129,7 @@ TEST_F(TestLogger, CompressOldLogFile_CallCleanup)
     std::string oldLogFile = "/tmp/test.log";
     std::string ts = "20260123_121314";
 
-    EXPECT_NO_THROW({
-        CompressOldLogFile(oldLogFile, ts);
-    });
+    EXPECT_NO_THROW({ CompressOldLogFile(oldLogFile, ts); });
     GlobalMockObject::verify();
     MOCKER(CleanupOldRotateLogFile).reset();
 }

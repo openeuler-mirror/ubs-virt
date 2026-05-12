@@ -32,7 +32,7 @@
 
 ### 主机侧环境配置
 
-主机侧通过`npu-smi`工具开启容器共享模式。若配合MindCluster使用，要求整节点开启容器共享模式。
+主机侧通过`npu-smi`工具开启容器共享模式，可支持多个容器挂载同一设备。若设备未开启容器共享模式，则只能挂载到单个容器。若配合MindCluster使用，要求整节点开启容器共享模式。
 
 ```shell
 # 设置容器共享模式
@@ -57,7 +57,7 @@ npu-smi info -t device-share -i ${id}
   npu-smi info -t device-share -i 0
   ```
 
-主机侧可设置容器共享持久化使能状态。
+主机侧可设置容器共享持久化使能状态。若持久化功能为开启状态，则重启系统后设备的容器共享模式使能状态与重启前保持一致。
 
 ```shell
 npu-smi set -t device-share-cfg-recover -d ${value}
@@ -87,8 +87,6 @@ npu-smi set -t multi-die-policy -d ${value}
 
 ## 源码获取
 
-在编译vCANN-RT源码前，用户需要先设置CANN的环境变量。
-
 可以使用如下方式获取`vCANN-RT`源码。
 
 ```shell
@@ -108,7 +106,7 @@ git clone <ubs-virt-enpu-vcann-rt-url>
 
 ## 编译
 
-在编译vCANN-RT源码前，用户需要先设置CANN的环境变量。
+在编译vCANN-RT源码前，用户需要设置CANN的环境变量。如果驱动安装在非默认路径，还需要设置驱动路径环境变量。
 
 `vCANN-RT`在代码仓中提供了统一的编译构建脚本（即`make_build.sh`文件），可以直接执行该脚本文件进行编译构建。
 
@@ -116,39 +114,35 @@ git clone <ubs-virt-enpu-vcann-rt-url>
 bash make_build.sh 8.5.0
 ```
 
-编译完成之后，会在`build`目录下面产生相应的编译产物（如果当前编译环境安装的cann版本不是8.5.0，则不需要增加编译参数）。
+编译完成之后，会在`build`目录下面产生相应的编译产物（如果当前编译环境安装的cann版本低于8.5.0，则不需要增加编译参数）。
 
 ## 部署
 
 用户可以选择将软切分动态库`libvruntime.so`和检测工具`enpu-monitor`分别拷贝到`/opt/enpu/vcann-rt/lib`和`/opt/enpu/vcann-rt/tools`目录。（如果选择不拷贝，则需要在后面的流程中修改相应的路径。）
 
-### 启动服务
+### 配置preload文件
+  <span id="step1"></span>
+  创建ld.so.preload文件，并将libvruntime.so的路径配置到ld.so.preload文件中，用于预加载软切分动态库。
 
-vCANN-RT支持两种方式启动服务：
+  ```shell
+  vi ld.so.preload
+  # 例如libvruntime.so 的路径为/opt/enpu/vcann-rt/lib
+  /opt/enpu/vcann-rt/lib/libvruntime.so
+  ```
+
+  主机侧ld.so.preload文件的路径用户可自定义，文档后续内容中使用${preload_path}表示，容器内为固定路径`/etc/ld.so.preload`。不建议将ld.so.preload文件放置在主机的`/etc`目录，否则将在主机侧预加载软切分动态库，可能影响主机侧业务。
+
+### 启动业务容器
+
+vCANN-RT支持两种方式启动业务容器：
 
 #### 方式一：基于kubernetes编排系统部署
 
   用户通过k8s yaml文件，在申请容器时声明所需的vNPU算力资源百分比例和显存资源数量。k8s会将容器调度到资源充足的节点，并将算力和显存资源配额等信息以配置文件挂载到容器内。同时，k8s会将vCANN-RT的包挂载到容器，容器内即可使能vCANN-RT软切分能力。
 
-1. 配置preload文件。
+  yaml配置文件的格式可参考如下示例文件vnpu-base.yaml：
 
-    创建ld.so.preload文件，并将libvruntime.so的路径配置到ld.so.preload文件中，用于K8s挂载vCANN-RT到容器。
-
-    ```shell
-    vi ld.so.preload
-      # 例如libvruntime.so 的路径为/opt/enpu/vcann-rt/lib
-    /opt/enpu/vcann-rt/lib/libvruntime.so
-    ```
-
-    主机侧ld.so.preload文件的路径用户可自定义，文档后续内容中使用${preload_path}表示，容器内为固定路径。不建议将ld.so.preload文件放置在主机的`/etc`目录，否则将在主机侧预加载软切分动态库，可能影响主机侧业务。
-
-2. <span id="step2">使用yaml启动容器。</span>
-
-    yaml文件配置可参考如下格式：
-
-    ```shell
-    vnpu-base.yaml
-
+  ```shell
     apiVersion: mindxdl.gitee.com/v1
     kind: AscendJob
     metadata:
@@ -189,17 +183,6 @@ vCANN-RT支持两种方式启动服务：
                       labels:
                         ring-controller.atlas: ascend-910b
                     spec:
-                        affinity:
-                          podAntiAffinity:
-                          requiredDuringSchedulingIgnoredDuringExecution:
-                            - labelSelector:
-                                matchExpressions:
-                                  - key: job-name
-                                    operator: In
-                                    values:
-                                      # 与job名保持一致
-                                      - vnpu-base
-                              topologyKey: kubernetes.io/hostname
                         automountServiceAccountToken: false
                         nodeSelector:
                             host-arch: huawei-arm
@@ -239,6 +222,8 @@ vCANN-RT支持两种方式启动服务：
                             mountPath: /usr/local/sbin/
                           - name: ascend-driver
                             mountPath: /usr/local/Ascend/driver
+                          - name: dshm
+                            mountPath: /dev/shm
                           - name: localtime
                             mountPath: /etc/localtime
                             # 软切分动态库路径
@@ -257,6 +242,9 @@ vCANN-RT支持两种方式启动服务：
                         - name: ascend-driver
                           hostPath:
                             path: /usr/local/Ascend/driver
+                        - name: dshm
+                          emptyDir:
+                            medium: Memory
                         - name: localtime
                           hostPath:
                             path: /etc/localtime
@@ -280,17 +268,6 @@ vCANN-RT支持两种方式启动服务：
                   labels:
                     ring-controller.atlas: ascend-910b
                 spec:
-                  affinity:
-                    podAntiAffinity:
-                      requiredDuringSchedulingIgnoredDuringExecution:
-                        - labelSelector:
-                            matchExpressions:
-                              - key: job-name
-                                operator: In
-                                values:
-                                  # 与job名保持一致
-                                  - vnpu-base
-                          topologyKey: kubernetes.io/hostname
                   automountServiceAccountToken: false
                   nodeSelector:
                     host-arch: huawei-arm
@@ -326,6 +303,8 @@ vCANN-RT支持两种方式启动服务：
                           mountPath: /usr/local/sbin/
                         - name: ascend-driver
                           mountPath: /usr/local/Ascend/driver
+                        - name: dshm
+                          mountPath: /dev/shm
                         - name: localtime
                           mountPath: /etc/localtime
                         - name: libpreload 
@@ -341,6 +320,9 @@ vCANN-RT支持两种方式启动服务：
                     - name: ascend-driver
                       hostPath:
                         path: /usr/local/Ascend/driver
+                    - name: dshm
+                      emptyDir:
+                        medium: Memory
                     - name: localtime
                       hostPath:
                         path: /etc/localtime
@@ -353,84 +335,61 @@ vCANN-RT支持两种方式启动服务：
                     - name: preload 
                       hostPath:
                         path: ${preload_path}/ld.so.preload
-    ```
+  ```
 
-    可根据实际业务进行参数配置：
-    - metadata:
-        - name: 容器名,建议与yaml文件名一致。
-        - namespace: 命名空间。
-        - labels:
-            - huawei.com/scheduler.softShareDev.aicoreQuota: 算力aicore配额（需配置为整数），单位：%
-            - huawei.com/scheduler.softShareDev.hbmQuota: 显存HBM配额（需配置为整数），单位：MB
-            - huawei.com/scheduler.softShareDev.policy: 调度策略，默认为弹性模式。
-              - 固定配额模式（fixed-share）
-              - 弹性模式（elastic）
-              - 争抢模式（best-effort）
+  可根据实际业务进行参数配置：
+  - metadata:
+      - name: 容器名,建议与yaml文件名一致。
+      - namespace: 命名空间。
+      - labels:
+          - huawei.com/scheduler.softShareDev.aicoreQuota: 算力aicore配额（需配置为整数），单位：%
+          - huawei.com/scheduler.softShareDev.hbmQuota: 显存HBM配额（需配置为整数），单位：MB
+          - huawei.com/scheduler.softShareDev.policy: 调度策略，默认为弹性模式。
+            - 固定配额模式（fixed-share）
+            - 弹性模式（elastic）
+            - 争抢模式（best-effort）
             
-            - 每种模式的详细介绍参见表6，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制。
-    - containers:
-        - image: 镜像名。
-    - volumes:
-        - name: libpreload 
-            - hostPath:
-                - path: /opt/enpu/vcann-rt/lib/libvruntime.so # 软切分动态库路径，根据实际路径进行修改
-        - name: tools 
-            - hostPath:
-                - path: /opt/enpu/vcann-rt/tools/enpu-monitor # 检测工具路径，根据实际路径进行修改
-        - name: preload # preload配置文件路径。
-            - hostPath:
-                - path: ${preload_path}/ld.so.preload # [步骤2](#step2)中创建的ld.so.preload文件路径。
+          - 每种模式的详细介绍参见[表6](#table6)，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制。
+  - containers:
+      - image: 镜像名。
+  - volumes:
+      - name: libpreload 
+          - hostPath:
+              - path: /opt/enpu/vcann-rt/lib/libvruntime.so # 软切分动态库路径，根据实际路径进行修改
+      - name: tools 
+          - hostPath:
+              - path: /opt/enpu/vcann-rt/tools/enpu-monitor # 检测工具路径，根据实际路径进行修改
+      - name: preload # preload配置文件路径。
+          - hostPath:
+              - path: ${preload_path}/ld.so.preload # [步骤1](#step1)中创建的ld.so.preload文件路径。
 
-    **表 6 调度模式介绍**<a id="table6"></a>
+  **表 6 调度模式介绍**<a id="table6"></a>
 
-    |模式名称|特点描述|
-    |:---|:---|
-    |固定配额模式（fixed-share）|各vNPU按配比严格执行时间片。<br> a. 若有暂未分配的vNPU资源，则在最后一个vNPU时间片消耗完，睡眠一段时间。此时NPU将闲置空转。<br> b. 某vNPU上无任务运行，仍会给定比例消耗完该vNPU的时间片。|
-    |弹性模式（elastic）| 由于固定配额模式可能出现NPU资源浪费，在此模式下，在各vNPU按配比执行时间片的基础上，为提高卡资源利用率，优化了调度逻辑。<br> a. 最后一个vNPU时间片消耗完，马上将NPU使用权释放给下一个vNPU，跳过睡眠逻辑。 <br> b. 在某vNPU上无任务运行，则直接跳过未消耗完的时间片，切换至另一个vNPU。<br> c. 时间片借用机制：正在执行的vNPU在识别到卡资源空闲的情况下，允许其他vNPU借用该时间片内浪费的资源，使卡上资源不被浪费，进而提升整卡利用率。|
-    |争抢模式（best-effort）|vNPU之间自行争抢NPU资源，该模式的资源利用率最高，但无法保证vNPU的QoS。|
+  |模式名称|特点描述|
+  |:---|:---|
+  |固定配额模式（fixed-share）|各vNPU按配比严格执行时间片。<br> a. 若有暂未分配的vNPU资源，则在最后一个vNPU时间片消耗完，睡眠一段时间。此时NPU将闲置空转。<br> b. 某vNPU上无任务运行，仍会给定比例消耗完该vNPU的时间片。|
+  |弹性模式（elastic）| 由于固定配额模式可能出现NPU资源浪费，在此模式下，在各vNPU按配比执行时间片的基础上，为提高卡资源利用率，优化了调度逻辑。<br> a. 最后一个vNPU时间片消耗完，马上将NPU使用权释放给下一个vNPU，跳过睡眠逻辑。 <br> b. 在某vNPU上无任务运行，则直接跳过未消耗完的时间片，切换至另一个vNPU。<br> c. 时间片借用机制：正在执行的vNPU在识别到卡资源空闲的情况下，允许其他vNPU借用该时间片内浪费的资源，使卡上资源不被浪费，进而提升整卡利用率。|
+  |争抢模式（best-effort）|vNPU之间自行争抢NPU资源，该模式的资源利用率最高，但无法保证vNPU的QoS。|
 
-    使用yaml文件拉起容器：
+  使用yaml文件拉起容器：
 
-    ```shell
-    kubectl apply -f ${container_name.yaml}
-    # 查看容器
-    kubectl get pods -n ${namespace}
-    ```
+  ```shell
+  kubectl apply -f ${container_name.yaml}
+  # 查看容器
+  kubectl get pods -n ${namespace}
+  ```
 
-    如果容器启动失败，可参考方式二中的解决方法。
-3. 拉起vCANN-RT软切分服务。
+  如果容器启动失败，可参考方式二中的解决方法。
 
-    进入容器：
+  进入容器：
 
-    ```shell
-    kubectl exec -it ${pod_name} -n ${namespace} bash
-    ```
-
-    进入容器后，可通过环境变量`ENPU_LOG_LEVEL`配置日志级别。日志级别由高到底分别是FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。默认日志级别为INFO。
-
-    示例：
-
-    ```shell
-    export ENPU_LOG_LEVEL=3
-    ```
-
-    启动推理任务时，会自动拉起vCANN-RT算力控制和显存控制服务。软切分服务启动成功之后会设置一个进程级环境变量`ENPU_ENABLE=True`。
-
-    在容器内可查询配置文件获取vNPU资源配额等信息：
-
-    ```shell
-    cat /etc/enpu/vcann-rt/npu_info.config
-    ```
-
-    在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息：
-
-    ```shell
-    /opt/enpu/vcann-rt/tools/enpu-monitor
-    ```
+  ```shell
+  kubectl exec -it ${pod_name} -n ${namespace} bash
+  ```
 
 #### 方式二：docker方式部署（不依赖kubernetes组件）
 
-  当不依赖k8s组件使用vCANN-RT时，需要用户在启动容器时自行挂载软切分相关动态库、文件和设备。例如软件分动态库、配置文件、共享内存设备和物理NPU设备。具体步骤如下：
+当不依赖k8s组件使用vCANN-RT时，需要用户在启动容器时自行挂载软切分相关动态库、文件和设备。例如软件分动态库、配置文件、共享内存设备和物理NPU设备。具体步骤如下：
 
 1. 创建vNPU配置文件和共享内存设备。
 
@@ -458,18 +417,12 @@ vCANN-RT支持两种方式启动服务：
 
     此外，需要设置配置文件具有合适的权限，建议为644。
 
-2. 预加载配置文件。
+2. 启动业务容器。
 
-    在主机侧创建预加载动态库文件`ld.so.preload`, 文件内容为libvruntime.so的路径，例如：`/opt/enpu/vcann-rt/lib/libvruntime.so`。
-
-    不建议将`ld.so.preload`文件放置在主机的`/etc`目录，否则将在主机侧预加载软切分动态库，可能影响主机侧业务。
-
-3. 启动业务容器。
-
-    用户在启动容器时，需要将软切分相关动态库、文件和设备挂载到容器，容器启动命令可参考(假如使用第0张NPU卡)：
+    用户在启动容器时，需要将软切分相关动态库、文件和设备挂载到容器(具体可参见[表8](#table8))，容器启动命令可参考(假如使用第0张NPU卡)：
 
     ```bash
-      docker run -it --name=container_name \
+      docker run -it --name=${container_name} \
       --device=/dev/davinci0:/dev/davinci0 \
       --device=/dev/davinci_manager \
       --device=/dev/hisi_hdc:/dev/hisi_hdc \
@@ -479,8 +432,8 @@ vCANN-RT支持两种方式启动服务：
       -v /opt/enpu/vcann-rt/lib/libvruntime.so:/opt/enpu/vcann-rt/lib/libvruntime.so \
       -v /opt/enpu/vcann-rt/tools/enpu-monitor:/opt/enpu/vcann-rt/tools/enpu-monitor \
       -v /xxx/npu_info.config:/etc/enpu/vcann-rt/npu_info.config \
-      -v /xxx/ld.so.preload:/etc/ld.so.preload \
-      image_name /bin/bash
+      -v ${preload_path}/ld.so.preload:/etc/ld.so.preload \
+      ${image_name} /bin/bash
     ```
 
     如果遇到容器启动报错`libboundscheck.so: cannot open shared object file: No such file or directory`或者`GLIBC_xxx not found`。解决办法：
@@ -491,7 +444,7 @@ vCANN-RT支持两种方式启动服务：
 
       3. 执行`export LD_PRELOAD=/opt/enpu/vcann-rt/lib/libvruntime.so`命令加载动态库。
 
-    **表 8 参数说明**
+    **表 8 参数说明**<a id="table8"></a>
 
     |文件/工具|路径|
     |:---|:---|
@@ -503,22 +456,39 @@ vCANN-RT支持两种方式启动服务：
     |预加载动态库文件|主机侧可存放在自定义路径，容器内为固定路径：`/etc/ld.so.preload`。不建议将`ld.so.preload`文件放置在主机的`/etc`目录，否则将在主机侧预加载软切分动态库，可能影响主机侧业务。|
 
 
-4. 启动业务，使用vCANN-RT服务
+### 启动业务，使用vCANN-RT服务
 
-    - 拉起容器之后，启动训练推理任务前，可以通过环境变量配置日志级别。例如：
+  - 拉起容器之后，可通过环境变量`ENPU_LOG_LEVEL`配置日志级别。日志级别由高到底分别是FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。默认日志级别为INFO。例如：
 
-      ```bash
-      export ENPU_LOG_LEVEL=3
-      ```
+    ```bash
+    export ENPU_LOG_LEVEL=3
+    ```
 
-    - 推理任务启动时，会自动拉起vCANN-RT服务进行算力控制和显存控制，软切分服务启动成功之后会设置一个进程级环境变量`ENPU_ENABLE=True`。如果日志回显内容为`"Successfully to initialize all module."`, 则表示vCANN-RT服务启动成功。
+  - 推理任务启动时，会自动拉起vCANN-RT服务进行算力控制和显存控制，软切分服务启动成功之后会设置一个进程级环境变量`ENPU_ENABLE=True`。如果日志回显内容为`"Successfully to initialize all module."`, 则表示vCANN-RT服务启动成功。
 
-    - 在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息。
+  - 在容器内可查询配置文件获取vNPU资源配额等信息：
 
-      ```bash
-      /opt/enpu/vcann-rt/tools/enpu-monitor
-      ```
-      
+    ```shell
+    cat /etc/enpu/vcann-rt/npu_info.config
+    ```
+
+  - 在容器内可通过监测工具查询vNPU资源配额和内存使用情况等信息。
+
+    ```bash
+    /opt/enpu/vcann-rt/tools/enpu-monitor
+    ```
+
+### 环境变量汇总
+
+**表 9 环境变量列表**
+
+| 环境变量 | 范围 | 默认值 | 说明 |
+|-|-|-|-|
+| `ASCEND_HOME_PATH` | 编译 | `/usr/local/Ascend/cann` | CANN安装路径，可通过 `source /path/to/cann/set_env.sh` 设置。 |
+| `ENPU_ASCEND_DRIVER_PATH` | 编译 | `/usr/local/Ascend` | HDK driver安装路径。 |
+| `ENPU_LOG_LEVEL` | 运行 | `3` | 日志级别，FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。 |
+| `ENPU_ENABLE` | 运行 | `True` | vCANN-RT启动成功之后设置的进程级环境变量。 |
+
 ## 约束
 
 - 由于vCANN-RT解决方案使用了共享内存，因此用户需要确保在可信用户范围内使用。

@@ -29,11 +29,11 @@ extern "C" {
 #endif
 
 #define NPU_CONFIG_PATH  "/etc/enpu/vcann-rt/npu_info.config"
-#define MAX_PIDS 1024
-#define MAX_NPU_COUNT 16
+#define MAX_NPU_ID 15
 #define MAX_VNPU 100
 #define MAX_CORE_QUOTA 100
 #define MB_TO_B (1024 * 1024)
+#define MAX_DEVICE_LIST_NUM 64
 
 typedef enum {
     SCHED_POLICY_FIXED_SHARE = 1,
@@ -54,43 +54,48 @@ typedef struct shared_memory {
 } vnpu_time_slice_sched_t;
 
 typedef struct npu_info {
-    uint8_t pnpu_id;
-    uint8_t logic_id;
-    uint8_t card_id;
-    uint8_t device_id;
+    uint32_t pnpu_id;
+    int logic_id;
+    int card_id;
+    int device_id;
     uint8_t vnpu_id;
     bool in_used;
     size_t mem_limit_quota;
     uint8_t core_limit_quota;
     uint64_t core_quota_timeslice;
     uint64_t core_cur_timeslice;
-    bool is_mem_limit;
     bool is_core_limit;
     schedule_policy_t sched_policy;
     char shm_id[SHM_ID_LEN];
+    bool initialization;
+    uint8_t soc_version;
 } npu_info;
 
 extern void enpu_global_init(void);
+extern void enpu_global_init_post(void);
 
 extern bool is_core_limit(void);
-extern bool is_mem_limit(void);
 extern uint8_t get_core_limit_quota(void);
 extern size_t get_mem_limit_quota(void);
 extern void set_mem_limit_quota(size_t mem);
 extern char *get_vnpu_shm_id(void);
 extern int get_mem_used(size_t *used);
-extern uint8_t get_device_id(void);
+extern int get_device_id(void);
 extern uint8_t get_vnpu_id(void);
 extern uint64_t get_core_quota_timeslice(void);
 extern void set_core_quota_timeslice(uint64_t time);
 extern uint64_t get_core_cur_timeslice(void);
 extern void set_core_cur_timeslice(uint64_t time);
-extern uint8_t get_card_id(void);
+extern int get_card_id(void);
 extern schedule_policy_t get_sched_policy(void);
+extern bool check_init_success(void);
+extern uint8_t get_soc_version(void);
+extern int get_logic_id(void);
 
 extern int enpu_load_config(void);
 extern int enpu_device_init(void);
 extern int enpu_config_info_init(void);
+extern int enpu_soc_init(void);
 #if defined(__cplusplus)
 }
 #endif

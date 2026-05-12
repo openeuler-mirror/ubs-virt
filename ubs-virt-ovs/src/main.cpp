@@ -30,7 +30,7 @@ void SigIntHandler(int signo)
 
 void InstallSignalHandler()
 {
-    struct sigaction sa{};
+    struct sigaction sa {};
     sa.sa_handler = SigIntHandler;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;

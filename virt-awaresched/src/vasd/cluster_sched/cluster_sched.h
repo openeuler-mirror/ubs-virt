@@ -69,7 +69,7 @@ private:
     VasRet UpdateDomainInfoWithoutLock(const VmInfo &vmInfo, NumaUsedCpuMap &numaUsedCpuMap, VmDomain &vmDomain);
     uint16_t GetNumaCpuCount(const uint16_t &numaId);
     NumaUsedCpuMap GetNumaUsedCpuMap();
-    VasRet SelectMinLayer(const std::set<uint16_t>& availableNumas, uint16_t &selectNumaId);
+    VasRet SelectMinLayer(const std::set<uint16_t> &availableNumas, uint16_t &selectNumaId);
     VasRet SelectVmNuma(const VmInfo &vmInfo, NumaUsedCpuMap &numaUsedCpuMap, uint16_t &selectNumaId);
     VasRet Alloc(VmDomain &domain);
     void Free(VmDomain &domain);

@@ -65,6 +65,9 @@ int main(int argc, char *argv[])
         unsetenv("ENPU_LOG_LEVEL");
     }
 
+    ret = enpu_soc_init();
+    CHECK_RETURN_ERROR_CODE(ret, "Enpu soc init failed.");
+
     ret = enpu_load_config();
     CHECK_RETURN_ERROR_CODE(ret, "Load npu device failed.");
 

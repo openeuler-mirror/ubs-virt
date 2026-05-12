@@ -20,10 +20,7 @@
 
 bool memory_check(size_t requested)
 {
-    if (!is_mem_limit()) {
-        return true;
-    }
-    size_t used;
+    size_t used = 0;
     int ret = get_mem_used(&used);
     CHECK_COND_RETURN_(ret != 0, false, "get mem used failed.");
     size_t quota = get_mem_limit_quota();

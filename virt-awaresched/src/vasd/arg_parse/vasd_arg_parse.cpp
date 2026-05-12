@@ -177,7 +177,7 @@ VasCliSdkResult CliSetServerConfFunc(const std::map<std::string, std::string> &p
 
     if (smtIter != params.end()) {
         VasdArgParse::smt = (smtIter->second == "true" || smtIter->second == "1") &&
-            !(smtIter->second == "false" || smtIter->second == "0");
+                            !(smtIter->second == "false" || smtIter->second == "0");
     }
     if (schedPolicyIter != params.end()) {
         VasdArgParse::schedPolicy = schedPolicyIter->second;
@@ -186,18 +186,18 @@ VasCliSdkResult CliSetServerConfFunc(const std::map<std::string, std::string> &p
         try {
             int value = std::stoi(dynamicAffinityUtilThreshIter->second);
             if (value < DYNAMIC_AFFINITY_UTIL_THRESH_MIN_VALUE || value > DYNAMIC_AFFINITY_UTIL_THRESH_MAX_VALUE) {
-                std::cerr << "Invalid value for dynamicAffinityUtilThresh: " << value << ". Expected range: 0-100." <<
-                    std::endl;
+                std::cerr << "Invalid value for dynamicAffinityUtilThresh: " << value << ". Expected range: 0-100."
+                          << std::endl;
                 return PromptReply(FAILED_EXECUTE);
             }
             VasdArgParse::dynamicAffinityUtilThresh = value;
         } catch (const std::invalid_argument &e) {
-            std::cerr << "Invalid argument for dynamicAffinityUtilThresh: " << dynamicAffinityUtilThreshIter->second <<
-                std::endl;
+            std::cerr << "Invalid argument for dynamicAffinityUtilThresh: " << dynamicAffinityUtilThreshIter->second
+                      << std::endl;
             return PromptReply(FAILED_EXECUTE);
         } catch (const std::out_of_range &e) {
-            std::cerr << "Value out of range for dynamicAffinityUtilThresh: " <<
-                dynamicAffinityUtilThreshIter->second << std::endl;
+            std::cerr << "Value out of range for dynamicAffinityUtilThresh: " << dynamicAffinityUtilThreshIter->second
+                      << std::endl;
             return PromptReply(FAILED_EXECUTE);
         }
     }
@@ -206,12 +206,12 @@ VasCliSdkResult CliSetServerConfFunc(const std::map<std::string, std::string> &p
     }
     if (rangeAffinityIter != params.end()) {
         VasdArgParse::rangeAffinity = (rangeAffinityIter->second == "true" || rangeAffinityIter->second == "1") &&
-            !(rangeAffinityIter->second == "false" || rangeAffinityIter->second == "0");
+                                      !(rangeAffinityIter->second == "false" || rangeAffinityIter->second == "0");
     }
     std::cout << "SMT: " << std::boolalpha << vas::sched::VasdArgParse::smt << std::endl;
     std::cout << "Schedule Policy: " << vas::sched::VasdArgParse::schedPolicy << std::endl;
-    std::cout << "Dynamic Affinity Util Threshold: " << vas::sched::VasdArgParse::dynamicAffinityUtilThresh <<
-        std::endl;
+    std::cout << "Dynamic Affinity Util Threshold: " << vas::sched::VasdArgParse::dynamicAffinityUtilThresh
+              << std::endl;
     std::cout << "Range Affinity: " << vas::sched::VasdArgParse::rangeAffinity << std::endl;
     std::cout << "Skipped CPU Set: " << vas::sched::VasdArgParse::skippedCPUSet << std::endl;
     return PromptReply(SUCCESS_EXECUTE);

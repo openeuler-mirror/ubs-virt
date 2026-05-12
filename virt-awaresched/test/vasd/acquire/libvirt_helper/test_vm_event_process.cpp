@@ -40,7 +40,6 @@ TEST_F(TestVmEventProcess, RunListenerTest)
     MOCKER(&LibvirtHelper::RunEventDefaultImpl).reset();
 }
 
-
 VasRet MockGetVmInfo(virDomainPtr domain, VmInfo &vmInfo)
 {
     vmInfo.uuid = UUID;

@@ -22,6 +22,7 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include "log.h"
+#include "securec.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -87,6 +88,14 @@ extern "C" {
             LOG_ERROR(error_msg, ##__VA_ARGS__);    \
             return;                                 \
         }                                           \
+    } while (false)
+
+#define CHECK_COND_RETURN_LOG(cond, error_msg, ...)              \
+    do {                                                        \
+        if (unlikely(cond)) {                  \
+            fprintf(stderr, error_msg"\n", ##__VA_ARGS__);      \
+            return;                                             \
+        }                                                       \
     } while (false)
 
 #define CHECK_COND_RETURN_ERROR_CODE(cond, error_msg, ...)      \

@@ -18,10 +18,11 @@ namespace vas::ut::serialize {
 class TestCmdSerialize : public testing::Test {
 protected:
     TestCmdSerialize() = default;
+
 private:
     void SetUp() override;
 
     void TearDown() override;
 };
-}
+} // namespace vas::ut::serialize
 #endif // TEST_CMD_SERIALIZE_H

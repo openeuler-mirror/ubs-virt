@@ -96,6 +96,6 @@ inline bool isIntEqZero(const int ret)
     return ret == 0;
 }
 
-} // vas
+} // namespace vas::common
 
 #endif // ERROR_H

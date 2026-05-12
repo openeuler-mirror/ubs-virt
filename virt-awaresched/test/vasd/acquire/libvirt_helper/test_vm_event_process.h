@@ -24,6 +24,6 @@ protected:
 
     void TearDown() override;
 };
-}
+} // namespace vas::ut::acquire
 
 #endif // TEST_VM_EVENT_PROCESS_H

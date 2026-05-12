@@ -63,11 +63,22 @@ void restore_streams(rtStream_t stream)
 
     if (g_cache_streams.num_streams >= MAX_STREAMS_PER_PROCESS) {
         LOG_ERROR("Failed to add stream %p to the cache. Maximum capacity (%d) reached.",
-                  (void*)stream, MAX_STREAMS_PER_PROCESS);
+            (void*)stream, MAX_STREAMS_PER_PROCESS);
         return;
     }
 
     g_cache_streams.streams[g_cache_streams.num_streams++] = stream;
+    int ret = hashmap_put(stream_map, (void*)stream, NULL, false);
+    CHECK_COND_RETURN(ret == -1, "Failed to put stream %p to the hash map.", (void*)stream);
+    LOG_DEBUG("Stream %p is added in stream hash map.", (void*)stream);
+    return;
+}
+
+void add_stream(rtStream_t stream)
+{
+    if (hashmap_contains(stream_map, (void*)stream)) {
+        return;
+    }
     int ret = hashmap_put(stream_map, (void*)stream, NULL, false);
     CHECK_COND_RETURN(ret == -1, "Failed to put stream %p to the hash map.", (void*)stream);
     LOG_DEBUG("Stream %p is added in stream hash map.", (void*)stream);
@@ -191,6 +202,7 @@ void synchronize_and_clear_streams(void)
         rtStream_t stm = g_cache_streams.streams[i];
         bool capture = 0;
         int rc = hashmap_get_capture_status(stream_map, (void*)stm, &capture);
+        CHECK_COND_RETURN(rc == -1, "Failed to get stream %p capture_status from the hash map.", (void*)stm);
         if (capture) {
             LOG_DEBUG("Stream %p is in capture, skip synchronization and clear.", (void*)stm);
             g_cache_streams.streams[remaining_count++] = stm;
@@ -200,6 +212,7 @@ void synchronize_and_clear_streams(void)
         RUNTIME_HOOK_CALL(rt_library_entry, rtStreamSynchronize, stm);
         LOG_DEBUG("Stream synchronization end.");
         rc = hashmap_remove(stream_map, (void*)stm);
+        CHECK_COND_RETURN(rc == -1, "Failed to remove stream %p from the hash map.", (void*)stm);
     }
     g_cache_streams.num_streams = remaining_count;
 }
@@ -273,10 +286,10 @@ int calculate_alive_vnpu_num(void)
 void *npu_utilization_monitor_thread(void *arg)
 {
     (void)arg;
-    uint8_t utilization_rate = 0;
+    unsigned int utilization_rate = 0;
     uint64_t begin = ns_now();
     atomic_store(&g_vnpu_sched_context->last_slide_window_time_ns, begin);
-    int ret = enpu_dcmi_get_device_utilization_rate(get_card_id(), get_device_id(), &utilization_rate);
+    int ret = enpu_dcmi_get_device_utilization_rate(get_logic_id(), get_card_id(), get_device_id(), &utilization_rate);
     if (ret != ENPU_SUCCESS) {
         LOG_ERROR("DCMI call failed with ret: %d.", ret);
         return NULL;
@@ -525,13 +538,16 @@ void set_stream_capture(void* param, rtStream_t stream)
             rtStream_t stm = g_cache_streams.streams[i];
             void* head_stream = NULL;
             int rc = hashmap_get_ptr(stream_map, (void*)stm, &head_stream);
+            CHECK_COND_RETURN(rc == -1, "Failed to get stream %p ptr from the hash map.", (void*)stm);
             if (head_stream == (void*)stream) {
                 LOG_DEBUG("Stream %p capture state set to: 0.", (void*)stream);
                 rc = hashmap_put(stream_map, (void*)stm, NULL, false);
+                CHECK_COND_RETURN(rc == -1, "Failed to put stream %p to the hash map.", (void*)stm);
             }
         }
     } else {
         int rc = hashmap_put(stream_map, (void*)stream, (void*)stream, capture);
+        CHECK_COND_RETURN(rc == -1, "Failed to put stream %p to the hash map.", (void*)stream);
     }
     LOG_DEBUG("Stream %p capture state set to: %d.", (void*)stream, capture ? 1 : 0);
 }
@@ -546,6 +562,7 @@ void set_event_wait_status(void* evt, rtStream_t stm)
     if (event_status.ptr != NULL) {
         // update capture status by event
         rc = hashmap_put(stream_map, (void*)stm, event_status.ptr, true);
+        CHECK_COND_RETURN(rc == -1, "Failed to put stream %p to the hash map.", (void*)stm);
         LOG_DEBUG("Stream %p capture state set to: true, because of event.", (void*)stm);
     }
 }
@@ -560,17 +577,21 @@ void set_event_record_status(void* evt, rtStream_t stm)
 {
     MapValue event_status;
     int rc = hashmap_get(event_map, evt, &event_status);
+    CHECK_COND_RETURN(rc == -1, "Error: Event hash map get event %p failed.", evt);
     void* head_stream = NULL;
     rc = hashmap_get_ptr(stream_map, (void*)stm, &head_stream);
+    CHECK_COND_RETURN(rc == -1, "Failed to get stream %p ptr from the hash map.", (void*)stm);
     // capture
     if (head_stream != NULL) {
         rc = hashmap_put(event_map, evt, head_stream, true);
+        CHECK_COND_RETURN(rc == -1, "Error: Event hash map put event %p failed.", evt);
         LOG_DEBUG("Event %p capture status is updated to true in recording.", evt);
     }
 }
 
 void remove_stream(void* unused, rtStream_t stm)
 {
+    (void)unused;
     LOG_DEBUG("Remove stream %p", stm);
     for (int i = 0; i < g_cache_streams.num_streams; ++i) {
         if (stm == g_cache_streams.streams[i]) {

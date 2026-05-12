@@ -14,7 +14,6 @@ add_compile_definitions(_GLIBCXX_USE_CXX11_ABI=1)
 
 include(${PROJECT_SOURCE_DIR}/scripts/cmake/gtest.cmake)
 include(${PROJECT_SOURCE_DIR}/scripts/cmake/mockcpp.cmake)
-include(${PROJECT_SOURCE_DIR}/scripts/cmake/securec.cmake)
 
 set(VNPU_SRC_FILES
     ${PROJECT_SOURCE_DIR}/src/core_limiter.c
@@ -50,6 +49,7 @@ set(VNPU_TESTCASE_FILES
 )
 
 set(VNPU_STUB_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/stub/acl_stub.c
     ${CMAKE_CURRENT_SOURCE_DIR}/stub/runtime_stub.c
     ${CMAKE_CURRENT_SOURCE_DIR}/stub/dcmi_stub.c
 )
@@ -65,6 +65,7 @@ target_include_directories(vnpu_test PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/stub
 )
 
+
 target_link_libraries(vnpu_test PRIVATE
     gtest
     gtest_main
@@ -72,8 +73,14 @@ target_link_libraries(vnpu_test PRIVATE
     pthread
     rt
     dl
-    securec
+    c_sec
 )
+
+foreach(stub_file IN LISTS VNPU_STUB_FILES)
+    set_source_files_properties(${stub_file} PROPERTIES
+        COMPILE_FLAGS "-Wno-unused-parameter"
+    )
+endforeach()
 
 target_compile_definitions(vnpu_test
     PRIVATE
@@ -82,7 +89,7 @@ target_compile_definitions(vnpu_test
 
 target_compile_options(vnpu_test PRIVATE
     -Wall -Wextra -Wformat-nonliteral -Wformat-security -Wformat-y2k -Wfloat-equal
-    -std=c++14
+    $<$<COMPILE_LANGUAGE:CXX>:-std=c++14>
     -fPIC
     -fstack-protector-strong
     -fvisibility=hidden
@@ -91,7 +98,7 @@ target_compile_options(vnpu_test PRIVATE
 )
 
 target_link_options(vnpu_test PRIVATE
-    -Wl,-z,-relro,-z,now,-z,noexecstack
+    -Wl,-z,relro,-z,now,-z,noexecstack
     -s
 )
 

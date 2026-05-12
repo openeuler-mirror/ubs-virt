@@ -41,4 +41,4 @@ TEST_F(TestVasCliResEcho, NormalStringPrintDisplay)
     echoCtl.StringPrintDisplay("This is a very long text that will be wrapped to multiple lines");
     EXPECT_TRUE(remainingCellData.empty());
 }
-}
+} // namespace vas::ut::cli

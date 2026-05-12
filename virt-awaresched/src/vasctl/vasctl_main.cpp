@@ -3,9 +3,9 @@
  */
 
 #include "error.h"
-#include "vasctl_arg_parse.h"
 #include "vas_cli_parse.h"
 #include "vas_cli_process_ctl.h"
+#include "vasctl_arg_parse.h"
 
 using namespace vas::cli::reg;
 using namespace vas::cli::framework;

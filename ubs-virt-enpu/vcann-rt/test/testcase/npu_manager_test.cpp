@@ -25,6 +25,7 @@
 extern "C" {
     int stub_load_config(const char *path)
     {
+        (void)path;
         config.phy_npu_id = 0;
         config.vnpu_id = 1;
         config.scheduling_policy = SCHED_POLICY_FIXED_SHARE;
@@ -36,13 +37,17 @@ extern "C" {
 
     int stub_enpu_dcmi_get_card_info(int index, int *card_id, int *device_id)
     {
+        (void)index;
         *card_id = 0;
         *device_id = 0;
         return ENPU_SUCCESS;
     }
 
-    int stub_enpu_dcmi_get_device_resource_info(int card_id, int device_id, size_t *used)
+    int stub_enpu_dcmi_get_device_resource_info(int logic_id, int card_id, int device_id, size_t *used)
     {
+        (void)logic_id;
+        (void)card_id;
+        (void)device_id;
         *used = 512 * MB_TO_B;
         return ENPU_SUCCESS;
     }
@@ -117,7 +122,6 @@ TEST_F(NpuManagerTest, EnpuConfigInfoInitSuccess)
 
     int ret = enpu_config_info_init();
     EXPECT_EQ(ret, ENPU_SUCCESS);
-    EXPECT_TRUE(is_mem_limit());
     EXPECT_TRUE(is_core_limit());
     EXPECT_EQ(get_mem_limit_quota(), 512 * MB_TO_B);
     EXPECT_EQ(get_core_limit_quota(), 4);
@@ -135,7 +139,6 @@ TEST_F(NpuManagerTest, EnpuConfigInfoInitBestEffortPolicy)
 
     int ret = enpu_config_info_init();
     EXPECT_EQ(ret, ENPU_SUCCESS);
-    EXPECT_TRUE(is_mem_limit());
     EXPECT_FALSE(is_core_limit());
     EXPECT_EQ(get_mem_limit_quota(), 1024 * MB_TO_B);
     EXPECT_EQ(get_vnpu_id(), 1);

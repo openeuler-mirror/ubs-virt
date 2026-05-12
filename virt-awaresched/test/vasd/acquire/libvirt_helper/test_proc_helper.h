@@ -24,6 +24,6 @@ protected:
 
     void TearDown() override;
 };
-}
+} // namespace vas::ut::acquire
 
 #endif // TEST_PROC_HELPER_H

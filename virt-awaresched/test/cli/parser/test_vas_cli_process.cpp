@@ -16,8 +16,8 @@
 #include "cpu_helper.h"
 #include "libvirt_helper.h"
 #include "logger.h"
-#include "vas_cli_process_ctl.h"
 #include "vas_cli_parse.h"
+#include "vas_cli_process_ctl.h"
 #include "vas_cli_res_echo.h"
 #include "vasctl_arg_parse.h"
 
@@ -57,7 +57,7 @@ TEST_F(TestVasCliProcess, testMainExecuteProcessSetConfigTest)
     char arg4[] = "-sp";
     char arg5[] = "bind";
 
-    char* testArgs[] = {arg1, arg2, arg3, arg4, arg5};
+    char *testArgs[] = {arg1, arg2, arg3, arg4, arg5};
     int testArgc = 5;
 
     testing::internal::CaptureStdout();
@@ -80,7 +80,7 @@ TEST_F(TestVasCliProcess, testMainExecuteQueryAffinityAll)
     char arg4[] = "-s";
     char arg5[] = "all";
 
-    char* testArgs[] = {arg1, arg2, arg3, arg4, arg5};
+    char *testArgs[] = {arg1, arg2, arg3, arg4, arg5};
     int testArgc = 5;
 
     testing::internal::CaptureStdout();
@@ -99,7 +99,7 @@ TEST_F(TestVasCliProcess, testMainExecuteProcessWithHelp)
 
     char arg1[] = "./vasctl";
 
-    char* testArgs[] = {arg1};
+    char *testArgs[] = {arg1};
     int testArgc = 1;
 
     testing::internal::CaptureStdout();
@@ -122,7 +122,7 @@ TEST_F(TestVasCliProcess, testMainExecuteOptReassign)
     char arg4[] = "-s";
     char arg5[] = "all";
 
-    char* testArgs[] = {arg1, arg2, arg3, arg4, arg5};
+    char *testArgs[] = {arg1, arg2, arg3, arg4, arg5};
     int testArgc = 5;
 
     testing::internal::CaptureStdout();
@@ -143,7 +143,7 @@ TEST_F(TestVasCliProcess, testMainExecuteOptReassign2)
     char arg2[] = "opt";
     char arg3[] = "reassign";
 
-    char* testArgs[] = {arg1, arg2, arg3};
+    char *testArgs[] = {arg1, arg2, arg3};
     int testArgc = 3;
 
     testing::internal::CaptureStdout();
@@ -167,7 +167,7 @@ TEST_F(TestVasCliProcess, testCliOptRecoverCliFunc)
     char arg2[] = "opt";
     char arg3[] = "recover";
 
-    char* testArgs[] = {arg1, arg2, arg3};
+    char *testArgs[] = {arg1, arg2, arg3};
     int testArgc = 3;
 
     testing::internal::CaptureStdout();
@@ -189,7 +189,7 @@ TEST_F(TestVasCliProcess, testCliOptRecoverFailFunc)
     char arg2[] = "opt";
     char arg3[] = "recover";
 
-    char* testArgs[] = {arg1, arg2, arg3};
+    char *testArgs[] = {arg1, arg2, arg3};
     int testArgc = 3;
 
     testing::internal::CaptureStdout();
@@ -212,7 +212,7 @@ TEST_F(TestVasCliProcess, testCliOptRecoverFailFunc3)
     char arg2[] = "opt";
     char arg3[] = "recover";
 
-    char* testArgs[] = {arg1, arg2, arg3};
+    char *testArgs[] = {arg1, arg2, arg3};
     int testArgc = 3;
 
     testing::internal::CaptureStdout();
@@ -236,7 +236,7 @@ TEST_F(TestVasCliProcess, testCliOptRecoverFailFunc4)
     char arg2[] = "opt";
     char arg3[] = "recover";
 
-    char* testArgs[] = {arg1, arg2, arg3};
+    char *testArgs[] = {arg1, arg2, arg3};
     int testArgc = 3;
 
     testing::internal::CaptureStdout();
@@ -249,4 +249,4 @@ TEST_F(TestVasCliProcess, testCliOptRecoverFailFunc4)
     EXPECT_EQ(result, VAS_OK);
 }
 
-}
+} // namespace vas::ut::cli

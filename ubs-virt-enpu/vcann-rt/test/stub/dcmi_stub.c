@@ -33,8 +33,39 @@ int dcmi_get_device_resource_info(int card_id, int device_id, struct dcmi_proc_m
 }
 
 int dcmi_get_device_utilization_rate(int card_id, int device_id, int input_type,
-                                     unsigned int* utilization_rate)
+                                    unsigned int* utilization_rate)
 {
     printf("call stub_dcmi_get_device_utilization_rate\n");
     return 0;
 }
+
+int dcmi_get_card_id_device_id_from_phyid(int *card_id, int *device_id, unsigned int device_phy_id)
+{
+    printf("call stub_dcmi_get_card_id_device_id_from_phyid\n");
+    return 0;
+}
+
+int dcmiv2_init(void)
+{
+    printf("call stub_dcmiv2_init\n");
+    return 0;
+}
+
+int dcmiv2_get_device_utilization_rate(int dev_id, int input_type, unsigned int *utilization_rate)
+{
+    printf("call stub_dcmiv2_get_device_utilization_rate\n");
+    return 0;
+}
+
+int dcmiv2_get_device_proc_mem_info(int dev_id, struct dcmi_proc_mem_info *proc_info, int *proc_num)
+{
+    printf("call stub_dcmiv2_get_device_resource_info\n");
+    return 0;
+}
+
+int dcmiv2_get_device_list(int *device_list, int *device_count, int list_len)
+{
+    printf("call stub_dcmiv2_get_device_list\n");
+    return 0;
+}
+
