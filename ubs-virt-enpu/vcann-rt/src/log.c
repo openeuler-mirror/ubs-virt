@@ -24,6 +24,7 @@
 #include "log.h"
 
 #define EXIT_CODE_CMD_NOT_FOUND 127
+#define NS_TO_MS_LENGTH 1000000
 
 LogConfig g_log_config = {
     .log_dir = "/var/log/enpu/vcann-rt/",
@@ -302,7 +303,7 @@ static int build_compress_paths(char* zip_file, char* list_file, char* pid_patte
         return ENPU_FAIL;
     }
     char timestamp[TIMESTAMP_FILE_LEN];
-    if (strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &tm_info) == 0) {
+    if (strftime(timestamp, sizeof(timestamp), "%Y%m%d%H%M%S", &tm_info) == 0) {
         perror("[eNPU] Compress files error, failed to format timestamp");
         return ENPU_FAIL;
     }
@@ -667,9 +668,15 @@ static int write_log_message(const LogMessage* msg, char* time_str, char* log_li
 
     struct tm tm_now;
     localtime_r(&msg->timestamp.tv_sec, &tm_now);
-    if (strftime(time_str, TIMESTAMP_STR_LEN, "%Y%m%d%H%M%S", &tm_now) == 0) {
+    char format[TIMESTAMP_STR_LEN];
+    if (strftime(format, TIMESTAMP_STR_LEN, "%Y-%m-%d %H:%M:%S", &tm_now) == 0) {
         ret = strcpy_s(time_str, TIMESTAMP_STR_LEN, "TIME_ERROR");
-        CHECK_COND_LOG_PRINT(ret, "strcpy_s time_str failed");
+        CHECK_COND_LOG_PRINT(ret, "strcpy_s time_str failed.");
+    } else {
+        int milliseconds = msg->timestamp.tv_nsec / NS_TO_MS_LENGTH;
+        ret = snprintf_s(time_str, TIMESTAMP_STR_LEN, TIMESTAMP_STR_LEN -1,
+            "%s.%03d", format, milliseconds);
+        CHECK_COND_LOG_PRINT(ret < 0, "get timestamp ms failed.");
     }
 
     ret = snprintf_s(log_line, LOG_MSG_MAX_LEN + LOG_LINE_EXTRA_LEN,
