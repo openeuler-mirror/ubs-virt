@@ -65,6 +65,7 @@ extern void set_stream_capture(void* param, rtStream_t stream);
 extern void set_event_create_status(void* evt);
 extern void set_event_wait_status(void* evt, rtStream_t stm);
 extern void set_event_record_status(void* evt, rtStream_t stm);
+extern void add_stream(rtStream_t stream);
 extern void remove_stream(void* unused, rtStream_t stm);
 extern void set_event_destroy_status(void* evt);
 uint64_t ns_now(void);

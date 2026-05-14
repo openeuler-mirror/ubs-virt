@@ -222,8 +222,7 @@ void compensate_delta_time(void)
     uint64_t begin = ns_now();
     synchronize_and_clear_streams();
     uint64_t elapsed = ns_now() - begin;
-    uint64_t cur = get_core_cur_timeslice();
-    set_core_cur_timeslice(elapsed < cur ? cur - elapsed : 0ULL);
+    set_core_cur_timeslice(-elapsed);
 }
 
 bool add_and_consume_time_slice(uint8_t *turn_id)
@@ -232,6 +231,9 @@ bool add_and_consume_time_slice(uint8_t *turn_id)
     uint64_t timeslice = get_core_cur_timeslice() + get_core_quota_timeslice();
     set_core_cur_timeslice(timeslice);
     if (timeslice <= 0) {
+        int vnpu_id = atomic_load(&g_vnpu_sched_context->owner);
+        int next_vnpu_id = select_next_owner(vnpu_id);
+        set_vnpu_and_idle(vnpu_id, next_vnpu_id);
         return false;
     }
 
@@ -484,7 +486,7 @@ int vnpu_scheduler_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
     uint8_t aicore_limit_percent = get_core_limit_quota();
     atomic_store(&g_vnpu_sched_context->vnpu_core_limit_quota[g_vnpu_id], aicore_limit_percent);
     uint64_t aicore_cur_timesilice = aicore_limit_percent * VNPU_SCHEULE_PERIOD / HUNDRED_PERCENT;
-    set_core_cur_timeslice(aicore_cur_timesilice);
+    set_core_cur_timeslice(0);
     set_core_quota_timeslice(aicore_cur_timesilice);
 
     pthread_t vnpu_scheduler_tid;
