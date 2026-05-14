@@ -27,37 +27,24 @@ set(SECURE_COMPILE_OPTIONS
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmake/securec.cmake)
 
-if(ENABLE_NEW_BUILD)
-    message(STATUS "CANN version greater than or equal to 8.5.0, using new include dirs.")
-    set(INCLUDE_DIRS
-        $ENV{ASCEND_HOME_PATH}/include
-        $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime
-        $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime/runtime
-        $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime/runtime/rts
-        $ENV{ASCEND_HOME_PATH}/pkg_inc/profiling
-        $ENV{ASCEND_HOME_PATH}/pkg_inc/
-        $ENV{ASCEND_HOME_PATH}/pkg_inc/msprof
-        $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/include
-    )
-    set(LINK_DIRS
-        $ENV{ASCEND_HOME_PATH}/runtime
-        $ENV{ASCEND_HOME_PATH}/lib64
-        $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/lib64/driver
-    )
-else()
-    message(STATUS "CANN version less than 8.5.0, using old include dirs.")
-    set(INCLUDE_DIRS
-        $ENV{ASCEND_HOME_PATH}/include
-        $ENV{ASCEND_HOME_PATH}/include/experiment/runtime
-        $ENV{ASCEND_HOME_PATH}/include/experiment/msprof
-        $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/include
-    )
-    set(LINK_DIRS
-        $ENV{ASCEND_HOME_PATH}/runtime
-        $ENV{ASCEND_HOME_PATH}/lib64
-        $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/lib64/driver
-    )
-endif()
+set(INCLUDE_DIRS
+    $ENV{ASCEND_HOME_PATH}/include
+    $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime
+    $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime/runtime
+    $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime/runtime/rts
+    $ENV{ASCEND_HOME_PATH}/pkg_inc/profiling
+    $ENV{ASCEND_HOME_PATH}/pkg_inc/
+    $ENV{ASCEND_HOME_PATH}/pkg_inc/msprof
+    $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/include
+    $ENV{ASCEND_HOME_PATH}/include/experiment/runtime
+    $ENV{ASCEND_HOME_PATH}/include/experiment/msprof
+)
+
+set(LINK_DIRS
+    $ENV{ASCEND_HOME_PATH}/runtime
+    $ENV{ASCEND_HOME_PATH}/lib64
+    $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/lib64/driver
+)
 
 set(LINK_LIBS dcmi)
 
