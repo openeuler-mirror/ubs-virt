@@ -1,14 +1,16 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <mockcpp/GlobalMockObject.h>
 #include <iostream>
 #include <memory>
 #include <string>
-#include "optimizer/tuner/cluster_topo_tuner.h"
+
+#include <gtest/gtest.h>
+#include <mockcpp/GlobalMockObject.h>
+#include <mockcpp/mockcpp.hpp>
+
 #include "common/cmd_executor.h"
+#include "optimizer/tuner/cluster_topo_tuner.h"
 
 void Mock_Clean_Cluster_Topo_Tuner()
 {

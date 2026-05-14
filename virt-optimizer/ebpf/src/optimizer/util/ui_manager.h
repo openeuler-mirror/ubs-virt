@@ -14,11 +14,12 @@
 #ifndef UI_MANAGER_H
 #define UI_MANAGER_H
 
+#include <memory>
 #include <iostream>
-#include <string>
-#include <vector>
-#include <thread>
 #include <set>
+#include <string>
+#include <thread>
+#include <vector>
 
 #include "./tuner/base_tuner.h"
 
@@ -29,8 +30,8 @@ public:
 
     std::set<size_t> getUserSelection(size_t max) const;
 
-    void executeSelected(
-        const std::vector<std::shared_ptr<BaseTuner>> &suggestions, const std::set<size_t> &selection) const;
+    void executeSelected(const std::vector<std::shared_ptr<BaseTuner>> &suggestions,
+                         const std::set<size_t> &selection) const;
 };
 
-#endif  // UI_MANAGER_H
+#endif // UI_MANAGER_H

@@ -13,18 +13,19 @@
 
 #include "qemu_collector.h"
 
+#include <atomic>
+#include <chrono>
 #include <cstddef>
+#include <cstdio>
 #include <iostream>
-#include <string>
-#include <vector>
 #include <map>
 #include <sstream>
-#include <chrono>
-#include <cstdio>
-#include <unistd.h>
+#include <string>
 #include <thread>
-#include <atomic>
+#include <vector>
+
 #include <sys/wait.h>
+#include <unistd.h>
 
 #include "log/ebpf_logger_macros.h"
 
@@ -42,16 +43,16 @@ QEMUCollector &QEMUCollector::getInstance()
     return instance;
 }
 
-void QEMUCollector::monitor_qemu_threads(std::string vm_name, double timeout, std::atomic<int>& res)
+void QEMUCollector::monitor_qemu_threads(std::string vm_name, double timeout, std::atomic<int> &res)
 {
     auto start_time = std::chrono::system_clock::now();
     // Start the continuous monitoring process
     std::string cmd = "vmtop -H -b -d 1";
 
-    std::map<std::string, int> history;  // {tid: last_cpu}
+    std::map<std::string, int> history; // {tid: last_cpu}
 
     // Open child process
-    FILE* pipe = popen(cmd.c_str(), "r");
+    FILE *pipe = popen(cmd.c_str(), "r");
     if (!pipe) {
         EBPF_LOG_ERROR("Failed to open pipe");
         return;
@@ -60,7 +61,7 @@ void QEMUCollector::monitor_qemu_threads(std::string vm_name, double timeout, st
     while (true) {
         char buffer[512];
         if (!fgets(buffer, sizeof(buffer), pipe)) {
-            break;  // Process ends
+            break; // Process ends
         }
 
         std::string line(buffer);
@@ -80,7 +81,7 @@ void QEMUCollector::monitor_qemu_threads(std::string vm_name, double timeout, st
             }
             continue;
         }
-        
+
         auto stop_time = std::chrono::system_clock::now();
         auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(stop_time - start_time);
         if (elapsed_time.count() > timeout) {
@@ -93,23 +94,23 @@ void QEMUCollector::monitor_qemu_threads(std::string vm_name, double timeout, st
     pclose(pipe);
 }
 
-std::vector<std::string> QEMUCollector::splitBySpace(const std::string& line)
+std::vector<std::string> QEMUCollector::splitBySpace(const std::string &line)
 {
     std::istringstream iss(line);
     std::vector<std::string> tokens;
     std::string token;
-    while (iss >> token) {  // Automatically skip spaces
+    while (iss >> token) { // Automatically skip spaces
         tokens.push_back(token);
     }
     return tokens;
 }
 
-int QEMUCollector::findPIndex(const std::vector<std::string>& tokens)
+int QEMUCollector::findPIndex(const std::vector<std::string> &tokens)
 {
     for (size_t i = 0; i < tokens.size(); ++i) {
         if (tokens[i] == "P") {
-            return static_cast<int>(i);  // Return index
+            return static_cast<int>(i); // Return index
         }
     }
-    return -1;  // Not found
+    return -1; // Not found
 }

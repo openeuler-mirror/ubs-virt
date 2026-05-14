@@ -12,11 +12,12 @@
  */
 
 #include "data_dump_thread.h"
+
 #include <chrono>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
-#include <iomanip>
 #include <utility>
 
 #include "log/ebpf_logger_macros.h"

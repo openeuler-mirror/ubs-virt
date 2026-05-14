@@ -12,12 +12,13 @@
  */
 
 #include "opt_engine.h"
-#include "util/ui_manager.h"
 #include "log/ebpf_logger_macros.h"
+#include "util/ui_manager.h"
 
 OPTEngine::OPTEngine(std::vector<std::unique_ptr<BaseAnalyzer<std::vector<std::string>>>> analyzers)
     : analyzers_(std::move(analyzers))
-{}
+{
+}
 
 void OPTEngine::run(const std::vector<std::string> &data)
 {

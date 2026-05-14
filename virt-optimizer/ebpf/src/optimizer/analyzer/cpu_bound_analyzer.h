@@ -14,8 +14,9 @@
 #ifndef CPU_BOUND_ANALYZER_H
 #define CPU_BOUND_ANALYZER_H
 
-#include <vector>
 #include <string>
+#include <vector>
+
 #include "base_analyzer.h"
 
 class CPUBoundAnalyzer : public BaseAnalyzer<std::vector<std::string>> {
@@ -27,4 +28,4 @@ private:
     std::vector<std::shared_ptr<BaseTuner>> tuners_;
 };
 
-#endif  // CPU_BOUND_ANALYZER_H
+#endif // CPU_BOUND_ANALYZER_H

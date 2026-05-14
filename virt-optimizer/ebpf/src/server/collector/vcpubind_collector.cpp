@@ -12,45 +12,45 @@
  */
 
 #include "vcpubind_collector.h"
-#include <iostream>
+
+#include <atomic>
+#include <chrono>
 #include <cstdio>
 #include <cstring>
-#include <string>
+#include <iostream>
 #include <map>
 #include <set>
-#include <chrono>
 #include <sstream>
+#include <string>
 #include <thread>
-#include <atomic>
 
 #include "log/ebpf_logger_macros.h"
 
-void VcpubindCollector::launch(std::string vm_name, int timeout, std::atomic<int>& res, double min_cpu)
+void VcpubindCollector::launch(std::string vmName, int timeout, std::atomic<int> &res, double minCpu)
 {
-    vcpubindCollectorThread_ = std::make_unique<std::thread>(&VcpubindCollector::monitor_vm_vpu,
-                                                             this, std::ref(vm_name),
-                                                             timeout, std::ref(res), min_cpu);
+    vcpubindCollectorThread_ = std::make_unique<std::thread>(&VcpubindCollector::monitor_vm_vpu, this,
+                                                             std::ref(vmName), timeout, std::ref(res), minCpu);
 }
 
 // 监控主循环
-void VcpubindCollector::monitor_vm_vpu(std::string vm_name, int timeout, std::atomic<int>& res, double min_cpu)
+void VcpubindCollector::monitor_vm_vpu(std::string vmName, int timeout, std::atomic<int> &res, double minCpu)
 {
     auto start_time = std::chrono::system_clock::now();
     std::chrono::seconds exec_time(timeout);
-    std::map<std::string, std::string> binding = get_binding_map(vm_name);
+    std::map<std::string, std::string> binding = get_binding_map(vmName);
     if (binding.empty()) {
-        EBPF_LOG_ERROR("No binding information found for VM: " + vm_name);
+        EBPF_LOG_ERROR("No binding information found for VM: " + vmName);
         return;
     }
 
     std::set<std::string> bound_cores;
-    for (const auto& pair : binding) {
-        bound_cores.insert(pair.second);  // Insert value into set
+    for (const auto &pair : binding) {
+        bound_cores.insert(pair.second); // Insert value into set
     }
 
     while (true) {
         std::string cmd = "/usr/bin/top -b -n 1 -o %CPU -w 128";
-        FILE* pipe = popen(cmd.c_str(), "r");
+        FILE *pipe = popen(cmd.c_str(), "r");
         if (!pipe) {
             EBPF_LOG_ERROR("Failed to open pipe");
             return;
@@ -69,8 +69,8 @@ void VcpubindCollector::monitor_vm_vpu(std::string vm_name, int timeout, std::at
         }
 
         // Key processing logic
-        parse_top_output(top_output, bound_cores, min_cpu);
-        
+        parse_top_output(top_output, bound_cores, minCpu);
+
         auto stop_time = std::chrono::system_clock::now();
         auto elapsed_time = std::chrono::duration_cast<std::chrono::seconds>(stop_time - start_time);
 
@@ -86,10 +86,10 @@ void VcpubindCollector::monitor_vm_vpu(std::string vm_name, int timeout, std::at
 }
 
 // Get the binding dictionary
-std::map<std::string, std::string> VcpubindCollector::get_binding_map(std::string vm_name)
+std::map<std::string, std::string> VcpubindCollector::get_binding_map(std::string vmName)
 {
-    std::string cmd = "virsh dumpxml " + vm_name;
-    FILE* pipe = popen(cmd.c_str(), "r");
+    std::string cmd = "virsh dumpxml " + vmName;
+    FILE *pipe = popen(cmd.c_str(), "r");
 
     if (!pipe) {
         EBPF_LOG_ERROR("Failed to open pipe");
@@ -99,10 +99,10 @@ std::map<std::string, std::string> VcpubindCollector::get_binding_map(std::strin
     while (true) {
         char buffer[512];
         if (!fgets(buffer, sizeof(buffer), pipe)) {
-            break;  // Process ends
+            break; // Process ends
         }
         std::string line(buffer);
-        
+
         process_line(line, bindmap);
     }
 
@@ -111,11 +111,10 @@ std::map<std::string, std::string> VcpubindCollector::get_binding_map(std::strin
 }
 
 // Parse top output
-void VcpubindCollector::parse_top_output(const std::string& top_output,
-                                         const std::set<std::string>& bound_cores,
-                                         double min_cpu)
+void VcpubindCollector::parse_top_output(const std::string &topOutput, const std::set<std::string> &boundCores,
+                                         double minCpu)
 {
-    std::istringstream iss(top_output);
+    std::istringstream iss(topOutput);
     std::string line;
 
     bool in_header = true;
@@ -133,8 +132,7 @@ void VcpubindCollector::parse_top_output(const std::string& top_output,
         while (line_stream >> field) {
             fields.push_back(field);
         }
-        if ((std::stod(fields[cpupercent_index]) > min_cpu) &&
-            (bound_cores.count(fields[pcpu_index]) != 0) &&
+        if ((std::stod(fields[cpupercent_index]) > minCpu) && (boundCores.count(fields[pcpu_index]) != 0) &&
             (fields[command_index] != "top")) {
             pcpu_preempt_count++;
         }
@@ -164,23 +162,22 @@ void VcpubindCollector::set_index(std::string line)
     }
 }
 
-
 // Process a single line,extract vcpu and pcpu and add them to the binding dictionary
-void VcpubindCollector::process_line(const std::string& line, std::map<std::string, std::string>& binding)
+void VcpubindCollector::process_line(const std::string &line, std::map<std::string, std::string> &binding)
 {
     if (line.find("<vcpupin") != std::string::npos && line.find("cpuset") != std::string::npos) {
         std::string vcpu;
         std::string pcpu;
 
         // Extract vCPU
-        size_t vcpu_start = line.find("vcpu='") + 6;  // 6 是 "vcpu='" 的长度
+        size_t vcpu_start = line.find("vcpu='") + 6; // 6 是 "vcpu='" 的长度
         size_t vcpu_end = line.find("'", vcpu_start);
         if (vcpu_start != std::string::npos && vcpu_end != std::string::npos) {
             vcpu = line.substr(vcpu_start, vcpu_end - vcpu_start);
         }
 
         // Extract pcpu
-        size_t pcpu_start = line.find("cpuset='") + 8;  // 8 是 "cpuset='" 的长度
+        size_t pcpu_start = line.find("cpuset='") + 8; // 8 是 "cpuset='" 的长度
         size_t pcpu_end = line.find("'", pcpu_start);
         if (pcpu_start != std::string::npos && pcpu_end != std::string::npos) {
             pcpu = line.substr(pcpu_start, pcpu_end - pcpu_start);

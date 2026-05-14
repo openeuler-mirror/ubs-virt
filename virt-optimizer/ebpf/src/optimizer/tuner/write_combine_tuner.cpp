@@ -14,11 +14,12 @@
 #include "write_combine_tuner.h"
 
 #include <algorithm>
-#include <iostream>
 #include <chrono>
-#include <cmd_executor.h>
 #include <iomanip>
+#include <iostream>
 #include <sstream>
+
+#include "cmd_executor.h"
 #include "log/ebpf_logger_macros.h"
 #include "utils.h"
 
@@ -37,14 +38,14 @@ std::string WriteCombineTuner::category() const
 std::string WriteCombineTuner::principle() const
 {
     return "The physical machine supports small-packet PCIe BAR space copying, but the virtual machine does not. As a "
-        "result, asynchronous DMA copying is used, which takes longer and leads to degraded H2D/D2H small-packet "
-        "data copy performance.";
+           "result, asynchronous DMA copying is used, which takes longer and leads to degraded H2D/D2H small-packet "
+           "data copy performance.";
 }
 
 std::string WriteCombineTuner::advice() const
 {
     return "Enable write combine. Data written to the WC region is temporarily stored in a 64-byte buffer. When the "
-        "buffer is full or a refresh event is triggered, a merge write is executed to enhance throughput.";
+           "buffer is full or a refresh event is triggered, a merge write is executed to enhance throughput.";
 }
 
 bool WriteCombineTuner::check()
@@ -53,9 +54,9 @@ bool WriteCombineTuner::check()
     isLastCheckSuccess = true;
     std::string directoryName = getCurrentTimeString();
     std::ostringstream oss;
-    oss << "cd /root && msnpureport && "
-        << R"(grep -nr \"Device capability info\" /root/)" << directoryName << "* && "
-        << "rm -rf " << directoryName << "*";
+    oss << "cd /root && msnpureport && " <<
+        R"(grep -nr \"Device capability info\" /root/)" << directoryName << "* && " <<
+        "rm -rf " << directoryName << "*";
 
     std::string cmd = oss.str();
     auto hostName = utils::getVmName();
@@ -78,10 +79,10 @@ void WriteCombineTuner::apply()
 {
     std::cout << "1. Please enable the WriteCombine feature within the virtual machine "
                  "according to the provided PATCH."
-        << std::endl
-        << "2. Ensure that the HostOS and Qemu are compatible with the modifications in "
-           "the PATCH, and install the latest NPU HDK driver within the virtual machine."
-        << std::endl;
+              << std::endl
+              << "2. Ensure that the HostOS and Qemu are compatible with the modifications in "
+                 "the PATCH, and install the latest NPU HDK driver within the virtual machine."
+              << std::endl;
 }
 
 std::string WriteCombineTuner::getCurrentTimeString()

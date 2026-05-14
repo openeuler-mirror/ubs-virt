@@ -1,14 +1,16 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
-#include <thread>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <string>
-#include <mockcpp/mockcpp.hpp>
+#include <thread>
+
+#include <gtest/gtest.h>
 #include <mockcpp/GlobalMockObject.h>
+#include <mockcpp/mockcpp.hpp>
+
 #include "common/data_dump_thread.h"
 
 namespace fs = std::filesystem;

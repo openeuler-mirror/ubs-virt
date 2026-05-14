@@ -27,4 +27,4 @@ public:
     void apply() override;
 };
 
-#endif  // HUGE_PAGE_TUNER_H
+#endif // HUGE_PAGE_TUNER_H

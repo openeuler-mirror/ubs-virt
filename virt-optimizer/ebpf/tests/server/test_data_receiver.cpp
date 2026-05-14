@@ -1,23 +1,25 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
+#include <filesystem>
+#include <fstream>
+#include <mutex>
+#include <string>
+#include <vector>
+
+#include <sys/stat.h>
+
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include <fstream>
-#include <filesystem>
-#include <vector>
-#include <string>
-#include <mutex>
-#include <sys/stat.h>
+
 #include "server/data_receiver.h"
 
-
-TEST(DataReceiverTest, SaveTest) {
+TEST(DataReceiverTest, SaveTest)
+{
     size_t bufferSize = 3;
     int flushIntervalSec = 5;
     std::string outputPath = "/xxx";
-    if (std::filesystem::exists(outputPath))
-    {
+    if (std::filesystem::exists(outputPath)) {
         std::filesystem::remove(outputPath);
     }
     std::shared_ptr<MutexContext> ctx2 = std::make_shared<MutexContext>();
@@ -25,14 +27,14 @@ TEST(DataReceiverTest, SaveTest) {
     DataReceiver receiver(ctx2, bufferSize, flushIntervalSec, outputPath);
     std::string a = "abcd";
     receiver.save(a);
-    bool containsAbcd = std::find(receiver.jsonBuffer.begin(),
-                                  receiver.jsonBuffer.end(),
-                                  "abcd") != receiver.jsonBuffer.end();
+    bool containsAbcd = std::find(receiver.jsonBuffer.begin(), receiver.jsonBuffer.end(), "abcd") !=
+                        receiver.jsonBuffer.end();
     EXPECT_TRUE(containsAbcd);
     receiver.jsonBuffer.clear();
 }
 
-TEST(DataReceiverTest, WriteToDisk) {
+TEST(DataReceiverTest, WriteToDisk)
+{
     std::string output_path = "test_output.json";
     std::ofstream create_file(output_path);
     auto mutexContext = std::make_shared<MutexContext>();
@@ -53,7 +55,6 @@ TEST(DataReceiverTest, WriteToDisk) {
         lines.push_back(line);
     }
 
-
     EXPECT_EQ(lines.size(), 2);
     std::filesystem::file_status status = std::filesystem::status(output_path);
     EXPECT_TRUE(std::filesystem::is_regular_file(status));
@@ -63,7 +64,8 @@ TEST(DataReceiverTest, WriteToDisk) {
     std::filesystem::remove(output_path);
 }
 
-TEST(DataReceiverTest, WriteToDisk_CreateSingleParentDir) {
+TEST(DataReceiverTest, WriteToDisk_CreateSingleParentDir)
+{
     auto mutexContext = std::make_shared<MutexContext>();
     DataReceiver receiver(mutexContext, 2, 1, "test_output.json");
 

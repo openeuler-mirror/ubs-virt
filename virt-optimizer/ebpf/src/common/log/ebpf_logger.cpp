@@ -13,17 +13,17 @@
 
 #include "ebpf_logger.h"
 
-#include <iostream>
-#include <sstream>
-#include <iomanip>
-#include <ctime>
-#include <chrono>
-#include <thread>
+#include <malloc.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <malloc.h>
-#include <cstring>
+#include <chrono>
 #include <cstdlib>
+#include <cstring>
+#include <ctime>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <thread>
 
 EbpfLogger::EbpfLogger()
     : running_(false),
@@ -191,7 +191,7 @@ std::string EbpfLogger::getTimestamp(const char *format)
     std::ostringstream oss;
     oss << std::put_time(&localTime, format);
     if (std::strcmp(format, logFilenameTimestampFormat) == 0) {
-        oss << '.' << std::setfill('0') << std::setw(3) << ms.count() << " +0800";  // 3 digits for milliseconds
+        oss << '.' << std::setfill('0') << std::setw(3) << ms.count() << " +0800"; // 3 digits for milliseconds
     }
     return oss.str();
 }

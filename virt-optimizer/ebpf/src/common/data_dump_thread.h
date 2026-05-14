@@ -20,6 +20,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+
 #include "data_struct.h"
 
 constexpr unsigned dumpIntervalSec = 60 * 60 * 12; // Forceful dump after exceeding this interval
@@ -27,11 +28,11 @@ constexpr unsigned dumpIntervalSec = 60 * 60 * 12; // Forceful dump after exceed
 class DataDumpThread {
 public:
     explicit DataDumpThread(const std::string &dataFilePath, std::shared_ptr<MutexContext> ctx,
-        int intervalSec = dumpIntervalSec);
+                            int intervalSec = dumpIntervalSec);
     ~DataDumpThread();
 
     DataDumpThread(const DataDumpThread &) = delete;
-    DataDumpThread &operator = (const DataDumpThread &) = delete;
+    DataDumpThread &operator=(const DataDumpThread &) = delete;
 
     void start();
     void stop();
@@ -57,6 +58,5 @@ private:
 
     static constexpr size_t DUMP_FILE_SIZE_THRESHOLD = 20;
 };
-
 
 #endif

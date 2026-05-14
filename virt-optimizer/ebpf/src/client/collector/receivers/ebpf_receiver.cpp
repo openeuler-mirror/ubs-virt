@@ -12,11 +12,11 @@
  */
 
 #include "ebpf_receiver.h"
-#include "vsock_client.h"
 #include "log/ebpf_logger_macros.h"
 #include "utils.h"
+#include "vsock_client.h"
 
-const char* DATA_LOCAL_PATH = "/var/ubs-opt/data/data.json";
+const char *DATA_LOCAL_PATH = "/var/ubs-opt/data/data.json";
 
 void EBPFReceiver::mainLoop()
 {

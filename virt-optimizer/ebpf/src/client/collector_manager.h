@@ -29,7 +29,7 @@ public:
 
     void mainLoop();
 
-    static CollectorManager& getInstance();
+    static CollectorManager &getInstance();
 
     static void daemonize();
 
@@ -40,7 +40,7 @@ private:
 
     static bool launchReceiver(const rapidjson::Document &doc);
 
-    std::unordered_map<std::string, Collector*> collectors;
+    std::unordered_map<std::string, Collector *> collectors;
 };
 
 #endif

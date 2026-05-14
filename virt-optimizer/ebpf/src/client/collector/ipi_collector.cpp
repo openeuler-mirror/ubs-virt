@@ -12,9 +12,9 @@
  */
 
 #include "ipi_collector.h"
-#include "receivers/ebpf_receiver.h"
-#include "log/ebpf_logger_macros.h"
 #include "ipi_trace.h"
+#include "log/ebpf_logger_macros.h"
+#include "receivers/ebpf_receiver.h"
 
 static int handle_event(void *ctx, void *data, unsigned long size)
 {

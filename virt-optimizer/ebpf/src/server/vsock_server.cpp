@@ -12,24 +12,27 @@
  */
 
 #include "vsock_server.h"
-#include <iostream>
-#include <unistd.h>
-#include <thread>
+
 #include <atomic>
 #include <csignal>
-#include <fcntl.h>
 #include <filesystem>
-#include <sys/socket.h>
+#include <iostream>
+#include <thread>
+
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <linux/vm_sockets.h>
 
 #include "rapidjson/document.h"
-#include "log/ebpf_logger_macros.h"
-#include "data_receiver.h"
-#include "data_dump_thread.h"
-#include "utils.h"
-#include "control/monitor.h"
+
 #include "collector/qemu_collector.h"
 #include "collector/vcpubind_collector.h"
+#include "control/monitor.h"
+#include "data_dump_thread.h"
+#include "data_receiver.h"
+#include "log/ebpf_logger_macros.h"
+#include "utils.h"
 
 namespace fs = std::filesystem;
 const std::string LOG_PATH = "/var/ubs-opt/log/ubs_optimizer_server.log";
@@ -157,7 +160,7 @@ int VsockServer::init()
 
     struct sockaddr_vm addr = {};
     addr.svm_family = AF_VSOCK;
-    addr.svm_cid = VMADDR_CID_HOST;  // Host CID=2
+    addr.svm_cid = VMADDR_CID_HOST; // Host CID=2
 
     // Get the port binding configuration in the configuration file
     const rapidjson::Value port_value = utils::getConfigValue("bind_port");

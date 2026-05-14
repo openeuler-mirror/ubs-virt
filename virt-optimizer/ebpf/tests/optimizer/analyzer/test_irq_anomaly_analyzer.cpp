@@ -1,26 +1,30 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
-#include <vector>
-#include <mockcpp/mockcpp.hpp>
 #include <memory>
+#include <vector>
+
+#include <gtest/gtest.h>
+#include <mockcpp/mockcpp.hpp>
+
 #include "optimizer/analyzer/irq_anomaly_analyzer.h"
-#include "optimizer/tuner/halt_poll_tuner.h"
 #include "optimizer/tuner/gic_tuner.h"
+#include "optimizer/tuner/halt_poll_tuner.h"
 
 using namespace std::string_literals;
 
-TEST(IRQAnomalyAnalyzerTest, Constructor) {
+TEST(IRQAnomalyAnalyzerTest, Constructor)
+{
     IRQAnomalyAnalyzer analyzer;
 
     EXPECT_EQ(analyzer.tuners_.size(), 2);
 
-    EXPECT_NE(dynamic_cast<HaltPollTuner*>(analyzer.tuners_[0].get()), nullptr);
-    EXPECT_NE(dynamic_cast<GICTuner*>(analyzer.tuners_[1].get()), nullptr);
+    EXPECT_NE(dynamic_cast<HaltPollTuner *>(analyzer.tuners_[0].get()), nullptr);
+    EXPECT_NE(dynamic_cast<GICTuner *>(analyzer.tuners_[1].get()), nullptr);
 }
 
-TEST(IRQAnomalyAnalyzerTest, AnalyzeAllApplicable) {
+TEST(IRQAnomalyAnalyzerTest, AnalyzeAllApplicable)
+{
     IRQAnomalyAnalyzer analyzer;
 
     analyzer.tuners_.clear();
@@ -36,7 +40,8 @@ TEST(IRQAnomalyAnalyzerTest, AnalyzeAllApplicable) {
     EXPECT_EQ(applicable.size(), 2);
 }
 
-TEST(IRQAnomalyAnalyzerTest, AnalyzeNoneApplicable) {
+TEST(IRQAnomalyAnalyzerTest, AnalyzeNoneApplicable)
+{
     IRQAnomalyAnalyzer analyzer;
 
     analyzer.tuners_.clear();

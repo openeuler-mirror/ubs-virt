@@ -15,8 +15,10 @@
 #define QEMU_ISOL_TUNER_H
 
 #include <vector>
-#include "base_tuner.h"
+
 #include "rapidjson/document.h"
+
+#include "base_tuner.h"
 
 class QemuIsolTuner : public BaseTuner {
 public:
@@ -36,13 +38,13 @@ private:
     };
     static std::ifstream openDataFile(std::string_view);
     static void closeDataFile(std::string_view, std::ifstream);
-    static void parseHostData(const std::string& rawJson);
+    static void parseHostData(const std::string &rawJson);
     void findLastInfer();
     QemuIsolTuner::ResultCode checkApply();
-    int findPIndex(const std::vector<std::string>& tokens);
-    QemuIsolTuner::ResultCode isAllF(const std::string& line);
-    std::vector<std::string> splitBySpace(const std::string& line);
+    int findPIndex(const std::vector<std::string> &tokens);
+    QemuIsolTuner::ResultCode isAllF(const std::string &line);
+    std::vector<std::string> splitBySpace(const std::string &line);
     static int interval;
 };
 
-#endif  // QEMU_ISOL_TUNER_H
+#endif // QEMU_ISOL_TUNER_H

@@ -12,18 +12,21 @@
  */
 
 #include "utils.h"
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <string>
-#include <fstream>
+
 #include <csignal>
 #include <filesystem>
+#include <fstream>
 #include <sstream>
+#include <string>
 
-#include "rapidjson/filereadstream.h"
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
+#include "rapidjson/filereadstream.h"
+
 #include "log/ebpf_logger_macros.h"
 
 namespace utils {
@@ -152,7 +155,7 @@ std::string getVmName()
         return "";
     }
     std::string vmName = npuTypeName.GetString();
-    for (auto c: vmName) {
+    for (auto c : vmName) {
         if (!isalpha(c) && !isdigit(c)) {
             EBPF_LOG_ERROR("Invalid vm name, only English letters or numbers are supported.");
             return "";
@@ -170,7 +173,7 @@ void writeToDisk(const std::vector<std::string> &jsonBuffer, const std::string &
     fs::path parentDir = pathObj.parent_path();
     if (!parentDir.empty() && !fs::exists(parentDir)) {
         fs::path curDir;
-        for (const auto &part: parentDir) {
+        for (const auto &part : parentDir) {
             curDir /= part;
             if (!fs::exists(curDir)) {
                 fs::create_directories(curDir);
@@ -186,10 +189,9 @@ void writeToDisk(const std::vector<std::string> &jsonBuffer, const std::string &
         return;
     }
     if (fileExits ^ fs::exists(pathObj)) {
-        fs::permissions(outputPath,
-                        fs::perms::owner_read | fs::perms::owner_write);
+        fs::permissions(outputPath, fs::perms::owner_read | fs::perms::owner_write);
     }
-    for (const auto &jsonLine: jsonBuffer) {
+    for (const auto &jsonLine : jsonBuffer) {
         EBPF_LOG_DEBUG("Flushing " + jsonLine);
         ofs << jsonLine << "\n";
     }
@@ -224,4 +226,4 @@ std::string NPUType2Str(NPUType npuType)
             return "";
     }
 }
-}
+} // namespace utils

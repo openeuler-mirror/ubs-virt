@@ -1,22 +1,25 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <iomanip>
 #include <iostream>
+#include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <memory>
-#include <algorithm>
-#include <iomanip>
-#include <cmath>
-#include <cctype>
-#include <sstream>
+
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
-#include "optimizer/util/ui_manager.h"
+
 #include "optimizer/tuner/base_tuner.h"
 #include "optimizer/tuner/gic_tuner.h"
+#include "optimizer/util/ui_manager.h"
 
-TEST(UIManagerTest, DisplaySuggestionsTest) {
+TEST(UIManagerTest, DisplaySuggestionsTest)
+{
     UIManager uiManager;
     std::vector<std::shared_ptr<BaseTuner>> suggestions;
 
@@ -30,7 +33,8 @@ TEST(UIManagerTest, DisplaySuggestionsTest) {
     EXPECT_EQ(suggestions.size(), 2);
 }
 
-TEST(UIManagerTest, GetUserSelectionAllTest) {
+TEST(UIManagerTest, GetUserSelectionAllTest)
+{
     UIManager uiManager;
     std::set<size_t> selection;
     std::string input = "all";
@@ -48,7 +52,8 @@ TEST(UIManagerTest, GetUserSelectionAllTest) {
     std::cin.rdbuf(originalCinBuf);
 }
 
-TEST(UIManagerTest, GetUserSelectionEffectiveTest) {
+TEST(UIManagerTest, GetUserSelectionEffectiveTest)
+{
     UIManager uiManager;
     std::set<size_t> selection;
     std::string input = "1,2";
@@ -66,7 +71,8 @@ TEST(UIManagerTest, GetUserSelectionEffectiveTest) {
     std::cin.rdbuf(originalCinBuf);
 }
 
-TEST(UIManagerTest, GetUserSelectionInvalidTest) {
+TEST(UIManagerTest, GetUserSelectionInvalidTest)
+{
     UIManager uiManager;
     std::set<size_t> selection;
     std::string input = "0,3";
@@ -82,7 +88,8 @@ TEST(UIManagerTest, GetUserSelectionInvalidTest) {
     std::cin.rdbuf(originalCinBuf);
 }
 
-TEST(UIManagerTest, ExecuteSelectedTest) {
+TEST(UIManagerTest, ExecuteSelectedTest)
+{
     UIManager uiManager;
     std::vector<std::shared_ptr<BaseTuner>> suggestions;
 

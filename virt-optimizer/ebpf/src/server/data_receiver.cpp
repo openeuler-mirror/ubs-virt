@@ -11,18 +11,19 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "data_receiver.h"
+
+#include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <filesystem>
 #include <utility>
-#include "data_receiver.h"
 
 #include "log/ebpf_logger_macros.h"
 
 namespace fs = std::filesystem;
 
 DataReceiver::DataReceiver(std::shared_ptr<MutexContext> ctx, size_t bufferSize, int flushIntervalSec,
-    std::string outputPath)
+                           std::string outputPath)
     : context(std::move(ctx)),
       maxBufferSize(bufferSize),
       flushInterval(flushIntervalSec),
@@ -81,7 +82,7 @@ void DataReceiver::writeToDisk()
     fs::path parentDir = pathObj.parent_path();
     if (!parentDir.empty() && !fs::exists(parentDir)) {
         fs::path curDir;
-        for (const auto& part: parentDir) {
+        for (const auto &part : parentDir) {
             curDir /= part;
             if (!fs::exists(curDir)) {
                 fs::create_directories(curDir);
@@ -97,8 +98,7 @@ void DataReceiver::writeToDisk()
         return;
     }
     if (fileExits ^ fs::exists(pathObj)) {
-        fs::permissions(outputPath,
-                        fs::perms::owner_read | fs::perms::owner_write);
+        fs::permissions(outputPath, fs::perms::owner_read | fs::perms::owner_write);
     }
     for (const auto &jsonLine : jsonBuffer) {
         EBPF_LOG_DEBUG("Flushing " + jsonLine);

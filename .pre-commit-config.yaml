@@ -7,8 +7,8 @@ repos:
           bash -c '
           cd ubs-virt-ovs/build &&
           cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .. &&
-          cd ../../virt-awaresched &&
-          bash build.sh
+          bash ../../virt-awaresched/build.sh &&
+          bash ../../virt-optimizer/build.sh
           '
         language: system
         pass_filenames: false

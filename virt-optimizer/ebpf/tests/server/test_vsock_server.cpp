@@ -1,18 +1,18 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-
 #include <vector>
-#include <unistd.h>
+
 #include <sys/socket.h>
+#include <unistd.h>
 
 #include "gtest/gtest.h"
-#include "mockcpp/mockcpp.hpp"
 #include "mockcpp/Constraint.h"
 #include "mockcpp/GlobalMockObject.h"
+#include "mockcpp/mockcpp.hpp"
 
-#include "utils.h"
 #include "server/vsock_server.h"
+#include "utils.h"
 
 namespace fs = std::filesystem;
 
@@ -21,7 +21,6 @@ void VsockClean()
     mockcpp::GlobalMockObject::verify();
     mockcpp::GlobalMockObject::reset();
 }
-
 
 // 测试VsockServer::init函数
 TEST(VsockServerTest, TestInit)
@@ -32,7 +31,6 @@ TEST(VsockServerTest, TestInit)
     EXPECT_EQ(serverFd, -1);
     VsockClean();
 }
-
 
 // 测试VsockServer::init函数
 TEST(VsockServerTest, TestInit2)
@@ -62,7 +60,6 @@ TEST(VsockServerTest, TestInit4)
     int serverFd = VsockServer::init();
     VsockClean();
 }
-
 
 TEST(VsockServerTest, Testdaemonize)
 {

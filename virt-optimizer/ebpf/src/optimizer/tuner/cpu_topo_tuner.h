@@ -14,8 +14,9 @@
 #ifndef CPU_TOPO_TUNER_H
 #define CPU_TOPO_TUNER_H
 
-#include <vector>
 #include <unordered_map>
+#include <vector>
+
 #include "base_tuner.h"
 
 class CPUTopoTuner : public BaseTuner {
@@ -28,9 +29,10 @@ public:
     bool check() override;
     void apply() override;
     bool parse(const std::string &output);
+
 private:
     std::unordered_map<unsigned int, unsigned int> cpu2Vcpu;
     static int getValue(const std::string &line);
 };
 
-#endif  // CPU_TOPO_TUNER_H
+#endif // CPU_TOPO_TUNER_H

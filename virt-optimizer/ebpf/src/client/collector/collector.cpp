@@ -17,7 +17,6 @@
 
 #include "log/ebpf_logger_macros.h"
 
-
 void Collector::collectionTask()
 {
     while (!stopFlag) {

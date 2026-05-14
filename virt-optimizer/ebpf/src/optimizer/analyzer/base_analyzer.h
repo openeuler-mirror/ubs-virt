@@ -14,11 +14,13 @@
 #ifndef BASE_ANALYZER_H
 #define BASE_ANALYZER_H
 
-#include <vector>
 #include <memory>
+#include <vector>
+
 #include "../tuner/base_tuner.h"
 
-template <typename T> class BaseAnalyzer {
+template <typename T>
+class BaseAnalyzer {
 public:
     virtual ~BaseAnalyzer() = default;
     virtual std::vector<std::shared_ptr<BaseTuner>> analyze(const T &data) const = 0;

@@ -16,6 +16,9 @@
 
 #pragma once
 #include <string>
+
+#include <sys/socket.h>
+
 #include "data_struct.h"
 
 const int PORT_LOWER_LIMIT = 1024;

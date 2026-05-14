@@ -1,18 +1,21 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <mockcpp/GlobalMockObject.h>
-#include <iostream>
-#include <vector>
-#include <unistd.h>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <vector>
+
 #include <sys/socket.h>
-#include "utils.h"
+#include <unistd.h>
+
+#include <gtest/gtest.h>
+#include <mockcpp/GlobalMockObject.h>
+#include <mockcpp/mockcpp.hpp>
 #include "rapidjson/document.h"
+
 #include "client/collector/receivers/vsock_client.h"
+#include "utils.h"
 
 void Clean1()
 {
@@ -77,7 +80,8 @@ TEST(VsockClientTest, getPortBindCase1)
                "\"bind_port\":,\n"
                "\"vm_name\": \"openeuler\",\n"
                "\"npu_type\": \"d802\",\n"
-               "\"system\" : {}}" << std::endl;
+               "\"system\" : {}}"
+            << std::endl;
     outfile.close();
     int res = getPortBind();
     EXPECT_EQ(res, -1);
@@ -92,7 +96,8 @@ TEST(VsockClientTest, getPortBindCase2)
                "\"bind_port\": \"abc\",\n"
                "\"vm_name\": \"openeuler\",\n"
                "\"npu_type\": \"d802\",\n"
-               "\"system\" : {}}" << std::endl;
+               "\"system\" : {}}"
+            << std::endl;
     outfile.close();
     int res = getPortBind();
     EXPECT_EQ(res, -1);
@@ -107,7 +112,8 @@ TEST(VsockClientTest, getPortBindCase3)
                "\"bind_port\": 512,\n"
                "\"vm_name\": \"openeuler\",\n"
                "\"npu_type\": \"d802\",\n"
-               "\"system\" : {}}" << std::endl;
+               "\"system\" : {}}"
+            << std::endl;
     outfile.close();
     int res = getPortBind();
     EXPECT_EQ(res, -1);
@@ -122,7 +128,8 @@ TEST(VsockClientTest, getPortBindCase4)
                "\"bind_port\": 10101,\n"
                "\"vm_name\": \"openeuler\",\n"
                "\"npu_type\": \"d802\",\n"
-               "\"system\" : {}}" << std::endl;
+               "\"system\" : {}}"
+            << std::endl;
     outfile.close();
     int res = getPortBind();
     EXPECT_EQ(res, 10101);

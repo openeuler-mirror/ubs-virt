@@ -14,9 +14,10 @@
 #ifndef UBS_OPT_UTILS_H
 #define UBS_OPT_UTILS_H
 
-#include <fcntl.h>
 #include <string>
 #include <vector>
+
+#include <fcntl.h>
 
 #include "rapidjson/document.h"
 
@@ -36,6 +37,6 @@ std::string getVmName();
 void writeToDisk(const std::vector<std::string> &jsonBuffer, const std::string &outputPath);
 NPUType getNPUType();
 std::string NPUType2Str(NPUType npuType);
-}
+} // namespace utils
 
 #endif
