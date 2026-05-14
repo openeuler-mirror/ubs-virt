@@ -1,13 +1,14 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <mockcpp/GlobalMockObject.h>
 #include <fstream>
+
+#include <gtest/gtest.h>
+#include <mockcpp/GlobalMockObject.h>
+#include <mockcpp/mockcpp.hpp>
+
 #include "common/cmd_executor.h"
 #include "optimizer/tuner/npu_topo_tuner.h"
-
 
 class NPUTopoTunerTest : public ::testing::Test {
 protected:
@@ -48,7 +49,8 @@ TEST_F(NPUTopoTunerTest, TestCheckCase1)
                "\"bind_port\": 10101,\n"
                "\"vm_name\": \"openeuler\",\n"
                "\"npu_type\": 12,\n"
-               "\"system\" : {}}" << std::endl;
+               "\"system\" : {}}"
+            << std::endl;
     outfile.close();
     EXPECT_TRUE(tuner->check());
     EXPECT_FALSE(tuner->isLastCheckSuccess);
@@ -62,7 +64,8 @@ TEST_F(NPUTopoTunerTest, TestCheckCase2)
                "\"bind_port\": 10101,\n"
                "\"vm_name\": \"openeuler\",\n"
                "\"npu_type\": \"d804\",\n"
-               "\"system\" : {}}" << std::endl;
+               "\"system\" : {}}"
+            << std::endl;
     outfile.close();
     EXPECT_TRUE(tuner->check());
     EXPECT_FALSE(tuner->isLastCheckSuccess);
@@ -76,7 +79,8 @@ TEST_F(NPUTopoTunerTest, TestCheckCase3)
                "\"bind_port\": 10101,\n"
                "\"vm_name\": \"openeuler\",\n"
                "\"npu_type\": \"d802\",\n"
-               "\"system\" : {}}" << std::endl;
+               "\"system\" : {}}"
+            << std::endl;
     outfile.close();
     std::string str = "check";
     MOCKER(&CmdExecutor::runCommand).expects(once()).will(returnValue(std::make_pair(true, str)));

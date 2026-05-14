@@ -12,20 +12,23 @@
  */
 
 #include "npu_topo_tuner.h"
-#include <iostream>
-#include <cstdlib>
 
-#include <fstream>
-#include <string>
-#include <cstring>
-#include <map>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <dirent.h>
 #include <array>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <map>
 #include <memory>
 #include <regex>
+#include <string>
+
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include "rapidjson/document.h"
+
 #include "cmd_executor.h"
 #include "log/ebpf_logger_macros.h"
 #include "utils.h"
@@ -102,11 +105,9 @@ bool NPUTopoTuner::check()
 
 void NPUTopoTuner::apply()
 {
-    std::cout << "1. Check the mapping relationship between NPU and NUMA in the physical machine."
-              << std::endl
-              << "2. Check the virtual machine configuration file to clarify the mapping relationship\n"
-                 " between the physical machine's NPU PCI and the virtual machine's PCI. "
-              << std::endl
-              << "3. Set the NUMA flag for the NPU in the virtual machine."
-              << std::endl;
+    std::cout << "1. Check the mapping relationship between NPU and NUMA in the physical machine." << std::endl <<
+              "2. Check the virtual machine configuration file to clarify the mapping relationship\n"
+              " between the physical machine's NPU PCI and the virtual machine's PCI. " <<
+              std::endl <<
+              "3. Set the NUMA flag for the NPU in the virtual machine." << std::endl;
 }

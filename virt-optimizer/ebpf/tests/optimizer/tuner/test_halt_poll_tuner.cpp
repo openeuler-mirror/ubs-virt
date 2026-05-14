@@ -1,16 +1,19 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <mockcpp/GlobalMockObject.h>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <vector>
+
 #include <unistd.h>
-#include <filesystem>
-#include "optimizer/tuner/halt_poll_tuner.h"
+
+#include <gtest/gtest.h>
+#include <mockcpp/GlobalMockObject.h>
+#include <mockcpp/mockcpp.hpp>
+
 #include "common/cmd_executor.h"
+#include "optimizer/tuner/halt_poll_tuner.h"
 
 void Mock_Clean()
 {
@@ -34,19 +37,18 @@ TEST(HaltPollTunerTest, PrincipleTest)
 {
     std::shared_ptr<HaltPollTuner> tuner = std::make_shared<HaltPollTuner>();
     EXPECT_EQ("The overhead caused by the guest automatically entering HLT state during idle periods, "
-        "resulting in CPU wake-up time consumption.",
-        tuner->principle());
+              "resulting in CPU wake-up time consumption.",
+              tuner->principle());
 }
 
 TEST(HaltPollTunerTest, AdviceTest)
 {
     std::shared_ptr<HaltPollTuner> tuner = std::make_shared<HaltPollTuner>();
     EXPECT_EQ("Enable Haltpoll configuration. Keep the vCPU in a polling state for a period of time when idle, "
-        "instead of immediately entering HLT, which can effectively reduce the number of CPU sleeps "
-        "and decrease the waiting time of interruption.",
-        tuner->advice());
+              "instead of immediately entering HLT, which can effectively reduce the number of CPU sleeps "
+              "and decrease the waiting time of interruption.",
+              tuner->advice());
 }
-
 
 TEST(HaltPollTunerTest, CheckFalseTest1)
 {
@@ -64,9 +66,9 @@ TEST(HaltPollTunerTest, CheckFalseTest2)
     std::string filename = "/var/ubs-opt/data/data.json";
     std::ofstream outfile(filename);
     outfile << "{\"timestamp\":123,\"guest_name\":\"\",\"interval\":30,"
-        "\"data_table\": {\"ipi_interrupt\":{\"ipi_count\":0,"
-        "\"transmission_delay\":12,\"processing_delay\":11},\"host_preempt_vmcore_count\":8}}" <<
-        std::endl;
+               "\"data_table\": {\"ipi_interrupt\":{\"ipi_count\":0,"
+               "\"transmission_delay\":12,\"processing_delay\":11},\"host_preempt_vmcore_count\":8}}"
+            << std::endl;
     outfile.close();
     MOCKER(&CmdExecutor::runCommand).stubs().with(any()).will(returnValue(std::make_pair(true, str2)));
     MOCKER(HaltPollTuner::decideHaltpoll).stubs().with(any()).will(returnValue(static_cast<uint64_t>(0)));
@@ -81,13 +83,13 @@ TEST(HaltPollTunerTest, CheckFalseTest3)
     std::string filename = "/var/ubs-opt/data/data.json";
     std::ofstream outfile(filename);
     outfile << "{\"timestamp\":123,\"guest_name\":\"\",\"interval\":30,"
-        "\"data_table\": {\"ipi_interrupt\":{\"ipi_count\":0,"
-        "\"transmission_delay\":12,\"processing_delay\":11},\"host_preempt_vmcore_count\":8}}" <<
-        std::endl;
+               "\"data_table\": {\"ipi_interrupt\":{\"ipi_count\":0,"
+               "\"transmission_delay\":12,\"processing_delay\":11},\"host_preempt_vmcore_count\":8}}"
+            << std::endl;
     outfile << "{\"timestamp\":245,\"guest_name\":\"\",\"interval\":30,"
-        "\"data_table\": {\"ipi_interrupt\":{\"ipi_count\":10000000,"
-        "\"transmission_delay\":12,\"processing_delay\":11}}}" <<
-        std::endl;
+               "\"data_table\": {\"ipi_interrupt\":{\"ipi_count\":10000000,"
+               "\"transmission_delay\":12,\"processing_delay\":11}}}"
+            << std::endl;
     outfile.close();
     MOCKER(&CmdExecutor::runCommand).stubs().with(any()).will(returnValue(std::make_pair(true, str2)));
     MOCKER(HaltPollTuner::decideHaltpoll).stubs().with(any()).will(returnValue(static_cast<uint64_t>(0)));
@@ -102,13 +104,13 @@ TEST(HaltPollTunerTest, CheckFalseTest4)
     std::string filename = "/var/ubs-opt/data/data.json";
     std::ofstream outfile(filename);
     outfile << "{\"timestamp\":123,\"guest_name\":\"\",\"interval\":30,"
-        "\"data_table\": {\"ipi_interrupt\":{\"ipi_count\":0,"
-        "\"transmission_delay\":12,\"processing_delay\":11},\"host_preempt_vmcore_count\":8}}" <<
-        std::endl;
+               "\"data_table\": {\"ipi_interrupt\":{\"ipi_count\":0,"
+               "\"transmission_delay\":12,\"processing_delay\":11},\"host_preempt_vmcore_count\":8}}"
+            << std::endl;
     outfile << "{\"timestamp\":245,\"guest_name\":\"\",\"interval\":30,"
-        "\"data_table\": {\"ipi_interrupt\":{\"ipi_count\":10000000,"
-        "\"transmission_delay\":12,\"processing_delay\":11}}}" <<
-        std::endl;
+               "\"data_table\": {\"ipi_interrupt\":{\"ipi_count\":10000000,"
+               "\"transmission_delay\":12,\"processing_delay\":11}}}"
+            << std::endl;
     outfile.close();
     MOCKER(&CmdExecutor::runCommand).stubs().with(any()).will(returnValue(std::make_pair(true, str2)));
     MOCKER(HaltPollTuner::decideHaltpoll).stubs().with(any()).will(returnValue(static_cast<uint64_t>(1)));
@@ -124,7 +126,6 @@ TEST(HaltPollTunerTest, CheckFalseTest5)
     EXPECT_EQ(false, tuner->check());
     Mock_Clean();
 }
-
 
 TEST(HaltPollTunerTest, ApplyTrueTest)
 {

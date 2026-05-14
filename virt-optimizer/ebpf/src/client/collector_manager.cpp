@@ -12,20 +12,21 @@
  */
 
 #include "collector_manager.h"
-#include <csignal>
-#include <string>
-#include <fstream>
-#include <chrono>
-#include <filesystem>
+
 #include <unistd.h>
+#include <chrono>
+#include <csignal>
+#include <filesystem>
+#include <fstream>
+#include <string>
 
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
 
 #include "collector/ipi_collector.h"
-#include "collector/sched_collector.h"
 #include "collector/numa_collector.h"
 #include "collector/receivers/ebpf_receiver.h"
+#include "collector/sched_collector.h"
 #include "log/ebpf_logger.h"
 #include "log/ebpf_logger_macros.h"
 #include "utils.h"
@@ -34,9 +35,9 @@ namespace fs = std::filesystem;
 constexpr const char *CONFIG_PATH = "/usr/local/sbin/ubs-optimizer/config.json";
 constexpr const char *RUNNING_PATH = "/usr/local/sbin/ubs-optimizer";
 constexpr const char *LOG_PATH = "/var/ubs-opt/log/ubs_optimizer_client.log";
-constexpr unsigned int WAITING_SIGNALS_INTERVAL_SEC = 1;  // The waiting interval for receiving incoming signals
-constexpr unsigned int MIN_SAMPLING_INTERVAL_SEC = 1;     // Minimum set sampling interval
-constexpr unsigned int MAX_SAMPLING_INTERVAL_SEC = 600;   // Maximum set sampling interval
+constexpr unsigned int WAITING_SIGNALS_INTERVAL_SEC = 1; // The waiting interval for receiving incoming signals
+constexpr unsigned int MIN_SAMPLING_INTERVAL_SEC = 1;    // Minimum set sampling interval
+constexpr unsigned int MAX_SAMPLING_INTERVAL_SEC = 600;  // Maximum set sampling interval
 
 static volatile sig_atomic_t stopFlag{0};
 static volatile sig_atomic_t reloadFlag{0};

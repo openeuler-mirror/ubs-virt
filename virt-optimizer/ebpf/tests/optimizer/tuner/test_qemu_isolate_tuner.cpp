@@ -1,17 +1,18 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <mockcpp/GlobalMockObject.h>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
-#include "optimizer/tuner/qemu_isolate_tuner.h"
-#include "cmd_executor.h"
-#include "utils.h"
 
+#include <gtest/gtest.h>
+#include <mockcpp/GlobalMockObject.h>
+#include <mockcpp/mockcpp.hpp>
+
+#include "cmd_executor.h"
+#include "optimizer/tuner/qemu_isolate_tuner.h"
+#include "utils.h"
 
 class QemuIsolTunerTest : public ::testing::Test {
 protected:
@@ -83,9 +84,10 @@ TEST_F(QemuIsolTunerTest, TestFindLastInferSuccess)
     std::remove("test.json");
 }
 
-TEST(QemuIsolTunerTest1, TestFindLastInferCase) {
+TEST(QemuIsolTunerTest1, TestFindLastInferCase)
+{
     char ret_qemu[] = "abc";
-    char* cur_qemu = ret_qemu;
+    char *cur_qemu = ret_qemu;
     MOCKER(realpath).expects(atLeast(1)).with(any()).will(returnValue(cur_qemu));
     std::unique_ptr<QemuIsolTuner> tuner = std::make_unique<QemuIsolTuner>();
     EXPECT_NO_THROW(tuner->findLastInfer());
@@ -93,7 +95,8 @@ TEST(QemuIsolTunerTest1, TestFindLastInferCase) {
     mockcpp::GlobalMockObject::reset();
 }
 
-TEST(QemuIsolTunerTest1, CheckCase1) {
+TEST(QemuIsolTunerTest1, CheckCase1)
+{
     std::unique_ptr<QemuIsolTuner> tuner = std::make_unique<QemuIsolTuner>();
     MOCKER(&QemuIsolTuner::checkApply).stubs().will(returnValue(QemuIsolTuner::ResultCode::FALSE));
     EXPECT_FALSE(tuner->check());
@@ -101,12 +104,14 @@ TEST(QemuIsolTunerTest1, CheckCase1) {
     mockcpp::GlobalMockObject::reset();
 }
 
-TEST(QemuIsolTunerTest1, CheckCase2) {
+TEST(QemuIsolTunerTest1, CheckCase2)
+{
     std::string filename = "/var/ubs-opt/data/data.json";
     std::ofstream outfile(filename);
     outfile << "{\"timestamp\":123,\"guest_name\":\"\",\"interval\":30,"
                "\"data_table\": {\"qemu_migration_count\":100,\"ipi_interrupt\":{\"ipi_count\":0,"
-               "\"transmission_delay\":12,\"processing_delay\":11},\"host_preempt_vmcore_count\":8}}" << std::endl;
+               "\"transmission_delay\":12,\"processing_delay\":11},\"host_preempt_vmcore_count\":8}}"
+            << std::endl;
     outfile.close();
     std::unique_ptr<QemuIsolTuner> tuner = std::make_unique<QemuIsolTuner>();
     MOCKER(&QemuIsolTuner::checkApply).stubs().will(returnValue(QemuIsolTuner::ResultCode::FALSE));
@@ -115,14 +120,16 @@ TEST(QemuIsolTunerTest1, CheckCase2) {
     mockcpp::GlobalMockObject::reset();
 }
 
-TEST(QemuIsolTunerTest1, CheckCase3) {
+TEST(QemuIsolTunerTest1, CheckCase3)
+{
     std::string filename = "/usr/local/sbin/ubs-optimizer/config.json";
     std::ofstream outfile(filename);
     outfile << "{\"sampling_interval\": 30,\n"
                "\"bind_port\": 10101,\n"
                "\"vm_name\":,\n"
                "\"npu_type\": \"d802\",\n"
-               "\"system\" : {}}" << std::endl;
+               "\"system\" : {}}"
+            << std::endl;
     outfile.close();
     std::unique_ptr<QemuIsolTuner> tuner = std::make_unique<QemuIsolTuner>();
     EXPECT_TRUE(tuner->check());
@@ -130,14 +137,16 @@ TEST(QemuIsolTunerTest1, CheckCase3) {
     mockcpp::GlobalMockObject::reset();
 }
 
-TEST(QemuIsolTunerTest1, CheckApplyWithResultFalse) {
+TEST(QemuIsolTunerTest1, CheckApplyWithResultFalse)
+{
     std::string filename = "/usr/local/sbin/ubs-optimizer/config.json";
     std::ofstream outfile(filename);
     outfile << "{\"sampling_interval\": 30,\n"
                "\"bind_port\": 10101,\n"
                "\"vm_name\": \"test\",\n"
                "\"npu_type\": \"d802\",\n"
-               "\"system\" : {}}" << std::endl;
+               "\"system\" : {}}"
+            << std::endl;
     outfile.close();
     std::string cmdOutput;
     MOCKER(&CmdExecutor::runCommand).stubs().with(any()).will(returnValue(std::make_pair(false, cmdOutput)));
@@ -147,14 +156,16 @@ TEST(QemuIsolTunerTest1, CheckApplyWithResultFalse) {
     mockcpp::GlobalMockObject::reset();
 }
 
-TEST(QemuIsolTunerTest1, CheckApplyWithPidPosIsMinusOne) {
+TEST(QemuIsolTunerTest1, CheckApplyWithPidPosIsMinusOne)
+{
     std::string filename = "/usr/local/sbin/ubs-optimizer/config.json";
     std::ofstream outfile(filename);
     outfile << "{\"sampling_interval\": 30,\n"
                "\"bind_port\": 10101,\n"
                "\"vm_name\": \"test\",\n"
                "\"npu_type\": \"d802\",\n"
-               "\"system\" : {}}" << std::endl;
+               "\"system\" : {}}"
+            << std::endl;
     outfile.close();
     std::string cmdOutput = "VM/task-name";
     MOCKER(&CmdExecutor::runCommand).stubs().with(any()).will(returnValue(std::make_pair(true, cmdOutput)));
@@ -164,14 +175,16 @@ TEST(QemuIsolTunerTest1, CheckApplyWithPidPosIsMinusOne) {
     mockcpp::GlobalMockObject::reset();
 }
 
-TEST(QemuIsolTunerTest1, CheckApplyWithIsAllFError) {
+TEST(QemuIsolTunerTest1, CheckApplyWithIsAllFError)
+{
     std::string filename = "/usr/local/sbin/ubs-optimizer/config.json";
     std::ofstream outfile(filename);
     outfile << "{\"sampling_interval\": 30,\n"
                "\"bind_port\": 10101,\n"
                "\"vm_name\": \"test\",\n"
                "\"npu_type\": \"d802\",\n"
-               "\"system\" : {}}" << std::endl;
+               "\"system\" : {}}"
+            << std::endl;
     outfile.close();
     std::string cmdOutput;
     MOCKER(&CmdExecutor::runCommand).stubs().with(any()).will(returnValue(std::make_pair(true, cmdOutput)));

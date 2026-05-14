@@ -14,31 +14,32 @@
 #ifndef VCPUBIND_COLLECTOR_H
 #define VCPUBIND_COLLECTOR_H
 
-#include <vector>
-#include <map>
-#include <set>
 #include <atomic>
-#include <string>
+#include <map>
 #include <memory>
+#include <set>
+#include <string>
 #include <thread>
+#include <vector>
 
 class VcpubindCollector {
 public:
-    static VcpubindCollector& getInstance();
+    static VcpubindCollector &getInstance();
 
-    VcpubindCollector(const VcpubindCollector&) = delete;
+    VcpubindCollector(const VcpubindCollector &) = delete;
 
-    VcpubindCollector& operator=(const VcpubindCollector&) = delete;
+    VcpubindCollector &operator=(const VcpubindCollector &) = delete;
 
-    void launch(std::string vm_name, int timeout, std::atomic<int>& res, double min_cpu = 1);
+    void launch(std::string vmName, int timeout, std::atomic<int> &res, double minCpu = 1);
+
 private:
     VcpubindCollector() = default;
 
-    void monitor_vm_vpu(std::string vm_name, int timeout, std::atomic<int>& res, double min_cpu = 1);
-    void process_line(const std::string& line, std::map<std::string, std::string>& binding);
-    void parse_top_output(const std::string& top_output, const std::set<std::string>& bound_cores, double min_cpu);
+    void monitor_vm_vpu(std::string vmName, int timeout, std::atomic<int> &res, double minCpu = 1);
+    void process_line(const std::string &line, std::map<std::string, std::string> &binding);
+    void parse_top_output(const std::string &topOutput, const std::set<std::string> &boundCores, double minCpu);
     void set_index(std::string line);
-    std::map<std::string, std::string> get_binding_map(std::string vm_name);
+    std::map<std::string, std::string> get_binding_map(std::string vmName);
 
     std::unique_ptr<std::thread> vcpubindCollectorThread_;
 
@@ -51,4 +52,3 @@ private:
 };
 
 #endif
-

@@ -15,6 +15,7 @@
 #define CLUSTER_TOPO_TUNER_H
 
 #include <vector>
+
 #include "base_tuner.h"
 
 class ClusterTopoTuner : public BaseTuner {
@@ -28,4 +29,4 @@ public:
     void apply() override;
 };
 
-#endif  // CLUSTER_TOPO_TUNER_H
+#endif // CLUSTER_TOPO_TUNER_H

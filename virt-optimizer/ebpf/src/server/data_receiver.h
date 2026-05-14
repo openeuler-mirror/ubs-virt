@@ -14,26 +14,26 @@
 #ifndef DATA_RECEIVER_H
 #define DATA_RECEIVER_H
 
+#include <condition_variable>
 #include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
-#include <condition_variable>
+
 #include "data_struct.h"
 
-
-constexpr unsigned BUFFER_THRESHOLD = 64; // When the number of data entries exceeds the threshold, write to disk.
+constexpr unsigned BUFFER_THRESHOLD = 64;  // When the number of data entries exceeds the threshold, write to disk.
 constexpr unsigned FLUSH_INTERVAL_SEC = 8; // If not written to disk within this time, directly write to disk.
 const std::string data_output_path = "/var/ubs-opt/data/data.json";
 
 class DataReceiver {
 public:
     explicit DataReceiver(std::shared_ptr<MutexContext> ctx, size_t bufferSize = BUFFER_THRESHOLD,
-        int flushIntervalSec = FLUSH_INTERVAL_SEC, std::string outputPath = data_output_path);
+                          int flushIntervalSec = FLUSH_INTERVAL_SEC, std::string outputPath = data_output_path);
     ~DataReceiver();
 
     DataReceiver(const DataReceiver &) = delete;
-    DataReceiver &operator = (const DataReceiver &) = delete;
+    DataReceiver &operator=(const DataReceiver &) = delete;
 
     void save(const std::string &dataJson);
 
@@ -53,6 +53,5 @@ private:
     bool stopFlag;
     std::thread flushThread;
 };
-
 
 #endif

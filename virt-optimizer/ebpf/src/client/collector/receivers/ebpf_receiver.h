@@ -25,19 +25,20 @@ public:
 
     void setSamplingInterval(unsigned int newSamplingInterval);
 
-    static EBPFReceiver& getInstance();
+    static EBPFReceiver &getInstance();
 
-    std::shared_ptr<DataTable> dataBuffer{ std::make_shared<DataTable>() };
+    std::shared_ptr<DataTable> dataBuffer{std::make_shared<DataTable>()};
+
 private:
     static constexpr unsigned int SAMPLING_INTERVAL_DEFAULT = 30;
 
     [[noreturn]] void mainLoop();
 
-    std::atomic<unsigned int> samplingInterval_{ SAMPLING_INTERVAL_DEFAULT };
+    std::atomic<unsigned int> samplingInterval_{SAMPLING_INTERVAL_DEFAULT};
 
-    std::shared_ptr<DataTable> readBuffer_{ std::make_shared<DataTable>() };
+    std::shared_ptr<DataTable> readBuffer_{std::make_shared<DataTable>()};
 
-    std::unique_ptr<std::thread> receiverThread_{nullptr };
+    std::unique_ptr<std::thread> receiverThread_{nullptr};
 };
 
 #endif

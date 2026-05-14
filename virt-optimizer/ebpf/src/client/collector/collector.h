@@ -14,18 +14,21 @@
 #ifndef COLLECTOR
 #define COLLECTOR
 
-#include <vector>
 #include <atomic>
+#include <cstdint>
 #include <mutex>
 #include <thread>
-#include <cstdint>
+#include <vector>
 
 #include <sys/resource.h>
-#include <bpf/libbpf.h>
-#include <bpf/bpf.h>
+
 #include <linux/perf_event.h>
 
-using  u32 = uint32_t;
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
+
+using u32 = uint32_t;
+using u64 = unsigned long long;
 
 enum class CollectorStatus {
     SUCCESS = 0,
@@ -36,7 +39,7 @@ enum class CollectorStatus {
 };
 
 struct ring_buffer_deleter {
-    void operator () (struct ring_buffer *rb) const
+    void operator()(struct ring_buffer *rb) const
     {
         if (rb) {
             ring_buffer__free(rb);
@@ -55,8 +58,8 @@ public:
     virtual void stopCollecting();
 
 protected:
-    std::atomic<bool> stopFlag{ false };
-    bool collecting_{ false };
+    std::atomic<bool> stopFlag{false};
+    bool collecting_{false};
     std::unique_ptr<std::thread> collectionThread_;
     WarpedRingbufObj ringbuf;
     std::mutex mutex_;

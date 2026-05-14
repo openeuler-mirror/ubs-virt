@@ -12,17 +12,17 @@
  */
 
 #include "file_reader.h"
+
 #include <fstream>
 #include <stdexcept>
 
-FileReader::FileReader(const std::string &file_path) : file_path_(file_path)
-{}
+FileReader::FileReader(const std::string &filePath) : filePath_(filePath) {}
 
 std::vector<std::string> FileReader::read() const
 {
-    std::ifstream file(file_path_);
+    std::ifstream file(filePath_);
     if (!file.is_open()) {
-        throw std::runtime_error("Open file failed: " + file_path_);
+        throw std::runtime_error("Open file failed: " + filePath_);
     }
 
     std::vector<std::string> lines;

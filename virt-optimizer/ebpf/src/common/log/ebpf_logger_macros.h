@@ -15,6 +15,7 @@
 #define EBPF_LOGGER_MACROS_H
 
 #include <sstream>
+
 #include "ebpf_logger.h"
 
 #define LOG_INTERNAL(level, message)                                                          \
@@ -29,4 +30,4 @@
 #define EBPF_LOG_WARN(msg) LOG_INTERNAL(EbpfLogger::LogLevel::WARNING, msg)
 #define EBPF_LOG_ERROR(msg) LOG_INTERNAL(EbpfLogger::LogLevel::ERROR, msg)
 #define EBPF_LOG_FATAL(msg) LOG_INTERNAL(EbpfLogger::LogLevel::FATAL, msg)
-#endif  // EBPF_LOGGER_MACROS_H
+#endif // EBPF_LOGGER_MACROS_H

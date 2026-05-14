@@ -12,9 +12,9 @@
  */
 #include "cmd_executor.h"
 
+#include <malloc.h>
 #include <iostream>
 #include <utility>
-#include <malloc.h>
 
 #include "log/ebpf_logger_macros.h"
 

@@ -31,4 +31,4 @@ public:
     bool isLastCheckSuccess;
 };
 
-#endif  // BASETUNER_H
+#endif // BASETUNER_H

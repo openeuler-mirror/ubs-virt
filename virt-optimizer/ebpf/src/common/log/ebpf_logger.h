@@ -14,14 +14,14 @@
 #ifndef EBPF_LOGGER_H
 #define EBPF_LOGGER_H
 
-#include <fstream>
-#include <string>
-#include <queue>
-#include <mutex>
-#include <condition_variable>
-#include <thread>
 #include <atomic>
+#include <condition_variable>
 #include <filesystem>
+#include <fstream>
+#include <mutex>
+#include <queue>
+#include <string>
+#include <thread>
 
 namespace fs = std::filesystem;
 constexpr size_t max_file_size = 20 * 1024 * 1024;
@@ -42,7 +42,7 @@ public:
     static EbpfLogger &getInstance();
 
     bool init(const std::string &logFile, LogLevel level = LogLevel::INFO, bool useSyslog = true,
-        bool useConsole = false, size_t maxFileSize = max_file_size);
+              bool useConsole = false, size_t maxFileSize = max_file_size);
 
     void logMessage(LogLevel level, const std::string &message, const char *file, const char *function, int line);
 
@@ -50,7 +50,7 @@ public:
 
     EbpfLogger(const EbpfLogger &) = delete;
 
-    EbpfLogger &operator = (const EbpfLogger &) = delete;
+    EbpfLogger &operator=(const EbpfLogger &) = delete;
 
     // For unit testing only, get the current log queue size
     size_t getLogQueueSizeForTest()

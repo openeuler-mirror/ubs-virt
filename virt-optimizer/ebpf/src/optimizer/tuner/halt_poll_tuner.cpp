@@ -12,14 +12,16 @@
  */
 
 #include "halt_poll_tuner.h"
-#include <iostream>
+
 #include <algorithm>
 #include <chrono>
+#include <iostream>
 #include <queue>
 
 #include "rapidjson/error/en.h"
-#include "log/ebpf_logger_macros.h"
+
 #include "cmd_executor.h"
+#include "log/ebpf_logger_macros.h"
 #include "utils.h"
 
 const std::string_view DATA_PATH = "/var/ubs-opt/data/";
@@ -45,19 +47,19 @@ std::string HaltPollTuner::category() const
 std::string HaltPollTuner::principle() const
 {
     return "The overhead caused by the guest automatically entering HLT state during idle periods, "
-        "resulting in CPU wake-up time consumption.";
+           "resulting in CPU wake-up time consumption.";
 }
 
 std::string HaltPollTuner::advice() const
 {
 #if defined(__aarch64__)
     return "Enable Haltpoll configuration. Keep the vCPU in a polling state for a period of time when idle, "
-        "instead of immediately entering HLT, which can effectively reduce the number of CPU sleeps "
-        "and decrease the waiting time of interruption.";
+           "instead of immediately entering HLT, which can effectively reduce the number of CPU sleeps "
+           "and decrease the waiting time of interruption.";
 #elif defined(__x86_64__)
     return "Enable Optimizer configuration. Keep the vCPU in a polling state for a period of time when idle, "
-        "instead of immediately entering HLT, which can effectively reduce the number of CPU sleeps "
-        "and decrease the waiting time of interruption.";
+           "instead of immediately entering HLT, which can effectively reduce the number of CPU sleeps "
+           "and decrease the waiting time of interruption.";
 #endif
 }
 
@@ -138,8 +140,8 @@ void HaltPollTuner::apply()
         auto undoResult = executor.runCommand("sed -i '/^GRUB_CMDLINE_LINUX=/ s/ idle=poll//' /etc/default/grub");
         if (!undoResult.first) {
             EBPF_LOG_ERROR("Failed to load Optimizer, failed to undo the modifications. " + undoResult.second +
-                "This error usually does not occur. Please check whether the format of the "
-                "configuration file /etc/default/grub is correct and remove all 'idle' fields from it.");
+                           "This error usually does not occur. Please check whether the format of the "
+                           "configuration file /etc/default/grub is correct and remove all 'idle' fields from it.");
         }
         return;
     }
@@ -242,10 +244,9 @@ IPIData HaltPollTuner::parseIPIData(const std::string &rawJson)
 
 uint64_t HaltPollTuner::decideHaltpoll(uint64_t maxIPIPerSec)
 {
-    static std::vector<std::pair<unsigned int, unsigned int> > haltpollThreshold = {
-        { 20000, 2000000000 }, { 10000, 1000000000 }, { 8000, 500000000 },
-        { 6000, 200000000 },   { 4000, 50000000 },    { 2000, 20000000 }
-    };
+    static std::vector<std::pair<unsigned int, unsigned int>> haltpollThreshold = {
+        {20000, 2000000000}, {10000, 1000000000}, {8000, 500000000},
+        {6000, 200000000},   {4000, 50000000},    {2000, 20000000}};
     for (auto it : haltpollThreshold) {
         if (maxIPIPerSec > it.first)
             return it.second;

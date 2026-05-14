@@ -22,7 +22,7 @@ public:
 
     NumaCollector(const NumaCollector &) = delete;
 
-    NumaCollector *operator = (const NumaCollector &) = delete;
+    NumaCollector *operator=(const NumaCollector &) = delete;
 
     CollectorStatus launchCollecting() override;
 
@@ -30,7 +30,7 @@ private:
     NumaCollector() = default;
 
     void stopCollecting() override;
-    struct sched_numa_trace *schedNumaTrace{ nullptr };
+    struct sched_numa_trace *schedNumaTrace{nullptr};
 };
 
 #endif

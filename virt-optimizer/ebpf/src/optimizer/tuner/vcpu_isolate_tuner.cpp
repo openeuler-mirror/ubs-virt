@@ -13,11 +13,11 @@
 
 #include "vcpu_isolate_tuner.h"
 
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
 
-#include "log/ebpf_logger_macros.h"
 #include "cmd_executor.h"
+#include "log/ebpf_logger_macros.h"
 
 const std::string_view DATA_PATH = "/var/ubs-opt/data/";
 const std::string_view DATA_FILE_NAME = "data.json";
@@ -75,11 +75,9 @@ void VCPUIsolTuner::apply()
 
 VCPUIsolTuner::ResultCode VCPUIsolTuner::checkApply()
 {
-    const std::vector<std::string> isolationParams = {
-        "isolcpus=", "nohz_full=", "rcu_nocbs="
-    };
+    const std::vector<std::string> isolationParams = {"isolcpus=", "nohz_full=", "rcu_nocbs="};
 
-    static const char* cmd = "cat /proc/cmdline";
+    static const char *cmd = "cat /proc/cmdline";
     CmdExecutor executor;
     auto result = executor.runCommand(cmd);
     if (!result.first) {
@@ -88,7 +86,7 @@ VCPUIsolTuner::ResultCode VCPUIsolTuner::checkApply()
         return ResultCode::ERROR;
     }
 
-    for (const auto& param : isolationParams) {
+    for (const auto &param : isolationParams) {
         if (result.second.find(param) == std::string::npos) {
             return ResultCode::FALSE;
         }
@@ -132,7 +130,7 @@ void VCPUIsolTuner::parseHostData(const std::string &rawJson)
     }
 
     if (doc.HasMember("data_table") && doc["data_table"].IsObject()) {
-        const rapidjson::Value& host_data = doc["data_table"];
+        const rapidjson::Value &host_data = doc["data_table"];
         if (host_data.HasMember("host_preempt_vmcore_count") && host_data["host_preempt_vmcore_count"].IsInt()) {
             int preempt_count = host_data["host_preempt_vmcore_count"].GetInt();
             maxPcpuPreemptCount = std::max(maxPcpuPreemptCount, preempt_count);
@@ -151,7 +149,6 @@ void VCPUIsolTuner::parseHostData(const std::string &rawJson)
     interval = doc["interval"].GetInt();
 }
 
-
 void VCPUIsolTuner::findLastInfer()
 {
     EBPF_LOG_INFO("Checking vcpu isolate tunner.");
@@ -161,12 +158,12 @@ void VCPUIsolTuner::findLastInfer()
         if (!file.is_open()) {
             isLastCheckSuccess = false;
             EBPF_LOG_ERROR("Failed to found data file: " + std::string(DATA_PATH) + std::string(DATA_FILE_NAME));
-            return ;
+            return;
         }
     } catch (const std::exception &e) {
         isLastCheckSuccess = false;
         EBPF_LOG_WARN("Unable to open data file: " + std::string(e.what()));
-        return ;
+        return;
     }
     std::string rawJson;
     time_t lastTimestamp = 0;

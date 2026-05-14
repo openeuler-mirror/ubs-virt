@@ -13,16 +13,14 @@
 
 #include "ui_manager.h"
 
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+#include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <memory>
-#include <algorithm>
-#include <iomanip>
-#include <cmath>
-#include <cctype>
-#include <sstream>
-#include <iomanip>
 
 #include "log/ebpf_logger_macros.h"
 
@@ -37,7 +35,10 @@ constexpr const int SEPARATOR_EXTRA_SPACE = 2;
 class PrettyTable {
 public:
     explicit PrettyTable(const std::vector<std::string> &headers)
-        : headers_(headers), maxTotalWidth_(MAX_TOTAL_WIDTH), minColWidth_(MIN_COL_WIDTH), colCount_(headers.size())
+        : headers_(headers),
+          maxTotalWidth_(MAX_TOTAL_WIDTH),
+          minColWidth_(MIN_COL_WIDTH),
+          colCount_(headers.size())
     {
         // Initialize column width
         colWidths_.resize(colCount_, MIN_COL_WIDTH);
@@ -102,7 +103,8 @@ private:
         // Proportionally distribute available width
         std::vector<int> allocatedWidths(colCount_, minColWidth_);
         for (int i = 0; i < colCount_; i++) {
-            allocatedWidths[i] = std::max(minColWidth_,
+            allocatedWidths[i] = std::max(
+                minColWidth_,
                 static_cast<int>(std::floor(availableWidth * static_cast<double>(colWidths_[i]) / totalIdealWidth)));
         }
 
@@ -158,12 +160,12 @@ private:
                     int chunkSize = std::min(static_cast<int>(word.length() - i), width);
                     lines.push_back(word.substr(i, chunkSize));
                 }
-            } else if (currentLine.empty()) {  // Words can be added to the current line
+            } else if (currentLine.empty()) { // Words can be added to the current line
                 currentLine = word;
             } else if (static_cast<int>(currentLine.length() + 1 + word.length()) <=
-                       width) {  // Check if the column width is exceeded after adding the word
+                       width) { // Check if the column width is exceeded after adding the word
                 currentLine += " " + word;
-            } else {  // Need to wrap
+            } else { // Need to wrap
                 lines.push_back(currentLine);
                 currentLine = word;
             }
@@ -268,8 +270,8 @@ private:
 // Input string processing function
 bool processInput(const std::string &input, std::set<size_t> &selection, size_t max)
 {
-    std::set<size_t> tempSet;  // Temporarily store parsing results
-    bool valid = true;         // Input validity flag
+    std::set<size_t> tempSet; // Temporarily store parsing results
+    bool valid = true;        // Input validity flag
 
     std::istringstream iss(input);
     std::string token;
@@ -309,7 +311,7 @@ bool processInput(const std::string &input, std::set<size_t> &selection, size_t 
             } else {
                 tempSet.insert(id);
             }
-        } catch (...) {  // Catch conversion exceptions (such as oversized numbers)
+        } catch (...) { // Catch conversion exceptions (such as oversized numbers)
             EBPF_LOG_ERROR("Invalid input format.");
             valid = false;
             break;

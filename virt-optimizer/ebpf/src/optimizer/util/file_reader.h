@@ -19,11 +19,11 @@
 
 class FileReader {
 public:
-    explicit FileReader(const std::string &file_path);
+    explicit FileReader(const std::string &filePath);
     std::vector<std::string> read() const;
 
 private:
-    std::string file_path_;
+    std::string filePath_;
 };
 
-#endif  // FILE_READER_H
+#endif // FILE_READER_H

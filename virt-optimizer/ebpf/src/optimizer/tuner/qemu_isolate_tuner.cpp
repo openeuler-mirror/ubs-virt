@@ -12,13 +12,14 @@
  */
 
 #include "qemu_isolate_tuner.h"
-#include <iostream>
-#include <cstdlib>
+
 #include <algorithm>
+#include <cstdlib>
+#include <iostream>
 #include <string>
 
-#include "log/ebpf_logger_macros.h"
 #include "cmd_executor.h"
+#include "log/ebpf_logger_macros.h"
 #include "utils.h"
 
 const std::string_view DATA_PATH = "/var/ubs-opt/data/";
@@ -42,13 +43,13 @@ std::string QemuIsolTuner::category() const
 std::string QemuIsolTuner::principle() const
 {
     return "The QEMU process frequently switches CPUs, resulting in significant virtualization "
-        "overhead.";
+           "overhead.";
 }
 
 std::string QemuIsolTuner::advice() const
 {
     return "Enable QEMU process isolation. physical machine and virtual machine topology synchronization in "
-        "pass-through scenarios.";
+           "pass-through scenarios.";
 }
 
 bool QemuIsolTuner::check()
@@ -75,10 +76,9 @@ bool QemuIsolTuner::check()
 
 void QemuIsolTuner::apply()
 {
-    std::cout << "1. On the physical machine, query the process ID of QEMU."
-              << std::endl
+    std::cout << "1. On the physical machine, query the process ID of QEMU." << std::endl
               << "2. Set the CPU binding for QEMU using \"taskset -cp CPU_ID QEMU_ID\","
-                     "where CPU_ID should be set to a CPU not allocated to the virtual machine. "
+                 "where CPU_ID should be set to a CPU not allocated to the virtual machine. "
               << std::endl;
 }
 
@@ -224,12 +224,11 @@ void QemuIsolTuner::parseHostData(const std::string &rawJson)
 
     if (doc["interval"].GetInt() <= 0) {
         throw ::std::runtime_error("interval must be a positive integer, current value: " +
-            std::to_string(doc["interval"].GetInt()));
+                                   std::to_string(doc["interval"].GetInt()));
     }
 
     interval = doc["interval"].GetInt();
 }
-
 
 void QemuIsolTuner::findLastInfer()
 {

@@ -14,9 +14,9 @@
 #ifndef COMMAND_PARSER_H
 #define COMMAND_PARSER_H
 
+#include <functional>
 #include <string>
 #include <unordered_map>
-#include <functional>
 
 const int ARGC_LEN = 2;
 
@@ -31,7 +31,7 @@ public:
     explicit CommandParser(std::string name = "");
 
 private:
-    std::unordered_map<std::string, std::function<bool()> > handlers_;
+    std::unordered_map<std::string, std::function<bool()>> handlers_;
     std::vector<std::string> usage;
     std::string name;
 };

@@ -14,9 +14,11 @@
 #ifndef HALT_POLL_TUNER_H
 #define HALT_POLL_TUNER_H
 
-#include <vector>
 #include <fstream>
+#include <vector>
+
 #include "rapidjson/document.h"
+
 #include "base_tuner.h"
 #include "data_struct.h"
 
@@ -34,7 +36,7 @@ public:
 
 private:
     static std::ifstream openDataFile(std::string_view filename);
-    static void closeDataFile(std::string_view filename, std::ifstream& file);
+    static void closeDataFile(std::string_view filename, std::ifstream &file);
     static IPIData parseIPIData(const std::string &rawJson);
     bool checkApply();
     void findLastInfer();
@@ -44,4 +46,4 @@ private:
     uint64_t haltpoll;
 };
 
-#endif  // HALT_POLL_TUNER_H
+#endif // HALT_POLL_TUNER_H

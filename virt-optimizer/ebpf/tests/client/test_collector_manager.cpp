@@ -1,16 +1,18 @@
 /*
 * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
+#include <filesystem>
 #include <fstream>
 #include <string>
-#include <filesystem>
-#include <mockcpp/mockcpp.hpp>
+
+#include <gtest/gtest.h>
 #include <mockcpp/GlobalMockObject.h>
-#include "common/utils.h"
-#include "client/collector_manager.h"
+#include <mockcpp/mockcpp.hpp>
+
 #include "client/collector/collector.h"
 #include "client/collector/receivers/ebpf_receiver.h"
+#include "client/collector_manager.h"
+#include "common/utils.h"
 
 void test() {}
 TEST(CollectorManagerTest, LaunchReceiverTest)
@@ -19,20 +21,20 @@ TEST(CollectorManagerTest, LaunchReceiverTest)
     rapidjson::Document doc;
     doc.SetObject();
 
-    EXPECT_FALSE(mgr.launchReceiver(doc));  // sampling_interval 不存在
+    EXPECT_FALSE(mgr.launchReceiver(doc)); // sampling_interval 不存在
 
     doc.SetObject();
     doc.AddMember("sampling_interval", "invalid", doc.GetAllocator());
-    EXPECT_FALSE(mgr.launchReceiver(doc));  // sampling_interval 非整数
+    EXPECT_FALSE(mgr.launchReceiver(doc)); // sampling_interval 非整数
 
     doc.SetObject();
     doc.AddMember("sampling_interval", 0, doc.GetAllocator());
-    EXPECT_FALSE(mgr.launchReceiver(doc));  // sampling_interval 超出范围
+    EXPECT_FALSE(mgr.launchReceiver(doc)); // sampling_interval 超出范围
 
     doc.SetObject();
     doc.AddMember("sampling_interval", 60, doc.GetAllocator());
     MOCKER(&EBPFReceiver::launch).stubs().will(invoke(test));
-    EXPECT_TRUE(mgr.launchReceiver(doc));  // sampling_interval 正确
+    EXPECT_TRUE(mgr.launchReceiver(doc)); // sampling_interval 正确
     MOCKER(&EBPFReceiver::launch).reset();
     GlobalMockObject::verify();
     GlobalMockObject::reset();
@@ -51,23 +53,23 @@ TEST(CollectorManagerTest, LaunchCollectorTest)
     rapidjson::Document doc;
 
     doc.SetObject();
-    EXPECT_FALSE(mgr.launchCollector(doc));  // system 不存在
+    EXPECT_FALSE(mgr.launchCollector(doc)); // system 不存在
 
     doc.SetObject();
     doc.AddMember("system", "invalid", doc.GetAllocator());
-    EXPECT_FALSE(mgr.launchCollector(doc));  // system 非对象
+    EXPECT_FALSE(mgr.launchCollector(doc)); // system 非对象
 
     doc.SetObject();
     rapidjson::Value systemObj(rapidjson::kObjectType);
     systemObj.AddMember("invalid_collector", "enable", doc.GetAllocator());
     doc.AddMember("system", systemObj, doc.GetAllocator());
-    EXPECT_FALSE(mgr.launchCollector(doc));  // collector 中无有效项
+    EXPECT_FALSE(mgr.launchCollector(doc)); // collector 中无有效项
 
     doc.SetObject();
     rapidjson::Value systemObj2(rapidjson::kObjectType);
     systemObj2.AddMember("ipi_collection", "invalid", doc.GetAllocator());
     doc.AddMember("system", systemObj2, doc.GetAllocator());
-    EXPECT_FALSE(mgr.launchCollector(doc));  // ipi_collection值不是enable或disable
+    EXPECT_FALSE(mgr.launchCollector(doc)); // ipi_collection值不是enable或disable
 }
 
 TEST(CollectorManagerTest, DaemonizeTest)

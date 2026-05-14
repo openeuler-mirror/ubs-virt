@@ -12,9 +12,11 @@
  */
 
 #include "vsock_client.h"
+
 #include <iostream>
+
 #include <unistd.h>
-#include <sys/socket.h>
+
 #include <linux/vm_sockets.h>
 
 #include "log/ebpf_logger_macros.h"
@@ -80,7 +82,7 @@ int getPortBind(void)
     int port = port_value.GetInt();
     if (port < PORT_LOWER_LIMIT || port > PORT_UPPER_LIMIT) {
         EBPF_LOG_ERROR("bind_port must be a positive integer between 1024 and 49151, current value: " +
-            std::to_string(port));
+                       std::to_string(port));
         return -1;
     }
     return port;

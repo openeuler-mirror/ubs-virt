@@ -1,42 +1,46 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <mockcpp/GlobalMockObject.h>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
-#include "optimizer/tuner/vcpu_isolate_tuner.h"
+
+#include <gtest/gtest.h>
+#include <mockcpp/GlobalMockObject.h>
+#include <mockcpp/mockcpp.hpp>
+
 #include "cmd_executor.h"
+#include "optimizer/tuner/vcpu_isolate_tuner.h"
 
-
-TEST(VCPUIsolTunerTest, GetName) {
+TEST(VCPUIsolTunerTest, GetName)
+{
     VCPUIsolTuner tuner;
     EXPECT_EQ(tuner.name(), "Exclusive vCPU");
 }
 
-TEST(VCPUIsolTunerTest, GetCategory) {
+TEST(VCPUIsolTunerTest, GetCategory)
+{
     VCPUIsolTuner tuner;
     EXPECT_EQ(tuner.category(), "CPU BOUND");
 }
 
-TEST(VCPUIsolTunerTest, GetPrinciple) {
+TEST(VCPUIsolTunerTest, GetPrinciple)
+{
     VCPUIsolTuner tuner;
-    EXPECT_EQ(tuner.principle(),
-              "Frequent preemption of the physical machine's processes on the CPU allocated to "
-              "the virtual machine leads to CPU-side bubbles or slow execution.");
+    EXPECT_EQ(tuner.principle(), "Frequent preemption of the physical machine's processes on the CPU allocated to "
+                                 "the virtual machine leads to CPU-side bubbles or slow execution.");
 }
 
-TEST(VCPUIsolTunerTest, GetAdvice) {
+TEST(VCPUIsolTunerTest, GetAdvice)
+{
     VCPUIsolTuner tuner;
     EXPECT_EQ(tuner.advice(),
               "Enable Exclusive vCPU. The vCPU can only be scheduled within the allocated virtual machine.");
 }
 
-
-TEST(VCPUIsolTunerTest, ApplyAdvice) {
+TEST(VCPUIsolTunerTest, ApplyAdvice)
+{
     testing::internal::CaptureStdout();
     VCPUIsolTuner tuner;
     tuner.apply();
@@ -44,8 +48,8 @@ TEST(VCPUIsolTunerTest, ApplyAdvice) {
     EXPECT_NE(output.find("Enable Exclusive vCPU"), std::string::npos);
 }
 
-
-TEST(VCPUIsolTunerTest, OpenNonExistentFile) {
+TEST(VCPUIsolTunerTest, OpenNonExistentFile)
+{
     VCPUIsolTuner tuner;
     try {
         tuner.openDataFile("non_existent.json");
@@ -54,10 +58,9 @@ TEST(VCPUIsolTunerTest, OpenNonExistentFile) {
     }
 }
 
-TEST(VCPUIsolTunerTest, ParseInvalidJson) {
-    const std::string invalidJson = {
-        "invalid_key"
-    };
+TEST(VCPUIsolTunerTest, ParseInvalidJson)
+{
+    const std::string invalidJson = {"invalid_key"};
     VCPUIsolTuner tuner;
     EXPECT_THROW(tuner.parseHostData(invalidJson), std::runtime_error);
 }
@@ -138,9 +141,10 @@ TEST(VCPUIsolTunerTest, ParseValidJsonWithIntervalIsZero)
     EXPECT_THROW(tuner.parseHostData(validJson), std::runtime_error);
 }
 
-TEST(VCPUIsolTunerTest, TestFindLastInferCase1) {
+TEST(VCPUIsolTunerTest, TestFindLastInferCase1)
+{
     char ret_vcpu[] = "abc";
-    char* cur_vcpu = ret_vcpu;
+    char *cur_vcpu = ret_vcpu;
     MOCKER(realpath).stubs().with(any()).will(returnValue(cur_vcpu));
     VCPUIsolTuner tuner;
     EXPECT_NO_THROW(tuner.findLastInfer());
@@ -148,7 +152,8 @@ TEST(VCPUIsolTunerTest, TestFindLastInferCase1) {
     mockcpp::GlobalMockObject::reset();
 }
 
-TEST(VCPUIsolTunerTest, CheckCase1) {
+TEST(VCPUIsolTunerTest, CheckCase1)
+{
     VCPUIsolTuner tuner;
     std::string cmdOutput = "";
     MOCKER(&CmdExecutor::runCommand).stubs().with(any()).will(returnValue(std::make_pair(false, cmdOutput)));
@@ -157,12 +162,14 @@ TEST(VCPUIsolTunerTest, CheckCase1) {
     mockcpp::GlobalMockObject::reset();
 }
 
-TEST(VCPUIsolTunerTest, CheckCase2) {
+TEST(VCPUIsolTunerTest, CheckCase2)
+{
     std::string filename = "/var/ubs-opt/data/data.json";
     std::ofstream outfile(filename);
     outfile << "{\"timestamp\":123,\"guest_name\":\"\",\"interval\":30,"
                "\"data_table\": {\"host_preempt_vmcore_count\":200, \"ipi_interrupt\":{\"ipi_count\":0,"
-               "\"transmission_delay\":12,\"processing_delay\":11},\"host_preempt_vmcore_count\":8}}" << std::endl;
+               "\"transmission_delay\":12,\"processing_delay\":11},\"host_preempt_vmcore_count\":8}}"
+            << std::endl;
     outfile.close();
     VCPUIsolTuner tuner;
     std::string cmdOutput = "isolcpus=1, nohz_full=2";
@@ -172,7 +179,8 @@ TEST(VCPUIsolTunerTest, CheckCase2) {
     mockcpp::GlobalMockObject::reset();
 }
 
-TEST(VCPUIsolTunerTest, CheckWithValidCmdOutput) {
+TEST(VCPUIsolTunerTest, CheckWithValidCmdOutput)
+{
     VCPUIsolTuner tuner;
     std::string cmdOutput = "isolcpus=1, nohz_full=2, rcu_nocbs=3";
     MOCKER(&CmdExecutor::runCommand).stubs().with(any()).will(returnValue(std::make_pair(true, cmdOutput)));
@@ -180,4 +188,3 @@ TEST(VCPUIsolTunerTest, CheckWithValidCmdOutput) {
     mockcpp::GlobalMockObject::verify();
     mockcpp::GlobalMockObject::reset();
 }
-

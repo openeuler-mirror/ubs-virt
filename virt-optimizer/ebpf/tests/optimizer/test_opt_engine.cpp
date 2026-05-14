@@ -1,14 +1,17 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <mockcpp/GlobalMockObject.h>
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <vector>
+
 #include <unistd.h>
-#include <filesystem>
+
+#include <gtest/gtest.h>
+#include <mockcpp/GlobalMockObject.h>
+#include <mockcpp/mockcpp.hpp>
+
 #include "optimizer/analyzer/base_analyzer.h"
 #include "optimizer/analyzer/cpu_bound_analyzer.h"
 #include "optimizer/analyzer/io_bound_analyzer.h"
@@ -16,8 +19,8 @@
 #include "optimizer/opt_engine.h"
 #include "optimizer/util/ui_manager.h"
 
-
-TEST(OPTEngineTest, RUNCase1) {
+TEST(OPTEngineTest, RUNCase1)
+{
     std::vector<std::unique_ptr<BaseAnalyzer<DataStr>>> analyzers;
     analyzers.push_back(std::make_unique<CPUBoundAnalyzer>());
     analyzers.push_back(std::make_unique<IOBoundAnalyzer>());
@@ -32,7 +35,8 @@ TEST(OPTEngineTest, RUNCase1) {
     engine.run(data);
 }
 
-TEST(OPTEngineTest, RUNCase2) {
+TEST(OPTEngineTest, RUNCase2)
+{
     std::vector<std::unique_ptr<BaseAnalyzer<DataStr>>> analyzers;
 
     OPTEngine engine(std::move(analyzers));

@@ -73,7 +73,7 @@ fi
 
 cd "${CURRENT_PATH}/ebpf"
 
-if ! cmake -S . -B "${BUILD_PATH}" -DCMAKE_BUILD_TYPE=$BUILD_TYPE; then
+if ! cmake -S . -B "${BUILD_PATH}" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_EXPORT_COMPILE_COMMANDS=ON; then
     echo "cmake configure failed."
     exit 1
 fi

@@ -14,8 +14,9 @@
 #ifndef IRQ_ANOMALY_ANALYZER_H
 #define IRQ_ANOMALY_ANALYZER_H
 
-#include <vector>
 #include <string>
+#include <vector>
+
 #include "base_analyzer.h"
 
 class IRQAnomalyAnalyzer : public BaseAnalyzer<std::vector<std::string>> {
@@ -27,4 +28,4 @@ private:
     std::vector<std::shared_ptr<BaseTuner>> tuners_;
 };
 
-#endif  // IRQ_ANOMALY_ANALYZER_H
+#endif // IRQ_ANOMALY_ANALYZER_H

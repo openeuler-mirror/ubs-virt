@@ -14,15 +14,16 @@
 #ifndef MONITOR_H
 #define MONITOR_H
 
-#include <thread>
 #include <string>
+#include <thread>
 
 class Monitor {
 public:
     Monitor(const Monitor &) = delete;
-    Monitor &operator = (const Monitor &) = delete;
-    static Monitor& getInstance();
+    Monitor &operator=(const Monitor &) = delete;
+    static Monitor &getInstance();
     void launch();
+
 private:
     Monitor() = default;
 
@@ -32,7 +33,7 @@ private:
 
     std::string guestName;
     std::unique_ptr<std::thread> monitorThread_;
-    unsigned int overloadTimes{ 0 }; // Max value: 3
+    unsigned int overloadTimes{0}; // Max value: 3
 };
 
 #endif

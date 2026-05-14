@@ -18,8 +18,8 @@
 #include <mutex>
 
 #include "rapidjson/document.h"
-#include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
 
 using u64 = unsigned long long;
 
@@ -35,17 +35,16 @@ struct IpiInterrupt {
         processingDelay = 0;
     }
 
-    void operator += (const IpiInterrupt &rhs)
+    void operator+=(const IpiInterrupt &rhs)
     {
         ipiCount += rhs.ipiCount;
         transmissionDelay += rhs.transmissionDelay;
         processingDelay += rhs.processingDelay;
     }
 
-    bool operator == (const IpiInterrupt &rhs) const
+    bool operator==(const IpiInterrupt &rhs) const
     {
-        return (ipiCount == rhs.ipiCount) &&
-               (transmissionDelay == rhs.transmissionDelay) &&
+        return (ipiCount == rhs.ipiCount) && (transmissionDelay == rhs.transmissionDelay) &&
                (processingDelay == rhs.processingDelay);
     }
 
@@ -97,7 +96,7 @@ struct SchedSwitch {
         cpuMigrationCount = 0;
     }
 
-    void operator += (const SchedSwitch &rhs)
+    void operator+=(const SchedSwitch &rhs)
     {
         contextSwitchCount += rhs.contextSwitchCount;
         cpuMigrationCount += rhs.cpuMigrationCount;
@@ -122,7 +121,7 @@ struct NumaSwitch {
         numaSwapCount = 0;
     }
 
-    void operator += (const NumaSwitch &rhs)
+    void operator+=(const NumaSwitch &rhs)
     {
         numaMoveCount += rhs.numaMoveCount;
         numaSwapCount += rhs.numaSwapCount;

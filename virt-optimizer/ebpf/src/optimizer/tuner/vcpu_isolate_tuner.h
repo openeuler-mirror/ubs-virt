@@ -15,7 +15,9 @@
 #define VCPU_ISOL_TUNER_H
 
 #include <vector>
+
 #include "rapidjson/document.h"
+
 #include "base_tuner.h"
 
 class VCPUIsolTuner : public BaseTuner {
@@ -43,4 +45,4 @@ private:
     static int interval;
 };
 
-#endif  // VCPU_ISOL_TUNER_H
+#endif // VCPU_ISOL_TUNER_H

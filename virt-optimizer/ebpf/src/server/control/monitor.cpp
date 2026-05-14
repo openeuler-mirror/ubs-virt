@@ -14,19 +14,20 @@
 #include "monitor.h"
 
 #include <fstream>
+
 #include <sys/statvfs.h>
 
-#include "log/ebpf_logger_macros.h"
 #include "cmd_executor.h"
+#include "log/ebpf_logger_macros.h"
 
 using u64 = unsigned long long;
-static constexpr const char *DISK_MONITE_PATH = "/var"; // Check the disk space in this directory.
-static constexpr unsigned int NORMAL_MONITE_INTERVAL_SEC = 10; // Detecting interval under normal conditions
+static constexpr const char *DISK_MONITE_PATH = "/var";          // Check the disk space in this directory.
+static constexpr unsigned int NORMAL_MONITE_INTERVAL_SEC = 10;   // Detecting interval under normal conditions
 static constexpr unsigned int OVERLOAD_MONITE_INTERVAL_SEC = 60; // Detecting interval under overloaded conditions
-static constexpr unsigned int BUFFER_SIZE = 255; // Buffer for accepting command output
-static constexpr unsigned int TO_PERCENT = 100;  // Convert decimal to percentage
-static constexpr unsigned int DISK_LIMIT = 85; // Disk overload Threshold
-static constexpr unsigned int RESTORE_LIMIT = 10; // Resume threshold = (overload threshold) - RESTORE_LIMIT
+static constexpr unsigned int BUFFER_SIZE = 255;                 // Buffer for accepting command output
+static constexpr unsigned int TO_PERCENT = 100;                  // Convert decimal to percentage
+static constexpr unsigned int DISK_LIMIT = 85;                   // Disk overload Threshold
+static constexpr unsigned int RESTORE_LIMIT = 10;     // Resume threshold = (overload threshold) - RESTORE_LIMIT
 static constexpr unsigned int OVERLOAD_THRESHOLD = 3; // Overload times == 3 -> stop, resume times == 0 -> start
 
 void Monitor::launch()
@@ -34,7 +35,7 @@ void Monitor::launch()
     guestName = getGuestName();
     if (guestName.empty()) {
         EBPF_LOG_WARN("Monitor failed to start, error code = 2003.");
-        return ;
+        return;
     }
     monitorThread_ = std::make_unique<std::thread>(std::thread(&Monitor::mainLoop, this));
 }
@@ -44,8 +45,7 @@ void Monitor::launch()
     CmdExecutor executor(guestName);
     bool stoppedByAuto = false;
     while (true) {
-        if (!stoppedByAuto && !checkDisk(DISK_LIMIT) &&
-            ++overloadTimes == OVERLOAD_THRESHOLD) {
+        if (!stoppedByAuto && !checkDisk(DISK_LIMIT) && ++overloadTimes == OVERLOAD_THRESHOLD) {
             EBPF_LOG_WARN("The collector has shut down. Error code: 1001.");
             stoppedByAuto = true;
             if (executor.runCommand("ubs-opt stop_ebpf").first) {
@@ -53,8 +53,7 @@ void Monitor::launch()
             } else {
                 EBPF_LOG_WARN("Failed to shut down the collector. It may have been manually stopped.");
             }
-        } else if (stoppedByAuto && checkDisk(DISK_LIMIT - RESTORE_LIMIT) &&
-                   --overloadTimes == 0) {
+        } else if (stoppedByAuto && checkDisk(DISK_LIMIT - RESTORE_LIMIT) && --overloadTimes == 0) {
             EBPF_LOG_INFO("Collector starts to run.");
             stoppedByAuto = false;
             if (executor.runCommand("ubs-opt start_ebpf").first) {
@@ -73,7 +72,7 @@ void Monitor::launch()
 
 std::string Monitor::getGuestName()
 {
-    FILE* pipe = popen("virsh list", "r");
+    FILE *pipe = popen("virsh list", "r");
     if (!pipe) {
         EBPF_LOG_ERROR("Failed to retrieve vm information");
         return "";
@@ -101,7 +100,7 @@ std::string Monitor::getGuestName()
         alreadyGet = true;
     }
     pclose(pipe);
-    for (auto c: name) {
+    for (auto c : name) {
         if (!isalpha(c) && !isdigit(c) && (c != '_') && (c != '-') && c != '.') {
             EBPF_LOG_ERROR("The virtual machine name is invalid."
                            "Only characters, numbers, '-', '.' and '_' are allowed.");
@@ -114,7 +113,8 @@ std::string Monitor::getGuestName()
 
 bool Monitor::checkDisk(unsigned int limitPercent)
 {
-    struct statvfs vfs{};
+    struct statvfs vfs {
+    };
     if (statvfs(DISK_MONITE_PATH, &vfs) != 0) {
         // If the disk information cannot be read, this item will not be checked.
         EBPF_LOG_WARN("Failed to obtain disk space.");
@@ -130,7 +130,7 @@ bool Monitor::checkDisk(unsigned int limitPercent)
     return false;
 }
 
-Monitor& Monitor::getInstance()
+Monitor &Monitor::getInstance()
 {
     static Monitor monitor;
     return monitor;

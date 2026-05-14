@@ -12,8 +12,8 @@
  */
 
 #include "irq_anomaly_analyzer.h"
-#include "../tuner/halt_poll_tuner.h"
 #include "../tuner/gic_tuner.h"
+#include "../tuner/halt_poll_tuner.h"
 
 IRQAnomalyAnalyzer::IRQAnomalyAnalyzer()
 {

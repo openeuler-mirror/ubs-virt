@@ -22,7 +22,7 @@ public:
 
     IPICollector(const IPICollector &) = delete;
 
-    IPICollector &operator = (const IPICollector &) = delete;
+    IPICollector &operator=(const IPICollector &) = delete;
 
     CollectorStatus launchCollecting() override;
 
@@ -30,7 +30,7 @@ public:
 
 private:
     IPICollector() = default;
-    struct ipi_trace *ipiTrace{ nullptr };
+    struct ipi_trace *ipiTrace{nullptr};
 };
 
 #endif

@@ -12,9 +12,10 @@
  */
 
 #include "cpu_topo_tuner.h"
+
+#include <algorithm>
 #include <iostream>
 #include <sstream>
-#include <algorithm>
 
 #include "cmd_executor.h"
 #include "log/ebpf_logger_macros.h"
@@ -65,7 +66,7 @@ bool CPUTopoTuner::check()
     return parse(result.second);
 }
 
-bool CPUTopoTuner::parse(const std::string& output)
+bool CPUTopoTuner::parse(const std::string &output)
 {
     std::istringstream iss(output);
     std::string line;
@@ -90,8 +91,7 @@ bool CPUTopoTuner::parse(const std::string& output)
             }
             int cpuID;
             if (cpuID = getValue(line); cpuID < 0) {
-                EBPF_LOG_INFO("vCPU Core " + std::to_string(vcpuID) +
-                              " bind in the discovery range.");
+                EBPF_LOG_INFO("vCPU Core " + std::to_string(vcpuID) + " bind in the discovery range.");
                 return true;
             }
             if (auto it = cpu2Vcpu.find(cpuID); it != cpu2Vcpu.end()) {
@@ -106,7 +106,7 @@ bool CPUTopoTuner::parse(const std::string& output)
     return false;
 }
 
-int CPUTopoTuner::getValue(const std::string& line)
+int CPUTopoTuner::getValue(const std::string &line)
 {
     std::istringstream iss(line);
     std::string tmp;

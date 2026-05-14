@@ -12,8 +12,8 @@
  */
 
 #include "numa_collector.h"
-#include "receivers/ebpf_receiver.h"
 #include "log/ebpf_logger_macros.h"
+#include "receivers/ebpf_receiver.h"
 #include "sched_numa_trace.h"
 
 static int handle_event(void *ctx, void *data, unsigned long size)

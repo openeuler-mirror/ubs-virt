@@ -12,10 +12,12 @@
  */
 
 #include "cpu_bound_analyzer.h"
-#include <vector>
+
 #include <iostream>
-#include "../tuner/cpu_topo_tuner.h"
+#include <vector>
+
 #include "../tuner/cluster_topo_tuner.h"
+#include "../tuner/cpu_topo_tuner.h"
 #include "../tuner/npu_topo_tuner.h"
 #include "../tuner/qemu_isolate_tuner.h"
 #include "../tuner/vcpu_isolate_tuner.h"

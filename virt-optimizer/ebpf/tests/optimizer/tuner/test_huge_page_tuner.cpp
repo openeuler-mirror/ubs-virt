@@ -1,13 +1,15 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
-#include <string>
-#include <mockcpp/mockcpp.hpp>
-#include <mockcpp/GlobalMockObject.h>
 #include <sstream>
-#include "optimizer/tuner/huge_page_tuner.h"
+#include <string>
+
+#include <gtest/gtest.h>
+#include <mockcpp/GlobalMockObject.h>
+#include <mockcpp/mockcpp.hpp>
+
 #include "common/cmd_executor.h"
+#include "optimizer/tuner/huge_page_tuner.h"
 
 using namespace std::string_literals;
 using namespace testing;

@@ -22,7 +22,7 @@ public:
 
     SchedCollector(const SchedCollector &) = delete;
 
-    SchedCollector *operator = (const SchedCollector &) = delete;
+    SchedCollector *operator=(const SchedCollector &) = delete;
 
     CollectorStatus launchCollecting() override;
 
@@ -31,7 +31,7 @@ private:
 
     void stopCollecting() override;
 
-    struct sched_trace* schedTrace{nullptr};
+    struct sched_trace *schedTrace{nullptr};
 };
 
 #endif

@@ -11,54 +11,60 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <iostream>
 #include <unistd.h>
 #include <csignal>
+#include <iostream>
 
-#include "log/ebpf_logger.h"
-#include "vsock_server.h"
 #include "command_parser.h"
+#include "log/ebpf_logger.h"
 #include "utils.h"
+#include "vsock_server.h"
 
 constexpr unsigned startTime = 1;
 constexpr unsigned stopTime = 3;
 const char *CLI_NAME = "ubs-opt-guard";
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     CommandParser parser(CLI_NAME);
-    parser.registerHandler("start", [] () -> bool {
-        if (utils::checkRunning(PID_FILE_PATH, CLI_NAME)) {
-            std::cout << "Start failed. ubs-opt-guard is running." << std::endl;
-            return false;
-        } else {
-            remove(PID_FILE_PATH);
-        }
-        VsockServer::daemonize();
-        std::this_thread::sleep_for(std::chrono::seconds(startTime));
-        if (utils::checkRunning(PID_FILE_PATH, CLI_NAME)) {
-            std::cout << "ubs-opt-guard started." << std::endl;
-        } else {
-            std::cout << "ubs-opt-guard start failed." << std::endl;
-        }
-        return true;
-    }, "Start the guardian of the eBPF collector.");
+    parser.registerHandler(
+        "start",
+        []() -> bool {
+            if (utils::checkRunning(PID_FILE_PATH, CLI_NAME)) {
+                std::cout << "Start failed. ubs-opt-guard is running." << std::endl;
+                return false;
+            } else {
+                remove(PID_FILE_PATH);
+            }
+            VsockServer::daemonize();
+            std::this_thread::sleep_for(std::chrono::seconds(startTime));
+            if (utils::checkRunning(PID_FILE_PATH, CLI_NAME)) {
+                std::cout << "ubs-opt-guard started." << std::endl;
+            } else {
+                std::cout << "ubs-opt-guard start failed." << std::endl;
+            }
+            return true;
+        },
+        "Start the guardian of the eBPF collector.");
 
-    parser.registerHandler("stop", [] () -> bool {
-        if (!utils::checkRunning(PID_FILE_PATH, CLI_NAME)) {
-            std::cout << "Stopping ubs-opt-guard failed. ubs-opt-guard is not running." << std::endl;
-            return false;
-        }
-        kill(utils::getDaemonPID(PID_FILE_PATH), SIGTERM);
-        std::cout << "Stopping ubs-opt-guard." << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(stopTime));
-        if (!utils::checkRunning(PID_FILE_PATH, CLI_NAME)) {
-            std::cout << "ubs-opt-guard stopped." << std::endl;
-        } else {
-            std::cout << "Stopping ubs-opt-guard failed." << std::endl;
-        }
-        return true;
-    }, "Stop the guard.");
+    parser.registerHandler(
+        "stop",
+        []() -> bool {
+            if (!utils::checkRunning(PID_FILE_PATH, CLI_NAME)) {
+                std::cout << "Stopping ubs-opt-guard failed. ubs-opt-guard is not running." << std::endl;
+                return false;
+            }
+            kill(utils::getDaemonPID(PID_FILE_PATH), SIGTERM);
+            std::cout << "Stopping ubs-opt-guard." << std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(stopTime));
+            if (!utils::checkRunning(PID_FILE_PATH, CLI_NAME)) {
+                std::cout << "ubs-opt-guard stopped." << std::endl;
+            } else {
+                std::cout << "Stopping ubs-opt-guard failed." << std::endl;
+            }
+            return true;
+        },
+        "Stop the guard.");
 
     if (!parser.parse(argc, argv)) {
         return 1;

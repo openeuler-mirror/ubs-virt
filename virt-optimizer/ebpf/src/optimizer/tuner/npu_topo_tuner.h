@@ -15,6 +15,7 @@
 #define NPU_TOPO_TUNER_H
 
 #include <vector>
+
 #include "base_tuner.h"
 
 class NPUTopoTuner : public BaseTuner {
@@ -28,4 +29,4 @@ public:
     void apply() override;
 };
 
-#endif  // NPU_TOPO_TUNER_H
+#endif // NPU_TOPO_TUNER_H

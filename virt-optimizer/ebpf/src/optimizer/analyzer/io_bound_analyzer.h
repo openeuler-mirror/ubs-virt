@@ -14,8 +14,9 @@
 #ifndef IO_BOUND_ANALYZER_H
 #define IO_BOUND_ANALYZER_H
 
-#include <vector>
 #include <string>
+#include <vector>
+
 #include "base_analyzer.h"
 
 class IOBoundAnalyzer : public BaseAnalyzer<std::vector<std::string>> {
@@ -27,4 +28,4 @@ private:
     std::vector<std::shared_ptr<BaseTuner>> tuners_;
 };
 
-#endif  // IO_BOUND_ANALYZER_H
+#endif // IO_BOUND_ANALYZER_H

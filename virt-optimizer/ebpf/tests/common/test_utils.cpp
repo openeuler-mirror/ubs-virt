@@ -1,17 +1,20 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <mockcpp/GlobalMockObject.h>
+#include <filesystem>
 #include <iostream>
 #include <vector>
+
 #include <unistd.h>
-#include <filesystem>
-#include "common/utils.h"
-#include "rapidjson/filereadstream.h"
+
+#include <gtest/gtest.h>
+#include <mockcpp/GlobalMockObject.h>
+#include <mockcpp/mockcpp.hpp>
 #include "rapidjson/document.h"
 #include "rapidjson/error/en.h"
+#include "rapidjson/filereadstream.h"
+
+#include "common/utils.h"
 
 void Clean()
 {
@@ -76,7 +79,7 @@ TEST(ForkWithDirTest, ForkWithDirSuccess)
 
 TEST(GetDaemonPIDTest, FileDoesNotExist)
 {
-    const char* nonExistentFile = "nonexist.pid";
+    const char *nonExistentFile = "nonexist.pid";
     pid_t pid = utils::getDaemonPID(nonExistentFile);
     EXPECT_EQ(pid, 0);
 }
@@ -106,7 +109,6 @@ TEST(UtilsTest, getConfigValueCase2)
     EXPECT_EQ(result, rapidjson::Value());
     Clean();
 }
-
 
 TEST(UtilsTest, getConfigValueCase3)
 {

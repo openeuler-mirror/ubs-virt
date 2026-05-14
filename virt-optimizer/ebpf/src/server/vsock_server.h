@@ -15,6 +15,9 @@
 #define VSOCK_SERVER_H
 
 #include <atomic>
+
+#include <sys/socket.h>
+
 #include "data_struct.h"
 
 constexpr const char *PID_FILE_PATH = "/usr/local/sbin/ubs-optimizer/ubs-opt-guard.pid";
@@ -26,7 +29,7 @@ public:
 private:
     static int interval;
     static int init();
-    static void mainLoop(const int &serverFd, const std::shared_ptr<MutexContext>& context);
+    static void mainLoop(const int &serverFd, const std::shared_ptr<MutexContext> &context);
 };
 
 #endif

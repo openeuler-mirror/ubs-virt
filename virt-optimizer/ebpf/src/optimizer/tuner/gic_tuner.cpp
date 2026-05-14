@@ -12,8 +12,10 @@
  */
 
 #include "gic_tuner.h"
-#include <iostream>
+
 #include <cstdlib>
+#include <iostream>
+
 #include "cmd_executor.h"
 #include "log/ebpf_logger_macros.h"
 

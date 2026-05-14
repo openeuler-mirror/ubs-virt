@@ -13,11 +13,12 @@
 
 #include "huge_page_tuner.h"
 
-#include <algorithm>
 #include <cmd_executor.h>
+#include <algorithm>
 #include <iostream>
-#include <string>
 #include <sstream>
+#include <string>
+
 #include "log/ebpf_logger_macros.h"
 #include "utils.h"
 
@@ -94,19 +95,19 @@ bool HugePageTuner::check()
 void HugePageTuner::apply()
 {
     std::cout << "1. Execute the command 'vim /etc/default/grub' and append 'default_hugepagesz=2M hugepagesz=2M "
-        "hugepages=pageNums' at the end of the 'GRUB_CMDLINE_LINUX' item, where pageNums should be customized "
-        "to the desired number of large pages to be allocated."
-         << std::endl
-         << "2. Check whether the virtual machine boots with UEFI or BIOS. If it boots with UEFI, execute "
-            "'grub2-mkconfig -o /boot/efi/EFI/openEuler/grub.cfg' (this command is only applicable to openEuler)"
-            " to make the modified configuration effective; "
-            "if it boots with BIOS, execute 'grub2-mkconfig -o /boot/grub2/grub.cfg' to make the modified "
-            "configuration effective."
-         << std::endl
-         << "3. Restart the virtual machine, and after restarting, check if the 2M large pages are configured "
-            "effectively by running 'cat /proc/meminfo | grep Hugepagesize'."
-         << std::endl
-         << "4. During inference, add the environment variable 'export GLIBC_TUNABLES=glibc.malloc.hugetlb=2' "
-            "to enable the optimization of 2M large pages for inference. "
-         << std::endl;
+                 "hugepages=pageNums' at the end of the 'GRUB_CMDLINE_LINUX' item, where pageNums should be customized "
+                 "to the desired number of large pages to be allocated."
+              << std::endl
+              << "2. Check whether the virtual machine boots with UEFI or BIOS. If it boots with UEFI, execute "
+                 "'grub2-mkconfig -o /boot/efi/EFI/openEuler/grub.cfg' (this command is only applicable to openEuler)"
+                 " to make the modified configuration effective; "
+                 "if it boots with BIOS, execute 'grub2-mkconfig -o /boot/grub2/grub.cfg' to make the modified "
+                 "configuration effective."
+              << std::endl
+              << "3. Restart the virtual machine, and after restarting, check if the 2M large pages are configured "
+                 "effectively by running 'cat /proc/meminfo | grep Hugepagesize'."
+              << std::endl
+              << "4. During inference, add the environment variable 'export GLIBC_TUNABLES=glibc.malloc.hugetlb=2' "
+                 "to enable the optimization of 2M large pages for inference. "
+              << std::endl;
 }

@@ -1,15 +1,17 @@
 /*
  * Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
  */
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <mockcpp/GlobalMockObject.h>
+#include <atomic>
+#include <chrono>
+#include <cstdio>
 #include <iostream>
 #include <string>
-#include <chrono>
 #include <thread>
-#include <cstdio>
-#include <atomic>
+
+#include <gtest/gtest.h>
+#include <mockcpp/GlobalMockObject.h>
+#include <mockcpp/mockcpp.hpp>
+
 #include "server/collector/qemu_collector.h"
 
 void QEMUClean()
@@ -63,7 +65,7 @@ TEST(QEMUCollectorTest, MonitorQemuThreadsSuccess)
     // 使用echo模拟 vmtop的回显，打印四行数据
     std::string data = "\"VM/task-name P\nopeneuler 100\nopeneuler 200\n xxxxx\"";
     std::string cmd = "echo -e " + data;
-    FILE* pipe = popen(cmd.c_str(), "r");
+    FILE *pipe = popen(cmd.c_str(), "r");
 
     auto start_time = std::chrono::system_clock::now();
     auto end_less_timeout_time = start_time + std::chrono::seconds(10);
@@ -86,4 +88,3 @@ TEST(QEMUCollectorTest, MonitorQemuThreadsSuccess)
     EXPECT_EQ(res, 1);
     QEMUClean();
 }
-
