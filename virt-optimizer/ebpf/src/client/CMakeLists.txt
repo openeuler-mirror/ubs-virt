@@ -81,12 +81,12 @@ file(GLOB_RECURSE COLLECTOR_SOURCE
 add_executable(ubs-opt ${COLLECTOR_SOURCE})
 
 target_include_directories(ubs-opt PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/3rdparty/rapidjson/include" "${PROJECT_SOURCE_DIR}/src/common"
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/src/common"
     ${libbpf_INCLUDE_DIRS}
     ${BPF_OUTPUT_DIR}
 )
 
-target_link_libraries(ubs-opt PRIVATE common-lib Threads::Threads stdc++fs
+target_link_libraries(ubs-opt PRIVATE RapidJSON::RapidJSON common-lib Threads::Threads stdc++fs
     ${libbpf_LIBRARIES}
     ${ELF_LIBRARIES}
     ${zlib_LIBRARIES}
@@ -114,7 +114,7 @@ IF(${CMAKE_BUILD_TYPE} MATCHES "Debug")
         ${TEST_SOURCE}
     )
 
-    target_link_libraries(ubs-opt-lib PRIVATE Threads::Threads stdc++fs
+    target_link_libraries(ubs-opt-lib PRIVATE RapidJSON::RapidJSON Threads::Threads stdc++fs
         ${libbpf_LIBRARIES}
         ${ELF_LIBRARIES}
         ${zlib_LIBRARIES}
@@ -126,7 +126,7 @@ IF(${CMAKE_BUILD_TYPE} MATCHES "Debug")
     add_dependencies(ubs-opt-lib bpf_objects)
 
     target_include_directories(ubs-opt-lib PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/3rdparty/rapidjson/include" "${PROJECT_SOURCE_DIR}/src/common"
+        "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/src/common"
         ${libbpf_INCLUDE_DIRS}
         ${BPF_OUTPUT_DIR}
     )

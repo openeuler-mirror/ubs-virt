@@ -7,10 +7,10 @@ file(GLOB_RECURSE SERVER_SOURCE
 add_executable(ubs-opt-guard ${SERVER_SOURCE})
 
 target_include_directories(ubs-opt-guard PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/3rdparty/rapidjson/include" "${PROJECT_SOURCE_DIR}/src/common"
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/src/common"
 )
 
-target_link_libraries(ubs-opt-guard PRIVATE common-lib Threads::Threads stdc++fs
+target_link_libraries(ubs-opt-guard PRIVATE RapidJSON::RapidJSON common-lib Threads::Threads stdc++fs
     ${UTCOV_TEST}
 )
 
@@ -29,11 +29,11 @@ IF(${CMAKE_BUILD_TYPE} MATCHES "Debug")
         ${TEST_SOURCE}
     )
 
-    target_link_libraries(ubs-opt-guard-lib PRIVATE common-lib Threads::Threads stdc++fs
+    target_link_libraries(ubs-opt-guard-lib PRIVATE RapidJSON::RapidJSON common-lib Threads::Threads stdc++fs
         -lgcov
     )
 
     target_include_directories(ubs-opt-guard-lib PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/3rdparty/rapidjson/include" "${PROJECT_SOURCE_DIR}/src/common"
+        "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/src/common"
     )
 ENDIF()
