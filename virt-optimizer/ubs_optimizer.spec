@@ -6,7 +6,7 @@ License:  Proprietary
 Source0: %{package_name}.tar.gz
 BuildRoot: %{_buildirootdir}/%{name}_%{version}-build
 
-BuildRequires:  clang cmake make libbpf-devel bpftool
+BuildRequires:  clang cmake make libbpf-devel bpftool rapidjson-devel
 
 %global debug_package %{nil}
 %global __os_install_post %{nil}

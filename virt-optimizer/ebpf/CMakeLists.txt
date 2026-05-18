@@ -23,16 +23,17 @@ add_link_options(
     -pie
 )
 
-message(STATUS "fetch rapidjson")
-include(FetchContent)
-FetchContent_Declare(
-        rapidjson
-        GIT_REPOSITORY https://gitcode.com/GitHub_Trending/ra/rapidjson.git
-        GIT_TAG master
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/rapidjson
-        GIT_SUBMODULES ""
+find_path(RAPIDJSON_INCLUDE_DIR
+    NAMES rapidjson/document.h
 )
-FetchContent_Populate(rapidjson)
+if(NOT RAPIDJSON_INCLUDE_DIR)
+    message(FATAL_ERROR "RapidJSON not found. Please install: yum install rapidjson-devel")
+endif()
+
+add_library(RapidJSON::RapidJSON INTERFACE IMPORTED)
+set_target_properties(RapidJSON::RapidJSON PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${RAPIDJSON_INCLUDE_DIR}"
+)
 
 IF(${CMAKE_BUILD_TYPE} MATCHES "Release")
     add_subdirectory(src)

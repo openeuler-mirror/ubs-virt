@@ -15,6 +15,7 @@
 #define VSOCK_SERVER_H
 
 #include <atomic>
+#include <memory>
 
 #include <sys/socket.h>
 

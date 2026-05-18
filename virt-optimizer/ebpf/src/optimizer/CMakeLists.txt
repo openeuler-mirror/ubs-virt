@@ -6,10 +6,10 @@ file(GLOB_RECURSE SERVER_SOURCE
 add_executable(ubs-opt-tuner ${SERVER_SOURCE})
 
 target_include_directories(ubs-opt-tuner PRIVATE
-    "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/3rdparty/rapidjson/include" "${PROJECT_SOURCE_DIR}/src/common"
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/src/common"
 )
 
-target_link_libraries(ubs-opt-tuner PRIVATE common-lib
+target_link_libraries(ubs-opt-tuner PRIVATE RapidJSON::RapidJSON common-lib
     ${UTCOV_TEST}
 )
 
@@ -28,11 +28,11 @@ IF(${CMAKE_BUILD_TYPE} MATCHES "Debug")
         ${TEST_SOURCE}
     )
 
-    target_link_libraries(ubs-opt-tuner-lib PRIVATE Threads::Threads stdc++fs
+    target_link_libraries(ubs-opt-tuner-lib PRIVATE RapidJSON::RapidJSON Threads::Threads stdc++fs
         -lgcov
     )
 
     target_include_directories(ubs-opt-tuner-lib PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/3rdparty/rapidjson/include" "${PROJECT_SOURCE_DIR}/src/common"
+        "${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_SOURCE_DIR}/src/common"
     )
 ENDIF()

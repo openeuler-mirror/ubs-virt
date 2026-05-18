@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <thread>
+#include <memory>
 
 #include "data_struct.h"
 
