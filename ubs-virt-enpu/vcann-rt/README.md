@@ -111,10 +111,10 @@ git clone <ubs-virt-enpu-vcann-rt-url>
 `vCANN-RT`在代码仓中提供了统一的编译构建脚本（即`make_build.sh`文件），可以直接执行该脚本文件进行编译构建。
 
 ```shell
-bash make_build.sh 8.5.0
+bash make_build.sh
 ```
 
-编译完成之后，会在`build`目录下面产生相应的编译产物（如果当前编译环境安装的cann版本低于8.5.0，则不需要增加编译参数）。
+编译完成之后，会在`build`目录下面产生相应的编译产物。
 
 ## 部署
 
