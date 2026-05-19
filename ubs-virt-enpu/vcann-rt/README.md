@@ -14,7 +14,7 @@
 
 | 软件                | 版本                                                                        |
 |:---------------------|:-----------------------------------------------------------------------------|
-| CANN                | 8.5.0                                                                     |
+| CANN                | 8.5.0 、9.1.0                                                                  |
 | HDK                 | 25.5.0及以上版本                                                            |
 | （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
 | （可选）MindCluster | 26.0.0（直接使用Docker部署则不需要）|
@@ -25,23 +25,37 @@
 
 | 软件                | 版本                                                                        |
 |:---------------------|:-----------------------------------------------------------------------------|
-| CANN                | 8.5.0                                                                     |
+| CANN                | 8.5.0 、9.1.0                                                                  |
 | HDK                 | 26.0.0及以上版本                                                            |
 | （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
 | （可选）MindCluster | 26.0.0（直接使用Docker部署则不需要）|
+
+#### Ascend 950PR 产品
+
+**表 3 软件版本**
+
+| 软件                | 版本                                                                        |
+|:---------------------|:-----------------------------------------------------------------------------|
+| CANN                | 9.1.0                                                                  |
+| HDK                 | Atalas I 5.0.0                                                            |
+| （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
+| （可选）MindCluster | 26.1.0（直接使用Docker部署则不需要）|
 
 ### 主机侧环境配置
 
 主机侧通过`npu-smi`工具开启容器共享模式，可支持多个容器挂载同一设备。若设备未开启容器共享模式，则只能挂载到单个容器。若配合MindCluster使用，要求整节点开启容器共享模式。
 
 ```shell
-# 设置容器共享模式
+# Atlas A2 / A3 推理系列产品：设置容器共享模式
 npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
+# Ascend 950PR 产品：设置容器共享模式
+npu-smi set -t device-share -i ${id} -d ${value}
+
 # 查询设备容器共享模式
 npu-smi info -t device-share -i ${id}
 ```
 
-**表 3 参数说明**
+**表 4 参数说明**
 
 |参数|参数选项|说明|
 |:---|:---|:---|
@@ -63,7 +77,7 @@ npu-smi info -t device-share -i ${id}
 npu-smi set -t device-share-cfg-recover -d ${value}
 ```
 
-**表 4 参数说明**
+**表 5 参数说明**
 
 |参数|参数选项|说明|
 |:---|:---|:---|
@@ -75,7 +89,7 @@ npu-smi set -t device-share-cfg-recover -d ${value}
 npu-smi set -t multi-die-policy -d ${value}
 ```
 
-**表 5 参数说明**
+**表 6 参数说明**
 
 |参数|参数选项|说明|
 |:---|:---|:---|
@@ -140,7 +154,7 @@ vCANN-RT支持两种方式启动业务容器：
 
   用户通过k8s yaml文件，在申请容器时声明所需的vNPU算力资源百分比例和显存资源数量。k8s会将容器调度到资源充足的节点，并将算力和显存资源配额等信息以配置文件挂载到容器内。同时，k8s会将vCANN-RT的包挂载到容器，容器内即可使能vCANN-RT软切分能力。
 
-  yaml配置文件的格式可参考如下示例文件vnpu-base.yaml：
+  对于Atlas A2 / A3 推理系列产品，yaml配置文件的格式可参考如下示例文件vnpu-base.yaml：
 
   ```shell
     apiVersion: mindxdl.gitee.com/v1
@@ -185,6 +199,7 @@ vCANN-RT支持两种方式启动业务容器：
                     spec:
                         automountServiceAccountToken: false
                         nodeSelector:
+                            # 系统架构：huawei-arm / huawei-x86
                             host-arch: huawei-arm
                             # depend on your device model, 910bx8 is module-910b-8 ,910bx16 is module-910b-16
                             accelerator-type: module-910b-8
@@ -270,6 +285,7 @@ vCANN-RT支持两种方式启动业务容器：
                 spec:
                   automountServiceAccountToken: false
                   nodeSelector:
+                    # 系统架构：huawei-arm / huawei-x86
                     host-arch: huawei-arm
                     # depend on your device model, 910bx8 is module-910b-8 ,910bx16 is module-910b-16
                     accelerator-type: module-910b-8 
@@ -349,7 +365,9 @@ vCANN-RT支持两种方式启动业务容器：
             - 弹性模式（elastic）
             - 争抢模式（best-effort）
             
-          - 每种模式的详细介绍参见[表6](#table6)，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制。
+          - 每种模式的详细介绍参见[表7](#table7)，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制。
+
+  - host-arch: 系统架构 huawei-arm / huawei-x86
   - containers:
       - image: 镜像名。
   - volumes:
@@ -363,7 +381,24 @@ vCANN-RT支持两种方式启动业务容器：
           - hostPath:
               - path: ${preload_path}/ld.so.preload # [步骤1](#step1)中创建的ld.so.preload文件路径。
 
-  **表 6 调度模式介绍**<a id="table6"></a>
+  对于Ascend 950PR 产品，yaml配置文件的格式需要做以下修改：
+
+  1. 删除910b相关配置：ring-controller.atlas: ascend-910b 及 accelerator-type: module-910b-8
+
+  2. 节点资源配置参数名修改为huawei.com/npu，示例如下
+
+      ```
+      resources:
+          requests:
+              # should be equal to huawei.com/scheduler.softShareDev.aicoreQuota
+              huawei.com/npu: 20
+          limits:
+              # should be equal to huawei.com/scheduler.softShareDev.aicoreQuota
+              huawei.com/npu: 20
+      ```
+    
+
+  **表 7 调度模式介绍**<a id="table7"></a>
 
   |模式名称|特点描述|
   |:---|:---|
@@ -404,7 +439,7 @@ vCANN-RT支持两种方式启动业务容器：
       scheduling-policy=2
     ```
 
-    **表 7 配置项说明**
+    **表 8 配置项说明**
 
     |参数|参数选项|说明|
     |:---|:---|:---|
@@ -413,13 +448,13 @@ vCANN-RT支持两种方式启动业务容器：
     |aicore-quota|AI Core资源配额，单位为%|表示算力使用的时间比例，需配置为整数。假设当前每个time slice为100ms, 申请了20%的算力资源，那么该容器有20ms的NPU使用权。|
     |memory-quota|HBM资源配额，单位为MB|表示显存资源使用容量，需配置为整数。当前容器内所有进程使用的HBM总量不能超过HBM资源配额。|
     |shm-id|共享内存文件名称|该文件名称采用物理NPU对应的VDie ID, 可以保证全局唯一。<br>通过`npu-smi info -t board -i ${id} -c ${chip_id}`命令查询VDie ID。<br>查询完成之后，可以通过`-`符号拼接成文件名称，例如：`shm-id=11111111-22222222-33333333-44444444-55555555` |
-    |scheduling-policy|<ul>默认配置为2。<li>1: 固定配额模式（fixed-share）</li><li>2: 弹性模式（elastic）</li><li>3: 争抢模式（best-effort）</li></ul>|调度策略（具体介绍可参见[表6](#table6)，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制）。|
+    |scheduling-policy|<ul>默认配置为2。<li>1: 固定配额模式（fixed-share）</li><li>2: 弹性模式（elastic）</li><li>3: 争抢模式（best-effort）</li></ul>|调度策略（具体介绍可参见[表7](#table7)，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制）。|
 
     此外，需要设置配置文件具有合适的权限，建议为644。
 
 2. 启动业务容器。
 
-    用户在启动容器时，需要将软切分相关动态库、文件和设备挂载到容器(具体可参见[表8](#table8))，容器启动命令可参考(假如使用第0张NPU卡)：
+    用户在启动容器时，需要将软切分相关动态库、文件和设备挂载到容器(具体可参见[表9](#table9))，容器启动命令可参考(假如使用第0张NPU卡)：
 
     ```bash
       docker run -it --name=${container_name} \
@@ -444,7 +479,7 @@ vCANN-RT支持两种方式启动业务容器：
 
       3. 执行`export LD_PRELOAD=/opt/enpu/vcann-rt/lib/libvruntime.so`命令加载动态库。
 
-    **表 8 参数说明**<a id="table8"></a>
+    **表 9 参数说明**<a id="table9"></a>
 
     |文件/工具|路径|
     |:---|:---|
@@ -480,7 +515,7 @@ vCANN-RT支持两种方式启动业务容器：
 
 ### 环境变量汇总
 
-**表 9 环境变量列表**
+**表 10 环境变量列表**
 
 | 环境变量 | 范围 | 默认值 | 说明 |
 |-|-|-|-|
@@ -492,7 +527,7 @@ vCANN-RT支持两种方式启动业务容器：
 ## 约束
 
 - 由于vCANN-RT解决方案使用了共享内存，因此用户需要确保在可信用户范围内使用。
-- 由于硬件设备的限制(可以参考昇腾社区[使用约束](https://www.hiascend.com/document/detail/zh/canncommercial/850/appdevg/acldevg/aclcppdevg_000222.html))，单个device支持的最大用户进程数为63个，因此建议vCANN-RT最大切分数量不超过63个。
+- 由于硬件设备的限制(可以参考昇腾社区[使用约束](https://www.hiascend.com/document/detail/zh/canncommercial/850/appdevg/acldevg/aclcppdevg_000222.html))，建议vCANN-RT最大切分数量不超过单个device支持的最大用户进程数。
 - 用户对aicore算力资源的配额设置不能超过100%，对HBM显存资源的配额设置不能超过当前物理卡的可用显存资源总量，否则可能在容器拉起或者业务运行时出现异常。例如：HBM配额设置超限之后，可能会在业务运行时出现OOM异常报错。
 - 采用docker方式部署时，用户需要保证同一个device设置为同一种调度策略，否则可能会导致业务运行异常。
 - 若用户通过源码自行编译软切分动态库，则需要保证主机侧的CANN版本和容器镜像中的CANN版本保持一致。
@@ -501,13 +536,13 @@ vCANN-RT支持两种方式启动业务容器：
   - 若多容器配置的aicore总量超出100%， 各容器无法按照原先设定的资源使用。
   - 若多容器配置的HBM总量超出当前单Device可用内存大小，某一容器内的业务运行时，可能因为实际内存不足，导致报错OOM内存不足。
   - 若单卡上各容器配置的调度策略不相同，各容器无法按照原先设定的资源使用，建议各容器配置的调度策略相同。
-- 当前vCANN-RT方案适配CANN软件版本为商发版本8.5.0，由于版本限制，暂时不支持persistent task的使用。
+- 当前vCANN-RT方案适配CANN软件版本为商发版本9.1.0，由于版本限制，暂时不支持persistent task的使用。
 
 ## FAQ
 
 1. hook拦截runtime API提示`can't find function`:
 
-    当前vCANN-RT方案适配CANN软件版本为商发版本8.5.0，部分runtime API在CANN其他版本未支持。
+    当前vCANN-RT方案适配CANN软件版本为商发版本9.1.0，部分runtime API在CANN其他版本未支持。
 
 2. 容器启动或者业务运行时报错`GLIBC_xxx not found`:
     
