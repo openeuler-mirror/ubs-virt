@@ -8,6 +8,13 @@ RELEASE=1
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
 
+# ============ paths ============
+RPMBUILD_DIR="${ROOT_DIR}/build/rpmbuild"
+OUTPUT_DIR="${ROOT_DIR}/build/output"
+BUILDUT_DIR="${ROOT_DIR}/buildUT"
+DEPS_DIR="${ROOT_DIR}/deps"
+GCOVER_DIR="${ROOT_DIR}/gcover_report"
+
 # ============ build type ============
 BUILD_TYPE=${1:-relwithdebinfo}
 BUILD_TYPE_LOWER=$(echo "${BUILD_TYPE}" | tr '[:upper:]' '[:lower:]')
@@ -25,20 +32,27 @@ case "${BUILD_TYPE_LOWER}" in
     CMAKE_BUILD_TYPE=RelwithDebinfo
     RPM_RELEASE_SUFFIX=.rel
     ;;
+  clean)
+    echo "[INFO] Cleaning build artifacts..."
+    rm -rf "${RPMBUILD_DIR}"
+    rm -rf "${OUTPUT_DIR}"
+    rm -rf "${BUILDUT_DIR}"
+    rm -rf "${DEPS_DIR}"
+    rm -rf "${GCOVER_DIR}"
+    echo "[INFO] Clean done."
+    exit 0
+    ;;
   dt)
     cd "${ROOT_DIR}"
     bash "${SCRIPT_DIR}/run_ut.sh"
     exit 0
     ;;
   *)
-    echo "Usage: $0 [debug|release|relwithdebinfo]"
+    echo "Usage: $0 [debug|release|relwithdebinfo|clean]"
     exit 1
     ;;
 esac
 
-# ============ paths ============
-RPMBUILD_DIR="${ROOT_DIR}/build/rpmbuild"
-OUTPUT_DIR="${ROOT_DIR}/build/output"
 SPEC_FILE="${SCRIPT_DIR}/${PROJECT_NAME}.spec"
 
 [[ -f "${SPEC_FILE}" ]] || {

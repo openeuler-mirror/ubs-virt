@@ -23,6 +23,7 @@
 
 using namespace virt::ovs::ipc::server;
 using namespace virt::ovs;
+using namespace virt::ovs::msg;
 namespace ovs::ut {
 
 static void SetNonBlock(int fd)

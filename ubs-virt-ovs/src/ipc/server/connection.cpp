@@ -3,13 +3,15 @@
  * ubs-virt-ovs is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
- * http://license.coscl.org.cn/MulanPSL2
+ *          http://license.coscl.org.cn/MulanPSL2
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
  * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+
 #include "connection.h"
+#include "common/constants.h"
 #include "logger.h"
 
 #include <arpa/inet.h>
@@ -18,6 +20,12 @@
 #include <unistd.h>
 
 namespace virt::ovs::ipc::server {
+
+Connection::Connection(int fd, PeerIdentity identity) : fd_(fd), identity_(identity)
+{
+    LOG_INFO << "Connection created, fd=" << fd_;
+}
+
 Connection::Connection(int fd) : fd_(fd)
 {
     LOG_INFO << "Connection created, fd=" << fd_;
@@ -99,7 +107,7 @@ bool Connection::HandleReadLen()
 bool Connection::HandleReadBody(bool &blocked)
 {
     blocked = false;
-    char buf[MAX_BODY_BUFFER_SIZE];
+    char buf[constants::MAX_BODY_BUFFER_SIZE];
     ssize_t n = read(fd_, buf, sizeof(buf));
     if (n > 0) {
         readBuf_.append(buf, n);
@@ -186,4 +194,5 @@ void Connection::ResetAfterWrite()
 {
     state_ = State::READ_LEN;
 }
-} // namespace virt::ovs::ipc::server
+
+}

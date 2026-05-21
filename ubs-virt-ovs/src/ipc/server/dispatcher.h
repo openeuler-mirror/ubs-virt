@@ -10,17 +10,19 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef UBS_VIRT_OVS_DISPATCHER_H
-#define UBS_VIRT_OVS_DISPATCHER_H
+#ifndef VIRT_OVS_IPC_SERVER_DISPATCHER_H
+#define VIRT_OVS_IPC_SERVER_DISPATCHER_H
 
+#include "serde/virt_msg.h"
 #include "service_base.h"
 
-using namespace virt::ovs::msg;
-
 namespace virt::ovs::ipc::server {
+
 class Dispatcher {
 public:
-    IpcResponse Dispatch(const IpcRequest &request) const;
+    msg::IpcResponse Dispatch(const msg::IpcRequest &request) const;
 };
-} // namespace virt::ovs::ipc::server
-#endif // UBS_VIRT_OVS_DISPATCHER_H
+
+}
+
+#endif

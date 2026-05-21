@@ -1,5 +1,6 @@
 add_library(ubs-virt-ovs-core STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/services/urma/urma_service.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/auth_manager.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/connection.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/server.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/thread_pool.cpp
@@ -15,6 +16,7 @@ add_library(ubs-virt-ovs-core STATIC
 target_include_directories(ubs-virt-ovs-core
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/common
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/code

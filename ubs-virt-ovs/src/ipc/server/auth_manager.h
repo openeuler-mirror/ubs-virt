@@ -10,22 +10,32 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include "dispatcher.h"
-#include "ipc/code/virt_ipc_code.h"
-#include "ipc/protocol/protocol.h"
-#include "logger.h"
+#ifndef VIRT_OVS_IPC_SERVER_AUTH_MANAGER_H
+#define VIRT_OVS_IPC_SERVER_AUTH_MANAGER_H
+
+#include <string>
+#include <unordered_map>
+#include <unordered_set>
+
+namespace virt::ovs::config {
+class ConfigModule;
+}
 
 namespace virt::ovs::ipc::server {
 
-msg::IpcResponse Dispatcher::Dispatch(const msg::IpcRequest &req) const
-{
-    LOG_INFO << "request: service=" << req.service_ << ",method=" << req.method_;
-    auto svc = ServiceRegistry::Instance().GetService(req.service_);
-    if (!svc) {
-        LOG_ERROR << "dispatch failed,service not found: " << req.service_;
-        return IpcError(VirtIPCCode::SERVICE_NOT_FOUND);
-    }
-    return svc->Handle(req.method_, req.payload_);
-}
+class AuthManager {
+public:
+    struct UserRule {
+        std::unordered_set<std::string> services_;
+    };
+
+    static bool AuthorizeUser(const std::string &username, std::string &authority, config::ConfigModule &conf);
+    static bool AuthorizeService(const std::string &authority, const std::string &serviceKey);
+
+private:
+    std::unordered_map<std::string, UserRule> userRules_;
+};
 
 }
+
+#endif
