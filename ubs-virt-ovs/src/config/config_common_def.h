@@ -24,7 +24,6 @@ using virt::ovs::constants::CONFIG_KEY_MAX_FIELD_LENGTH;
 using virt::ovs::constants::CONFIG_VALUE_MAX_FIELD_LENGTH;
 using virt::ovs::constants::SUFFIX_SIZE;
 
-constexpr int16_t NO_1 = 1;
 enum class ConfigCode : uint32_t {
     OK = 0,
 
@@ -39,7 +38,7 @@ enum class ConfigCode : uint32_t {
     VALUE_LENGTH_INVALID = 2005,
     VALUE_TYPE_NOT_SUPPORTED = 2006,
     CONFIG_VALUE_INVALID = 2007,
-    CONFIG_ARGUMENT_INVALID = 2007,
+    CONFIG_ARGUMENT_INVALID = 2009,
     CONFIG_OUT_OF_RANGE = 2008,
 
     MEM_ALLOCATE_ERROR = 3001,

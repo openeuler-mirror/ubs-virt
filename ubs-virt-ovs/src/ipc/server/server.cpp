@@ -253,19 +253,16 @@ bool Server::HandleWriteEvent(Connection &conn, int fd) const
             return false;
         }
         LOG_DEBUG << "HandleWriteEvent: write done, fd=" << fd;
-        conn.ResetAfterWrite();
     }
     return true;
 }
 
 void Server::CloseConnection(int fd)
 {
-    const int closeFd = fd;
     epoll_ctl(epollFd_, EPOLL_CTL_DEL, fd, nullptr);
+    conns_.erase(fd);
     close(fd);
-    fd = -1;
-    conns_.erase(closeFd);
-    LOG_INFO << "closed fd=" << closeFd;
+    LOG_INFO << "closed fd=" << fd;
 }
 
 void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
@@ -274,34 +271,36 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
     config::ConfigModule &conf = config::ConfigModule::GetInstance();
     const auto &id = conn->Identity();
     IpcResponse resp(static_cast<uint32_t>(VirtIPCCode::OK));
+
     std::string authority;
     if (!AuthManager::AuthorizeUser(id.username, authority, conf)) {
         LOG_ERROR << "Permission denied: username=" << id.username;
         resp.code_ = static_cast<uint32_t>(VirtIPCCode::PERMISSION_DENIED);
-        return;
-    }
+    } else {
+        IpcRequest ipcReq;
+        {
+            VirtMsgUnPacker unpacker(req);
+            ipcReq.Deserialize(unpacker);
+        }
+        LOG_DEBUG << "IpcRequest deserialized, service=" << ipcReq.service_
+                  << ", method=" << ipcReq.method_ << ", payload_size=" << ipcReq.payload_.size();
 
-    IpcRequest ipcReq;
-    VirtMsgUnPacker unpacker(req);
-    ipcReq.Deserialize(unpacker);
-    LOG_DEBUG << "IpcRequest deserialized, service=" << ipcReq.service_ << ", method=" << ipcReq.method_
-              << ", payload_size=" << ipcReq.payload_.size();
+        if (!AuthManager::AuthorizeService(authority, ipcReq.service_)) {
+            LOG_ERROR << "Permission denied: uid=" << id.uid << ", method=" << ipcReq.method_
+                      << " service=" << ipcReq.service_;
+            resp.code_ = static_cast<uint32_t>(VirtIPCCode::PERMISSION_DENIED);
+        } else {
+            try {
+                resp = dispatcher_.Dispatch(ipcReq);
+            } catch (const std::exception &e) {
+                LOG_ERROR << "Dispatch request failed: " << e.what();
+                resp.code_ = static_cast<uint32_t>(VirtIPCCode::INTERNAL_ERROR);
+            }
+        }
+    }
 
     VirtMsgPacker packer;
-    if (!AuthManager::AuthorizeService(authority, ipcReq.service_)) {
-        LOG_ERROR << "Permission denied: uid=" << id.uid << ", method=" << ipcReq.method_
-                  << " service=" << ipcReq.service_;
-        resp.code_ = static_cast<uint32_t>(VirtIPCCode::PERMISSION_DENIED);
-        return;
-    }
-    try {
-        resp = dispatcher_.Dispatch(ipcReq);
-        resp.Serialize(packer);
-    } catch (const std::exception &e) {
-        LOG_ERROR << "Dispatch request failed: " << e.what();
-        resp.code_ = static_cast<uint32_t>(VirtIPCCode::INTERNAL_ERROR);
-    }
-
+    resp.Serialize(packer);
     conn->SetResponse(packer.String(), epollFd_);
 
     LOG_DEBUG << "IpcResponse serialized, fd=" << conn->Fd() << ", code=" << resp.code_

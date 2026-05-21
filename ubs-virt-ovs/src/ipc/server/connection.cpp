@@ -70,6 +70,7 @@ bool Connection::HandleReadLen()
     static constexpr size_t kLenSize = sizeof(uint32_t);
     if (readBuf_.empty()) {
         readBuf_.resize(kLenSize, '\0');
+        lenRead_ = 0;
     }
     ssize_t n = read(fd_, readBuf_.data() + lenRead_, kLenSize - lenRead_);
     if (n > 0) {
@@ -184,15 +185,10 @@ void Connection::SetResponse(std::string resp, int epollFd)
     ev.events = EPOLLOUT | EPOLLET;
     ev.data.fd = fd_;
     if (epoll_ctl(epollFd, EPOLL_CTL_MOD, fd_, &ev) < 0) {
-        LOG_ERROR << "epoll_ctl MOD failed in SetReaponse, fd=" << fd_ << ", errno=" << errno
+        LOG_ERROR << "epoll_ctl MOD failed in SetResponse, fd=" << fd_ << ", errno=" << errno
                   << ", errmsg=" << strerror(errno);
     }
     LOG_DEBUG << "fd=" << fd_ << " SetResponse, respSize=" << resp.size();
 }
 
-void Connection::ResetAfterWrite()
-{
-    state_ = State::READ_LEN;
-}
-
-}
+} // namespace virt::ovs::ipc::server

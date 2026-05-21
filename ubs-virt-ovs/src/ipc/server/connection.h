@@ -53,7 +53,6 @@ public:
     void SetResponse(std::string resp, int epollFd);
 
     bool NeedWrite() const;
-    void ResetAfterWrite();
 
 private:
     int fd_;

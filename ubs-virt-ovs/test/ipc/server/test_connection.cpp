@@ -84,7 +84,6 @@ TEST_F(TestConnection, HandleWriteAndSetResponse)
     }
 
     EXPECT_FALSE(conn.NeedWrite());
-    conn.ResetAfterWrite();
 
     close(fds[0]);
     close(fds[1]);

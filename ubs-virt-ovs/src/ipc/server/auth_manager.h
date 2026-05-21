@@ -14,8 +14,6 @@
 #define VIRT_OVS_IPC_SERVER_AUTH_MANAGER_H
 
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 
 namespace virt::ovs::config {
 class ConfigModule;
@@ -25,15 +23,8 @@ namespace virt::ovs::ipc::server {
 
 class AuthManager {
 public:
-    struct UserRule {
-        std::unordered_set<std::string> services_;
-    };
-
     static bool AuthorizeUser(const std::string &username, std::string &authority, config::ConfigModule &conf);
     static bool AuthorizeService(const std::string &authority, const std::string &serviceKey);
-
-private:
-    std::unordered_map<std::string, UserRule> userRules_;
 };
 
 }
