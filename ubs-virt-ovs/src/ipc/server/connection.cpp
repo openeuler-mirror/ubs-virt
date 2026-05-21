@@ -97,7 +97,7 @@ bool Connection::HandleReadLen()
     }
 
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG_DEBUG << "fd= " << fd_ << " READ_LEN EAGAIN or EWOULDBLOCK， lenRead_= " << lenRead_;
+        LOG_DEBUG << "fd= " << fd_ << " READ_LEN EAGAIN or EWOULDBLOCK, lenRead_= " << lenRead_;
         return true;
     }
     LOG_WARN << "fd= " << fd_ << " READ_LEN error, errno=" << errno << " errMsg=" << strerror(errno);
@@ -124,7 +124,7 @@ bool Connection::HandleReadBody(bool &blocked)
     }
 
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG_DEBUG << "fd= " << fd_ << " READ_BODY EAGAIN or EWOULDBLOCK， current= " << readBuf_.size() << "/"
+        LOG_DEBUG << "fd= " << fd_ << " READ_BODY EAGAIN or EWOULDBLOCK, current= " << readBuf_.size() << "/"
                   << expectLen_;
         blocked = true;
         return true;

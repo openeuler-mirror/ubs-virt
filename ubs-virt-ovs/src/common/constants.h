@@ -13,6 +13,7 @@
 #ifndef VIRT_OVS_COMMON_CONSTANTS_H
 #define VIRT_OVS_COMMON_CONSTANTS_H
 
+#include <cstddef>
 #include <cstdint>
 
 namespace virt::ovs::constants {

@@ -154,7 +154,7 @@ void CleanupOldRotateLogFile()
 
 void CompressOldLogFile(const std::string &oldLogFile, const std::string &ts)
 {
-    std::string tarFile = std::string(LOG_DIR) + "/virt-ovs_" + ts + ".tar.gz";
+    std::string tarFile = std::string(LOG_DIR) + "/virt_ovs_" + ts + ".tar.gz";
     std::string cmd =
         "tar -czf" + tarFile + " -C " + LOG_DIR + " " + oldLogFile.substr(oldLogFile.find_last_of('/') + 1);
     system(cmd.c_str());
@@ -175,7 +175,7 @@ void Logger::RotateLogFile()
     std::string oldLogFile;
 
     {
-        std::string newLogFile = std::string(LOG_DIR) + "/virt-ovs_" + ts + ".log";
+        std::string newLogFile = std::string(LOG_DIR) + "/virt_ovs_" + ts + ".log";
         std::ofstream newOfs(newLogFile, std::ios::out | std::ios::app);
         if (!newOfs.is_open()) {
             return;

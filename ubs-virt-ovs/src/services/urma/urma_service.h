@@ -12,14 +12,14 @@
 
 #ifndef UBS_VIRT_OVS_URMA_SERVICE_H
 #define UBS_VIRT_OVS_URMA_SERVICE_H
+#include "common/constants.h"
 #include "service_base.h"
 #include "urma_utility.h"
 namespace virt::ovs::service::urma {
 
 using namespace virt::ovs::msg;
 using namespace virt::ovs::ubse::urma;
-
-constexpr uint32_t GB_TO_MB = 1024;
+using namespace virt::ovs::constants;
 
 class UrmaService : public Service {
 public:

@@ -13,16 +13,18 @@
 #define UBSVIRTOVS_CONFIG_COMMON_DEF_H
 
 #include <cstdint>
+#include "common/constants.h"
 
 namespace virt::ovs::config {
-constexpr int CONFIG_MAX_LINES = 1000;
-constexpr int CONFIG_SECTION_MAX_FIELD_LENGTH = 32;
-constexpr int CONFIG_KEY_MAX_FIELD_LENGTH = 32;
-constexpr int CONFIG_VALUE_MAX_FIELD_LENGTH = 255;
-constexpr int CONFIG_MIN_FIELD_LENGTH = 1;
-constexpr int CONFIG_DIR_MAX_DEPTH = 10;
+using virt::ovs::constants::CONFIG_DIR_MAX_DEPTH;
+using virt::ovs::constants::CONFIG_MAX_LINES;
+using virt::ovs::constants::CONFIG_MIN_FIELD_LENGTH;
+using virt::ovs::constants::CONFIG_SECTION_MAX_FIELD_LENGTH;
+using virt::ovs::constants::CONFIG_KEY_MAX_FIELD_LENGTH;
+using virt::ovs::constants::CONFIG_VALUE_MAX_FIELD_LENGTH;
+using virt::ovs::constants::SUFFIX_SIZE;
+
 constexpr int16_t NO_1 = 1;
-const uint8_t SUFFIX_SIZE = 5; // .conf suffix size
 enum class ConfigCode : uint32_t {
     OK = 0,
 
