@@ -40,8 +40,14 @@ public:
     Connection(int fd, PeerIdentity identity);
     explicit Connection(int fd);
 
-    const PeerIdentity &Identity() const { return identity_; }
-    int Fd() const { return fd_; }
+    const PeerIdentity &Identity() const
+    {
+        return identity_;
+    }
+    int Fd() const
+    {
+        return fd_;
+    }
 
     bool HandleRead();
     bool HandleReadLen();
@@ -66,6 +72,6 @@ private:
     bool running_{false};
 };
 
-}
+} // namespace virt::ovs::ipc::server
 
 #endif

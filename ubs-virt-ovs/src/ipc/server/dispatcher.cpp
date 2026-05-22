@@ -28,4 +28,4 @@ msg::IpcResponse Dispatcher::Dispatch(const msg::IpcRequest &req) const
     return svc->Handle(req.method_, req.payload_);
 }
 
-}
+} // namespace virt::ovs::ipc::server

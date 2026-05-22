@@ -23,6 +23,6 @@ public:
     msg::IpcResponse Dispatch(const msg::IpcRequest &request) const;
 };
 
-}
+} // namespace virt::ovs::ipc::server
 
 #endif

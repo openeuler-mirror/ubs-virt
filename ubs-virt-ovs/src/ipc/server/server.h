@@ -68,6 +68,6 @@ private:
     std::atomic<int64_t> lastSecond_{0};
 };
 
-}
+} // namespace virt::ovs::ipc::server
 
 #endif

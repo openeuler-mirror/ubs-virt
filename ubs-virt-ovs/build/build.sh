@@ -48,6 +48,12 @@ case "${BUILD_TYPE_LOWER}" in
     rm -rf "${BUILDUT_DIR}"
     rm -rf "${DEPS_DIR}"
     rm -rf "${GCOVER_DIR}"
+    rm -rf "${SCRIPT_DIR}/CMakeCache.txt"
+    rm -rf "${SCRIPT_DIR}/CMakeFiles"
+    rm -rf "${SCRIPT_DIR}/Makefile"
+    rm -rf "${SCRIPT_DIR}/cmake_install.cmake"
+    rm -rf "${SCRIPT_DIR}/compile_commands.json"
+    rm -rf "${SCRIPT_DIR}/src"
     echo "[INFO] Clean done."
     exit 0
     ;;

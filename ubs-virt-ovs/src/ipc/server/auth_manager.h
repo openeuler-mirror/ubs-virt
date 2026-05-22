@@ -15,9 +15,7 @@
 
 #include <string>
 
-namespace virt::ovs::config {
-class ConfigModule;
-}
+#include "config_module.h"
 
 namespace virt::ovs::ipc::server {
 
@@ -27,6 +25,6 @@ public:
     static bool AuthorizeService(const std::string &authority, const std::string &serviceKey);
 };
 
-}
+} // namespace virt::ovs::ipc::server
 
 #endif

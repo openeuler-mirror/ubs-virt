@@ -11,7 +11,6 @@
  */
 
 #include "auth_manager.h"
-#include "config_module.h"
 #include "logger.h"
 
 #include <sstream>
@@ -53,4 +52,4 @@ bool AuthManager::AuthorizeService(const std::string &authority, const std::stri
     return false;
 }
 
-}
+} // namespace virt::ovs::ipc::server

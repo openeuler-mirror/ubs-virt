@@ -17,10 +17,10 @@
 
 namespace virt::ovs::config {
 using virt::ovs::constants::CONFIG_DIR_MAX_DEPTH;
+using virt::ovs::constants::CONFIG_KEY_MAX_FIELD_LENGTH;
 using virt::ovs::constants::CONFIG_MAX_LINES;
 using virt::ovs::constants::CONFIG_MIN_FIELD_LENGTH;
 using virt::ovs::constants::CONFIG_SECTION_MAX_FIELD_LENGTH;
-using virt::ovs::constants::CONFIG_KEY_MAX_FIELD_LENGTH;
 using virt::ovs::constants::CONFIG_VALUE_MAX_FIELD_LENGTH;
 using virt::ovs::constants::SUFFIX_SIZE;
 

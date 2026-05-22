@@ -380,7 +380,7 @@ TEST_F(TestLogger, LoggerConstructor_AllLevels)
     Logger info(LoggerLevel::INFO, "test.cpp", "func", 2);
     Logger warn(LoggerLevel::WARN, "test.cpp", "func", 3);
     Logger error(LoggerLevel::ERROR, "test.cpp", "func", 4);
-    
+
     EXPECT_EQ(debug.level_, LoggerLevel::DEBUG);
     EXPECT_EQ(info.level_, LoggerLevel::INFO);
     EXPECT_EQ(warn.level_, LoggerLevel::WARN);

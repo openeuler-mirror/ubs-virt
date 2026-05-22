@@ -282,8 +282,8 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
             VirtMsgUnPacker unpacker(req);
             ipcReq.Deserialize(unpacker);
         }
-        LOG_DEBUG << "IpcRequest deserialized, service=" << ipcReq.service_
-                  << ", method=" << ipcReq.method_ << ", payload_size=" << ipcReq.payload_.size();
+        LOG_DEBUG << "IpcRequest deserialized, service=" << ipcReq.service_ << ", method=" << ipcReq.method_
+                  << ", payload_size=" << ipcReq.payload_.size();
 
         if (!AuthManager::AuthorizeService(authority, ipcReq.service_)) {
             LOG_ERROR << "Permission denied: uid=" << id.uid << ", method=" << ipcReq.method_
@@ -353,4 +353,4 @@ void Server::Loop()
     LOG_INFO << "Event loop exited";
 }
 
-}
+} // namespace virt::ovs::ipc::server

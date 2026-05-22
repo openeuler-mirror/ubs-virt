@@ -46,6 +46,6 @@ private:
     std::condition_variable cv_;
 };
 
-}
+} // namespace virt::ovs::ipc::server
 
 #endif

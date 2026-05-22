@@ -37,6 +37,6 @@ inline constexpr size_t CONFIG_SECTION_MAX_FIELD_LENGTH = 64;
 inline constexpr size_t CONFIG_KEY_MAX_FIELD_LENGTH = 64;
 inline constexpr size_t CONFIG_VALUE_MAX_FIELD_LENGTH = 256;
 
-}
+} // namespace virt::ovs::constants
 
 #endif
