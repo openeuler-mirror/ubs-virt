@@ -1,5 +1,15 @@
+# Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+# ubs-virt-ovs is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
+#          http://license.coscl.org.cn/MulanPSL2
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
 add_library(ubs-virt-ovs-core STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/services/urma/urma_service.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/auth_manager.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/connection.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/server.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server/thread_pool.cpp
@@ -15,6 +25,7 @@ add_library(ubs-virt-ovs-core STATIC
 target_include_directories(ubs-virt-ovs-core
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/common
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/server
         ${CMAKE_CURRENT_SOURCE_DIR}/ipc/code

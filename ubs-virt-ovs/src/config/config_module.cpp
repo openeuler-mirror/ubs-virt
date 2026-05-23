@@ -36,7 +36,6 @@ ConfigCode GetNumConf(const std::string &section, const std::string &configKey, 
     if (ret != ConfigCode::OK) {
         LOG_WARN << "Unable to find section: " << trimSection << ", configKey: " << trimConfigKey
                  << ",ret is : " << static_cast<uint32_t>(ret);
-        ;
         return ret;
     }
 

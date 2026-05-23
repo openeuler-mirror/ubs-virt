@@ -1,4 +1,13 @@
 #!/usr/bin/env bash
+# Copyright (c) Huawei Technologies Co., Ltd. 2025-2025. All rights reserved.
+# ubs-virt-ovs is licensed under Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
+#          http://license.coscl.org.cn/MulanPSL2
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
+# EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
+# MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
 set -e
 
 PROJECT_NAME=ubs-virt-ovs
@@ -7,6 +16,13 @@ RELEASE=1
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR=$(cd "${SCRIPT_DIR}/.." && pwd)
+
+# ============ paths ============
+RPMBUILD_DIR="${ROOT_DIR}/build/rpmbuild"
+OUTPUT_DIR="${ROOT_DIR}/build/output"
+BUILDUT_DIR="${ROOT_DIR}/buildUT"
+DEPS_DIR="${ROOT_DIR}/deps"
+GCOVER_DIR="${ROOT_DIR}/gcover_report"
 
 # ============ build type ============
 BUILD_TYPE=${1:-relwithdebinfo}
@@ -25,20 +41,33 @@ case "${BUILD_TYPE_LOWER}" in
     CMAKE_BUILD_TYPE=RelwithDebinfo
     RPM_RELEASE_SUFFIX=.rel
     ;;
+  clean)
+    echo "[INFO] Cleaning build artifacts..."
+    rm -rf "${RPMBUILD_DIR}"
+    rm -rf "${OUTPUT_DIR}"
+    rm -rf "${BUILDUT_DIR}"
+    rm -rf "${DEPS_DIR}"
+    rm -rf "${GCOVER_DIR}"
+    rm -rf "${SCRIPT_DIR}/CMakeCache.txt"
+    rm -rf "${SCRIPT_DIR}/CMakeFiles"
+    rm -rf "${SCRIPT_DIR}/Makefile"
+    rm -rf "${SCRIPT_DIR}/cmake_install.cmake"
+    rm -rf "${SCRIPT_DIR}/compile_commands.json"
+    rm -rf "${SCRIPT_DIR}/src"
+    echo "[INFO] Clean done."
+    exit 0
+    ;;
   dt)
     cd "${ROOT_DIR}"
     bash "${SCRIPT_DIR}/run_ut.sh"
     exit 0
     ;;
   *)
-    echo "Usage: $0 [debug|release|relwithdebinfo]"
+    echo "Usage: $0 [debug|release|relwithdebinfo|clean]"
     exit 1
     ;;
 esac
 
-# ============ paths ============
-RPMBUILD_DIR="${ROOT_DIR}/build/rpmbuild"
-OUTPUT_DIR="${ROOT_DIR}/build/output"
 SPEC_FILE="${SCRIPT_DIR}/${PROJECT_NAME}.spec"
 
 [[ -f "${SPEC_FILE}" ]] || {

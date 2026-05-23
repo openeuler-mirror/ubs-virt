@@ -3,12 +3,13 @@
  * ubs-virt-ovs is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
- * http://license.coscl.org.cn/MulanPSL2
+ *          http://license.coscl.org.cn/MulanPSL2
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
  * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+
 #include "server.h"
 #include "logger.h"
 #include "virt_ipc_code.h"
@@ -23,19 +24,22 @@
 #include <atomic>
 #include <chrono>
 #include <filesystem>
-#include <sstream>
 #include <thread>
 #include <vector>
 
 using namespace virt::ovs;
 using namespace virt::ovs::msg;
+using namespace virt::ovs::constants;
+
 namespace virt::ovs::ipc::server {
+
 static void SetNonBlock(int fd)
 {
     fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK);
 }
 
 Server::Server(const std::string &sockPath, size_t workers) : socketPath_(sockPath), pool_(workers) {}
+
 Server::~Server()
 {
     Stop();
@@ -64,7 +68,8 @@ bool Server::PrepareSocketDir() const
 {
     namespace fs = std::filesystem;
     const fs::path socketPath(socketPath_);
-    if (const fs::path dirPath(socketPath.parent_path()); !fs::exists(dirPath)) {
+    const fs::path dirPath(socketPath.parent_path());
+    if (!fs::exists(dirPath)) {
         try {
             if (fs::create_directory(dirPath)) {
                 LOG_INFO << "Successfully created socket directory: " << dirPath.string();
@@ -96,7 +101,7 @@ bool Server::InitListenSocket()
     unlink(socketPath_.c_str());
 
     if (bind(listenFd_, static_cast<sockaddr *>(static_cast<void *>(&addr)), sizeof(addr)) < 0 ||
-        listen(listenFd_, LISTEN_BACK_LOG) < 0) {
+        listen(listenFd_, LISTEN_BACKLOG) < 0) {
         LOG_ERROR << "bind/listen failed" << strerror(errno);
         close(listenFd_);
         listenFd_ = -1;
@@ -248,19 +253,16 @@ bool Server::HandleWriteEvent(Connection &conn, int fd) const
             return false;
         }
         LOG_DEBUG << "HandleWriteEvent: write done, fd=" << fd;
-        conn.ResetAfterWrite();
     }
     return true;
 }
 
 void Server::CloseConnection(int fd)
 {
-    const int closeFd = fd;
     epoll_ctl(epollFd_, EPOLL_CTL_DEL, fd, nullptr);
+    conns_.erase(fd);
     close(fd);
-    fd = -1;
-    conns_.erase(closeFd);
-    LOG_INFO << "closed fd=" << closeFd;
+    LOG_INFO << "closed fd=" << fd;
 }
 
 void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
@@ -269,70 +271,40 @@ void Server::HandleBusiness(const ConnPtr &conn, const std::string &req)
     config::ConfigModule &conf = config::ConfigModule::GetInstance();
     const auto &id = conn->Identity();
     IpcResponse resp(static_cast<uint32_t>(VirtIPCCode::OK));
+
     std::string authority;
     if (!AuthManager::AuthorizeUser(id.username, authority, conf)) {
         LOG_ERROR << "Permission denied: username=" << id.username;
         resp.code_ = static_cast<uint32_t>(VirtIPCCode::PERMISSION_DENIED);
-        return;
-    }
+    } else {
+        IpcRequest ipcReq;
+        {
+            VirtMsgUnPacker unpacker(req);
+            ipcReq.Deserialize(unpacker);
+        }
+        LOG_DEBUG << "IpcRequest deserialized, service=" << ipcReq.service_ << ", method=" << ipcReq.method_
+                  << ", payload_size=" << ipcReq.payload_.size();
 
-    IpcRequest ipcReq;
-    VirtMsgUnPacker unpacker(req);
-    ipcReq.Deserialize(unpacker);
-    LOG_DEBUG << "IpcRequest deserialized, service=" << ipcReq.service_ << ", method=" << ipcReq.method_
-              << ", payload_size=" << ipcReq.payload_.size();
+        if (!AuthManager::AuthorizeService(authority, ipcReq.service_)) {
+            LOG_ERROR << "Permission denied: uid=" << id.uid << ", method=" << ipcReq.method_
+                      << " service=" << ipcReq.service_;
+            resp.code_ = static_cast<uint32_t>(VirtIPCCode::PERMISSION_DENIED);
+        } else {
+            try {
+                resp = dispatcher_.Dispatch(ipcReq);
+            } catch (const std::exception &e) {
+                LOG_ERROR << "Dispatch request failed: " << e.what();
+                resp.code_ = static_cast<uint32_t>(VirtIPCCode::INTERNAL_ERROR);
+            }
+        }
+    }
 
     VirtMsgPacker packer;
-    if (!AuthManager::AuthorizeService(authority, ipcReq.service_)) {
-        LOG_ERROR << "Permission denied: uid=" << id.uid << ", method=" << ipcReq.method_
-                  << " service=" << ipcReq.service_;
-        resp.code_ = static_cast<uint32_t>(VirtIPCCode::PERMISSION_DENIED);
-        return;
-    }
-    try {
-        resp = dispatcher_.Dispatch(ipcReq);
-        resp.Serialize(packer);
-    } catch (const std::exception &e) {
-        LOG_ERROR << "Dispatch request failed: " << e.what();
-        resp.code_ = static_cast<uint32_t>(VirtIPCCode::INTERNAL_ERROR);
-    }
-
+    resp.Serialize(packer);
     conn->SetResponse(packer.String(), epollFd_);
 
     LOG_DEBUG << "IpcResponse serialized, fd=" << conn->Fd() << ", code=" << resp.code_
               << ", payload_size=" << resp.payload_.size();
-}
-
-bool AuthManager::AuthorizeService(const std::string &s, const std::string &key)
-{
-    auto trimSpace = [](std::string_view v) {
-        auto begin = v.find_first_not_of(' ');
-        if (begin == std::string_view::npos) {
-            return std::string_view{};
-        }
-        auto end = v.find_last_not_of(' ');
-        return v.substr(begin, end - begin + 1);
-    };
-    std::string_view keyv = trimSpace(key);
-    std::stringstream ss(s);
-    std::string item;
-    while (std::getline(ss, item, ',')) {
-        if (trimSpace(item) == keyv) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool AuthManager::AuthorizeUser(const std::string username, std::string &authority, config::ConfigModule &conf)
-{
-    auto ret = conf.GetConf("auth", username, authority);
-    if (ret != config::ConfigCode::OK) {
-        LOG_ERROR << "Get auth conf failed, ret=" << static_cast<uint32_t>(ret);
-        return false;
-    }
-    LOG_INFO << "Get auth conf success, username=" << username << " authority=" << authority;
-    return true;
 }
 
 void Server::Loop()
@@ -343,7 +315,7 @@ void Server::Loop()
 
     epoll_event events[MAX_EPOLL_EVENTS];
     while (running_) {
-        int n = epoll_wait(epollFd_, events, MAX_EPOLL_EVENTS, EPOLL_WAIT_TIMEOUT);
+        int n = epoll_wait(epollFd_, events, MAX_EPOLL_EVENTS, EPOLL_WAIT_TIMEOUT_MS);
         if (n <= 0) {
             continue;
         }
@@ -380,4 +352,5 @@ void Server::Loop()
 
     LOG_INFO << "Event loop exited";
 }
+
 } // namespace virt::ovs::ipc::server

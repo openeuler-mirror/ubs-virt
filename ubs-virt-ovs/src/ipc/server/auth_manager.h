@@ -10,17 +10,19 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#ifndef VIRT_OVS_IPC_SERVER_DISPATCHER_H
-#define VIRT_OVS_IPC_SERVER_DISPATCHER_H
+#ifndef VIRT_OVS_IPC_SERVER_AUTH_MANAGER_H
+#define VIRT_OVS_IPC_SERVER_AUTH_MANAGER_H
 
-#include "serde/virt_msg.h"
-#include "service_base.h"
+#include <string>
+
+#include "config_module.h"
 
 namespace virt::ovs::ipc::server {
 
-class Dispatcher {
+class AuthManager {
 public:
-    msg::IpcResponse Dispatch(const msg::IpcRequest &request) const;
+    static bool AuthorizeUser(const std::string &username, std::string &authority, config::ConfigModule &conf);
+    static bool AuthorizeService(const std::string &authority, const std::string &serviceKey);
 };
 
 } // namespace virt::ovs::ipc::server

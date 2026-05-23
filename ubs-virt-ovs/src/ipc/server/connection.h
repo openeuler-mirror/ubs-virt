@@ -9,34 +9,35 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef CONNECTION_H
-#define CONNECTION_H
+
+#ifndef VIRT_OVS_IPC_SERVER_CONNECTION_H
+#define VIRT_OVS_IPC_SERVER_CONNECTION_H
 
 #include <sys/types.h>
 #include <cstdint>
 #include <string>
 
 namespace virt::ovs::ipc::server {
-inline constexpr int MAX_BODY_BUFFER_SIZE = 4096;
+
 struct PeerIdentity {
     uid_t uid;
     gid_t gid;
     pid_t pid;
-
     std::string username;
 };
 
 class Connection {
 public:
     enum class State {
-        READ_LEN,  // read req head length
-        READ_BODY, // read req body length
-        READY,     // read req finish
+        READ_LEN,
+        READ_BODY,
+        READY,
         PROCESSING,
         WRITE_RESP,
         CLOSED,
     };
-    Connection(int fd, PeerIdentity identity) : fd_(fd), identity_(identity){};
+
+    Connection(int fd, PeerIdentity identity);
     explicit Connection(int fd);
 
     const PeerIdentity &Identity() const
@@ -58,7 +59,6 @@ public:
     void SetResponse(std::string resp, int epollFd);
 
     bool NeedWrite() const;
-    void ResetAfterWrite();
 
 private:
     int fd_;
@@ -71,5 +71,7 @@ private:
     size_t lenRead_{0};
     bool running_{false};
 };
+
 } // namespace virt::ovs::ipc::server
+
 #endif

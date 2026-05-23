@@ -35,7 +35,7 @@ IpcResponse BizError(VirtIPCCode bizCode, const std::string &msg)
 
 inline IpcResponse IpcError(VirtIPCCode code)
 {
-    return IpcResponse{static_cast<int32_t>(code)};
+    return IpcResponse{static_cast<uint32_t>(code)};
 }
 
 template <typename Request>

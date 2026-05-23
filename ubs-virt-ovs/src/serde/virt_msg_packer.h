@@ -15,7 +15,6 @@
 
 #include <cstdint>
 #include <map>
-#include <set>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -88,11 +87,7 @@ public:
     template <typename K, typename V>
     void Serialize(const std::map<K, V> &container)
     {
-        const std::size_t size = container.size();
-        outStream_.write(reinterpret_cast<const char *>(&size), sizeof(size));
-        for (const auto &val : container) {
-            Serialize(val);
-        }
+        SerializeMap(container);
     }
 
     /**
@@ -105,12 +100,7 @@ public:
     template <typename K, typename V>
     void Serialize(const std::unordered_map<K, V> &container)
     {
-        const std::size_t size = container.size();
-        outStream_.write(reinterpret_cast<const char *>(&size), sizeof(size));
-        for (const auto &val : container) {
-            Serialize(val.first);
-            Serialize(val.second);
-        }
+        SerializeMap(container);
     }
 
     /**
@@ -137,6 +127,17 @@ public:
     }
 
 private:
+    template <typename Map>
+    void SerializeMap(const Map &container)
+    {
+        const std::size_t size = container.size();
+        outStream_.write(reinterpret_cast<const char *>(&size), sizeof(size));
+        for (const auto &[key, value] : container) {
+            Serialize(key);
+            Serialize(value);
+        }
+    }
+
     std::ostringstream outStream_;
 };
 
@@ -186,7 +187,7 @@ public:
         std::size_t size = 0;
         inStream_.read(reinterpret_cast<char *>(&size), sizeof(size));
         container.clear();
-        container.resize(size);
+        container.reserve(size);
         for (std::size_t i = 0; i < size; ++i) {
             V item;
             Deserialize(item);
@@ -204,16 +205,7 @@ public:
     template <typename K, typename V>
     void Deserialize(std::map<K, V> &container)
     {
-        std::size_t size = 0;
-        inStream_.read(reinterpret_cast<char *>(&size), sizeof(size));
-        container.clear();
-        for (std::size_t i = 0; i < size; ++i) {
-            K key;
-            V value;
-            Deserialize(key);
-            Deserialize(value);
-            container.emplace_back(std::move(key), std::move(value));
-        }
+        DeserializeMap(container);
     }
 
     /**
@@ -226,16 +218,7 @@ public:
     template <typename K, typename V>
     void Deserialize(std::unordered_map<K, V> &container)
     {
-        std::size_t size = 0;
-        inStream_.read(reinterpret_cast<char *>(&size), sizeof(size));
-        container.clear();
-        for (std::size_t i = 0; i < size; ++i) {
-            K key;
-            V value;
-            Deserialize(key);
-            Deserialize(value);
-            container.emplace_back(std::move(key), std::move(value));
-        }
+        DeserializeMap(container);
     }
 
     /**
@@ -249,6 +232,21 @@ public:
     }
 
 private:
+    template <typename Map>
+    void DeserializeMap(Map &container)
+    {
+        std::size_t size = 0;
+        inStream_.read(reinterpret_cast<char *>(&size), sizeof(size));
+        container.clear();
+        for (std::size_t i = 0; i < size; ++i) {
+            typename Map::key_type key;
+            typename Map::mapped_type value;
+            Deserialize(key);
+            Deserialize(value);
+            container.emplace(std::move(key), std::move(value));
+        }
+    }
+
     std::istringstream inStream_;
 };
 } // namespace virt::ovs

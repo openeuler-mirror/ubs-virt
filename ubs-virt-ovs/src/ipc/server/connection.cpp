@@ -3,13 +3,15 @@
  * ubs-virt-ovs is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
  * You may obtain a copy of Mulan PSL v2 at:
- * http://license.coscl.org.cn/MulanPSL2
+ *          http://license.coscl.org.cn/MulanPSL2
  * THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND,
  * EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+
 #include "connection.h"
+#include "common/constants.h"
 #include "logger.h"
 
 #include <arpa/inet.h>
@@ -18,6 +20,12 @@
 #include <unistd.h>
 
 namespace virt::ovs::ipc::server {
+
+Connection::Connection(int fd, PeerIdentity identity) : fd_(fd), identity_(identity)
+{
+    LOG_INFO << "Connection created, fd=" << fd_;
+}
+
 Connection::Connection(int fd) : fd_(fd)
 {
     LOG_INFO << "Connection created, fd=" << fd_;
@@ -62,6 +70,7 @@ bool Connection::HandleReadLen()
     static constexpr size_t kLenSize = sizeof(uint32_t);
     if (readBuf_.empty()) {
         readBuf_.resize(kLenSize, '\0');
+        lenRead_ = 0;
     }
     ssize_t n = read(fd_, readBuf_.data() + lenRead_, kLenSize - lenRead_);
     if (n > 0) {
@@ -89,7 +98,7 @@ bool Connection::HandleReadLen()
     }
 
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG_DEBUG << "fd= " << fd_ << " READ_LEN EAGAIN or EWOULDBLOCK， lenRead_= " << lenRead_;
+        LOG_DEBUG << "fd= " << fd_ << " READ_LEN EAGAIN or EWOULDBLOCK, lenRead_= " << lenRead_;
         return true;
     }
     LOG_WARN << "fd= " << fd_ << " READ_LEN error, errno=" << errno << " errMsg=" << strerror(errno);
@@ -99,7 +108,7 @@ bool Connection::HandleReadLen()
 bool Connection::HandleReadBody(bool &blocked)
 {
     blocked = false;
-    char buf[MAX_BODY_BUFFER_SIZE];
+    char buf[constants::MAX_BODY_BUFFER_SIZE];
     ssize_t n = read(fd_, buf, sizeof(buf));
     if (n > 0) {
         readBuf_.append(buf, n);
@@ -116,7 +125,7 @@ bool Connection::HandleReadBody(bool &blocked)
     }
 
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        LOG_DEBUG << "fd= " << fd_ << " READ_BODY EAGAIN or EWOULDBLOCK， current= " << readBuf_.size() << "/"
+        LOG_DEBUG << "fd= " << fd_ << " READ_BODY EAGAIN or EWOULDBLOCK, current= " << readBuf_.size() << "/"
                   << expectLen_;
         blocked = true;
         return true;
@@ -176,14 +185,10 @@ void Connection::SetResponse(std::string resp, int epollFd)
     ev.events = EPOLLOUT | EPOLLET;
     ev.data.fd = fd_;
     if (epoll_ctl(epollFd, EPOLL_CTL_MOD, fd_, &ev) < 0) {
-        LOG_ERROR << "epoll_ctl MOD failed in SetReaponse, fd=" << fd_ << ", errno=" << errno
+        LOG_ERROR << "epoll_ctl MOD failed in SetResponse, fd=" << fd_ << ", errno=" << errno
                   << ", errmsg=" << strerror(errno);
     }
     LOG_DEBUG << "fd=" << fd_ << " SetResponse, respSize=" << resp.size();
 }
 
-void Connection::ResetAfterWrite()
-{
-    state_ = State::READ_LEN;
-}
 } // namespace virt::ovs::ipc::server

@@ -9,8 +9,9 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
-#ifndef THREAD_POOL_H
-#define THREAD_POOL_H
+
+#ifndef VIRT_OVS_IPC_SERVER_THREAD_POOL_H
+#define VIRT_OVS_IPC_SERVER_THREAD_POOL_H
 
 #include <atomic>
 #include <condition_variable>
@@ -19,8 +20,9 @@
 #include <thread>
 #include <vector>
 
+#include "common/constants.h"
+
 namespace virt::ovs::ipc::server {
-inline constexpr int MAX_QUEUE_SIZE = 1024;
 
 class ThreadPool {
 public:
@@ -36,12 +38,14 @@ public:
 private:
     void Worker();
 
-    size_t maxQueueSize_{MAX_QUEUE_SIZE};
+    size_t maxQueueSize_{constants::THREAD_POOL_DEFAULT_QUEUE_SIZE};
     std::atomic<bool> running_{false};
     mutable std::mutex mutex_;
     std::queue<std::function<void()>> tasks_;
     std::vector<std::thread> workers_;
     std::condition_variable cv_;
 };
+
 } // namespace virt::ovs::ipc::server
+
 #endif

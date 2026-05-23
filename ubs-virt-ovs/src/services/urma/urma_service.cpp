@@ -34,7 +34,6 @@ UrmaService::UrmaService() : urmaUtil_(UrmaUtility::Instance())
 IpcResponse UrmaService::HandleSetBandwidth(const std::string &payload)
 {
     UrmaBandwidthSetRequest request;
-    BaseResponse resp;
     std::string errMsg;
     VirtIPCCode ret = DeserializeAndValidate(request, payload, errMsg);
     if (ret != VirtIPCCode::OK) {
@@ -52,11 +51,10 @@ IpcResponse UrmaService::HandleSetBandwidth(const std::string &payload)
 IpcResponse UrmaService::HandleGetBandwidth(const std::string &payload)
 {
     UrmaBandwidthGetRequest request;
-    BaseResponse resp;
     std::string errMsg;
     VirtIPCCode ret = DeserializeAndValidate(request, payload, errMsg);
     if (ret != VirtIPCCode::OK) {
-        LOG_ERROR << "HandleSetBandwidth failed: " << errMsg;
+        LOG_ERROR << "HandleGetBandwidth failed: " << errMsg;
         return BizError<UrmaBandwidthGetResponse>(ret, errMsg);
     }
     uint32_t minBandwidth = 0;
@@ -72,7 +70,6 @@ IpcResponse UrmaService::HandleGetBandwidth(const std::string &payload)
 IpcResponse UrmaService::HandleResetBandwidth(const std::string &payload)
 {
     UrmaBandwidthResetRequest request;
-    BaseResponse resp;
     std::string errMsg;
     VirtIPCCode ret = DeserializeAndValidate(request, payload, errMsg);
     if (ret != VirtIPCCode::OK) {

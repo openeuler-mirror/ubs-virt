@@ -11,13 +11,13 @@
  */
 
 #include "dispatcher.h"
+#include "ipc/code/virt_ipc_code.h"
+#include "ipc/protocol/protocol.h"
 #include "logger.h"
-#include "protocol.h"
-
-using namespace virt::ovs::msg;
 
 namespace virt::ovs::ipc::server {
-IpcResponse Dispatcher::Dispatch(const IpcRequest &req) const
+
+msg::IpcResponse Dispatcher::Dispatch(const msg::IpcRequest &req) const
 {
     LOG_INFO << "request: service=" << req.service_ << ",method=" << req.method_;
     auto svc = ServiceRegistry::Instance().GetService(req.service_);
@@ -27,4 +27,5 @@ IpcResponse Dispatcher::Dispatch(const IpcRequest &req) const
     }
     return svc->Handle(req.method_, req.payload_);
 }
+
 } // namespace virt::ovs::ipc::server
