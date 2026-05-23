@@ -10,17 +10,17 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "runtime_stub.h"
+#include <fcntl.h>
+#include <runtime/rt.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdbool.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <runtime/rt.h>
 #include "common.h"
-#include "runtime_hook.h"
 #include "config.h"
 #include "npu_manager.h"
-#include "runtime_stub.h"
+#include "runtime_hook.h"
 
 #define RUNTIME_STUB_FUNCTION_NAME(name) RUNTIME_STUB_##name
 

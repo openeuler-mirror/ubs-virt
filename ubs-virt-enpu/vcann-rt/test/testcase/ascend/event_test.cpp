@@ -10,19 +10,19 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <sys/file.h>
-#include <runtime/rt.h>
 #include <acl/acl.h>
+#include <gtest/gtest.h>
+#include <runtime/rt.h>
+#include <sys/file.h>
 #include <atomic>
+#include <mockcpp/mockcpp.hpp>
+#include "core_limiter.h"
+#include "log.h"
+#include "mem_limiter.h"
+#include "npu_manager.h"
+#include "rts_event.h"
 #include "runtime_stub.h"
 #include "securec.h"
-#include "log.h"
-#include "npu_manager.h"
-#include "mem_limiter.h"
-#include "core_limiter.h"
-#include "rts_event.h"
 
 using namespace testing;
 
@@ -30,12 +30,12 @@ class EventTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout<<"Event test start"<<std::endl;
+        std::cout << "Event test start" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout<<"Event test end"<<std::endl;
+        std::cout << "Event test end" << std::endl;
     }
 
     void SetUp()
@@ -55,6 +55,7 @@ protected:
         close(fd_);
         fd_ = -1;
     }
+
 private:
     int fd_ = -1;
 };

@@ -10,13 +10,13 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "mem_limiter.h"
+#include <acl/acl.h>
 #include <errno.h>
+#include <runtime/rt.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <acl/acl.h>
-#include <runtime/rt.h>
 #include "runtime_hook.h"
-#include "mem_limiter.h"
 
 bool memory_check(size_t requested)
 {
@@ -26,10 +26,10 @@ bool memory_check(size_t requested)
     size_t quota = get_mem_limit_quota();
     size_t total;
     bool result = __builtin_add_overflow(requested, used, &total);
-    CHECK_COND_RETURN_(result, false,
-        "User requested mem size too big! Request:%zu B, used:%zu B, quota:%zu B.", requested, used, quota);
-    CHECK_COND_RETURN_((total > quota), false,
-        "Out of memory! Request:%zu B, used:%zu B, quota:%zu B.", requested, used, quota);
+    CHECK_COND_RETURN_(result, false, "User requested mem size too big! Request:%zu B, used:%zu B, quota:%zu B.",
+                       requested, used, quota);
+    CHECK_COND_RETURN_((total > quota), false, "Out of memory! Request:%zu B, used:%zu B, quota:%zu B.", requested,
+                       used, quota);
     return true;
 }
 
@@ -62,13 +62,12 @@ int create_file_lock_base_dir()
     int ans = snprintf_s(cmd, sizeof(cmd), sizeof(cmd), "mkdir -p -m 750 %s", FILE_LOCK_BASE_DIR);
     CHECK_COND_RETURN_ERROR_CODE(ans < 0, "Can not concatenate string to create dir.");
     int ret = system(cmd);
-    CHECK_COND_RETURN_ERROR_CODE(ret < 0 && errno != EEXIST,
-        "create %s failed, err is %s.", FILE_LOCK_BASE_DIR, strerror(errno));
+    CHECK_COND_RETURN_ERROR_CODE(ret < 0 && errno != EEXIST, "create %s failed, err is %s.", FILE_LOCK_BASE_DIR,
+                                 strerror(errno));
 
     LOG_INFO("create %s success", FILE_LOCK_BASE_DIR);
     return ENPU_SUCCESS;
 }
-
 
 int memory_limiter_init()
 {

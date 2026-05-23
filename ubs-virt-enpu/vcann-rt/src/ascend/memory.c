@@ -11,9 +11,9 @@
 */
 
 #include "log.h"
-#include "runtime_hook.h"
 #include "mem_limiter.h"
 #include "npu_manager.h"
+#include "runtime_hook.h"
 
 RUNTIME_HOOK_DEFINE(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
 {
@@ -55,7 +55,8 @@ RUNTIME_HOOK_DEFINE(rtDvppMallocWithFlag, void **devPtr, uint64_t size, uint32_t
     return RUNTIME_HOOK_CALL(rt_library_entry, rtDvppMallocWithFlag, devPtr, size, flag, moduleId);
 }
 
-RUNTIME_HOOK_DEFINE(rtMemAlloc, void **devPtr, uint64_t size, rtMallocPolicy policy, rtMallocAdvise advise, rtMallocConfig_t *cfg)
+RUNTIME_HOOK_DEFINE(rtMemAlloc, void **devPtr, uint64_t size, rtMallocPolicy policy, rtMallocAdvise advise,
+                    rtMallocConfig_t *cfg)
 {
     LOG_DEBUG("Hook mem rtMemAlloc size:%" PRIu64 ".", size);
     int ret = guard_memory(size);

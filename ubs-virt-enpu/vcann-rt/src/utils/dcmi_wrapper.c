@@ -25,28 +25,28 @@ typedef struct {
     int result;
 } mem_info_args;
 
-static dcmi_operations g_dcmi_ops = { NULL };
+static dcmi_operations g_dcmi_ops = {NULL};
 
 int __attribute__((weak)) dcmiv2_init(void);
 
 int __attribute__((weak)) dcmiv2_get_device_utilization_rate(int dev_id, int input_type,
-    unsigned int *utilization_rate);
+                                                             unsigned int *utilization_rate);
 
 int __attribute__((weak)) dcmiv2_get_device_proc_mem_info(int dev_id, struct dcmi_proc_mem_info *proc_info,
-    int *proc_num);
+                                                          int *proc_num);
 
 int __attribute__((weak)) dcmiv2_get_device_list(int *device_list, int *device_count, int list_len);
 
 int __attribute__((weak)) dcmi_init(void);
 
 int __attribute__((weak)) dcmi_get_device_utilization_rate(int card_id, int device_id, int input_type,
-    unsigned int *utilization_rate);
+                                                           unsigned int *utilization_rate);
 
 int __attribute__((weak)) dcmi_get_device_resource_info(int card_id, int device_id,
-    struct dcmi_proc_mem_info *proc_info, int *proc_num);
+                                                        struct dcmi_proc_mem_info *proc_info, int *proc_num);
 
 int __attribute__((weak)) dcmi_get_card_id_device_id_from_phyid(int *card_id, int *device_id,
-    unsigned int device_phy_id);
+                                                                unsigned int device_phy_id);
 
 int _dcmiv2_init_callback()
 {
@@ -58,23 +58,23 @@ int _dcmi_init_callback()
     return dcmi_init();
 }
 
-int _dcmiv2_get_device_utilization_rate_callback(int logic_id, int card_id, int device_id,
-    int input_type, unsigned int *utilization)
+int _dcmiv2_get_device_utilization_rate_callback(int logic_id, int card_id, int device_id, int input_type,
+                                                 unsigned int *utilization)
 {
     (void)card_id;
     (void)device_id;
     return dcmiv2_get_device_utilization_rate(logic_id, input_type, utilization);
 }
 
-int _dcmi_get_device_utilization_rate_callback(int logic_id, int card_id, int device_id,
-    int input_type, unsigned int *utilization)
+int _dcmi_get_device_utilization_rate_callback(int logic_id, int card_id, int device_id, int input_type,
+                                               unsigned int *utilization)
 {
     (void)logic_id;
     return dcmi_get_device_utilization_rate(card_id, device_id, input_type, utilization);
 }
 
 int _dcmiv2_get_device_resource_info_callback(int logic_id, int card_id, int device_id,
-    struct dcmi_proc_mem_info *proc_info, int *proc_num)
+                                              struct dcmi_proc_mem_info *proc_info, int *proc_num)
 {
     (void)card_id;
     (void)device_id;
@@ -82,7 +82,7 @@ int _dcmiv2_get_device_resource_info_callback(int logic_id, int card_id, int dev
 }
 
 int _dcmi_get_device_resource_info_callback(int logic_id, int card_id, int device_id,
-    struct dcmi_proc_mem_info *proc_info, int *proc_num)
+                                            struct dcmi_proc_mem_info *proc_info, int *proc_num)
 {
     (void)logic_id;
     return dcmi_get_device_resource_info(card_id, device_id, proc_info, proc_num);
@@ -100,10 +100,9 @@ int register_callback(uint8_t soc_version)
         g_dcmi_ops.get_device_resource_info_callback = _dcmi_get_device_resource_info_callback;
     }
 
-    if (g_dcmi_ops.init_callback == NULL ||
-        g_dcmi_ops.get_device_utilization_rate_callback == NULL ||
+    if (g_dcmi_ops.init_callback == NULL || g_dcmi_ops.get_device_utilization_rate_callback == NULL ||
         g_dcmi_ops.get_device_resource_info_callback == NULL) {
-            return ENPU_FAIL;
+        return ENPU_FAIL;
     }
     return ENPU_SUCCESS;
 }
@@ -145,7 +144,7 @@ int enpu_dcmi_get_device_utilization_rate(int logic_id, int card_id, int device_
 {
     // Using NPU total utilization. (Other choices: 2. AICore, 3. AICpu)
     return g_dcmi_ops.get_device_utilization_rate_callback(logic_id, card_id, device_id, NPU_UTILIZATION,
-        utilization_rate);
+                                                           utilization_rate);
 }
 
 static void *enpu_get_resource_info_thread(void *arg)
@@ -153,8 +152,8 @@ static void *enpu_get_resource_info_thread(void *arg)
     mem_info_args *args = (mem_info_args *)arg;
     int proc_num_temp = 0;
 
-    args->result = g_dcmi_ops.get_device_resource_info_callback(
-        args->logic_id, args->card_id, args->device_id, args->proc_info, &proc_num_temp);
+    args->result = g_dcmi_ops.get_device_resource_info_callback(args->logic_id, args->card_id, args->device_id,
+                                                                args->proc_info, &proc_num_temp);
 
     if (args->proc_num != NULL) {
         *(args->proc_num) = proc_num_temp;
@@ -195,14 +194,13 @@ int enpu_dcmi_get_device_resource_info(int logic_id, int card_id, int device_id,
     }
 
     memset_s(proc_info, sizeof(proc_info), 0, sizeof(proc_info));
-    mem_info_args args = {
-        .logic_id = logic_id,
-        .card_id = card_id,
-        .device_id = device_id,
-        .proc_info = proc_info,
-        .proc_num = &proc_num,
-        .result = ENPU_FAIL};
-    
+    mem_info_args args = {.logic_id = logic_id,
+                          .card_id = card_id,
+                          .device_id = device_id,
+                          .proc_info = proc_info,
+                          .proc_num = &proc_num,
+                          .result = ENPU_FAIL};
+
     pthread_t thread;
 
     int ret = pthread_create(&thread, NULL, enpu_get_resource_info_thread, &args);
@@ -217,8 +215,7 @@ int enpu_dcmi_get_device_resource_info(int logic_id, int card_id, int device_id,
     }
 
     ret = enpu_get_mem_used(proc_info, proc_num, used);
-    CHECK_RETURN_ERROR_CODE(ret, "get device mem info failed card-id:%d device_id:%d.",
-        card_id, device_id);
+    CHECK_RETURN_ERROR_CODE(ret, "get device mem info failed card-id:%d device_id:%d.", card_id, device_id);
 
     return ENPU_SUCCESS;
 }

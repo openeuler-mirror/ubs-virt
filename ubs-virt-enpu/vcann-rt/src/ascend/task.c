@@ -9,9 +9,9 @@
 * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 * See the Mulan PSL v2 for more details.
 */
+#include "core_limiter.h"
 #include "log.h"
 #include "runtime_hook.h"
-#include "core_limiter.h"
 
 RUNTIME_HOOK_DEFINE(rtFftsPlusTaskLaunch, rtFftsPlusTaskInfo_t *fftsPlusTaskInfo, rtStream_t stm)
 {
@@ -56,7 +56,7 @@ RUNTIME_HOOK_DEFINE(rtCmoTaskLaunch, rtCmoTaskInfo_t *taskInfo, rtStream_t stm, 
 }
 
 RUNTIME_HOOK_DEFINE(rtCmoAddrTaskLaunch, void *cmoAddrInfo, uint64_t destMax, rtCmoOpCode_t cmoOpCode, rtStream_t stm,
-    uint32_t flag)
+                    uint32_t flag)
 {
     core_limiter(stm, NULL, NULL);
     return RUNTIME_HOOK_CALL(rt_library_entry, rtCmoAddrTaskLaunch, cmoAddrInfo, destMax, cmoOpCode, stm, flag);
@@ -79,4 +79,3 @@ RUNTIME_HOOK_DEFINE(rtMultipleTaskInfoLaunchWithFlag, const void *taskInfo, rtSt
     core_limiter(stm, NULL, NULL);
     return RUNTIME_HOOK_CALL(rt_library_entry, rtMultipleTaskInfoLaunchWithFlag, taskInfo, stm, flag);
 }
-

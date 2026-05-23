@@ -11,25 +11,25 @@
  */
 
 #include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <sys/file.h>
 #include <runtime/rt.h>
-#include "securec.h"
-#include "runtime_stub.h"
+#include <sys/file.h>
+#include <mockcpp/mockcpp.hpp>
 #include "log.h"
-#include "npu_manager.h"
 #include "mem_limiter.h"
+#include "npu_manager.h"
+#include "runtime_stub.h"
+#include "securec.h"
 
 class CoreLimiterTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout<<"Core Limiter test start"<<std::endl;
+        std::cout << "Core Limiter test start" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout<<"Core Limiter test end"<<std::endl;
+        std::cout << "Core Limiter test end" << std::endl;
     }
 
     void SetUp()
@@ -49,6 +49,7 @@ protected:
         close(fd_);
         fd_ = -1;
     }
+
 private:
     int fd_ = -1;
 };

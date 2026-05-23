@@ -11,26 +11,26 @@
  */
 
 #include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <sys/file.h>
 #include <runtime/rt.h>
+#include <sys/file.h>
+#include <mockcpp/mockcpp.hpp>
 #include "acl/acl.h"
-#include "securec.h"
-#include "runtime_stub.h"
 #include "log.h"
-#include "npu_manager.h"
 #include "mem_limiter.h"
+#include "npu_manager.h"
+#include "runtime_stub.h"
+#include "securec.h"
 
 class DeviceTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout<<"Device test start"<<std::endl;
+        std::cout << "Device test start" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout<<"Device test end"<<std::endl;
+        std::cout << "Device test end" << std::endl;
     }
 
     void SetUp()
@@ -50,6 +50,7 @@ protected:
         close(fd_);
         fd_ = -1;
     }
+
 private:
     int fd_ = -1;
 };

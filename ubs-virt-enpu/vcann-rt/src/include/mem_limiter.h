@@ -16,8 +16,8 @@
 #include <inttypes.h>
 #include <stddef.h>
 #include "common.h"
-#include "utils.h"
 #include "npu_manager.h"
+#include "utils.h"
 
 #if defined(__cplusplus)
 extern "C" {

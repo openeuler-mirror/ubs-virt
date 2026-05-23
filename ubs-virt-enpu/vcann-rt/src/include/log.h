@@ -12,13 +12,13 @@
 #ifndef __LOG_H__
 #define __LOG_H__
 
-#include <libgen.h>
 #include <assert.h>
-#include <unistd.h>
+#include <libgen.h>
 #include <pthread.h>
-#include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -88,49 +88,54 @@ typedef struct {
     pthread_mutex_t compress_mutex;
     LogQueue log_queue;
     pthread_t consumer_thread;
-    FILE* log_file;
+    FILE *log_file;
     int flush_counter;
     int compress_check_counter;
     bool compress_disabled;
 } LogConfig;
 
-extern void log_print(EnpuLogLevel level, const char* filename, int line, const char* format, ...);
+extern void log_print(EnpuLogLevel level, const char *filename, int line, const char *format, ...);
 extern int log_init(void);
 extern void log_shutdown(void);
 extern LogConfig g_log_config;
 
-extern int log_queue_init(LogQueue* queue);
-extern void log_queue_destroy(LogQueue* queue);
-extern int log_queue_push(LogQueue* queue, const LogMessage* msg);
-extern int log_queue_pop(LogQueue* queue, LogMessage* msg);
+extern int log_queue_init(LogQueue *queue);
+extern void log_queue_destroy(LogQueue *queue);
+extern int log_queue_push(LogQueue *queue, const LogMessage *msg);
+extern int log_queue_pop(LogQueue *queue, LogMessage *msg);
 
 extern int compress_file(void);
-extern int is_log_file(const char* filename);
+extern int is_log_file(const char *filename);
 extern int update_log_file(void);
 
-#define LOG_DEBUG(msg, ...) do { \
-    if (g_log_config.min_log_level >= ENPU_LOG_DEBUG) { \
-        log_print(ENPU_LOG_DEBUG, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-    } \
-} while (false)
-#define LOG_INFO(msg, ...) do { \
-    if (g_log_config.min_log_level >= ENPU_LOG_INFO) { \
-        log_print(ENPU_LOG_INFO, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-    } \
-} while (false)
-#define LOG_WARN(msg, ...) do { \
-    if (g_log_config.min_log_level >= ENPU_LOG_WARN) { \
-        log_print(ENPU_LOG_WARN, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-    } \
-} while (false)
-#define LOG_ERROR(msg, ...) do { \
-    if (g_log_config.min_log_level >= ENPU_LOG_ERROR) { \
-        log_print(ENPU_LOG_ERROR, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-    } \
-} while (false)
-#define LOG_FATAL(msg, ...) do { \
-    log_print(ENPU_LOG_FATAL, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
-} while (false)
+#define LOG_DEBUG(msg, ...)                                                    \
+    do {                                                                       \
+        if (g_log_config.min_log_level >= ENPU_LOG_DEBUG) {                    \
+            log_print(ENPU_LOG_DEBUG, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
+        }                                                                      \
+    } while (false)
+#define LOG_INFO(msg, ...)                                                    \
+    do {                                                                      \
+        if (g_log_config.min_log_level >= ENPU_LOG_INFO) {                    \
+            log_print(ENPU_LOG_INFO, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
+        }                                                                     \
+    } while (false)
+#define LOG_WARN(msg, ...)                                                    \
+    do {                                                                      \
+        if (g_log_config.min_log_level >= ENPU_LOG_WARN) {                    \
+            log_print(ENPU_LOG_WARN, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
+        }                                                                     \
+    } while (false)
+#define LOG_ERROR(msg, ...)                                                    \
+    do {                                                                       \
+        if (g_log_config.min_log_level >= ENPU_LOG_ERROR) {                    \
+            log_print(ENPU_LOG_ERROR, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
+        }                                                                      \
+    } while (false)
+#define LOG_FATAL(msg, ...)                                                \
+    do {                                                                   \
+        log_print(ENPU_LOG_FATAL, __FILE__, __LINE__, msg, ##__VA_ARGS__); \
+    } while (false)
 
 #if defined(__cplusplus)
 }

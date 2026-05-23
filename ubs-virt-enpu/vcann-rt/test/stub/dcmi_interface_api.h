@@ -22,15 +22,14 @@ struct dcmi_proc_mem_info {
     unsigned long proc_mem_usage;
 };
 
-#define DCMI_OK                 0
-#define DCMI_ERROR_CODE_BASE    (-8000)
+#define DCMI_OK 0
+#define DCMI_ERROR_CODE_BASE (-8000)
 #define DCMI_ERR_CODE_INNER_ERR (DCMI_ERROR_CODE_BASE - 5)
 
 int dcmi_init(void);
 int dcmi_get_card_id_device_id_from_logicid(int *card_id, int *device_id, unsigned int device_logic_id);
-int dcmi_get_device_resource_info(int card_id, int device_id, struct dcmi_proc_mem_info *proc_info,
-                                  int *proc_num);
-int dcmi_get_device_utilization_rate(int card_id, int device_id, int input_type, unsigned int* utilization_rate);
+int dcmi_get_device_resource_info(int card_id, int device_id, struct dcmi_proc_mem_info *proc_info, int *proc_num);
+int dcmi_get_device_utilization_rate(int card_id, int device_id, int input_type, unsigned int *utilization_rate);
 int dcmi_get_card_id_device_id_from_phyid(int *card_id, int *device_id, unsigned int device_phy_id);
 
 int dcmiv2_init(void);

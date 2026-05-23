@@ -10,29 +10,29 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "utils.h"
+#include <acl/acl.h>
 #include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
+#include <runtime/rt.h>
 #include <sys/file.h>
 #include <sys/mman.h>
-#include <runtime/rt.h>
-#include <acl/acl.h>
-#include "securec.h"
-#include "runtime_stub.h"
+#include <mockcpp/mockcpp.hpp>
 #include "log.h"
-#include "utils.h"
-#include "npu_manager.h"
 #include "mem_limiter.h"
+#include "npu_manager.h"
+#include "runtime_stub.h"
+#include "securec.h"
 
 class UtilsTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout<<"Utils test start"<<std::endl;
+        std::cout << "Utils test start" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout<<"Utils test end"<<std::endl;
+        std::cout << "Utils test end" << std::endl;
     }
 
     void SetUp()
@@ -52,6 +52,7 @@ protected:
         close(fd_);
         fd_ = -1;
     }
+
 private:
     int fd_ = -1;
 };
@@ -72,7 +73,7 @@ TEST_F(UtilsTest, UtilsMemFailedTest)
     MOCKER(close, int(int)).stubs().will(returnValue(-1));
     file_lock *lockNullptr = nullptr;
     file_lock_destroy(lockNullptr);
-    file_lock normalLock = { 1, true };
+    file_lock normalLock = {1, true};
     file_lock_destroy(&normalLock);
     normalLock.held = false;
     file_lock_destroy(&normalLock);

@@ -10,27 +10,27 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <sys/file.h>
-#include <runtime/rt.h>
 #include <acl/acl.h>
-#include "securec.h"
-#include "runtime_stub.h"
+#include <gtest/gtest.h>
+#include <runtime/rt.h>
+#include <sys/file.h>
+#include <mockcpp/mockcpp.hpp>
 #include "log.h"
-#include "npu_manager.h"
 #include "mem_limiter.h"
+#include "npu_manager.h"
+#include "runtime_stub.h"
+#include "securec.h"
 
 class MemoryTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout<<"Memory test start"<<std::endl;
+        std::cout << "Memory test start" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout<<"Memory test end"<<std::endl;
+        std::cout << "Memory test end" << std::endl;
     }
 
     void SetUp()
@@ -50,6 +50,7 @@ protected:
         close(fd_);
         fd_ = -1;
     }
+
 private:
     int fd_ = -1;
 };
@@ -57,7 +58,7 @@ private:
 TEST_F(MemoryTest, rtMalloc)
 {
     constexpr uint32_t MAX_ARR_SIZE = 20;
-    void* devPtrsArr[MAX_ARR_SIZE] = { nullptr };
+    void *devPtrsArr[MAX_ARR_SIZE] = {nullptr};
     uint64_t size = 0;
     rtMemType_t type = 0;
     uint16_t moduleId = 0;
@@ -71,7 +72,7 @@ TEST_F(MemoryTest, rtMalloc)
 TEST_F(MemoryTest, rtMallocCached)
 {
     constexpr uint32_t MAX_ARR_SIZE = 20;
-    void* devPtrsArr[MAX_ARR_SIZE] = { nullptr };
+    void *devPtrsArr[MAX_ARR_SIZE] = {nullptr};
     uint64_t size = 0;
     rtMemType_t type = 0;
     uint16_t moduleId = 0;
@@ -82,7 +83,7 @@ TEST_F(MemoryTest, rtMallocCached)
 TEST_F(MemoryTest, rtDvppMalloc)
 {
     constexpr uint32_t MAX_ARR_SIZE = 20;
-    void* devPtrsArr[MAX_ARR_SIZE] = { nullptr };
+    void *devPtrsArr[MAX_ARR_SIZE] = {nullptr};
     uint64_t size = 0;
     uint16_t moduleId = 0;
     rtError_t error = rtDvppMalloc(devPtrsArr, size, moduleId);
@@ -92,7 +93,7 @@ TEST_F(MemoryTest, rtDvppMalloc)
 TEST_F(MemoryTest, rtDvppMallocWithFlag)
 {
     constexpr uint32_t MAX_ARR_SIZE = 20;
-    void* devPtrsArr[MAX_ARR_SIZE] = { nullptr };
+    void *devPtrsArr[MAX_ARR_SIZE] = {nullptr};
     uint64_t size = 0;
     uint16_t moduleId = 0;
     uint32_t flag = 1;
@@ -103,7 +104,7 @@ TEST_F(MemoryTest, rtDvppMallocWithFlag)
 TEST_F(MemoryTest, rtMemAlloc)
 {
     constexpr uint32_t MAX_ARR_SIZE = 20;
-    void* devPtrsArr[MAX_ARR_SIZE] = { nullptr };
+    void *devPtrsArr[MAX_ARR_SIZE] = {nullptr};
     rtMallocPolicy policy = RT_MEM_MALLOC_HUGE_FIRST;
     rtMallocAdvise advise = RT_MEM_ADVISE_DVPP;
     rtMallocConfig_t *cfg = nullptr;
@@ -115,7 +116,7 @@ TEST_F(MemoryTest, rtMemAlloc)
 TEST_F(MemoryTest, rtMemAllocManaged)
 {
     constexpr uint32_t MAX_ARR_SIZE = 20;
-    void* devPtrsArr[MAX_ARR_SIZE] = { nullptr };
+    void *devPtrsArr[MAX_ARR_SIZE] = {nullptr};
     uint64_t size = 0;
     uint16_t moduleId = 0;
     uint32_t flag = 1;

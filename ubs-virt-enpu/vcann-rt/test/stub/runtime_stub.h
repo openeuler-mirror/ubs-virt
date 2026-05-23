@@ -18,7 +18,7 @@ extern "C" {
 #endif
 
 #define MOCK_MEMCTL_LOCK_PATH "../__build/memctl.lock"
-#define MOCK_NPU_CONFIG_PATH  "../__build/test_npu_info.config"
+#define MOCK_NPU_CONFIG_PATH "../__build/test_npu_info.config"
 
 // device.c
 void load_rt_libraries(void);

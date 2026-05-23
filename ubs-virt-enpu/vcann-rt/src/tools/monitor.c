@@ -45,8 +45,8 @@ static int monitor_npu_utilization(void)
     die("       Aicore Limit Quota(%)     : %d\n"
         "       Memory Limit quota(MB)    : %lld\n"
         "       Memory Usage(MB)          : %d\n",
-        get_core_limit_quota(), get_mem_limit_quota() / 1024 / 1024,  // 1024用于单位转换
-        used / 1024 / 1024); // 1024用于单位转换
+        get_core_limit_quota(), get_mem_limit_quota() / 1024 / 1024, // 1024用于单位转换
+        used / 1024 / 1024);                                         // 1024用于单位转换
 
     return ENPU_SUCCESS;
 }

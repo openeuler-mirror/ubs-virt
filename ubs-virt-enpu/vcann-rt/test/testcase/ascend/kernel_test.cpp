@@ -11,25 +11,25 @@
  */
 
 #include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
-#include <sys/file.h>
 #include <runtime/rt.h>
-#include "securec.h"
-#include "runtime_stub.h"
+#include <sys/file.h>
+#include <mockcpp/mockcpp.hpp>
 #include "log.h"
-#include "npu_manager.h"
 #include "mem_limiter.h"
+#include "npu_manager.h"
+#include "runtime_stub.h"
+#include "securec.h"
 
 class KernelTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout<<"Kernel test start"<<std::endl;
+        std::cout << "Kernel test start" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout<<"Kernel test end"<<std::endl;
+        std::cout << "Kernel test end" << std::endl;
     }
 
     void SetUp()
@@ -49,6 +49,7 @@ protected:
         close(fd_);
         fd_ = -1;
     }
+
 private:
     int fd_ = -1;
 };
@@ -256,8 +257,8 @@ TEST_F(KernelTest, rtsLaunchKernelWithHostArgs)
     uint32_t argsSize = 0;
     rtPlaceHolderInfo_t *placeHolderArray = nullptr;
     uint32_t placeHolderNum = 0;
-    rtError_t ret = rtsLaunchKernelWithHostArgs(funcHandle, numBlocks, stm, cfg, hostArgs,
-        argsSize, placeHolderArray, placeHolderNum);
+    rtError_t ret = rtsLaunchKernelWithHostArgs(funcHandle, numBlocks, stm, cfg, hostArgs, argsSize, placeHolderArray,
+                                                placeHolderNum);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
@@ -274,34 +275,32 @@ TEST_F(KernelTest, rtsLaunchCpuKernel)
 
 TEST_F(KernelTest, rtsLaunchKernelWithConfig)
 {
-    rtFuncHandle funcHandle = nullptr; 
+    rtFuncHandle funcHandle = nullptr;
     uint32_t numBlocks = 0;
     rtStream_t stm = nullptr;
-    rtKernelLaunchCfg_t *cfg = nullptr; 
+    rtKernelLaunchCfg_t *cfg = nullptr;
     rtArgsHandle argsHandle = nullptr;
     void *reserve = nullptr;
-    rtError_t ret = rtsLaunchKernelWithConfig(funcHandle, numBlocks, stm, cfg,
-        argsHandle, reserve);
+    rtError_t ret = rtsLaunchKernelWithConfig(funcHandle, numBlocks, stm, cfg, argsHandle, reserve);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
 TEST_F(KernelTest, rtsLaunchKernelWithDevArgs)
 {
-    rtFuncHandle funcHandle = nullptr; 
+    rtFuncHandle funcHandle = nullptr;
     uint32_t numBlocks = 0;
     rtStream_t stm = nullptr;
-    rtKernelLaunchCfg_t *cfg = nullptr; 
+    rtKernelLaunchCfg_t *cfg = nullptr;
     void *args = nullptr;
     uint32_t argsSize = 0;
     void *reserve = nullptr;
-    rtError_t ret = rtsLaunchKernelWithDevArgs(funcHandle, numBlocks, stm, cfg,
-        args, argsSize, reserve);
+    rtError_t ret = rtsLaunchKernelWithDevArgs(funcHandle, numBlocks, stm, cfg, args, argsSize, reserve);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
 TEST_F(KernelTest, rtsLaunchRandomNumTask)
 {
-    rtRandomNumTaskInfo_t * taskInfo = nullptr;
+    rtRandomNumTaskInfo_t *taskInfo = nullptr;
     rtStream_t stm = nullptr;
     void *reserve = nullptr;
     rtError_t ret = rtsLaunchRandomNumTask(taskInfo, stm, reserve);
@@ -319,7 +318,7 @@ TEST_F(KernelTest, rtsLaunchReduceAsyncTask)
 
 TEST_F(KernelTest, rtsLaunchUpdateTask)
 {
-    rtStream_t destStm = nullptr; 
+    rtStream_t destStm = nullptr;
     uint32_t destTaskId = 0;
     rtStream_t stm = nullptr;
     rtTaskUpdateCfg_t *cfg = nullptr;
