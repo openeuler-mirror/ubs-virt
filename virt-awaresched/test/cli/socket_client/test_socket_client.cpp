@@ -34,7 +34,7 @@ void TestSocketClient::TearDown()
 
 TEST_F(TestSocketClient, testConnectToServer)
 {
-    MOCKER_CPP(&SocketClient::CloseConnection, void(SocketClient::*)()).stubs().will(ignoreReturnValue());
+    MOCKER_CPP(&SocketClient::CloseConnection, void (SocketClient::*)()).stubs().will(ignoreReturnValue());
     MOCKER(close).stubs().will(returnValue(1));
     SocketClient socketClient;
     MOCKER(socket).stubs().will(returnValue(-1)).then(returnValue(1));
@@ -50,7 +50,7 @@ TEST_F(TestSocketClient, testConnectToServer)
 
 TEST_F(TestSocketClient, testConnectToServerException)
 {
-    MOCKER_CPP(&SocketClient::CloseConnection, void(SocketClient::*)()).stubs().will(ignoreReturnValue());
+    MOCKER_CPP(&SocketClient::CloseConnection, void (SocketClient::*)()).stubs().will(ignoreReturnValue());
     MOCKER(close).stubs().will(returnValue(1));
     SocketClient socketClient;
     MOCKER(socket).stubs().will(returnValue(1));
@@ -70,7 +70,7 @@ ssize_t ClientSendMock(int fd, const void *buf, size_t n, int flags)
 
 TEST_F(TestSocketClient, testSendMessage)
 {
-    MOCKER_CPP(&SocketClient::CloseConnection, void(SocketClient::*)()).stubs().will(ignoreReturnValue());
+    MOCKER_CPP(&SocketClient::CloseConnection, void (SocketClient::*)()).stubs().will(ignoreReturnValue());
     MOCKER(close).stubs().will(returnValue(1));
     SocketClient socketClient;
     socketClient.isConnected = false;
@@ -107,7 +107,7 @@ ssize_t ClientRecvMock(int fd, void *buf, size_t n, int flags)
 
 TEST_F(TestSocketClient, testReceiveMessage)
 {
-    MOCKER_CPP(&SocketClient::CloseConnection, void(SocketClient::*)()).stubs().will(ignoreReturnValue());
+    MOCKER_CPP(&SocketClient::CloseConnection, void (SocketClient::*)()).stubs().will(ignoreReturnValue());
     MOCKER(close).stubs().will(returnValue(1));
     MOCKER(recv)
         .stubs()
@@ -140,16 +140,16 @@ TEST_F(TestSocketClient, testCloseConnection)
 
 TEST_F(TestSocketClient, testSendSingleMessage)
 {
-    MOCKER_CPP(&SocketClient::CloseConnection, void(SocketClient::*)()).stubs().will(ignoreReturnValue());
+    MOCKER_CPP(&SocketClient::CloseConnection, void (SocketClient::*)()).stubs().will(ignoreReturnValue());
     MOCKER(close).stubs().will(returnValue(1));
-    MOCKER_CPP(&SocketClient::ConnectToServer, bool(SocketClient::*)())
+    MOCKER_CPP(&SocketClient::ConnectToServer, bool (SocketClient::*)())
         .stubs()
         .will(returnValue(false))
         .then(returnValue(true));
     auto ret = SendSingleMessage("a");
     EXPECT_FALSE(ret);
 
-    MOCKER_CPP(&SocketClient::SendMessage, bool(SocketClient::*)(const std::string &))
+    MOCKER_CPP(&SocketClient::SendMessage, bool (SocketClient::*)(const std::string &))
         .stubs()
         .will(returnValue(false))
         .then(returnValue(true));

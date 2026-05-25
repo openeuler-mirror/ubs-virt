@@ -31,7 +31,8 @@ using virDomainEventDetailType = uint8_t;
 
 const fs::path vmCgroupPrefix = "/sys/fs/cgroup/cpuset/machine.slice";
 constexpr size_t VM_UUID_LEN = 37; // 36 (UUID length) + 1 (\0)
-enum class VmEventType {
+enum class VmEventType
+{
     UNKNOWN = 1,
     START,
     SHUTDOWN,

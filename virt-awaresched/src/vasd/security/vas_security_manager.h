@@ -22,7 +22,8 @@
 namespace vas::security {
 using namespace vas::common;
 
-enum class VasCapOperateType {
+enum class VasCapOperateType
+{
     CAP_ADD,    // Add capabilities
     CAP_DELETE, // Delete capabilities
 };

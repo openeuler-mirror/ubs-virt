@@ -126,7 +126,8 @@ struct UrmaBandwidthGetRequest : MsgBase {
     }
 };
 
-struct UrmaBandwidthResetRequest : UrmaBandwidthGetRequest {};
+struct UrmaBandwidthResetRequest : UrmaBandwidthGetRequest {
+};
 
 struct UrmaBandwidthGetResponse : BaseResponse {
     uint32_t minBandwidth_{};

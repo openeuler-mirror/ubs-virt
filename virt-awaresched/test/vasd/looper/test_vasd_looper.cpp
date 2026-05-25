@@ -110,7 +110,7 @@ TEST_F(TestVasdLooper, testRunAndStop)
     MOCKER(VasdLooper::StartSocketServer).stubs().will(returnValue(nullptr));
     EXPECT_NO_THROW(VasdLooper::Run());
     MOCKER_CPP(&VmEventProcess::Stop, void()).stubs().will(returnValue(nullptr));
-    MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(returnValue(nullptr));
+    MOCKER_CPP(&SocketServer::CloseServer, void (SocketServer::*)()).stubs().will(returnValue(nullptr));
     testExitFlag.store(true);
     EXPECT_NO_THROW(VasdLooper::Stop());
 }
@@ -135,7 +135,7 @@ TEST_F(TestVasdLooper, testVmEventHandler)
     MOCKER_CPP(&ClusterSched::GetDomainsByUuid, std::vector<VmDomain>(ClusterSched::*)(const std::string &))
         .stubs()
         .will(returnValue(std::vector<VmDomain>{}));
-    MOCKER_CPP(&ClusterSched::ClusterCompaction, void(ClusterSched::*)()).stubs().will(returnValue(nullptr));
+    MOCKER_CPP(&ClusterSched::ClusterCompaction, void (ClusterSched::*)()).stubs().will(returnValue(nullptr));
     tmp = std::thread(SetExitFlagTrue);
     EXPECT_NO_THROW(VasdLooper::VmEventHandler());
     tmp.join();
@@ -144,12 +144,12 @@ TEST_F(TestVasdLooper, testVmEventHandler)
 
 TEST_F(TestVasdLooper, testStartSocketServer)
 {
-    MOCKER_CPP(&SocketServer::StartServer, bool(SocketServer::*)())
+    MOCKER_CPP(&SocketServer::StartServer, bool (SocketServer::*)())
         .stubs()
         .will(returnValue(false))
         .then(returnValue(true));
     EXPECT_NO_THROW(VasdLooper::StartSocketServer());
-    MOCKER_CPP(&SocketServer::AcceptClient, bool(SocketServer::*)())
+    MOCKER_CPP(&SocketServer::AcceptClient, bool (SocketServer::*)())
         .stubs()
         .will(returnValue(false))
         .then(returnValue(true));
@@ -168,7 +168,7 @@ TEST_F(TestVasdLooper, testStartSocketServer)
     MOCKER_CPP(&Api::SocketMsgHandler, VasRet(*)(const std::string &, std::string &))
         .stubs()
         .will(invoke(SocketMsgHandlerMock));
-    MOCKER_CPP(&SocketServer::SendMessage, bool(SocketServer::*)(const std::string &)).stubs().will(returnValue(true));
+    MOCKER_CPP(&SocketServer::SendMessage, bool (SocketServer::*)(const std::string &)).stubs().will(returnValue(true));
     tmp = std::thread(SetExitFlagTrue);
     EXPECT_NO_THROW(VasdLooper::StartSocketServer());
     tmp.join();

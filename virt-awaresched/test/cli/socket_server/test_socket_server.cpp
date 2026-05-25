@@ -38,7 +38,7 @@ void SocketServerCloseServer(SocketServer *_this) {}
 
 TEST_F(TestSocketServer, testStartServerException)
 {
-    MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
+    MOCKER_CPP(&SocketServer::CloseServer, void (SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
     MOCKER(close).stubs().will(returnValue(1));
     MOCKER(socket).stubs().will(returnValue(-1)).then(returnValue(1));
     MOCKER(vas::security::VasSecurityManager::ModifyEffectiveCapabilities).stubs().will(returnValue(-1));
@@ -49,7 +49,7 @@ TEST_F(TestSocketServer, testStartServerException)
 
 TEST_F(TestSocketServer, testStartServerException2)
 {
-    MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
+    MOCKER_CPP(&SocketServer::CloseServer, void (SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
     MOCKER(close).stubs().will(returnValue(1));
     MOCKER(socket).stubs().will(returnValue(-1)).then(returnValue(1));
     MOCKER(vas::security::VasSecurityManager::ModifyEffectiveCapabilities)
@@ -88,7 +88,7 @@ TEST_F(TestSocketServer, testRebuildRundirException)
 
 TEST_F(TestSocketServer, testBindSocket)
 {
-    MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
+    MOCKER_CPP(&SocketServer::CloseServer, void (SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
     MOCKER(close).stubs().will(returnValue(1));
     SocketServer socketServer{};
     MOCKER(memcpy_s).stubs().will(returnValue(-1));
@@ -98,7 +98,7 @@ TEST_F(TestSocketServer, testBindSocket)
 
 TEST_F(TestSocketServer, testAcceptClient)
 {
-    MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
+    MOCKER_CPP(&SocketServer::CloseServer, void (SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
     MOCKER(close).stubs().will(returnValue(NUMBER_ONE));
     SocketServer socketServer{};
     MOCKER(accept).stubs().will(returnValue(NUMBER_NEGATIVE_ONE)).then(returnValue(NUMBER_ONE));
@@ -110,7 +110,7 @@ TEST_F(TestSocketServer, testAcceptClient)
 
 TEST_F(TestSocketServer, testAcceptClientException)
 {
-    MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
+    MOCKER_CPP(&SocketServer::CloseServer, void (SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
     MOCKER(close).stubs().will(returnValue(NUMBER_ONE));
     SocketServer socketServer{};
     socketServer.clientSocket = 1;
@@ -128,7 +128,7 @@ ssize_t ServerRecvMock(int fd, void *buf, size_t n, int flags)
 
 TEST_F(TestSocketServer, testReceiveMessage)
 {
-    MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
+    MOCKER_CPP(&SocketServer::CloseServer, void (SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
     MOCKER(close).stubs().will(returnValue(NUMBER_ONE));
     SocketServer socketServer{};
     MOCKER(recv).stubs().will(returnValue(static_cast<ssize_t>(NUMBER_NEGATIVE_ONE))).then(invoke(ServerRecvMock));
@@ -149,7 +149,7 @@ ssize_t ServerSendMock(int fd, const void *buf, size_t n, int flags)
 
 TEST_F(TestSocketServer, testSendMessage)
 {
-    MOCKER_CPP(&SocketServer::CloseServer, void(SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
+    MOCKER_CPP(&SocketServer::CloseServer, void (SocketServer::*)()).stubs().will(invoke(SocketServerCloseServer));
     MOCKER(close).stubs().will(returnValue(NUMBER_ONE));
     MOCKER(send).stubs().will(invoke(ServerSendMock));
     SocketServer socketServer;

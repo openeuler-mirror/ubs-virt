@@ -25,7 +25,8 @@ using namespace vas::common;
 using namespace vas::sched::acquire;
 namespace fs = std::filesystem;
 
-enum class VmThreadType {
+enum class VmThreadType
+{
     VCPU_CPUSET = 0,
     VCPU_PREFERRED_CPU,
 };

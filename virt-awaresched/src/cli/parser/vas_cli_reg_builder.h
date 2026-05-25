@@ -21,7 +21,8 @@
 namespace vas::cli::framework {
 
 // Return value type
-enum class VasCliSdkResultType {
+enum class VasCliSdkResultType
+{
     NORMAL,
     PROMPT,
 };

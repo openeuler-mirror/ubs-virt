@@ -24,7 +24,8 @@ using virt::ovs::constants::CONFIG_SECTION_MAX_FIELD_LENGTH;
 using virt::ovs::constants::CONFIG_VALUE_MAX_FIELD_LENGTH;
 using virt::ovs::constants::SUFFIX_SIZE;
 
-enum class ConfigCode : uint32_t {
+enum class ConfigCode : uint32_t
+{
     OK = 0,
 
     CONFIG_FOLDER_MAX_DEPTH = 1001,
