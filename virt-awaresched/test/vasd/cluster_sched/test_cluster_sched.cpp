@@ -212,7 +212,7 @@ TEST_F(TestClusterSched, testGetDomainsByUuid)
 
 TEST_F(TestClusterSched, testReSchedVm)
 {
-    MOCKER_CPP(&ClusterSched::ClusterCompactionWithoutLock, void(ClusterSched::*)()).stubs().will(ignoreReturnValue());
+    MOCKER_CPP(&ClusterSched::ClusterCompactionWithoutLock, void (ClusterSched::*)()).stubs().will(ignoreReturnValue());
     MOCKER_CPP(&ClusterSched::Alloc, VasRet(ClusterSched::*)(VmDomain &))
         .stubs()
         .will(returnValue(VAS_ERROR))
@@ -221,8 +221,8 @@ TEST_F(TestClusterSched, testReSchedVm)
         .stubs()
         .will(returnValue(VAS_ERROR))
         .then(returnValue(VAS_OK));
-    MOCKER_CPP(&ClusterSched::Unassign, void(ClusterSched::*)(VmDomain &)).stubs().will(returnValue(VAS_OK));
-    MOCKER_CPP(&ClusterSched::Free, void(ClusterSched::*)(VmDomain &)).stubs().will(returnValue(VAS_OK));
+    MOCKER_CPP(&ClusterSched::Unassign, void (ClusterSched::*)(VmDomain &)).stubs().will(returnValue(VAS_OK));
+    MOCKER_CPP(&ClusterSched::Free, void (ClusterSched::*)(VmDomain &)).stubs().will(returnValue(VAS_OK));
     ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
     ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
     const std::string domainKey = uuid01 + "_0";
@@ -241,7 +241,7 @@ TEST_F(TestClusterSched, testClusterCompaction)
     ClusterSched::GetInstance().domainMap_ = defaultDomainMap;
     ClusterSched::GetInstance().numaClusterMap_ = defaultNumaClusterMap;
     MOCKER_CPP(&ClusterSched::CleanDyingPid, VasRet(ClusterSched::*)()).stubs().will(returnValue(VAS_OK));
-    MOCKER_CPP(&ClusterSched::CompactionCluster, void(ClusterSched::*)(uint16_t, std::map<uint16_t, Cluster> &))
+    MOCKER_CPP(&ClusterSched::CompactionCluster, void (ClusterSched::*)(uint16_t, std::map<uint16_t, Cluster> &))
         .stubs()
         .will(ignoreReturnValue());
     EXPECT_NO_THROW(ClusterSched::GetInstance().ClusterCompaction());

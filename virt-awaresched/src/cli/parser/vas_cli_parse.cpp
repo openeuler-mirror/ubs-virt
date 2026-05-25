@@ -231,7 +231,8 @@ void VasCliParse::VasCliRegisterSdkCmdInfo(std::vector<VasCliSdkCmdInfo> &vasCli
  */
 size_t VasCliParse::GetTerminalWidth()
 {
-    struct winsize win {};
+    struct winsize win {
+    };
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) == -1) {
         std::cerr << "ERROR: Failed to get terminal size." << std::endl;
     }
@@ -290,7 +291,8 @@ void VasCliParse::CommandTypeParamsHelpInfo(const std::vector<VasCliSdkOptionsIn
  */
 void VasCliParse::ParseOneCommandPrtHelpInfo(const std::string &firstCommand, const std::string &secondCommand)
 {
-    struct winsize win {};
+    struct winsize win {
+    };
     errno = 0;
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) == -1) {
         std::cerr << "ERROR: Failed to get terminal size., ErrorCode=" << std::to_string(errno) << std::endl;
@@ -318,7 +320,8 @@ void VasCliParse::ParseOneCommandPrtHelpInfo(const std::string &firstCommand, co
  */
 void VasCliParse::ParsePrtHelpInfo()
 {
-    struct winsize win {};
+    struct winsize win {
+    };
     errno = 0;
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &win) == -1) {
         std::cerr << "ERROR: Failed to get terminal size., ErrorCode=" << std::to_string(errno) << std::endl;

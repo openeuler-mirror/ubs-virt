@@ -28,7 +28,8 @@ struct PeerIdentity {
 
 class Connection {
 public:
-    enum class State {
+    enum class State
+    {
         READ_LEN,
         READ_BODY,
         READY,

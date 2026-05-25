@@ -27,7 +27,8 @@
 #include <thread>
 
 namespace virt::logger {
-enum class LoggerLevel {
+enum class LoggerLevel
+{
     DEBUG,
     INFO,
     WARN,

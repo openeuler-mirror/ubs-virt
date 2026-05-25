@@ -40,7 +40,8 @@ constexpr uint64_t MAX_LOGFILESIZE = 200 * SPACE_1M;
 /**
  * log output type
  */
-enum class OutputType {
+enum class OutputType
+{
     NONE = 0,
     STDOUT,
     FILE,
@@ -49,7 +50,8 @@ enum class OutputType {
 /**
  * log level
  */
-enum class Level {
+enum class Level
+{
     DEBUG,
     INFO,
     WARNING,

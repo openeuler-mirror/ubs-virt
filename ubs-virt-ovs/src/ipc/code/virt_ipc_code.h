@@ -14,7 +14,8 @@
 #define UBS_VIRT_IPC_CODE_H
 #include <cstdint>
 namespace virt::ovs {
-enum class VirtIPCCode : uint32_t {
+enum class VirtIPCCode : uint32_t
+{
     OK = 0,
 
     SERVICE_NOT_FOUND = 1001,
