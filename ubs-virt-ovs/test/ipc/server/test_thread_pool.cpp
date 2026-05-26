@@ -12,6 +12,8 @@
 
 #include "test_thread_pool.h"
 
+#include "common/constants.h"
+
 using namespace virt::ovs::ipc::server;
 using namespace virt::ovs;
 namespace ovs::ut {
@@ -54,5 +56,53 @@ TEST_F(TestThreadPool, QueueSizeCoverage)
     ThreadPool pool(1);
 
     EXPECT_EQ(pool.QueueSize(), 0);
+
+    pool.Start();
+    std::mutex mtx;
+    std::condition_variable cv;
+    std::atomic<bool> done{false};
+
+    pool.TryEnqueue([&] {
+        std::unique_lock<std::mutex> lock(mtx);
+        cv.wait(lock, [&] { return done.load(); });
+    });
+
+    EXPECT_GT(pool.QueueSize(), 0u);
+    done = true;
+    cv.notify_all();
+    pool.Stop();
+}
+
+TEST_F(TestThreadPool, TryEnqueue_QueueFull)
+{
+    ThreadPool pool(1);
+    pool.Start();
+
+    std::mutex mtx;
+    std::condition_variable cv;
+    std::atomic<bool> done{false};
+    std::atomic<int> executed{0};
+
+    pool.TryEnqueue([&] {
+        std::unique_lock<std::mutex> lock(mtx);
+        cv.wait(lock, [&] { return done.load(); });
+        executed++;
+    });
+
+    for (int i = 0; i < constants::THREAD_POOL_DEFAULT_QUEUE_SIZE + 1; ++i) {
+        pool.TryEnqueue([&] { executed++; });
+    }
+
+    done = true;
+    cv.notify_all();
+    pool.Stop();
+}
+
+TEST_F(TestThreadPool, DoubleStop)
+{
+    ThreadPool pool(1);
+    pool.Start();
+    pool.Stop();
+    EXPECT_NO_THROW(pool.Stop());
 }
 } // namespace ovs::ut

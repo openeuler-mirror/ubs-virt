@@ -17,7 +17,6 @@
 #include <vector>
 
 namespace virt::logger {
-constexpr size_t MAX_LOG_SIZE = 50 * 1024 * 1024;
 constexpr size_t MAX_ROTATE_FILES = 5;
 constexpr int BUFER_SIZE = 32;
 constexpr int MILLI_WIDTH = 3;

@@ -66,4 +66,20 @@ TEST_F(TestClientLibrary, GetSymbol_NotFound)
 
     EXPECT_THROW(lib.GetSymbol("test_symbol"), std::runtime_error);
 }
+TEST_F(TestClientLibrary, Instance_DefaultPath)
+{
+    ClientLibrary &lib = ClientLibrary::Instance();
+    EXPECT_NE(&lib, nullptr);
+}
+
+TEST_F(TestClientLibrary, GetSymbol_NullHandle)
+{
+    ClientLibrary lib("/dummy.so");
+    MOCKER(dlopen).stubs().with(any(), any()).will(returnValue(static_cast<void *>(nullptr)));
+    static std::string mockErrStr = "mock error";
+    MOCKER(dlerror).stubs().will(returnValue(const_cast<char *>(mockErrStr.c_str())));
+
+    EXPECT_THROW(lib.GetSymbol("test_symbol"), std::runtime_error);
+}
+
 } // namespace ovs::ut
