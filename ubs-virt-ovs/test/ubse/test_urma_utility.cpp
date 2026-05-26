@@ -84,4 +84,27 @@ TEST_F(TestUrmaUtility, ResetBandWidth_Success)
     UrmaUtility utility;
     EXPECT_EQ(utility.ResetBandWidth("dev"), 0u);
 }
+TEST_F(TestUrmaUtility, DestructorCleanup)
+{
+    {
+        UrmaUtility utility;
+        uint32_t minBw = 0;
+        uint32_t maxBw = 0;
+        EXPECT_EQ(utility.GetBandWidth("dev", minBw, maxBw), 0u);
+        EXPECT_EQ(utility.SetBandWidth("dev", 10, 20), 0u);
+        EXPECT_EQ(utility.ResetBandWidth("dev"), 0u);
+    }
+    SUCCEED();
+}
+
+TEST_F(TestUrmaUtility, MultipleOperationsOnSameDevice)
+{
+    UrmaUtility utility;
+    uint32_t minBw = 0;
+    uint32_t maxBw = 0;
+    EXPECT_EQ(utility.SetBandWidth("dev1", 100, 200), 0u);
+    EXPECT_EQ(utility.GetBandWidth("dev1", minBw, maxBw), 0u);
+    EXPECT_EQ(utility.ResetBandWidth("dev1"), 0u);
+}
+
 } // namespace ovs::ut

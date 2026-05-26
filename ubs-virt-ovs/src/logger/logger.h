@@ -68,9 +68,19 @@ private:
     std::string FormatTime(const std::chrono::system_clock::time_point &tp);
 };
 
+void EnsureLogDir();
+size_t GetFileSize(const char *path);
+std::string NowFilename();
+void SetFileMode(const char *path, mode_t mode);
+void InitLogFile();
+void CleanupOldRotateLogFile();
+void CompressOldLogFile(const std::string &oldLogFile, const std::string &ts);
+
+constexpr size_t MAX_LOG_SIZE = 50 * 1024 * 1024;
+} // namespace virt::logger
+
 #define LOG_DEBUG virt::logger::Logger(virt::logger::LoggerLevel::DEBUG, __FILE__, __FUNCTION__, __LINE__)
 #define LOG_INFO virt::logger::Logger(virt::logger::LoggerLevel::INFO, __FILE__, __FUNCTION__, __LINE__)
 #define LOG_WARN virt::logger::Logger(virt::logger::LoggerLevel::WARN, __FILE__, __FUNCTION__, __LINE__)
 #define LOG_ERROR virt::logger::Logger(virt::logger::LoggerLevel::ERROR, __FILE__, __FUNCTION__, __LINE__)
-} // namespace virt::logger
 #endif

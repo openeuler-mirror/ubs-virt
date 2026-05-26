@@ -11,8 +11,9 @@
  */
 
 #include "test_logger.h"
-#include "logger.cpp"
+#include "logger.h"
 
+#include <dirent.h>
 #include <securec.h>
 
 using namespace virt::logger;

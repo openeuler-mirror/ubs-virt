@@ -420,4 +420,87 @@ TEST_F(TestServer, AuthorizeUser_GetConfSuccess)
 
     GlobalMockObject::verify();
 }
+
+TEST_F(TestServer, HandleReadEvent_HandleReadReturnsFalse)
+{
+    Server s("/tmp/ubs_test/socket");
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+
+    PeerIdentity id{};
+    id.uid = getuid();
+    id.username = Server::UidToUsername(id.uid);
+    auto conn = std::make_shared<Connection>(fds[0], id);
+
+    s.qpsLimit_ = 1000;
+    close(fds[0]);
+    close(fds[1]);
+
+    EXPECT_FALSE(s.HandleReadEvent(conn, fds[0]));
+}
+
+TEST_F(TestServer, HandleReadEvent_PoolFull)
+{
+    Server s("/tmp/ubs_test/socket");
+
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM | SOCK_NONBLOCK, 0, fds), 0);
+
+    PeerIdentity id{};
+    id.uid = getuid();
+    id.username = Server::UidToUsername(id.uid);
+    auto conn = std::make_shared<Connection>(fds[0], id);
+
+    s.qpsLimit_ = 1000;
+
+    std::string body = "test";
+    uint32_t len = htonl(static_cast<uint32_t>(body.size()));
+    write(fds[1], &len, sizeof(len));
+    write(fds[1], body.data(), body.size());
+
+    MOCKER(&ThreadPool::TryEnqueue).stubs().will(returnValue(false));
+    EXPECT_FALSE(s.HandleReadEvent(conn, fds[0]));
+    MOCKER(&ThreadPool::TryEnqueue).reset();
+
+    close(fds[0]);
+    close(fds[1]);
+}
+
+TEST_F(TestServer, HandleWriteEvent_EpollCtlModFail)
+{
+    int fds[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+    SetNonBlock(fds[0]);
+    SetNonBlock(fds[1]);
+
+    PeerIdentity id{};
+    id.uid = getuid();
+    id.username = Server::UidToUsername(id.uid);
+
+    Connection conn(fds[0], id);
+    conn.writeBuf_ = "data";
+
+    Server s("/tmp/ubs_test/socket", 1);
+    ASSERT_TRUE(s.InitListenSocket());
+    ASSERT_TRUE(s.InitEpoll());
+
+    epoll_event ev{};
+    ev.events = EPOLLOUT | EPOLLET;
+    ev.data.fd = fds[0];
+    ASSERT_EQ(epoll_ctl(s.epollFd_, EPOLL_CTL_ADD, fds[0], &ev), 0);
+
+    MOCKER(epoll_ctl).stubs().will(returnValue(-1));
+    EXPECT_FALSE(s.HandleWriteEvent(conn, fds[0]));
+    MOCKER(epoll_ctl).reset();
+
+    close(fds[0]);
+    close(fds[1]);
+}
+
+TEST_F(TestServer, InitListenSocket_PrepareSocketDirFail)
+{
+    Server s("/proc/nonexistent_subdir_xyz/socket", 1);
+    EXPECT_FALSE(s.InitListenSocket());
+}
+
 } // namespace ovs::ut
