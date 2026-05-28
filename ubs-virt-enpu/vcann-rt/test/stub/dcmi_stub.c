@@ -10,8 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <stdio.h>
 #include <dcmi_interface_api.h>
+#include <stdio.h>
 
 int dcmi_init(void)
 {
@@ -25,15 +25,13 @@ int dcmi_get_card_id_device_id_from_logicid(int *card_id, int *device_id, unsign
     return 0;
 }
 
-int dcmi_get_device_resource_info(int card_id, int device_id, struct dcmi_proc_mem_info *proc_info,
-                                  int *proc_num)
+int dcmi_get_device_resource_info(int card_id, int device_id, struct dcmi_proc_mem_info *proc_info, int *proc_num)
 {
     printf("call stub_dcmi_get_device_resource_info\n");
     return 0;
 }
 
-int dcmi_get_device_utilization_rate(int card_id, int device_id, int input_type,
-                                    unsigned int* utilization_rate)
+int dcmi_get_device_utilization_rate(int card_id, int device_id, int input_type, unsigned int *utilization_rate)
 {
     printf("call stub_dcmi_get_device_utilization_rate\n");
     return 0;
@@ -68,4 +66,3 @@ int dcmiv2_get_device_list(int *device_list, int *device_count, int list_len)
     printf("call stub_dcmiv2_get_device_list\n");
     return 0;
 }
-

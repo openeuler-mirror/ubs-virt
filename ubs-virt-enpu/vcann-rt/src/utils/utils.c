@@ -9,11 +9,11 @@
 * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 * See the Mulan PSL v2 for more details.
 */
+#include "../include/utils.h"
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include "../include/common.h"
-#include "../include/utils.h"
 
 void *map_share_mem(const char *shmID, size_t size)
 {
@@ -26,9 +26,9 @@ void *map_share_mem(const char *shmID, size_t size)
 
     struct stat st;
     if (fstat(fd, &st) != 0) {
-            LOG_ERROR("Failed to fstat");
-            close(fd);
-            return NULL;
+        LOG_ERROR("Failed to fstat");
+        close(fd);
+        return NULL;
     }
     if (st.st_size >= 0 && (size_t)st.st_size < size) {
         if (ftruncate(fd, size) == -1) {
@@ -111,8 +111,7 @@ static bool file_lock_release(file_lock *lock)
     }
 
     int ret = flock(lock->fd, LOCK_UN);
-    CHECK_COND_RETURN_(ret != 0, false, "unlock failed, fd %d, errno %s.",
-        lock->fd, strerror(errno));
+    CHECK_COND_RETURN_(ret != 0, false, "unlock failed, fd %d, errno %s.", lock->fd, strerror(errno));
 
     lock->held = false;
     return true;

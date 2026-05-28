@@ -10,29 +10,29 @@
  * See the Mulan PSL v2 for more details.
  */
 
+#include "config.h"
+#include <acl/acl.h>
 #include <gtest/gtest.h>
-#include <mockcpp/mockcpp.hpp>
+#include <runtime/rt.h>
 #include <sys/file.h>
 #include <sys/mman.h>
-#include <runtime/rt.h>
-#include <acl/acl.h>
-#include "securec.h"
-#include "runtime_stub.h"
+#include <mockcpp/mockcpp.hpp>
 #include "log.h"
-#include "config.h"
-#include "npu_manager.h"
 #include "mem_limiter.h"
+#include "npu_manager.h"
+#include "runtime_stub.h"
+#include "securec.h"
 
 class ConfigTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout<<"Config test start"<<std::endl;
+        std::cout << "Config test start" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout<<"Config test end"<<std::endl;
+        std::cout << "Config test end" << std::endl;
     }
 
     void SetUp()
@@ -52,6 +52,7 @@ protected:
         close(fd_);
         fd_ = -1;
     }
+
 private:
     int fd_ = -1;
 };

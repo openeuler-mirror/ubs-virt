@@ -13,71 +13,71 @@
 #include <gtest/gtest.h>
 #include <mockcpp/mockcpp.hpp>
 
-#include "securec.h"
-#include "npu_manager.h"
-#include "dcmi_wrapper.h"
-#include "config.h"
-#include "mem_limiter.h"
-#include "core_limiter.h"
-#include "log.h"
 #include "common.h"
+#include "config.h"
+#include "core_limiter.h"
+#include "dcmi_wrapper.h"
+#include "log.h"
+#include "mem_limiter.h"
+#include "npu_manager.h"
+#include "securec.h"
 
 extern "C" {
-    int stub_load_config(const char *path)
-    {
-        (void)path;
-        config.phy_npu_id = 0;
-        config.vnpu_id = 1;
-        config.scheduling_policy = SCHED_POLICY_FIXED_SHARE;
-        config.aicore_quota = 8;
-        config.memory_quota = 1024; // MB
-        strcpy_s(config.shm_id, sizeof(config.shm_id), "test_shm_id");
-        return ENPU_SUCCESS;
-    }
+int stub_load_config(const char *path)
+{
+    (void)path;
+    config.phy_npu_id = 0;
+    config.vnpu_id = 1;
+    config.scheduling_policy = SCHED_POLICY_FIXED_SHARE;
+    config.aicore_quota = 8;
+    config.memory_quota = 1024; // MB
+    strcpy_s(config.shm_id, sizeof(config.shm_id), "test_shm_id");
+    return ENPU_SUCCESS;
+}
 
-    int stub_enpu_dcmi_get_card_info(int index, int *card_id, int *device_id)
-    {
-        (void)index;
-        *card_id = 0;
-        *device_id = 0;
-        return ENPU_SUCCESS;
-    }
+int stub_enpu_dcmi_get_card_info(int index, int *card_id, int *device_id)
+{
+    (void)index;
+    *card_id = 0;
+    *device_id = 0;
+    return ENPU_SUCCESS;
+}
 
-    int stub_enpu_dcmi_get_device_resource_info(int logic_id, int card_id, int device_id, size_t *used)
-    {
-        (void)logic_id;
-        (void)card_id;
-        (void)device_id;
-        *used = 512 * MB_TO_B;
-        return ENPU_SUCCESS;
-    }
+int stub_enpu_dcmi_get_device_resource_info(int logic_id, int card_id, int device_id, size_t *used)
+{
+    (void)logic_id;
+    (void)card_id;
+    (void)device_id;
+    *used = 512 * MB_TO_B;
+    return ENPU_SUCCESS;
+}
 
-    int stub_memory_limiter_init(void)
-    {
-        return ENPU_SUCCESS;
-    }
+int stub_memory_limiter_init(void)
+{
+    return ENPU_SUCCESS;
+}
 
-    int stub_aicore_limiter_initialize(void)
-    {
-        return ENPU_SUCCESS;
-    }
+int stub_aicore_limiter_initialize(void)
+{
+    return ENPU_SUCCESS;
+}
 
-    int stub_log_init(void)
-    {
-        return ENPU_SUCCESS;
-    }
+int stub_log_init(void)
+{
+    return ENPU_SUCCESS;
+}
 }
 
 class NpuManagerTest : public testing::Test {
 protected:
     static void SetUpTestCase()
     {
-        std::cout<<"npu_manager test start"<<std::endl;
+        std::cout << "npu_manager test start" << std::endl;
     }
 
     static void TearDownTestCase()
     {
-        std::cout<<"npu_manager test end"<<std::endl;
+        std::cout << "npu_manager test end" << std::endl;
     }
 
     void SetUp()

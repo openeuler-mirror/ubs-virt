@@ -10,10 +10,10 @@
 * See the Mulan PSL v2 for more details.
 */
 
-#include "log.h"
-#include "runtime_hook.h"
 #include "core_limiter.h"
+#include "log.h"
 #include "npu_manager.h"
+#include "runtime_hook.h"
 
 RUNTIME_HOOK_DEFINE(rtModelExecute, rtModel_t mdl, rtStream_t stm, uint32_t flag)
 {

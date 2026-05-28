@@ -10,17 +10,17 @@
 * See the Mulan PSL v2 for more details.
 */
 
-#include <runtime/rt.h>
-#include "include/common.h"
-#include "acl/acl.h"
-#include "runtime_hook.h"
-#include "common.h"
-#include "dcmi_wrapper.h"
-#include "core_limiter.h"
-#include "mem_limiter.h"
-#include "utils.h"
-#include "config.h"
 #include "npu_manager.h"
+#include <runtime/rt.h>
+#include "acl/acl.h"
+#include "common.h"
+#include "config.h"
+#include "core_limiter.h"
+#include "dcmi_wrapper.h"
+#include "include/common.h"
+#include "mem_limiter.h"
+#include "runtime_hook.h"
+#include "utils.h"
 
 pthread_once_t once_init = PTHREAD_ONCE_INIT;
 pthread_once_t post_init_flag = PTHREAD_ONCE_INIT;
@@ -126,8 +126,7 @@ int enpu_config_info_init()
 
     size_t max_memory_quota = SIZE_MAX / MB_TO_B;
     CHECK_RETURN_RANGE_INT((size_t)config.memory_quota, 1, max_memory_quota);
-    if (config.scheduling_policy == SCHED_POLICY_FIXED_SHARE ||
-        config.scheduling_policy == SCHED_POLICY_ELASTIC) {
+    if (config.scheduling_policy == SCHED_POLICY_FIXED_SHARE || config.scheduling_policy == SCHED_POLICY_ELASTIC) {
         CHECK_RETURN_RANGE_INT(config.aicore_quota, 1, MAX_CORE_QUOTA);
 
         g_npu_info.core_limit_quota = (uint8_t)config.aicore_quota;
@@ -137,8 +136,8 @@ int enpu_config_info_init()
         g_npu_info.mem_limit_quota = (size_t)config.memory_quota * MB_TO_B;
         g_npu_info.is_core_limit = false;
     } else {
-        LOG_ERROR("scheduling policy is illegal, %s = %d, should in range [0, %d]\n",
-            OPTION_SCHEDULING_POLICY, config.scheduling_policy, SCHED_POLICY_BEST_EFFORT);
+        LOG_ERROR("scheduling policy is illegal, %s = %d, should in range [0, %d]\n", OPTION_SCHEDULING_POLICY,
+                  config.scheduling_policy, SCHED_POLICY_BEST_EFFORT);
         return ENPU_FAIL;
     }
 
@@ -231,13 +230,13 @@ void __enpu_global_init_post(void)
     size_t totalSize = 0;
     size_t appliedSize = get_mem_limit_quota();
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtMemGetInfoEx, RT_MEMORYINFO_HBM, &freeSize, &totalSize);
-    LOG_DEBUG("Call rtMemGetInfoEx return:%d, free HBM size:%zu, total HBM size:%zu, user applied HBM size:%zu.",
-        ret, freeSize, totalSize, appliedSize);
-    CHECK_COND_LOG_((ret != RT_ERROR_NONE),
-        "Get avaliable HBM size failed! ret:%d, freeSize:%zu, totalSize:%zu.", ret, freeSize, totalSize);
+    LOG_DEBUG("Call rtMemGetInfoEx return:%d, free HBM size:%zu, total HBM size:%zu, user applied HBM size:%zu.", ret,
+              freeSize, totalSize, appliedSize);
+    CHECK_COND_LOG_((ret != RT_ERROR_NONE), "Get avaliable HBM size failed! ret:%d, freeSize:%zu, totalSize:%zu.", ret,
+                    freeSize, totalSize);
     if (appliedSize > totalSize) {
         LOG_WARN("User appiled HBM size:%zd is bigger than total HBM size:%zd, now set mem_limit_quota to %zd.",
-            appliedSize, totalSize, totalSize);
+                 appliedSize, totalSize, totalSize);
         set_mem_limit_quota(totalSize);
     }
 }

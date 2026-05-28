@@ -28,8 +28,8 @@ void reset_config()
 int check_int32(int32_t option, const char *option_name)
 {
     if (option == INVALID_VALUE) {
-        LOG_ERROR("\"%s\" is not set. Please check the config and add it as a new line: \"%s=VALUE\"",
-            option_name, option_name);
+        LOG_ERROR("\"%s\" is not set. Please check the config and add it as a new line: \"%s=VALUE\"", option_name,
+                  option_name);
         return ENPU_FAIL;
     }
     return ENPU_SUCCESS;
@@ -38,41 +38,40 @@ int check_int32(int32_t option, const char *option_name)
 int check_str(const char *str, const char *option_name)
 {
     if (strlen(str) == 0) {
-        LOG_ERROR("\"%s\" is not set. Please check the config and add it as a new line: \"%s=VALUE\"",
-            option_name, option_name);
+        LOG_ERROR("\"%s\" is not set. Please check the config and add it as a new line: \"%s=VALUE\"", option_name,
+                  option_name);
         return ENPU_FAIL;
     }
     return ENPU_SUCCESS;
 }
 
-
 int check_config()
 {
     return check_int32(config.phy_npu_id, OPTION_NPU_ID) == ENPU_SUCCESS &&
-        check_int32(config.vnpu_id, OPTION_VNPU_ID) == ENPU_SUCCESS &&
-        check_int32(config.aicore_quota, OPTION_AICORE_QUOTA) == ENPU_SUCCESS &&
-        check_int32(config.memory_quota, OPTION_MEMORY_QUOTA) == ENPU_SUCCESS &&
-        check_int32(config.scheduling_policy, OPTION_SCHEDULING_POLICY) == ENPU_SUCCESS &&
-        check_str(config.shm_id, OPTION_SHM_ID) == ENPU_SUCCESS;
+           check_int32(config.vnpu_id, OPTION_VNPU_ID) == ENPU_SUCCESS &&
+           check_int32(config.aicore_quota, OPTION_AICORE_QUOTA) == ENPU_SUCCESS &&
+           check_int32(config.memory_quota, OPTION_MEMORY_QUOTA) == ENPU_SUCCESS &&
+           check_int32(config.scheduling_policy, OPTION_SCHEDULING_POLICY) == ENPU_SUCCESS &&
+           check_str(config.shm_id, OPTION_SHM_ID) == ENPU_SUCCESS;
 }
 
 int load_int32(const char *key, const char *value, int32_t *ret_value)
 {
     CHECK_COND_RETURN_ERROR_CODE(((key == NULL) || (value == NULL) || (ret_value == NULL)),
-        "Input para contains NULL!");
+                                 "Input para contains NULL!");
     errno = 0;
     char *endptr = NULL;
     long result = strtol(value, &endptr, TEN_BASE);
-    CHECK_COND_RETURN_ERROR_CODE(errno != 0,
-        "Failed to load config: %s, value: %s, error message: %s.", key, value, strerror(errno));
-    CHECK_COND_RETURN_ERROR_CODE((endptr == value),
-        "Empty or non-numeric value for config: %s, value: %s.", key, value);
-    CHECK_COND_RETURN_ERROR_CODE((*endptr != '\0'),
-        "Invalid integer for config: %s, value: %s (trailing characters).", key, value);
+    CHECK_COND_RETURN_ERROR_CODE(errno != 0, "Failed to load config: %s, value: %s, error message: %s.", key, value,
+                                 strerror(errno));
+    CHECK_COND_RETURN_ERROR_CODE((endptr == value), "Empty or non-numeric value for config: %s, value: %s.", key,
+                                 value);
+    CHECK_COND_RETURN_ERROR_CODE((*endptr != '\0'), "Invalid integer for config: %s, value: %s (trailing characters).",
+                                 key, value);
     CHECK_COND_RETURN_ERROR_CODE((result < INT32_MIN || result > INT32_MAX),
-        "Value out of int32 range for config: %s, value: %s.", key, value);
-    CHECK_COND_RETURN_ERROR_CODE((result == -1),
-        "Value of config: %s set to -1. This configuration will be ignored.", key);
+                                 "Value out of int32 range for config: %s, value: %s.", key, value);
+    CHECK_COND_RETURN_ERROR_CODE((result == -1), "Value of config: %s set to -1. This configuration will be ignored.",
+                                 key);
     *ret_value = (int32_t)result;
     return ENPU_SUCCESS;
 }
@@ -80,10 +79,10 @@ int load_int32(const char *key, const char *value, int32_t *ret_value)
 int load_str(const char *key, const char *value, char *ret_value, size_t ret_len)
 {
     CHECK_COND_RETURN_ERROR_CODE(((key == NULL) || (value == NULL) || (ret_value == NULL)),
-        "Input para contains NULL!");
+                                 "Input para contains NULL!");
     if (strlen(value) > ret_len) {
-        LOG_ERROR("Failed to load config: %s, value length (which is %lu)exceed buffer size %zu",
-            key, strlen(value), ret_len);
+        LOG_ERROR("Failed to load config: %s, value length (which is %lu)exceed buffer size %zu", key, strlen(value),
+                  ret_len);
         return ENPU_FAIL;
     }
 
@@ -123,8 +122,7 @@ int load_config(const char *file_path)
     }
 
     FILE *file = fopen(file_path, "r");
-    CHECK_COND_RETURN_ERROR_CODE(!file, "Failed to open file: %s, error msg: %s.",
-        file_path, strerror(errno));
+    CHECK_COND_RETURN_ERROR_CODE(!file, "Failed to open file: %s, error msg: %s.", file_path, strerror(errno));
 
     reset_config();
 

@@ -12,8 +12,8 @@
 
 #include "hash_map.h"
 #include <stddef.h>
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include "log.h"
 
 static size_t hash_ptr(void *ptr, size_t capacity)
@@ -26,17 +26,17 @@ static size_t hash_ptr(void *ptr, size_t capacity)
     return addr % capacity;
 }
 
-HashMap* hashmap_create(size_t capacity)
+HashMap *hashmap_create(size_t capacity)
 {
     if (capacity == 0) {
         LOG_ERROR("Hashmap capacity must be greater than 0.");
         return NULL;
     }
-    if (capacity > SIZE_MAX / sizeof(HashNode*)) {
+    if (capacity > SIZE_MAX / sizeof(HashNode *)) {
         LOG_ERROR("Hashmap capacity is too large.");
         return NULL;
     }
-    HashMap *map = (HashMap*)malloc(sizeof(HashMap));
+    HashMap *map = (HashMap *)malloc(sizeof(HashMap));
     if (!map) {
         LOG_ERROR("Map malloc failed when hashmap was created.");
         return NULL;
@@ -44,7 +44,7 @@ HashMap* hashmap_create(size_t capacity)
 
     map->capacity = capacity;
     map->size = 0;
-    map->buckets = (HashNode**)calloc(capacity, sizeof(HashNode*));
+    map->buckets = (HashNode **)calloc(capacity, sizeof(HashNode *));
 
     if (!map->buckets) {
         free(map);
@@ -75,7 +75,7 @@ int hashmap_put(HashMap *map, void *key, void *ptr, bool capture_status)
         node = node->next;
     }
 
-    HashNode *new_node = (HashNode*)malloc(sizeof(HashNode));
+    HashNode *new_node = (HashNode *)malloc(sizeof(HashNode));
     if (!new_node) {
         LOG_ERROR("Hashmap put malloc node failed.");
         return -1;

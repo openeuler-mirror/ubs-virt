@@ -13,10 +13,10 @@
 #ifndef __RUNTIME_HOOK_H__
 #define __RUNTIME_HOOK_H__
 
-#include <dlfcn.h>
-#include <stdarg.h>
 #include <acl/acl.h>
+#include <dlfcn.h>
 #include <runtime/rt.h>
+#include <stdarg.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -31,20 +31,18 @@ typedef rtError_t (*rt_symbol_t)();
 
 #define RUNTIME_HOOK_ENUM(x) HOOK_##x
 
-#define RUNTIME_HOOK_DEFINE(func_name, ...) \
-    __attribute__((visibility("default"))) \
-    rtError_t func_name(__VA_ARGS__)
+#define RUNTIME_HOOK_DEFINE(func_name, ...) __attribute__((visibility("default"))) rtError_t func_name(__VA_ARGS__)
 
 #define RUNTIME_FIND_ENTRY(table, symbol) ({ (table)[RUNTIME_HOOK_ENUM(symbol)].func_ptr; })
 
-#define RUNTIME_HOOK_CALL(table, symbol, ...)                             \
-({     \
-    rt_symbol_t _entry = (rt_symbol_t)RUNTIME_FIND_ENTRY(table, symbol);            \
-    if (!_entry) { \
-        fprintf(stderr, "HOOK ERROR: %s - %s\n", #symbol, dlerror()); \
-    } \
-    _entry ? _entry(__VA_ARGS__) : ACL_ERROR_FAILURE; \
-})
+#define RUNTIME_HOOK_CALL(table, symbol, ...)                                \
+    ({                                                                       \
+        rt_symbol_t _entry = (rt_symbol_t)RUNTIME_FIND_ENTRY(table, symbol); \
+        if (!_entry) {                                                       \
+            fprintf(stderr, "HOOK ERROR: %s - %s\n", #symbol, dlerror());    \
+        }                                                                    \
+        _entry ? _entry(__VA_ARGS__) : ACL_ERROR_FAILURE;                    \
+    })
 
 typedef enum {
     /* Init Part */
@@ -136,7 +134,7 @@ typedef enum {
     RUNTIME_HOOK_ENUM(rtStreamDestroy),
     RUNTIME_HOOK_ENUM(rtDestroyStreamForce),
     RUNTIME_ENTRY_END,
-}rt_hook_enum_t;
+} rt_hook_enum_t;
 
 extern rt_entry_t rt_library_entry[];
 
@@ -144,4 +142,4 @@ extern rt_entry_t rt_library_entry[];
 }
 #endif
 
-#endif 
+#endif

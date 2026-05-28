@@ -12,8 +12,8 @@
 
 #ifndef HASHMAP_H
 #define HASHMAP_H
-#include <stddef.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -22,7 +22,7 @@ extern "C" {
 #define MOD 2654435761UL
 
 typedef struct {
-    void *ptr;              //  Head capture stream
+    void *ptr; //  Head capture stream
     bool capture_status;
 } MapValue;
 
@@ -38,7 +38,7 @@ typedef struct {
     size_t size;
 } HashMap;
 
-HashMap* hashmap_create(size_t capacity);
+HashMap *hashmap_create(size_t capacity);
 
 int hashmap_put(HashMap *map, void *key, void *ptr, bool capture_status);
 
