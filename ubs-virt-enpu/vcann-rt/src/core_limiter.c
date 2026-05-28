@@ -10,6 +10,7 @@
 * See the Mulan PSL v2 for more details.
 */
 #include "core_limiter.h"
+#include <pthread.h>
 #include "common.h"
 #include "dcmi_wrapper.h"
 #include "hash_map.h"
