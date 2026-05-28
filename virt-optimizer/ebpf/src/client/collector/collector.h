@@ -30,7 +30,8 @@
 using u32 = uint32_t;
 using u64 = unsigned long long;
 
-enum class CollectorStatus {
+enum class CollectorStatus
+{
     SUCCESS = 0,
     COLLECTION_RUNNING,
     OPEN_BPF_PROGRAM_FAILED,

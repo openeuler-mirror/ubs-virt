@@ -54,9 +54,9 @@ bool WriteCombineTuner::check()
     isLastCheckSuccess = true;
     std::string directoryName = getCurrentTimeString();
     std::ostringstream oss;
-    oss << "cd /root && msnpureport && " <<
-        R"(grep -nr \"Device capability info\" /root/)" << directoryName << "* && " <<
-        "rm -rf " << directoryName << "*";
+    oss << "cd /root && msnpureport && "
+        << R"(grep -nr \"Device capability info\" /root/)" << directoryName << "* && "
+        << "rm -rf " << directoryName << "*";
 
     std::string cmd = oss.str();
     auto hostName = utils::getVmName();

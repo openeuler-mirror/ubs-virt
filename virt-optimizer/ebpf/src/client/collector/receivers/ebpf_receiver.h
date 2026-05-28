@@ -15,8 +15,8 @@
 #define DATA_COLLECTOR_H
 
 #include <atomic>
-#include <thread>
 #include <memory>
+#include <thread>
 
 #include "data_struct.h"
 

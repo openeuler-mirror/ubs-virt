@@ -70,7 +70,7 @@ bool handleReloadEbpf()
     return true;
 }
 
-void registerCommands(CommandParser& parser)
+void registerCommands(CommandParser &parser)
 {
     parser.registerHandler("start_ebpf", handleStartEbpf, "Start the eBPF collector.");
     parser.registerHandler("stop_ebpf", handleStopEbpf, "Stop the eBPF collector.");
