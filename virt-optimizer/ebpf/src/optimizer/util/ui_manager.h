@@ -14,8 +14,8 @@
 #ifndef UI_MANAGER_H
 #define UI_MANAGER_H
 
-#include <memory>
 #include <iostream>
+#include <memory>
 #include <set>
 #include <string>
 #include <thread>

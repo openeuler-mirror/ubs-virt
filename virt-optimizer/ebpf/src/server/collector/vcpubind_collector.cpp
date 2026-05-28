@@ -28,8 +28,8 @@
 
 void VcpubindCollector::launch(std::string vmName, int timeout, std::atomic<int> &res, double minCpu)
 {
-    vcpubindCollectorThread_ = std::make_unique<std::thread>(&VcpubindCollector::monitor_vm_vpu, this,
-                                                             std::ref(vmName), timeout, std::ref(res), minCpu);
+    vcpubindCollectorThread_ = std::make_unique<std::thread>(&VcpubindCollector::monitor_vm_vpu, this, std::ref(vmName),
+                                                             timeout, std::ref(res), minCpu);
 }
 
 // 监控主循环

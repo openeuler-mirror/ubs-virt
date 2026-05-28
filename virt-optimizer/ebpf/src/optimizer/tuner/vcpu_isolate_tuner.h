@@ -31,7 +31,8 @@ public:
     void apply() override;
 
 private:
-    enum class ResultCode : int {
+    enum class ResultCode : int
+    {
         SUCCESS = 0,
         FALSE,
         ERROR,

@@ -21,7 +21,8 @@
 
 #include "rapidjson/document.h"
 
-enum class NPUType {
+enum class NPUType
+{
     UNKNOWN = 0,
     ALLOWED_NPU_D802,
     ALLOWED_NPU_D803

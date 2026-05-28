@@ -31,7 +31,8 @@ inline constexpr const char *logFilenameTimestampFormat = "%Y-%m-%d %H:%M:%S";
 
 class EbpfLogger {
 public:
-    enum class LogLevel {
+    enum class LogLevel
+    {
         DEBUG = 0,
         INFO,
         WARNING,

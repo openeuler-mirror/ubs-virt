@@ -105,9 +105,9 @@ bool NPUTopoTuner::check()
 
 void NPUTopoTuner::apply()
 {
-    std::cout << "1. Check the mapping relationship between NPU and NUMA in the physical machine." << std::endl <<
-              "2. Check the virtual machine configuration file to clarify the mapping relationship\n"
-              " between the physical machine's NPU PCI and the virtual machine's PCI. " <<
-              std::endl <<
-              "3. Set the NUMA flag for the NPU in the virtual machine." << std::endl;
+    std::cout << "1. Check the mapping relationship between NPU and NUMA in the physical machine." << std::endl
+              << "2. Check the virtual machine configuration file to clarify the mapping relationship\n"
+                 " between the physical machine's NPU PCI and the virtual machine's PCI. "
+              << std::endl
+              << "3. Set the NUMA flag for the NPU in the virtual machine." << std::endl;
 }
