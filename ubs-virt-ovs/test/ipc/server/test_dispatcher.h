@@ -14,6 +14,7 @@
 #define UBSVIRTOVS_TEST_DISPATCHER_H
 
 #include "gtest/gtest.h"
+
 #include "dispatcher.h"
 
 namespace ovs::ut {

@@ -14,6 +14,7 @@
 #define UBSVIRTOVS_TEST_AUTH_MANAGER_H
 
 #include "gtest/gtest.h"
+
 #include "auth_manager.h"
 
 namespace ovs::ut {
