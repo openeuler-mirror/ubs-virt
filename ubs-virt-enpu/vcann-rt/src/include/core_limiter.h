@@ -21,6 +21,7 @@ using atomic_int = std::atomic<int>;
 
 #include <acl/acl.h>
 #include <inttypes.h>
+#include <pthread.h>
 #include <runtime/rt.h>
 
 #if defined(__cplusplus)
