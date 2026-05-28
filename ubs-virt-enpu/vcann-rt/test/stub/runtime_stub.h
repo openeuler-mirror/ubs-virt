@@ -13,6 +13,9 @@
 #ifndef RUNTIME_STUB_H
 #define RUNTIME_STUB_H
 
+#include <stdbool.h>
+#include <stdint.h>
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
