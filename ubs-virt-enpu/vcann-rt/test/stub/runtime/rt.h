@@ -58,14 +58,16 @@ typedef void *rtRandomNumTaskInfo_t;
 typedef void *rtReduceInfo_t;
 typedef void *rtTaskUpdateCfg_t;
 
-typedef enum tagRtStreamCaptureMode {
+typedef enum tagRtStreamCaptureMode
+{
     RT_STREAM_CAPTURE_MODE_GLOBAL = 0,
     RT_STREAM_CAPTURE_MODE_THREAD_LOCAL = 1,
     RT_STREAM_CAPTURE_MODE_RELAXED = 2,
     RT_STREAM_CAPTURE_MODE_MAX
 } rtStreamCaptureMode;
 
-typedef enum {
+typedef enum
+{
     RT_MEM_MALLOC_HUGE_FIRST,
     RT_MEM_MALLOC_HUGE_ONLY,
     RT_MEM_MALLOC_NORMAL_ONLY,
@@ -79,7 +81,8 @@ typedef enum {
     RT_MEM_ACCESS_USER_SPACE_READONLY = 0x100000,
 } rtMallocPolicy;
 
-typedef enum {
+typedef enum
+{
     RT_MEM_MALLOC_ATTR_RSV = 0,
     RT_MEM_MALLOC_ATTR_MODULE_ID,
     RT_MEM_MALLOC_ATTR_DEVICE_ID,
@@ -94,7 +97,8 @@ typedef union {
     uint8_t rsv[8];
 } rtMallocAttrValue;
 
-typedef enum {
+typedef enum
+{
     RT_MEM_ADVISE_NONE = 0,
     RT_MEM_ADVISE_DVPP,
     RT_MEM_ADVISE_TS,
@@ -111,7 +115,8 @@ typedef struct {
     size_t numAttrs;
 } rtMallocConfig_t;
 
-typedef enum tagRtMemInfoType {
+typedef enum tagRtMemInfoType
+{
     RT_MEMORYINFO_DDR,
     RT_MEMORYINFO_HBM,
     RT_MEMORYINFO_DDR_HUGE,       // Hugepage memory of DDR

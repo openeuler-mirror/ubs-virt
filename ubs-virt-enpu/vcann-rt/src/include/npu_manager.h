@@ -35,7 +35,8 @@ extern "C" {
 #define MB_TO_B (1024 * 1024)
 #define MAX_DEVICE_LIST_NUM 64
 
-typedef enum {
+typedef enum
+{
     SCHED_POLICY_FIXED_SHARE = 1,
     SCHED_POLICY_ELASTIC = 2,
     SCHED_POLICY_BEST_EFFORT = 3,

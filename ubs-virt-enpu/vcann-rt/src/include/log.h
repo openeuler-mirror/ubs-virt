@@ -50,7 +50,8 @@ extern "C" {
 #define DECIMAL_BASE 10
 #define FILE_OPEN_MODE 0600
 
-typedef enum {
+typedef enum
+{
     ENPU_LOG_FATAL = 0,
     ENPU_LOG_ERROR,
     ENPU_LOG_WARN,
