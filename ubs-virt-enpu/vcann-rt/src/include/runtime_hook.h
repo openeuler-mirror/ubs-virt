@@ -44,7 +44,8 @@ typedef rtError_t (*rt_symbol_t)();
         _entry ? _entry(__VA_ARGS__) : ACL_ERROR_FAILURE;                    \
     })
 
-typedef enum {
+typedef enum
+{
     /* Init Part */
     RUNTIME_HOOK_ENUM(rtSetDevice),
     RUNTIME_HOOK_ENUM(rtSetDeviceEx),

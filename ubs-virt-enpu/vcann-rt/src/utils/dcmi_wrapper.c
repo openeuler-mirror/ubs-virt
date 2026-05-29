@@ -29,24 +29,24 @@ static dcmi_operations g_dcmi_ops = {NULL};
 
 int __attribute__((weak)) dcmiv2_init(void);
 
-int __attribute__((weak)) dcmiv2_get_device_utilization_rate(int dev_id, int input_type,
-                                                             unsigned int *utilization_rate);
-
-int __attribute__((weak)) dcmiv2_get_device_proc_mem_info(int dev_id, struct dcmi_proc_mem_info *proc_info,
-                                                          int *proc_num);
-
 int __attribute__((weak)) dcmiv2_get_device_list(int *device_list, int *device_count, int list_len);
+
+int __attribute__((weak))
+dcmiv2_get_device_utilization_rate(int dev_id, int input_type, unsigned int *utilization_rate);
+
+int __attribute__((weak))
+dcmiv2_get_device_proc_mem_info(int dev_id, struct dcmi_proc_mem_info *proc_info, int *proc_num);
 
 int __attribute__((weak)) dcmi_init(void);
 
-int __attribute__((weak)) dcmi_get_device_utilization_rate(int card_id, int device_id, int input_type,
-                                                           unsigned int *utilization_rate);
+int __attribute__((weak))
+dcmi_get_device_utilization_rate(int card_id, int device_id, int input_type, unsigned int *utilization_rate);
 
-int __attribute__((weak)) dcmi_get_device_resource_info(int card_id, int device_id,
-                                                        struct dcmi_proc_mem_info *proc_info, int *proc_num);
+int __attribute__((weak))
+dcmi_get_device_resource_info(int card_id, int device_id, struct dcmi_proc_mem_info *proc_info, int *proc_num);
 
-int __attribute__((weak)) dcmi_get_card_id_device_id_from_phyid(int *card_id, int *device_id,
-                                                                unsigned int device_phy_id);
+int __attribute__((weak))
+dcmi_get_card_id_device_id_from_phyid(int *card_id, int *device_id, unsigned int device_phy_id);
 
 int _dcmiv2_init_callback()
 {

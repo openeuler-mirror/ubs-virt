@@ -22,7 +22,8 @@ extern "C" {
 
 #define MAX_PIDS 64
 
-typedef enum {
+typedef enum
+{
     SOC_VERSION_ASCEND_950,
     SOC_VERSION_NOT_ASCEND_950
 } soc_version;
