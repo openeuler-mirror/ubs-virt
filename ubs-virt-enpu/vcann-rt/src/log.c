@@ -88,7 +88,7 @@ static int safe_exec_timeout(char *const argv[], int timeout_sec)
     }
     if (pid == 0) {
         execvp(argv[0], argv);
-        perror("[eNPU] safe_exec: execvp failed");
+        perror("[eNPU] safe_exec: execvp failed.");
         _exit(EXIT_CODE_CMD_NOT_FOUND);
     }
 
