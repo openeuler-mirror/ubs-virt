@@ -12,7 +12,7 @@
 
 ## 软件要求
 
-- libsecurec: 1.1.1
+- libboundscheck: 1.1.1
 - qemu: 8.2.0
 - libvirt: 9.1.0
 
