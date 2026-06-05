@@ -81,12 +81,12 @@ void set_core_quota_timeslice(uint64_t time)
     g_npu_info.core_quota_timeslice = time;
 }
 
-uint64_t get_core_cur_timeslice(void)
+int64_t get_core_cur_timeslice(void)
 {
     return g_npu_info.core_cur_timeslice;
 }
 
-void set_core_cur_timeslice(uint64_t time)
+void set_core_cur_timeslice(int64_t time)
 {
     g_npu_info.core_cur_timeslice = time;
 }
