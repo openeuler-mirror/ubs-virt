@@ -225,7 +225,7 @@ void compensate_delta_time(void)
 bool add_and_consume_time_slice(uint8_t *turn_id)
 {
     uint64_t now = ns_now();
-    uint64_t timeslice = get_core_cur_timeslice() + get_core_quota_timeslice();
+    int64_t timeslice = get_core_cur_timeslice() + (int64_t)get_core_quota_timeslice(); // 类型转换无安全风险
     set_core_cur_timeslice(timeslice);
     if (timeslice <= 0) {
         int vnpu_id = atomic_load(&g_vnpu_sched_context->owner);
@@ -236,8 +236,8 @@ bool add_and_consume_time_slice(uint8_t *turn_id)
 
     pthread_mutex_unlock(&g_sched_mutex);
 
-    uint64_t end = now + timeslice;
-    set_core_cur_timeslice(0ULL);
+    uint64_t end = now + (uint64_t)timeslice; // 类型转换无安全风险
+    set_core_cur_timeslice(0LL);
 
     // For Determining whether the current round of scheduling is complete for a container with multiple threads.
     *turn_id = atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]);
