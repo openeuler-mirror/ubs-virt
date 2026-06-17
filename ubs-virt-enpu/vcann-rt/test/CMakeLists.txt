@@ -46,6 +46,7 @@ set(VNPU_TESTCASE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/npu_manager_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/core_limiter_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/log_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/mem_limiter_test.cpp
 )
 
 set(VNPU_STUB_FILES

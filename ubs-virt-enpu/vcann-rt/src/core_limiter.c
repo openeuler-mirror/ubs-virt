@@ -126,7 +126,7 @@ bool check_timeout(atomic_uint_fast64_t *timestamp, uint64_t timeout_period)
     }
 }
 
-inline bool is_vnpu_alive(int vnpu_id)
+bool is_vnpu_alive(int vnpu_id)
 {
     if (vnpu_id < 0 || vnpu_id >= MAX_VNPU) {
         return false;
