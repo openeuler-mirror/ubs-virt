@@ -10,7 +10,7 @@ ubs-optimizer的发布件如下：
 
 | RPM包                                             | 说明                                      |
 |:-------------------------------------------------|:----------------------------------------|
-| ubs-optimizer-\<version>.aarch64.rpm  | 主程序包，包含配置，采集工具，优化分析工具等。构建软件包参考[构建指导](../../../virt-optimizer\docs\build_install\构建指导.md) |
+| ubs-optimizer-\<version>.aarch64.rpm  | 主程序包，包含配置，采集工具，优化分析工具等。构建软件包参考[构建指导](../../../virt-optimizer/docs/build_install/构建指导.md) |
 
 ### 系统要求
 
