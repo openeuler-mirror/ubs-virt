@@ -30,14 +30,14 @@
 | （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
 | （可选）MindCluster | 26.0.0（直接使用Docker部署则不需要）|
 
-#### Ascend 950PR 产品
+#### Atlas 350 加速卡产品
 
 **表 3 软件版本**
 
 | 软件                | 版本                                                                        |
 |:---------------------|:-----------------------------------------------------------------------------|
 | CANN                | 9.1.0                                                                  |
-| HDK                 | Atalas I 5.0.0                                                            |
+| HDK                 | 25.7.0及以上版本                                                            |
 | （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
 | （可选）MindCluster | 26.1.0（直接使用Docker部署则不需要）|
 
@@ -48,7 +48,7 @@
 ```shell
 # Atlas A2 / A3 推理系列产品：设置容器共享模式
 npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
-# Ascend 950PR 产品：设置容器共享模式
+# Atlas 350 加速卡产品：设置容器共享模式
 npu-smi set -t device-share -i ${id} -d ${value}
 
 # 查询设备容器共享模式
@@ -381,7 +381,7 @@ vCANN-RT支持两种方式启动业务容器：
           - hostPath:
               - path: ${preload_path}/ld.so.preload # [步骤1](#step1)中创建的ld.so.preload文件路径。
 
-  对于Ascend 950PR 产品，yaml配置文件的格式需要做以下修改：
+  对于Atlas 350 加速卡产品，yaml配置文件的格式需要做以下修改：
 
   1. 删除910b相关配置：ring-controller.atlas: ascend-910b 及 accelerator-type: module-910b-8
 
@@ -493,11 +493,12 @@ vCANN-RT支持两种方式启动业务容器：
 
 ### 启动业务，使用vCANN-RT服务
 
-  - 拉起容器之后，可通过环境变量`ENPU_LOG_LEVEL`配置日志级别。日志级别由高到底分别是FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。默认日志级别为INFO。例如：
+  - 拉起容器之后，可通过环境变量`ENPU_LOG_LEVEL`配置日志级别。例如：
 
     ```bash
     export ENPU_LOG_LEVEL=3
     ```
+    日志级别由高到低分别是FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。默认日志级别为INFO，设置日志级别为DEBUG后，可在日志文件（日志文件路径：`/var/log/enpu/vcann-rt/`）中查看DEBUG日志，屏显仅打印INFO及以上级别日志。
 
   - 推理任务启动时，会自动拉起vCANN-RT服务进行算力控制和显存控制，软切分服务启动成功之后会设置一个进程级环境变量`ENPU_ENABLE=True`。如果日志回显内容为`"Successfully to initialize all module."`, 则表示vCANN-RT服务启动成功。
 
