@@ -18,6 +18,7 @@ rt_entry_t rt_library_entry[] = {
     {.name = "rtSetDeviceEx"},
     {.name = "rtSetDeviceWithFlags"},
     {.name = "rtSetDeviceWithoutTsd"},
+    {.name = "rtGetSocVersion"},
     /* Memory Part */
     {.name = "rtMalloc"},
     {.name = "rtMallocCached"},

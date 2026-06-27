@@ -26,6 +26,8 @@ pthread_once_t once_init = PTHREAD_ONCE_INIT;
 pthread_once_t post_init_flag = PTHREAD_ONCE_INIT;
 static struct npu_info g_npu_info = {0};
 
+#define SOC_VERSION_SIZE 50
+
 bool is_core_limit(void)
 {
     return g_npu_info.is_core_limit;
@@ -161,11 +163,12 @@ int enpu_load_config(void)
 
 int enpu_soc_init(void)
 {
-    const char *socName = aclrtGetSocName();
-    CHECK_COND_RETURN_ERROR_CODE(socName == NULL, "Call aclrtGetSocName fails.");
-    LOG_INFO("Get socName: %s.", socName);
+    char socVersion[SOC_VERSION_SIZE] = {0};
+    aclError res = RUNTIME_HOOK_CALL(rt_library_entry, rtGetSocVersion, socVersion, SOC_VERSION_SIZE);
+    CHECK_COND_RETURN_ERROR_CODE(res != ACL_RT_SUCCESS, "Call rtGetSocVersion fails.");
+    LOG_INFO("Get socVersion: %s.", socVersion);
 
-    if (strstr(socName, "Ascend950") != NULL) {
+    if (strstr(socVersion, "Ascend950") != NULL) {
         g_npu_info.soc_version = SOC_VERSION_ASCEND_950;
     } else {
         g_npu_info.soc_version = SOC_VERSION_NOT_ASCEND_950;
@@ -194,10 +197,7 @@ int enpu_device_init(void)
 
 static void __enpu_global_init(void)
 {
-    int rc = log_init();
-    CHECK_COND_RETURN_LOG(rc != ENPU_SUCCESS, "Failed to init log module.");
-
-    rc = enpu_load_config();
+    int rc = enpu_load_config();
     CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to load npu config.");
 
     rc = enpu_soc_init();

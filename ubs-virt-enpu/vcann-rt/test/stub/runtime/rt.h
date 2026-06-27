@@ -137,6 +137,7 @@ typedef enum tagRtMemInfoType
     RUNTIME_FUNCTION_ENTRY(rtSetDeviceWithFlags, int32_t deviceId, uint64_t flags)                                     \
     RUNTIME_FUNCTION_ENTRY(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)          \
     RUNTIME_FUNCTION_ENTRY(rtSetDeviceWithoutTsd, int32_t deviceId)                                                    \
+    RUNTIME_FUNCTION_ENTRY(rtGetSocVersion, char_t *ver, const uint32_t maxLen)                                        \
     RUNTIME_FUNCTION_ENTRY(rtMallocCached, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)    \
     RUNTIME_FUNCTION_ENTRY(rtDvppMalloc, void **devPtr, uint64_t size, uint16_t moduleId)                              \
     RUNTIME_FUNCTION_ENTRY(rtDvppMallocWithFlag, void **devPtr, uint64_t size, uint32_t flag, const uint16_t moduleId) \
