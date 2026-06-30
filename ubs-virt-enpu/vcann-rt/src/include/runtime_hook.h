@@ -51,6 +51,7 @@ typedef enum
     RUNTIME_HOOK_ENUM(rtSetDeviceEx),
     RUNTIME_HOOK_ENUM(rtSetDeviceWithFlags),
     RUNTIME_HOOK_ENUM(rtSetDeviceWithoutTsd),
+    RUNTIME_HOOK_ENUM(rtGetSocVersion),
     /* Memory Part */
     RUNTIME_HOOK_ENUM(rtMalloc),
     RUNTIME_HOOK_ENUM(rtMallocCached),

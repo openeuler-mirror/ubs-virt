@@ -35,11 +35,13 @@ int stub_load_config(const char *path)
     return ENPU_SUCCESS;
 }
 
-int stub_enpu_dcmi_get_card_info(int index, int *card_id, int *device_id)
+int stub_enpu_dcmi_get_card_info(uint32_t phy_id, int *card_id, int *device_id, int *logic_id, uint8_t soc_version)
 {
-    (void)index;
+    (void)phy_id;
+    (void)soc_version;
     *card_id = 0;
     *device_id = 0;
+    *logic_id = 0;
     return ENPU_SUCCESS;
 }
 

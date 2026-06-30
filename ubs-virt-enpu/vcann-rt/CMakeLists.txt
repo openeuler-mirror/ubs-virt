@@ -63,7 +63,7 @@ target_link_options(vruntime PRIVATE
 target_include_directories(vruntime PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
 target_include_directories(vruntime SYSTEM PRIVATE ${INCLUDE_DIRS})
 target_link_directories(vruntime PRIVATE ${LINK_DIRS})
-target_link_libraries(vruntime PRIVATE ${LINK_LIBS} c_sec ascendcl)
+target_link_libraries(vruntime PRIVATE ${LINK_LIBS} c_sec)
 target_compile_options(vruntime PRIVATE ${SECURE_COMPILE_OPTIONS})
 target_compile_definitions(vruntime PRIVATE _GLIBCXX_USE_CXX11_ABI=0)
 
@@ -81,7 +81,7 @@ target_link_options(enpu-monitor PRIVATE
 target_include_directories(enpu-monitor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/include)
 target_include_directories(enpu-monitor SYSTEM PRIVATE ${INCLUDE_DIRS})
 target_link_directories(enpu-monitor PRIVATE ${LINK_DIRS})
-target_link_libraries(enpu-monitor PRIVATE ${LINK_LIBS} c_sec ascendcl pthread dl rt)
+target_link_libraries(enpu-monitor PRIVATE ${LINK_LIBS} c_sec pthread dl rt)
 target_compile_options(enpu-monitor PRIVATE ${SECURE_COMPILE_OPTIONS})
 target_compile_definitions(enpu-monitor PRIVATE _GLIBCXX_USE_CXX11_ABI=0)
 

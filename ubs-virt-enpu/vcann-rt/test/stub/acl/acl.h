@@ -114,8 +114,6 @@ static const int ACL_ERROR_RT_FAILURE = 500003;
 static const int ACL_ERROR_DRV_FAILURE = 500004;
 static const int ACL_ERROR_PROFILING_FAILURE = 500005;
 
-const char *aclrtGetSocName();
-
 #if defined(__cplusplus)
 }
 #endif

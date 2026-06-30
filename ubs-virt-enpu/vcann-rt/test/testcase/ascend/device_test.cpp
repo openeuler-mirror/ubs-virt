@@ -39,7 +39,6 @@ protected:
         fd_ = open(stub_lock_path(), O_CREAT | O_RDONLY, 0755); // ut中的memctl.lock文件,设置为755权限
         MOCKER(lock_path).stubs().will(invoke(stub_lock_path));
         MOCKER(enpu_load_config).stubs().will(invoke(stub_enpu_load_config));
-        enpu_global_init();
         MOCKER(load_rt_libraries).stubs().will(invoke(stub_load_rt_libraries));
     }
 

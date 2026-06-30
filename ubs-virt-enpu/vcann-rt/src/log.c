@@ -393,6 +393,7 @@ static int rotate_log_by_size(void)
 
 static bool g_log_initialized = false;
 static volatile bool g_log_running = false;
+static pthread_mutex_t g_log_init_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static void parse_level_env(const char *env_name, EnpuLogLevel default_val, EnpuLogLevel *target)
 {
@@ -418,6 +419,12 @@ int log_init(void)
         return ENPU_SUCCESS;
     }
 
+    pthread_mutex_lock(&g_log_init_mutex);
+    if (g_log_initialized) {
+        pthread_mutex_unlock(&g_log_init_mutex);
+        return ENPU_SUCCESS;
+    }
+
     pthread_mutex_init(&g_log_config.print_mutex, NULL);
     pthread_mutex_init(&g_log_config.compress_mutex, NULL);
 
@@ -427,7 +434,13 @@ int log_init(void)
     (void)safe_exec(mkdir_argv);
 
     int ret = update_log_file();
-    CHECK_RETURN_ERROR_CODE_LOG(ret, "Failed to update log file, now log file is %s.", g_log_config.log_path);
+    if (ret != ENPU_SUCCESS) {
+        fprintf(stderr, "[eNPU] Failed to update log file, now log file is %s.\n", g_log_config.log_path);
+        pthread_mutex_destroy(&g_log_config.print_mutex);
+        pthread_mutex_destroy(&g_log_config.compress_mutex);
+        pthread_mutex_unlock(&g_log_init_mutex);
+        return ENPU_FAIL;
+    }
 
     parse_level_env("ENPU_LOG_LEVEL", ENPU_LOG_INFO, &g_log_config.min_log_level);
 
@@ -436,6 +449,7 @@ int log_init(void)
         fprintf(stderr, "[eNPU] Log init failed: unable to init log queue.\n");
         pthread_mutex_destroy(&g_log_config.print_mutex);
         pthread_mutex_destroy(&g_log_config.compress_mutex);
+        pthread_mutex_unlock(&g_log_init_mutex);
         return ENPU_FAIL;
     }
 
@@ -447,11 +461,13 @@ int log_init(void)
         log_queue_destroy(&g_log_config.log_queue);
         pthread_mutex_destroy(&g_log_config.print_mutex);
         pthread_mutex_destroy(&g_log_config.compress_mutex);
+        pthread_mutex_unlock(&g_log_init_mutex);
         return ENPU_FAIL;
     }
 
     printf("[eNPU] Async logging enabled with queue size %d.\n", LOG_QUEUE_SIZE);
     g_log_initialized = true;
+    pthread_mutex_unlock(&g_log_init_mutex);
     return ENPU_SUCCESS;
 }
 

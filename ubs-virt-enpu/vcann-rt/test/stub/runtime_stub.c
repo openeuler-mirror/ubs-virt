@@ -45,7 +45,7 @@ void stub_load_rt_libraries(void)
 
 const char *stub_lock_path()
 {
-    printf("enter stub_lock_path");
+    printf("enter stub_lock_path\n");
     return MOCK_MEMCTL_LOCK_PATH;
 }
 

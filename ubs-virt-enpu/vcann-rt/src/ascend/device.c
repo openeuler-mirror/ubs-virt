@@ -27,7 +27,7 @@ void load_rt_libraries(void)
     for (i = 0; i < RUNTIME_ENTRY_END; i++) {
         rt_library_entry[i].func_ptr = dlsym(RTLD_NEXT, rt_library_entry[i].name);
         if (rt_library_entry[i].func_ptr == NULL) {
-            LOG_WARN("Failed to find function %s, because the runtime version you are using is different "
+            LOG_WARN("Can not find function %s, because the runtime version you are using is different "
                      "from our preset version.",
                      rt_library_entry[i].name);
         }
@@ -37,6 +37,9 @@ void load_rt_libraries(void)
 
 RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
 {
+    int res = log_init();
+    CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
+    pthread_once(&pre_rt_init_flag, load_rt_libraries);
     enpu_global_init();
     CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
                        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
@@ -48,7 +51,6 @@ RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
     LOG_DEBUG("Hook init rtSetDevice devId:%" PRIi32 ".", devId);
     LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.", VNPU_SCHEULE_PERIOD / NS_PER_MS,
               get_core_limit_quota());
-    pthread_once(&pre_rt_init_flag, load_rt_libraries);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtSetDevice, devId);
     CHECK_COND_RETURN_((ret != ACL_RT_SUCCESS), ret, "Call rtSetDevice fails, ret:%d.", ret);
     enpu_global_init_post();
@@ -57,6 +59,9 @@ RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
 
 RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
 {
+    int res = log_init();
+    CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
+    pthread_once(&pre_rt_init_flag, load_rt_libraries);
     enpu_global_init();
     CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
                        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
@@ -68,7 +73,6 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
     LOG_DEBUG("Hook init rtSetDeviceEx devId:%" PRIi32 ".", devId);
     LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.", VNPU_SCHEULE_PERIOD / NS_PER_MS,
               get_core_limit_quota());
-    pthread_once(&pre_rt_init_flag, load_rt_libraries);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceEx, devId);
     CHECK_COND_RETURN_((ret != ACL_RT_SUCCESS), ret, "Call rtSetDeviceEx fails, ret:%d.", ret);
     enpu_global_init_post();
@@ -77,6 +81,9 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
 
 RUNTIME_HOOK_DEFINE(rtSetDeviceWithFlags, int32_t devId, uint64_t flags)
 {
+    int res = log_init();
+    CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
+    pthread_once(&pre_rt_init_flag, load_rt_libraries);
     enpu_global_init();
     CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
                        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
@@ -88,7 +95,6 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceWithFlags, int32_t devId, uint64_t flags)
     LOG_DEBUG("Hook init rtSetDeviceWithFlags devId:%" PRIi32 ".", devId);
     LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.", VNPU_SCHEULE_PERIOD / NS_PER_MS,
               get_core_limit_quota());
-    pthread_once(&pre_rt_init_flag, load_rt_libraries);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceWithFlags, devId, flags);
     CHECK_COND_RETURN_((ret != ACL_RT_SUCCESS), ret, "Call rtSetDeviceWithFlags fails, ret:%d.", ret);
     enpu_global_init_post();
@@ -97,6 +103,9 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceWithFlags, int32_t devId, uint64_t flags)
 
 RUNTIME_HOOK_DEFINE(rtSetDeviceWithoutTsd, int32_t devId)
 {
+    int res = log_init();
+    CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
+    pthread_once(&pre_rt_init_flag, load_rt_libraries);
     enpu_global_init();
     CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
                        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
@@ -108,7 +117,6 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceWithoutTsd, int32_t devId)
     LOG_DEBUG("Hook init rtSetDeviceWithoutTsd devId:%" PRIi32 ".", devId);
     LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.", VNPU_SCHEULE_PERIOD / NS_PER_MS,
               get_core_limit_quota());
-    pthread_once(&pre_rt_init_flag, load_rt_libraries);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceWithoutTsd, devId);
     CHECK_COND_RETURN_((ret != ACL_RT_SUCCESS), ret, "Call rtSetDeviceWithoutTsd fails, ret:%d.", ret);
     enpu_global_init_post();
