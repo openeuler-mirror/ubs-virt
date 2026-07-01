@@ -52,6 +52,7 @@ typedef struct shared_memory {
     atomic_uint_fast32_t magic_number;
     atomic_int slide_window_len;
     atomic_uint_fast64_t last_slide_window_time_ns;
+    pthread_mutex_t npu_utilization_monitor_mutex;
 } vnpu_time_slice_sched_t;
 
 typedef struct npu_info {

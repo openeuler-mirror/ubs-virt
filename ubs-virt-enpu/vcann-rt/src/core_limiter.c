@@ -23,6 +23,7 @@ volatile int g_terminate = 0;
 atomic_bool g_sched_locking = false;
 atomic_int hasModelExecuteSync = 0;
 pthread_mutex_t g_sched_mutex;
+atomic_bool g_monitor_init = false;
 
 cache_streams_t g_cache_streams = {.num_streams = 0, .streams = {NULL}};
 
@@ -285,56 +286,78 @@ int calculate_alive_vnpu_num(void)
 void *npu_utilization_monitor_thread(void *arg)
 {
     (void)arg;
-    unsigned int utilization_rate = 0;
-    uint64_t begin = ns_now();
-    atomic_store(&g_vnpu_sched_context->last_slide_window_time_ns, begin);
-    int ret = enpu_dcmi_get_device_utilization_rate(get_logic_id(), get_card_id(), get_device_id(), &utilization_rate);
-    if (ret != ENPU_SUCCESS) {
-        LOG_ERROR("DCMI call failed with ret: %d.", ret);
+    int rc = pthread_mutex_lock(&g_vnpu_sched_context->npu_utilization_monitor_mutex);
+    if (rc == EOWNERDEAD) {
+        pthread_mutex_consistent(&g_vnpu_sched_context->npu_utilization_monitor_mutex);
+    } else if (rc != 0) {
+        LOG_WARN("Failed to obtain mutex lock, error code=%d.", rc);
         return NULL;
     }
-
-    uint64_t now = ns_now();
-    uint64_t diff_ns = now - begin;
-    if (diff_ns > DCMI_TIMEOUT_THRESHOLD) {
-        LOG_DEBUG("The DCMI interface is overloaded, reuse the NPU utilization status from the last time.");
-        return NULL;
-    }
-
-    static int high_load_streak = 0;
-    static int low_load_streak = 0;
-    int current_window = atomic_load(&g_vnpu_sched_context->slide_window_len);
-    int new_window = current_window;
-
-    if (utilization_rate > UTILIZATION_RATE_MAX) {
-        low_load_streak = 0;
-        high_load_streak++;
-        if (high_load_streak >= MAX_STREAK && current_window > 0) {
-            new_window = current_window - 1;
-            high_load_streak = 0;
-            LOG_DEBUG("Utilization high (%u%%), decreasing window to %d.", utilization_rate, new_window);
+    int owner = atomic_load(&g_vnpu_sched_context->owner);
+    while (owner == g_vnpu_id) {
+        if (check_timeout(&g_vnpu_sched_context->last_slide_window_time_ns, WATTING_SLIDE_WINDOW_TIMEOUT_PERIOD)) {
+            ns_sleep(VNPU_FLUSH_PERIOD);
+            owner = atomic_load(&g_vnpu_sched_context->owner);
+            continue;
         }
-    } else if (utilization_rate < UTILIZATION_RATE_MIN) {
-        high_load_streak = 0;
-        low_load_streak++;
-        if (low_load_streak >= MAX_STREAK) {
-            int max_len = calculate_alive_vnpu_num() - 1;
-            max_len = (max_len < 0) ? 0 : max_len;
-            if (current_window < max_len) {
-                new_window = current_window + 1;
-                LOG_DEBUG("Utilization low (%u%%), increasing window to %d (max:%d).", utilization_rate, new_window,
-                          max_len);
+        unsigned int utilization_rate = 0;
+        uint64_t begin = ns_now();
+        atomic_store(&g_vnpu_sched_context->last_slide_window_time_ns, begin);
+        int ret =
+            enpu_dcmi_get_device_utilization_rate(get_logic_id(), get_card_id(), get_device_id(), &utilization_rate);
+        if (ret != ENPU_SUCCESS) {
+            LOG_ERROR("DCMI call failed with ret: %d.", ret);
+            owner = atomic_load(&g_vnpu_sched_context->owner);
+            continue;
+        }
+
+        uint64_t now = ns_now();
+        uint64_t diff_ns = now - begin;
+        if (diff_ns > DCMI_TIMEOUT_THRESHOLD) {
+            LOG_DEBUG("The DCMI interface is overloaded, reuse the NPU utilization status from the last time.");
+            owner = atomic_load(&g_vnpu_sched_context->owner);
+            continue;
+        }
+
+        static int high_load_streak = 0;
+        static int low_load_streak = 0;
+        int current_window = atomic_load(&g_vnpu_sched_context->slide_window_len);
+        int new_window = current_window;
+
+        if (utilization_rate > UTILIZATION_RATE_MAX) {
+            low_load_streak = 0;
+            high_load_streak++;
+            if (high_load_streak >= MAX_STREAK && current_window > 0) {
+                new_window = current_window - 1;
+                high_load_streak = 0;
+                LOG_DEBUG("Utilization high (%u%%), decreasing window to %d.", utilization_rate, new_window);
             }
+        } else if (utilization_rate < UTILIZATION_RATE_MIN) {
+            high_load_streak = 0;
+            low_load_streak++;
+            if (low_load_streak >= MAX_STREAK) {
+                int max_len = calculate_alive_vnpu_num() - 1;
+                max_len = (max_len < 0) ? 0 : max_len;
+                if (current_window < max_len) {
+                    new_window = current_window + 1;
+                    LOG_DEBUG("Utilization low (%u%%), increasing window to %d (max:%d).", utilization_rate, new_window,
+                              max_len);
+                }
+                low_load_streak = 0;
+            }
+        } else {
+            high_load_streak = 0;
             low_load_streak = 0;
         }
-    } else {
-        high_load_streak = 0;
-        low_load_streak = 0;
-    }
 
-    if (new_window != current_window) {
-        atomic_store(&g_vnpu_sched_context->slide_window_len, new_window);
+        if (new_window != current_window) {
+            atomic_store(&g_vnpu_sched_context->slide_window_len, new_window);
+        }
+        ns_sleep(VNPU_FLUSH_PERIOD);
+        owner = atomic_load(&g_vnpu_sched_context->owner);
     }
+    atomic_store(&g_monitor_init, false);
+    pthread_mutex_unlock(&g_vnpu_sched_context->npu_utilization_monitor_mutex);
     return NULL;
 }
 
@@ -359,7 +382,8 @@ void check_and_borrow_timeslice(int owner)
 {
     if (owner == g_vnpu_id) {
         // Check and update slide_window_len, no borrow here
-        if (!check_timeout(&g_vnpu_sched_context->last_slide_window_time_ns, WATTING_SLIDE_WINDOW_TIMEOUT_PERIOD)) {
+        if (!atomic_load(&g_monitor_init)) {
+            atomic_store(&g_monitor_init, true);
             pthread_t thread;
             int rc = pthread_create(&thread, NULL, npu_utilization_monitor_thread, NULL);
             CHECK_ERROR_CODE(rc, "Failed to create npu_utilization_monitor_thread.");
@@ -468,6 +492,7 @@ void share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
             pthread_mutex_init(&g_vnpu_sched_context->vnpu_schedule_mutex[i], &attr);
         }
 
+        pthread_mutex_init(&g_vnpu_sched_context->npu_utilization_monitor_mutex, &attr);
         pthread_mutexattr_destroy(&attr);
         atomic_store(&g_vnpu_sched_context->magic_number, MAGIC_INITIALIZED);
         return;
@@ -492,6 +517,7 @@ int vnpu_scheduler_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
     pthread_t vnpu_alive_tid;
     rc = pthread_create(&vnpu_alive_tid, NULL, vnpu_scheduler_flush_thread, NULL);
     CHECK_COND_RETURN_ERROR_CODE(rc != 0, "Failed to create vnpu alive thread.");
+
     pthread_detach(vnpu_scheduler_tid);
     pthread_detach(vnpu_alive_tid);
     return ENPU_SUCCESS;
