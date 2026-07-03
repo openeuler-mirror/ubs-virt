@@ -35,11 +35,16 @@ void load_rt_libraries(void)
     return;
 }
 
+void pre_rt_init(void)
+{
+    pthread_once(&pre_rt_init_flag, load_rt_libraries);
+}
+
 RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
 {
     int res = log_init();
     CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
-    pthread_once(&pre_rt_init_flag, load_rt_libraries);
+    pre_rt_init();
     enpu_global_init();
     CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
                        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
@@ -61,7 +66,7 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
 {
     int res = log_init();
     CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
-    pthread_once(&pre_rt_init_flag, load_rt_libraries);
+    pre_rt_init();
     enpu_global_init();
     CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
                        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
@@ -83,7 +88,7 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceWithFlags, int32_t devId, uint64_t flags)
 {
     int res = log_init();
     CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
-    pthread_once(&pre_rt_init_flag, load_rt_libraries);
+    pre_rt_init();
     enpu_global_init();
     CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
                        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
@@ -105,7 +110,7 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceWithoutTsd, int32_t devId)
 {
     int res = log_init();
     CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
-    pthread_once(&pre_rt_init_flag, load_rt_libraries);
+    pre_rt_init();
     enpu_global_init();
     CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
                        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);

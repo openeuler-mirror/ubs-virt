@@ -140,6 +140,8 @@ typedef enum
 
 extern rt_entry_t rt_library_entry[];
 
+extern void pre_rt_init(void);
+
 #if defined(__cplusplus)
 }
 #endif

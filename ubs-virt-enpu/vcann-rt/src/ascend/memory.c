@@ -15,6 +15,8 @@
 #include "npu_manager.h"
 #include "runtime_hook.h"
 
+void load_rt_libraries(void);
+
 RUNTIME_HOOK_DEFINE(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
 {
     LOG_DEBUG("Hook mem rtMalloc size:%" PRIu64 ".", size);
@@ -89,6 +91,9 @@ RUNTIME_HOOK_DEFINE(rtMallocPhysical, rtDrvMemHandle *handle, size_t size, rtDrv
 RUNTIME_HOOK_DEFINE(rtMemGetInfoEx, rtMemInfoType_t memInfoType, size_t *freeSize, size_t *totalSize)
 {
     (void)memInfoType;
+    int res = log_init();
+    CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
+    pre_rt_init();
     enpu_global_init();
     LOG_DEBUG("Hook mem rtMemGetInfoEx.");
     size_t quota = get_mem_limit_quota();
