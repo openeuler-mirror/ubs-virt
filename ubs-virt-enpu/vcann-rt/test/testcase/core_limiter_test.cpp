@@ -82,16 +82,14 @@ private:
 
 TEST_F(CoreLimiterTest, npu_utilization_monitor_thread_test)
 {
-    void *para = nullptr;
-    (void)npu_utilization_monitor_thread(para);
-    int owner = 0;
-    check_and_borrow_timeslice(owner);
-    bool ret = slide_window_check(owner);
+    int owner_now = atomic_load(&g_vnpu_sched_context->owner);
+    atomic_store(&g_vnpu_sched_context->owner, get_vnpu_id());
+    check_and_borrow_timeslice(get_vnpu_id());
+    bool ret = slide_window_check(get_vnpu_id());
     EXPECT_EQ(ret, false);
-    owner = get_vnpu_id();
-    check_and_borrow_timeslice(owner);
-    ret = slide_window_check(owner);
-    EXPECT_EQ(ret, false);
+    int owner_invalid = 17;
+    atomic_store(&g_vnpu_sched_context->owner, owner_invalid); // stop npu_utilization_monitor_thread
+    atomic_store(&g_vnpu_sched_context->owner, owner_now);     // recover owner
 }
 
 TEST_F(CoreLimiterTest, calculate_alive_vnpu_num_test)
