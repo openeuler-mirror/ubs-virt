@@ -9,9 +9,11 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#include <dlfcn.h>
 #include <stdarg.h>
 #include "common.h"
 #include "npu_manager.h"
+#include "runtime_hook.h"
 
 static void die(const char *fmt, ...)
 {
@@ -30,6 +32,23 @@ static int parse_args(int argc, char *const argv[])
     if (argc > 1) {
         die("Invalid option : %s\n", argv[1]);
         return ENPU_FAIL;
+    }
+    return ENPU_SUCCESS;
+}
+
+static int load_rt_for_monitor(void)
+{
+    void *handle = dlopen("libruntime.so", RTLD_LAZY);
+    if (!handle) {
+        LOG_ERROR("Failed to dlopen libruntime.so: %s", dlerror());
+        return ENPU_FAIL;
+    }
+
+    for (int i = 0; i < RUNTIME_ENTRY_END; i++) {
+        rt_library_entry[i].func_ptr = dlsym(handle, rt_library_entry[i].name);
+        if (rt_library_entry[i].func_ptr == NULL) {
+            LOG_DEBUG("Monitor: function %s not found, skipped.", rt_library_entry[i].name);
+        }
     }
     return ENPU_SUCCESS;
 }
@@ -64,6 +83,9 @@ int main(int argc, char *argv[])
     if (getenv("ENPU_LOG_LEVEL") != NULL) {
         unsetenv("ENPU_LOG_LEVEL");
     }
+
+    ret = load_rt_for_monitor();
+    CHECK_RETURN_ERROR_CODE(ret, "Failed to load runtime library for monitor.");
 
     ret = enpu_soc_init();
     CHECK_RETURN_ERROR_CODE(ret, "Enpu soc init failed.");

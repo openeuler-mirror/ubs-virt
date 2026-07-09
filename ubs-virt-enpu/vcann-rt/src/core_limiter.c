@@ -140,20 +140,6 @@ inline bool vnpu_has_work(int vnpu_id)
     return check_timeout(&g_vnpu_sched_context->last_kernel_time_ns[vnpu_id], VNPU_NO_TASK_TIMEOUT_PERIOD);
 }
 
-bool vnpu_sched_need_skip(void)
-{
-    schedule_policy_t sched_policy = get_sched_policy();
-    if (sched_policy != SCHED_POLICY_ELASTIC) {
-        return false;
-    }
-
-    if (vnpu_has_work(g_vnpu_id)) {
-        return false;
-    }
-
-    return true;
-}
-
 void vnpu_idling(void)
 {
     int npu_core_limit_quota = 0;
@@ -223,41 +209,38 @@ void compensate_delta_time(void)
     set_core_cur_timeslice(-elapsed);
 }
 
-bool add_and_consume_time_slice(uint8_t *turn_id)
+bool add_and_consume_time_slice(uint8_t *turn_id, int *next_vnpu_id)
 {
     uint64_t now = ns_now();
-    int64_t timeslice = get_core_cur_timeslice() + (int64_t)get_core_quota_timeslice(); // 类型转换无安全风险
+    // The type conversion operation here poses no security risks.
+    int64_t timeslice = get_core_cur_timeslice() + (int64_t)get_core_quota_timeslice();
     set_core_cur_timeslice(timeslice);
     if (timeslice <= 0) {
         int vnpu_id = atomic_load(&g_vnpu_sched_context->owner);
-        int next_vnpu_id = select_next_owner(vnpu_id);
-        set_vnpu_and_idle(vnpu_id, next_vnpu_id);
+        *next_vnpu_id = select_next_owner(vnpu_id);
+        set_vnpu_and_idle(vnpu_id, *next_vnpu_id);
         return false;
     }
 
     pthread_mutex_unlock(&g_sched_mutex);
 
-    uint64_t end = now + (uint64_t)timeslice; // 类型转换无安全风险
+    uint64_t end = now + (uint64_t)timeslice; // The type conversion operation here poses no security risks.
     set_core_cur_timeslice(0LL);
 
     // For Determining whether the current round of scheduling is complete for a container with multiple threads.
     *turn_id = atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]);
 
     int vnpu_id = atomic_load(&g_vnpu_sched_context->owner);
-    int next_vnpu_id = select_next_owner(vnpu_id);
+    *next_vnpu_id = select_next_owner(vnpu_id);
 
     while (end > now) {
-        now = ns_now();
-        if (vnpu_sched_need_skip()) {
-            break;
-        }
         ns_sleep(WAITING_SLEEP_PERIOD);
+        now = ns_now();
     }
 
     atomic_store(&g_sched_locking, true);
     pthread_mutex_lock(&g_sched_mutex);
     atomic_store(&g_sched_locking, false);
-    set_vnpu_and_idle(vnpu_id, next_vnpu_id);
     return true;
 }
 
@@ -403,6 +386,7 @@ void *vnpu_scheduler_thread(void *arg)
 {
     (void)arg;
     uint8_t turn_id = -1;
+    int next_vnpu_id = -1;
     // For scheduler thread:
     //     holding mutex: user can not launch task by core_limiter
     //     release mutex: user can launch task by core_limiter
@@ -427,7 +411,7 @@ void *vnpu_scheduler_thread(void *arg)
         }
 
         // Consumption time slice. The lock is released to the user process within the specified time.
-        bool flag = add_and_consume_time_slice(&turn_id);
+        bool flag = add_and_consume_time_slice(&turn_id, &next_vnpu_id);
 
         // Only one thread is accepted.
         int rc = pthread_mutex_lock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
@@ -445,6 +429,7 @@ void *vnpu_scheduler_thread(void *arg)
             // Multi-process in the same vNPU is an unrecommended scenario and should be avoided as much as possible.
             if (flag) {
                 compensate_delta_time();
+                set_vnpu_and_idle(atomic_load(&g_vnpu_sched_context->owner), next_vnpu_id);
             }
             atomic_store(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id], turn_id + 1);
         }
