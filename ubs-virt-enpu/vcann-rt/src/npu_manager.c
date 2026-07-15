@@ -170,8 +170,10 @@ int enpu_soc_init(void)
 
     if (strstr(socVersion, "Ascend950") != NULL) {
         g_npu_info.soc_version = SOC_VERSION_ASCEND_950;
+    } else if (strstr(socVersion, "Ascend310") != NULL) {
+        g_npu_info.soc_version = SOC_VERSION_ASCEND_310;
     } else {
-        g_npu_info.soc_version = SOC_VERSION_NOT_ASCEND_950;
+        g_npu_info.soc_version = SOC_VERSION_ASCEND_910;
     }
 
     int ret = register_callback(g_npu_info.soc_version);

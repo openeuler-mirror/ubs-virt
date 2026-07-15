@@ -25,7 +25,8 @@ extern "C" {
 typedef enum
 {
     SOC_VERSION_ASCEND_950,
-    SOC_VERSION_NOT_ASCEND_950
+    SOC_VERSION_ASCEND_910,
+    SOC_VERSION_ASCEND_310
 } soc_version;
 
 // 定义回调函数类型
@@ -46,6 +47,8 @@ typedef struct {
 extern int enpu_dcmi_get_card_info(uint32_t phy_id, int *card_id, int *device_id, int *logic_id, uint8_t soc_version);
 extern int enpu_dcmi_get_device_resource_info(int logic_id, int card_id, int device_id, size_t *used);
 extern int enpu_dcmi_get_device_utilization_rate(int logic_id, int card_id, int device_id,
+                                                 unsigned int *utilization_rate);
+extern int enpu_dcmi_get_aicore_utilization_rate(int logic_id, int card_id, int device_id,
                                                  unsigned int *utilization_rate);
 extern int register_callback(uint8_t soc_version);
 
