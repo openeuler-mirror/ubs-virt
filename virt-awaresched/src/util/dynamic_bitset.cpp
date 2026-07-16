@@ -104,7 +104,7 @@ void Bitset::DynamicBitsetAnd(DynamicBitset &dst, const DynamicBitset &src)
 bool Bitset::IsDynamicBitsetCross(const DynamicBitset &first, const DynamicBitset &second)
 {
     unsigned long size = std::min(first.size(), second.size());
-    for (int i = 0; i < size; ++i) {
+    for (unsigned long i = 0; i < size; ++i) {
         if (first[i] == 1 && first[i] == second[i]) {
             return true;
         }
@@ -179,7 +179,7 @@ int16_t Bitset::FindFirstIdlePos(const DynamicBitset &bitSet, uint16_t start, ui
 std::set<uint16_t> Bitset::GetDynamicBitsetAreaSet(const DynamicBitset &bitset)
 {
     std::set<uint16_t> locationSet{};
-    for (int i = 0; i < bitset.size(); ++i) {
+    for (size_t i = 0; i < bitset.size(); ++i) {
         if (bitset[i]) {
             locationSet.emplace(i);
         }
