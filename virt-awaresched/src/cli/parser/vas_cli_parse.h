@@ -48,7 +48,7 @@ public:
 
 private:
     std::map<std::string, std::string> inputOptionMap{}; // Input parameter mapping
-    VasCliSdkCmdInfo sdkCommandInfo;                     // Matched SDK command information
+    VasCliSdkCmdInfo sdkCommandInfo = {};                // Matched SDK command information
     std::vector<VasCliSdkCmdInfo> sdkCmdInfo;            // Command information registered for SDK invocation
     std::unordered_set<std::string> fullCommand;         // Complete command keys
     std::unordered_map<std::string, std::vector<VasCliSdkOptionsInfo>> sdkCommandWithOptions; // Commands parameters

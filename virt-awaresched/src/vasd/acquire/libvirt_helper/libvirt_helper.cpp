@@ -70,7 +70,7 @@ VasRet LibvirtHelper::GetVmInfoList(VmInfoMap &vmInfoMap)
     }
 
     VmInfoMap skipVmInfoMap{};
-    for (size_t i = 0; i < numDomains; ++i) {
+    for (int i = 0; i < numDomains; ++i) {
         VmInfo vmInfo{};
         ret = GetVmInfo(domains[i], vmInfo);
         if (ret == VAS_ERROR_NULLPTR) {

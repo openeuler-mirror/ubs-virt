@@ -25,7 +25,7 @@ namespace vas::common {
 namespace fs = std::filesystem;
 
 struct SocketResponse {
-    int retCode;
+    uint32_t retCode;
     std::string retMsg;
 
     std::string ToString();
