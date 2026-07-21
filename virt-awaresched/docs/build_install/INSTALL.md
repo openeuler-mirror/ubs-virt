@@ -50,7 +50,7 @@ systemctl status vas-daemon
 
 ![服务正常启动](images/服务正常启动.png "服务正常启动示例")
 
-如果服务启动失败, 请查看服务日志(默认路径: `/var/log/vas/vas.log`), 确认启动失败原因.
+如果服务启动失败, 请查看服务日志(默认路径: `/var/log/vas/vasd.log`), 确认启动失败原因.
 
 ---
 
@@ -74,13 +74,13 @@ systemctl status vas-daemon
 ## 动态绑核模式环境准备
 
 - 配置grub.cfg
-  1. 打开/boot/efi/openEuler/grub.cfg文件
+  1. 打开/boot/efi/EFI/openEuler/grub.cfg文件
     ```shell
     vi /boot/efi/openEuler/grub.cfg
     ```
   2. 按“i”进入编辑模式，在当前系统对应的启动子项末尾添加`dynamic_affinity=enable`。 当前系统的启动子项可通过执行`cat /proc/cmdline` 命令确认，此处以6.6.0-98.0.0.103.oe2403sp2.aarch64为例
     ```shell
-    linux /vmlinuz-6.6.0-98.0.0.103.oe2403sp2.aarch64 root=/dev/mapper/openeuler-root ...... console=tty0 dynamic_affinity-enable
+    linux /vmlinuz-6.6.0-98.0.0.103.oe2403sp2.aarch64 root=/dev/mapper/openeuler-root ...... console=tty0 dynamic_affinity=enable
     ```
   3. 按“Esc”键，输入“:wq!”，按“Enter”保存并推出编辑。重启操作系统后明明行参数配置生效。
 
