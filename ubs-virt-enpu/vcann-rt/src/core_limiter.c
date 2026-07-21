@@ -162,7 +162,7 @@ int select_next_owner(int vnpu_id)
 {
     int next_vnpu_id = -1;
 
-    for (int i = 1; i <= MAX_VNPU; ++i) {
+    for (int i = 1; i < MAX_VNPU; ++i) {
         if (is_vnpu_alive((vnpu_id + i) % MAX_VNPU)) {
             next_vnpu_id = (vnpu_id + i) % MAX_VNPU;
             break;
@@ -355,7 +355,7 @@ bool slide_window_check(int owner)
 {
     int slide_windows_len = atomic_load(&g_vnpu_sched_context->slide_window_len);
 
-    for (int i = 1; i <= MAX_VNPU && slide_windows_len > 0; ++i) {
+    for (int i = 1; i < MAX_VNPU && slide_windows_len > 0; ++i) {
         int next_vnpu = (owner + i) % MAX_VNPU;
         if (next_vnpu == g_vnpu_id) {
             return true;
