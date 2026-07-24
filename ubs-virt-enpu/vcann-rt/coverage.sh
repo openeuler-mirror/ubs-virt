@@ -50,23 +50,28 @@ fi
 
 lcov --capture --directory . \
     --ignore-errors "$IGNORED_ERRORS" \
+    --rc lcov_branch_coverage=1 \
     --output-file coverage_base.info
 lcov --remove coverage_base.info \
     '/usr/*' '*/test/*' '*/build/*' '*/__build/*' \
     '*.h' '*.hpp' '*.hh' '*.hxx' \
     --ignore-errors "$IGNORED_ERRORS" \
-    --output-file coverage_filtered.info
+    --rc lcov_branch_coverage=1 \
+    --output-file coverage.info
 
 echo "[DEBUG] Generating html report..."
 if command -v genhtml > /dev/null 2>&1; then
-    genhtml coverage_filtered.info --output-directory coverage_report
+    genhtml coverage.info --show-details --legend \
+        --rc lcov_branch_coverage=1 \
+        --output-directory coverage_report
     echo "[DEBUG] Coverage html report generated to $(pwd)/coverage_report."
 else
     echo "[ERROR] Command genhtml not found."
 fi
 
-LINE_COVERAGE=$(lcov --summary coverage_filtered.info \
+LINE_COVERAGE=$(lcov --summary coverage.info \
     --ignore-errors "$IGNORED_ERRORS" \
+    --rc lcov_branch_coverage=1 \
     2>/dev/null \
     | grep "lines" | sed -E "s#.*: *([0-9]+\.?[0-9]*)% .*#\1#" \
     || echo "0.0")
