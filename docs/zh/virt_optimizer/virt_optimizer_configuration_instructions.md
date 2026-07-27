@@ -10,7 +10,7 @@ ubs-optimizer 配置文件采用 JSON 格式，由键（key）和值（value）�
 - key 表示配置项名称
 - value 表示配置项取值
 
-配置文件包含系统采集参数、服务监听参数以及系统指标采集开关等内容。 配置项设计要求虚拟机，物理机保持一致配置。
+配置文件包含系统采集参数、服务侦听参数以及系统指标采集开关等内容。配置项设计要求虚拟机，物理机保持一致配置。
 
 ## 配置文件路径
 
@@ -47,10 +47,10 @@ ubs-optimizer 配置文件采用 JSON 格式，由键（key）和值（value）�
 | `sampling_interval` | integer | 指标采集周期 | 1 ~ 600 | 30 | 秒（s） | 必须为整数 |
 | `bind_port` | integer | 服务侦听端口 | 1024 ~ 49151 | 10101 | - | - |
 | `vm_name` | string | 虚拟机实例名称 | 任意字符串 | openeuler | - | - |
-| `npu_type` | string | NPU 设备标识符 | d802 / d803 | d802 | - | d802：A2 NPU设备<br>d803：A3 NPU设备 |
-| `ipi_collector` | string | 启用处理器间中断（IPI）监控 | enable / disable | enable | - | enable：启用 IPI 指标采集<br>disable：关闭 IPI 指标采集 |
+| `npu_type` | string | NPU 设备标识符 | d802 / d803 | d802 | - | d802：A2 NPU 设备<br>d803：A3 NPU 设备 |
+| `ipi_collector` | string | 启用处理器间中断（IPI）监管 | enable / disable | enable | - | enable：启用 IPI 指标采集<br>disable：关闭 IPI 指标采集 |
 | `sched_collector` | string | 启用进程调度器分析 | enable / disable | enable | - | enable：启用调度器分析<br>disable：关闭调度器分析 |
-| `numa_collector` | string | 启用 NUMA 内存访问监控 | enable / disable | enable | - | enable：启用 NUMA 访问监控<br>disable：关闭 NUMA 访问监控 |
+| `numa_collector` | string | 启用 NUMA 内存访问监管 | enable / disable | enable | - | enable：启用 NUMA 访问监管<br>disable：关闭 NUMA 访问监管 |
 
 ## 注意事项
 
@@ -63,4 +63,4 @@ numa_collector
 ```
 
 如果关闭上述采集模块，可能导致：<br>
-eBPF指标采集不完整，调优算法获取的数据不准确，调优策略判断异常，因此推荐在生产环境中全部启用。
+eBPF 指标采集不完整，调优算法获取的数据不准确，调优策略判断异常，因此推荐在生产环境中全部启用。
