@@ -55,6 +55,10 @@ void ns_sleep(uint64_t ns)
 
 void restore_streams(rtStream_t stream)
 {
+    if (stream == NULL) {
+        return;
+    }
+
     if (hashmap_contains(stream_map, (void *)stream)) {
         return;
     }
@@ -204,6 +208,9 @@ void synchronize_and_clear_streams(void)
 void compensate_delta_time(void)
 {
     uint64_t begin = ns_now();
+    while (atomic_load(&hasModelExecuteSync) > 0) {
+        ns_sleep(WAITING_SLEEP_PERIOD);
+    }
     synchronize_and_clear_streams();
     uint64_t elapsed = ns_now() - begin;
     set_core_cur_timeslice(-elapsed);
