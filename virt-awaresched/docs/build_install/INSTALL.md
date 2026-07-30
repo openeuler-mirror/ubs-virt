@@ -75,13 +75,17 @@ systemctl status vas-daemon
 
 - 配置grub.cfg
   1. 打开/boot/efi/EFI/openEuler/grub.cfg文件
-    ```shell
-    vi /boot/efi/openEuler/grub.cfg
-    ```
-  2. 按“i”进入编辑模式，在当前系统对应的启动子项末尾添加`dynamic_affinity=enable`。 当前系统的启动子项可通过执行`cat /proc/cmdline` 命令确认，此处以6.6.0-98.0.0.103.oe2403sp2.aarch64为例
-    ```shell
-    linux /vmlinuz-6.6.0-98.0.0.103.oe2403sp2.aarch64 root=/dev/mapper/openeuler-root ...... console=tty0 dynamic_affinity=enable
-    ```
+
+      ```shell
+      vi /boot/efi/openEuler/grub.cfg
+      ```
+
+  2. 按“i”进入编辑模式，在当前系统对应的启动子项末尾添加`dynamic_affinity=enable`。 当前系统的启动子项可通过执行`cat /proc/cmdline` 命令确认，此处以6.6.0-98.0.0.103.oe2403sp2.aarch64为例。
+
+      ```shell
+      linux /vmlinuz-6.6.0-98.0.0.103.oe2403sp2.aarch64 root=/dev/mapper/openeuler-root ...... console=tty0 dynamic_affinity=enable
+      ```
+
   3. 按“Esc”键，输入“:wq!”，按“Enter”保存并推出编辑。重启操作系统后明明行参数配置生效。
 
 - 选核范围决策<br>
