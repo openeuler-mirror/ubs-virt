@@ -8,6 +8,18 @@ CURRENT_PATH=$(cd "$(dirname "$0")"; pwd)
 
 export BUILD_PATH="${CURRENT_PATH}/../build/debug/"
 
+coverage_available=true
+for required_command in lcov genhtml; do
+    if ! command -v "${required_command}" >/dev/null 2>&1; then
+        coverage_available=false
+        break
+    fi
+done
+
+if [ "${coverage_available}" = false ]; then
+    echo "Warning: lcov/genhtml not found. Unit tests will run without generating a coverage report." >&2
+fi
+
 sudo mkdir -p /var/ubs-opt/data/ && sudo chmod 733 /var/ubs-opt/data/
 
 sudo mkdir /usr/local/sbin/ubs-optimizer/ && sudo chmod 733 /usr/local/sbin/ubs-optimizer/
@@ -27,15 +39,19 @@ cd "${BUILD_PATH}"/tests
 ./server/test-server
 ./optimizer/test-optimizer --gtest_output=xml:test_detail.xml
 
-lcov --rc lcov_branch_coverage=1 -b ./src/ -d ${BUILD_PATH}/src/ -c -o lcov.info
-lcov --rc lcov_branch_coverage=1 -r lcov.info '/usr/include/*' '*.h' '*main_server.cpp' '*main.cpp' -o coverage.info
-lcov --rc lcov_branch_coverage=1 -e coverage.info '*common/*' '*collector/*' '*/optimizer/*' '*/server/control/*' -o coverage.info
+if [ "${coverage_available}" = true ]; then
+    lcov --rc lcov_branch_coverage=1 -b ./src/ -d ${BUILD_PATH}/src/ -c -o lcov.info
+    lcov --rc lcov_branch_coverage=1 -r lcov.info '/usr/include/*' '*.h' '*main_server.cpp' '*main.cpp' -o coverage.info
+    lcov --rc lcov_branch_coverage=1 -e coverage.info '*common/*' '*collector/*' '*/optimizer/*' '*/server/control/*' -o coverage.info
 
-genhtml --branch-coverage --rc lcov_branch_coverage=1 -o gcover_report coverage.info
+    genhtml --branch-coverage --rc lcov_branch_coverage=1 -o gcover_report coverage.info
 
-cp -rf coverage.info gcover_report/
+    cp -rf coverage.info gcover_report/
 
-cp -rf test_detail.xml gcover_report/
+    cp -rf test_detail.xml gcover_report/
+else
+    echo "Skipping coverage report generation."
+fi
 
 sudo rm -rf /var/ubs-opt/
 

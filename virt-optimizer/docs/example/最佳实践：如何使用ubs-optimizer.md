@@ -9,7 +9,8 @@
 ## 前置条件
 
 1. 使用ubs-optimizer服务及功能前需确定环境为虚拟化智算场景且满足ubs-optimizer环境要求：
-  
+
+    - 推荐使用 openEuler 24.03 LTS SP4，支持 `x86_64` 和 `aarch64` 架构。
     - 判断是否为虚拟机智算场景，具体可参考[性能优化方法](../optimize_operations/性能优化方法.md)中的应用场景。
     - 判断是否为满足ubs-optimizer环境要求，具体可参考[部署说明](../build_install/部署说明.md)中的应用场景。
 
@@ -19,13 +20,13 @@
 
 1. 获取ubs-optimizer最新的rpm包，并安装到系统。
 
-    - ARM架构操作系统
+    - aarch64 架构
       
       ```bash
       rpm -ivh ubs-optimizer-0.1.0-k5.1-aarch64.rpm
       ```
 
-    - x86架构操作系统
+    - x86_64 架构
 
       ```bash
       rpm -ivh ubs-optimizer-0.1.0-k5.1-x86_64.rpm
