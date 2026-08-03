@@ -19,7 +19,7 @@ cmake .. -DBUILD_TESTS=ON -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
 make vnpu_test
 
 echo "[DEBUG] Running tests..."
-./test/vnpu_test
+./test/vnpu_test --gtest_output=xml:test_detail.xml
 
 bash ../coverage.sh
 

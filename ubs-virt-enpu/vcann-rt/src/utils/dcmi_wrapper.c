@@ -14,6 +14,7 @@
 #include "dcmi_wrapper.h"
 
 #define NPU_UTILIZATION (13)
+#define NPU_AICORE_UTILIZATION (2)
 #define MAX_DEVICE_LIST_NUM 64
 
 typedef struct {
@@ -73,6 +74,14 @@ int _dcmi_get_device_utilization_rate_callback(int logic_id, int card_id, int de
     return dcmi_get_device_utilization_rate(card_id, device_id, input_type, utilization);
 }
 
+int _dcmi_get_aicore_utilization_rate_callback(int logic_id, int card_id, int device_id, int input_type,
+                                               unsigned int *utilization)
+{
+    (void)logic_id;
+    (void)input_type;
+    return dcmi_get_device_utilization_rate(card_id, device_id, NPU_AICORE_UTILIZATION, utilization);
+}
+
 int _dcmiv2_get_device_resource_info_callback(int logic_id, int card_id, int device_id,
                                               struct dcmi_proc_mem_info *proc_info, int *proc_num)
 {
@@ -91,12 +100,18 @@ int _dcmi_get_device_resource_info_callback(int logic_id, int card_id, int devic
 int register_callback(uint8_t soc_version)
 {
     if (soc_version == SOC_VERSION_ASCEND_950) {
+        // Ascend950 products need to call the series of dcmiv2 interface.
         g_dcmi_ops.init_callback = _dcmiv2_init_callback;
         g_dcmi_ops.get_device_utilization_rate_callback = _dcmiv2_get_device_utilization_rate_callback;
         g_dcmi_ops.get_device_resource_info_callback = _dcmiv2_get_device_resource_info_callback;
     } else {
         g_dcmi_ops.init_callback = _dcmi_init_callback;
-        g_dcmi_ops.get_device_utilization_rate_callback = _dcmi_get_device_utilization_rate_callback;
+        if (soc_version == SOC_VERSION_ASCEND_310) {
+            // Ascend310 products don't support get NPU total utilization, so get aicore utilization.
+            g_dcmi_ops.get_device_utilization_rate_callback = _dcmi_get_aicore_utilization_rate_callback;
+        } else {
+            g_dcmi_ops.get_device_utilization_rate_callback = _dcmi_get_device_utilization_rate_callback;
+        }
         g_dcmi_ops.get_device_resource_info_callback = _dcmi_get_device_resource_info_callback;
     }
 
@@ -120,7 +135,7 @@ int enpu_dcmi_get_card_info(uint32_t phy_id, int *card_id, int *device_id, int *
     CHECK_RETURN_ERROR_CODE(ret, "dcmi init failed.");
     LOG_DEBUG("dcmi_init success");
 
-    if (soc_version == SOC_VERSION_NOT_ASCEND_950) {
+    if (soc_version == SOC_VERSION_ASCEND_910 || soc_version == SOC_VERSION_ASCEND_310) {
         ret = dcmi_get_card_id_device_id_from_phyid(card_id, device_id, phy_id);
         CHECK_RETURN_ERROR_CODE(ret, "get card info failed.");
         *logic_id = -1;

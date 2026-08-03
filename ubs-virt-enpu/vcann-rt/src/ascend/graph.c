@@ -15,6 +15,13 @@
 #include "npu_manager.h"
 #include "runtime_hook.h"
 
+static void track_sync_model(void *param, rtStream_t stream)
+{
+    (void)stream;
+    atomic_fetch_add(&hasModelExecuteSync, 1);
+    *(bool *)param = true;
+}
+
 RUNTIME_HOOK_DEFINE(rtModelExecute, rtModel_t mdl, rtStream_t stm, uint32_t flag)
 {
     core_limiter(stm, NULL, NULL);
@@ -31,10 +38,10 @@ RUNTIME_HOOK_DEFINE(rtModelExecuteAsync, rtModel_t mdl, rtStream_t stm, uint32_t
 
 RUNTIME_HOOK_DEFINE(rtsModelExecute, rtModel_t mdl, int32_t timeout)
 {
-    atomic_fetch_add(&hasModelExecuteSync, 1);
-    core_limiter(NULL, NULL, NULL);
+    bool tracked = false;
+    core_limiter(NULL, track_sync_model, &tracked);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtsModelExecute, mdl, timeout);
-    if (ret == ACL_RT_SUCCESS) {
+    if (tracked) {
         atomic_fetch_sub(&hasModelExecuteSync, 1);
     }
     return ret;
@@ -42,10 +49,10 @@ RUNTIME_HOOK_DEFINE(rtsModelExecute, rtModel_t mdl, int32_t timeout)
 
 RUNTIME_HOOK_DEFINE(rtModelExecuteSync, rtModel_t mdl, rtStream_t stm, uint32_t flag, int32_t timeout)
 {
-    atomic_fetch_add(&hasModelExecuteSync, 1);
-    core_limiter(stm, NULL, NULL);
+    bool tracked = false;
+    core_limiter(stm, track_sync_model, &tracked);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtModelExecuteSync, mdl, stm, flag, timeout);
-    if (ret == ACL_RT_SUCCESS) {
+    if (tracked) {
         atomic_fetch_sub(&hasModelExecuteSync, 1);
     }
     return ret;

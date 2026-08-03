@@ -77,9 +77,9 @@ static void MkdirRecursive(const char *path)
 
 static void SetLogConfig(const LogConfig *log_config)
 {
-    strcpy_s(g_log_config.log_dir, sizeof(g_log_config.log_dir), log_config->log_dir);
-    strcpy_s(g_log_config.log_path, sizeof(g_log_config.log_path), log_config->log_path);
-    strcpy_s(g_log_config.log_file_path, sizeof(g_log_config.log_file_path), log_config->log_file_path);
+    ASSERT_EQ(strcpy_s(g_log_config.log_dir, sizeof(g_log_config.log_dir), log_config->log_dir), 0);
+    ASSERT_EQ(strcpy_s(g_log_config.log_path, sizeof(g_log_config.log_path), log_config->log_path), 0);
+    ASSERT_EQ(strcpy_s(g_log_config.log_file_path, sizeof(g_log_config.log_file_path), log_config->log_file_path), 0);
     g_log_config.max_file_size = log_config->max_file_size;
     g_log_config.max_backup_count = log_config->max_backup_count;
     g_log_config.min_log_level = log_config->min_log_level;
@@ -119,7 +119,7 @@ protected:
 TEST_F(LogTest, LogTest_log_queue_init)
 {
     LogQueue queue;
-    memset(&queue, 0, sizeof(LogQueue));
+    ASSERT_EQ(memset_s(&queue, sizeof(LogQueue), 0, sizeof(LogQueue)), 0);
     int ret = log_queue_init(&queue);
     EXPECT_EQ(ret, ENPU_SUCCESS);
 
@@ -140,12 +140,12 @@ TEST_F(LogTest, LogTest_log_queue_destroy_null)
 TEST_F(LogTest, LogTest_log_queue_push_pop)
 {
     LogQueue queue;
-    memset(&queue, 0, sizeof(LogQueue));
+    ASSERT_EQ(memset_s(&queue, sizeof(LogQueue), 0, sizeof(LogQueue)), 0);
     int ret = log_queue_init(&queue);
     EXPECT_EQ(ret, ENPU_SUCCESS);
 
     LogMessage msg;
-    memset(&msg, 0, sizeof(LogMessage));
+    ASSERT_EQ(memset_s(&msg, sizeof(LogMessage), 0, sizeof(LogMessage)), 0);
     msg.level = ENPU_LOG_INFO;
     EXPECT_EQ(strncpy_s(msg.filename, sizeof(msg.filename), "test.cpp", strlen("test.cpp")), 0);
     EXPECT_EQ(strncpy_s(msg.basename, sizeof(msg.basename), "test.cpp", strlen("test.cpp")), 0);
@@ -157,7 +157,7 @@ TEST_F(LogTest, LogTest_log_queue_push_pop)
     EXPECT_EQ(ret, ENPU_SUCCESS);
 
     LogMessage popped_msg;
-    memset(&popped_msg, 0, sizeof(LogMessage));
+    ASSERT_EQ(memset_s(&popped_msg, sizeof(LogMessage), 0, sizeof(LogMessage)), 0);
     ret = log_queue_pop(&queue, &popped_msg);
     EXPECT_EQ(ret, ENPU_SUCCESS);
     EXPECT_EQ(popped_msg.level, ENPU_LOG_INFO);
@@ -172,10 +172,10 @@ TEST_F(LogTest, LogTest_log_queue_push_pop)
 TEST_F(LogTest, LogTest_log_queue_null_args)
 {
     LogQueue queue;
-    memset(&queue, 0, sizeof(LogQueue));
+    ASSERT_EQ(memset_s(&queue, sizeof(LogQueue), 0, sizeof(LogQueue)), 0);
     ASSERT_EQ(log_queue_init(&queue), ENPU_SUCCESS);
     LogMessage msg;
-    memset(&msg, 0, sizeof(LogMessage));
+    ASSERT_EQ(memset_s(&msg, sizeof(LogMessage), 0, sizeof(LogMessage)), 0);
     EXPECT_EQ(log_queue_push(NULL, &msg), ENPU_FAIL);
     EXPECT_EQ(log_queue_push(&queue, NULL), ENPU_FAIL);
     EXPECT_EQ(log_queue_pop(NULL, &msg), ENPU_FAIL);
@@ -186,11 +186,11 @@ TEST_F(LogTest, LogTest_log_queue_null_args)
 TEST_F(LogTest, LogTest_log_queue_after_destroy)
 {
     LogQueue queue;
-    memset(&queue, 0, sizeof(LogQueue));
+    ASSERT_EQ(memset_s(&queue, sizeof(LogQueue), 0, sizeof(LogQueue)), 0);
     ASSERT_EQ(log_queue_init(&queue), ENPU_SUCCESS);
     log_queue_destroy(&queue);
     LogMessage msg;
-    memset(&msg, 0, sizeof(LogMessage));
+    ASSERT_EQ(memset_s(&msg, sizeof(LogMessage), 0, sizeof(LogMessage)), 0);
     EXPECT_EQ(log_queue_push(&queue, &msg), ENPU_FAIL);
     EXPECT_EQ(log_queue_pop(&queue, &msg), ENPU_FAIL);
 }
@@ -228,7 +228,7 @@ TEST_F(LogTest, LogTest_log_level_filter)
 TEST_F(LogTest, LogTest_basename_extraction)
 {
     LogMessage msg;
-    memset(&msg, 0, sizeof(LogMessage));
+    ASSERT_EQ(memset_s(&msg, sizeof(LogMessage), 0, sizeof(LogMessage)), 0);
     msg.level = ENPU_LOG_INFO;
     msg.line = TEST_LINE_NUMBER_ONE;
     EXPECT_EQ(strncpy_s(msg.message, sizeof(msg.message), "test", strlen("test")), 0);
@@ -238,14 +238,14 @@ TEST_F(LogTest, LogTest_basename_extraction)
     EXPECT_EQ(strncpy_s(msg.basename, sizeof(msg.basename), "test.cpp", strlen("test.cpp")), 0);
 
     LogQueue queue;
-    memset(&queue, 0, sizeof(LogQueue));
+    ASSERT_EQ(memset_s(&queue, sizeof(LogQueue), 0, sizeof(LogQueue)), 0);
     log_queue_init(&queue);
 
     int ret = log_queue_push(&queue, &msg);
     EXPECT_EQ(ret, ENPU_SUCCESS);
 
     LogMessage popped;
-    memset(&popped, 0, sizeof(LogMessage));
+    ASSERT_EQ(memset_s(&popped, sizeof(LogMessage), 0, sizeof(LogMessage)), 0);
     ret = log_queue_pop(&queue, &popped);
     EXPECT_EQ(ret, ENPU_SUCCESS);
     EXPECT_STREQ(popped.basename, "test.cpp");

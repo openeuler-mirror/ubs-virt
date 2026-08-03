@@ -41,12 +41,23 @@
 | （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
 | （可选）MindCluster | 26.1.0（直接使用Docker部署则不需要）|
 
+#### Atlas 300I Duo 加速卡产品
+
+**表 4 软件版本**
+
+| 软件                | 版本                                                                        |
+|:---------------------|:-----------------------------------------------------------------------------|
+| CANN                | 9.1.0                                                                  |
+| HDK                 | 26.1.0及以上版本                                                            |
+| （可选）Kubernetes  | 不涉及（仅支持Docker部署）                                                       |
+| （可选）MindCluster | 不涉及（仅支持Docker部署）                                                       |
+
 ### 主机侧环境配置
 
 主机侧通过`npu-smi`工具开启容器共享模式，可支持多个容器挂载同一设备。若设备未开启容器共享模式，则只能挂载到单个容器。若配合MindCluster使用，要求整节点开启容器共享模式。
 
 ```shell
-# Atlas A2 / A3 推理系列产品：设置容器共享模式
+# Atlas A2 / A3 推理系列产品，Atlas 300I Duo 加速卡产品：设置容器共享模式
 npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
 # Atlas 350 加速卡产品：设置容器共享模式
 npu-smi set -t device-share -i ${id} -d ${value}
@@ -55,7 +66,7 @@ npu-smi set -t device-share -i ${id} -d ${value}
 npu-smi info -t device-share -i ${id}
 ```
 
-**表 4 参数说明**
+**表 5 参数说明**
 
 |参数|参数选项|说明|
 |:---|:---|:---|
@@ -77,7 +88,7 @@ npu-smi info -t device-share -i ${id}
 npu-smi set -t device-share-cfg-recover -d ${value}
 ```
 
-**表 5 参数说明**
+**表 6 参数说明**
 
 |参数|参数选项|说明|
 |:---|:---|:---|
@@ -89,7 +100,7 @@ npu-smi set -t device-share-cfg-recover -d ${value}
 npu-smi set -t multi-die-policy -d ${value}
 ```
 
-**表 6 参数说明**
+**表 7 参数说明**
 
 |参数|参数选项|说明|
 |:---|:---|:---|
@@ -397,8 +408,9 @@ vCANN-RT支持两种方式启动业务容器：
               huawei.com/npu: 20
       ```
     
+  对于Atlas 300I Duo 加速卡产品，不支持k8s部署。
 
-  **表 7 调度模式介绍**<a id="table7"></a>
+  **表 8 调度模式介绍**<a id="table7"></a>
 
   |模式名称|特点描述|
   |:---|:---|
@@ -439,7 +451,7 @@ vCANN-RT支持两种方式启动业务容器：
       scheduling-policy=2
     ```
 
-    **表 8 配置项说明**
+    **表 9 配置项说明**
 
     |参数|参数选项|说明|
     |:---|:---|:---|
@@ -479,7 +491,7 @@ vCANN-RT支持两种方式启动业务容器：
 
       3. 执行`export LD_PRELOAD=/opt/enpu/vcann-rt/lib/libvruntime.so`命令加载动态库。
 
-    **表 9 参数说明**<a id="table9"></a>
+    **表 10 参数说明**<a id="table9"></a>
 
     |文件/工具|路径|
     |:---|:---|
@@ -516,7 +528,7 @@ vCANN-RT支持两种方式启动业务容器：
 
 ### 环境变量汇总
 
-**表 10 环境变量列表**
+**表 11 环境变量列表**
 
 | 环境变量 | 范围 | 默认值 | 说明 |
 |-|-|-|-|
