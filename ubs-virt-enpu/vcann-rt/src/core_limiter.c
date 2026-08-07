@@ -22,7 +22,7 @@ uint8_t g_vnpu_id = 0;
 volatile int g_terminate = 0;
 atomic_bool g_sched_locking = false;
 atomic_int hasModelExecuteSync = 0;
-pthread_mutex_t g_sched_mutex;
+pthread_mutex_t g_sched_mutex = PTHREAD_MUTEX_INITIALIZER;
 atomic_bool g_monitor_init = false;
 
 cache_streams_t g_cache_streams = {.num_streams = 0, .streams = {NULL}};
@@ -99,11 +99,15 @@ void core_limiter(rtStream_t stream, core_function func, void *param)
             ns_sleep(WAITING_SLEEP_PERIOD);
             continue;
         }
-        LOG_DEBUG("Core limiter is waiting for the mutex lock.");
         // waiting for mutex == waiting for launch task
         int rc = pthread_mutex_lock(&g_sched_mutex);
         CHECK_COND_RETURN(rc != 0, "Failed to lock mutex, error code=%d.", rc);
-        LOG_DEBUG("The mutex lock is successfully obtained.");
+        // double-check g_sched_locking
+        if (atomic_load(&g_sched_locking)) {
+            pthread_mutex_unlock(&g_sched_mutex);
+            ns_sleep(WAITING_SLEEP_PERIOD);
+            continue;
+        }
         // The delivered stream needs to be recorded because the execution time needs to be collected later.
         restore_streams(stream);
         if (func != NULL) {
@@ -198,57 +202,109 @@ void synchronize_and_clear_streams(void)
         }
         LOG_DEBUG("Stream %p is being synchronized.", (void *)stm);
         RUNTIME_HOOK_CALL(rt_library_entry, rtStreamSynchronize, stm);
-        LOG_DEBUG("Stream synchronization end.");
         rc = hashmap_remove(stream_map, (void *)stm);
         CHECK_COND_RETURN(rc == -1, "Failed to remove stream %p from the hash map.", (void *)stm);
     }
     g_cache_streams.num_streams = remaining_count;
 }
 
-void compensate_delta_time(void)
+// without locks, multiple processes are executed in parallel.
+static uint64_t sync_own_streams_and_measure_ns(void)
 {
     uint64_t begin = ns_now();
     while (atomic_load(&hasModelExecuteSync) > 0) {
         ns_sleep(WAITING_SLEEP_PERIOD);
     }
     synchronize_and_clear_streams();
-    uint64_t elapsed = ns_now() - begin;
-    set_core_cur_timeslice(-elapsed);
+    return ns_now() - begin;
 }
 
-bool add_and_consume_time_slice(uint8_t *turn_id, int *next_vnpu_id)
+// wait to finish parallel stream synchronization with all sibling processes of vNPU.
+static void wait_for_sibling_sync(uint8_t vnpu_id, uint8_t turn_id)
 {
-    uint64_t now = ns_now();
-    // The type conversion operation here poses no security risks.
-    int64_t timeslice = get_core_cur_timeslice() + (int64_t)get_core_quota_timeslice();
-    set_core_cur_timeslice(timeslice);
-    if (timeslice <= 0) {
-        int vnpu_id = atomic_load(&g_vnpu_sched_context->owner);
-        *next_vnpu_id = select_next_owner(vnpu_id);
-        set_vnpu_and_idle(vnpu_id, *next_vnpu_id);
-        return false;
-    }
-
-    pthread_mutex_unlock(&g_sched_mutex);
-
-    uint64_t end = now + (uint64_t)timeslice; // The type conversion operation here poses no security risks.
-    set_core_cur_timeslice(0LL);
-
-    // For Determining whether the current round of scheduling is complete for a container with multiple threads.
-    *turn_id = atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]);
-
-    int vnpu_id = atomic_load(&g_vnpu_sched_context->owner);
-    *next_vnpu_id = select_next_owner(vnpu_id);
-
-    while (end > now) {
+    uint64_t wait_deadline = ns_now() + SYNC_WAIT_TIMEOUT_NS;
+    while (ns_now() < wait_deadline) {
+        // re-check turn
+        if (atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[vnpu_id]) != turn_id) {
+            LOG_DEBUG("vNPU %d pid %d: wait detected turn advanced (turn_id=%u), exit early.", vnpu_id, (int)getpid(),
+                      turn_id);
+            return;
+        }
+        int expected = atomic_load(&g_vnpu_sched_context->vnpu_sync_expected[vnpu_id]);
+        int completed = atomic_load(&g_vnpu_sched_context->vnpu_sync_completed[vnpu_id]);
+        if (completed >= expected) {
+            return;
+        }
         ns_sleep(WAITING_SLEEP_PERIOD);
-        now = ns_now();
+    }
+    int expected = atomic_load(&g_vnpu_sched_context->vnpu_sync_expected[vnpu_id]);
+    int completed = atomic_load(&g_vnpu_sched_context->vnpu_sync_completed[vnpu_id]);
+    LOG_WARN("vNPU %d pid %d: sync wait timeout, completed=%d expected=%d. "
+             "Slow sibling's sync not counted in debt this turn.",
+             vnpu_id, (int)getpid(), completed, expected);
+}
+
+// multiple processes fetch and consume time slices from shared memory
+uint64_t add_and_consume_time_slice(uint8_t *turn_id, int *next_vnpu_id)
+{
+    // processes of the same vNPU cannot inject quota/deport timeslice concurrently
+    int rc = pthread_mutex_lock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
+    if (rc == EOWNERDEAD) {
+        LOG_INFO("Consumer mutex owner died; taking over for vNPU %d.", g_vnpu_id);
+        pthread_mutex_consistent(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
+    } else if (rc != 0) {
+        LOG_WARN("Failed to lock vnpu_schedule_mutex, rc=%d.", rc);
+        *turn_id = atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]);
+        *next_vnpu_id = -1;
+        return 0;
     }
 
-    atomic_store(&g_sched_locking, true);
-    pthread_mutex_lock(&g_sched_mutex);
-    atomic_store(&g_sched_locking, false);
-    return true;
+    uint8_t cur_turn = atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]);
+
+    // only one process can operate this round of quota
+    if (cur_turn != atomic_load(&g_vnpu_sched_context->vnpu_quota_injected_for_turn[g_vnpu_id])) {
+        atomic_store(&g_vnpu_sched_context->vnpu_sync_expected[g_vnpu_id], 0);
+        atomic_store(&g_vnpu_sched_context->vnpu_sync_completed[g_vnpu_id], 0);
+        atomic_store(&g_vnpu_sched_context->vnpu_turn_max_sync[g_vnpu_id], 0ULL);
+
+        uint64_t quota = atomic_load(&g_vnpu_sched_context->vnpu_quota_timeslice[g_vnpu_id]);
+        atomic_fetch_add(&g_vnpu_sched_context->vnpu_cur_timeslice[g_vnpu_id], quota);
+
+        int64_t cur_after_inject = (int64_t)atomic_load(&g_vnpu_sched_context->vnpu_cur_timeslice[g_vnpu_id]);
+        uint64_t ts = cur_after_inject > 0 ? (uint64_t)cur_after_inject : 0ULL;
+        if (ts > 0) {
+            atomic_fetch_sub(&g_vnpu_sched_context->vnpu_cur_timeslice[g_vnpu_id], ts);
+        }
+        // for multi processes: record the current round's time slice quota into the shared memory
+        atomic_store(&g_vnpu_sched_context->vnpu_timeslice_for_turn[g_vnpu_id], ts);
+        atomic_store(&g_vnpu_sched_context->vnpu_quota_injected_for_turn[g_vnpu_id], cur_turn);
+
+        LOG_DEBUG("Quota %llu ns injected for vNPU %d turn %u; timeslice=%llu ns.", (unsigned long long)quota,
+                  g_vnpu_id, cur_turn, (unsigned long long)ts);
+    }
+
+    atomic_fetch_add(&g_vnpu_sched_context->vnpu_sync_expected[g_vnpu_id], 1);
+
+    *turn_id = cur_turn;
+    int owner = atomic_load(&g_vnpu_sched_context->owner);
+    *next_vnpu_id = select_next_owner(owner);
+
+    // multiple processes consume time slices in parallel
+    pthread_mutex_unlock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
+    uint64_t ts = atomic_load(&g_vnpu_sched_context->vnpu_timeslice_for_turn[g_vnpu_id]);
+    if (ts > 0) {
+        atomic_store(&g_sched_locking, false);
+        uint64_t end = ns_now() + ts;
+        while (ns_now() < end && !g_terminate) {
+            if (atomic_load(&g_vnpu_sched_context->owner) != g_vnpu_id) {
+                break;
+            }
+            ns_sleep(WAITING_SLEEP_PERIOD);
+        }
+        atomic_store(&g_sched_locking, true);
+    }
+
+    return ts;
 }
 
 void *vnpu_scheduler_flush_thread(void *arg)
@@ -380,11 +436,9 @@ void check_and_borrow_timeslice(int owner)
             pthread_detach(thread);
         }
     } else if (slide_window_check(owner)) { // Check and borrow timeslice
-        pthread_mutex_unlock(&g_sched_mutex);
+        atomic_store(&g_sched_locking, false);
         ns_sleep(BORROW_TIMESLICE_LENGTH); // borrow BORROW_TIMESLICE_LENGTH ns every time
         atomic_store(&g_sched_locking, true);
-        pthread_mutex_lock(&g_sched_mutex);
-        atomic_store(&g_sched_locking, false);
     }
 }
 
@@ -394,10 +448,8 @@ void *vnpu_scheduler_thread(void *arg)
     (void)arg;
     uint8_t turn_id = -1;
     int next_vnpu_id = -1;
-    // For scheduler thread:
-    //     holding mutex: user can not launch task by core_limiter
-    //     release mutex: user can launch task by core_limiter
-    pthread_mutex_lock(&g_sched_mutex);
+    // g_sched_locking = true : user can not launch task by core_limiter
+    atomic_store(&g_sched_locking, true);
     while (!g_terminate) {
         // Distributed thread scheduling.
         // Scheduling is performed only when the owner is the current vnpu or the owner is disabled.
@@ -418,7 +470,28 @@ void *vnpu_scheduler_thread(void *arg)
         }
 
         // Consumption time slice. The lock is released to the user process within the specified time.
-        bool flag = add_and_consume_time_slice(&turn_id, &next_vnpu_id);
+        uint64_t timeslice = add_and_consume_time_slice(&turn_id, &next_vnpu_id);
+
+        if (timeslice > 0) {
+            // without locks, multiple processes are executed in parallel.
+            uint64_t my_sync_ns = sync_own_streams_and_measure_ns();
+            if (atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]) == turn_id) {
+                atomic_fetch_max_uint64(&g_vnpu_sched_context->vnpu_turn_max_sync[g_vnpu_id], my_sync_ns);
+                atomic_fetch_add(&g_vnpu_sched_context->vnpu_sync_completed[g_vnpu_id], 1);
+                LOG_DEBUG("vNPU %d pid %d: parallel sync done, my_elapsed=%llu ns.", g_vnpu_id, (int)getpid(),
+                          (unsigned long long)my_sync_ns);
+            } else {
+                // this process flow synchronization timeout, data discarded
+                LOG_WARN("vNPU %d pid %d: sync took %llu ns, turn changed during sync (stale, skip).", g_vnpu_id,
+                         (int)getpid(), (unsigned long long)my_sync_ns);
+                continue;
+            }
+        } else {
+            atomic_fetch_add(&g_vnpu_sched_context->vnpu_sync_completed[g_vnpu_id], 1);
+        }
+
+        // wait to finish parallel stream synchronization with all sibling processes of vNPU.
+        wait_for_sibling_sync(g_vnpu_id, turn_id);
 
         // Only one thread is accepted.
         int rc = pthread_mutex_lock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
@@ -430,19 +503,20 @@ void *vnpu_scheduler_thread(void *arg)
             continue;
         }
 
-        // if (previous scheduler not successed)
         if (atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]) == turn_id) {
             // Only the slice of the main process is considered.
-            // Multi-process in the same vNPU is an unrecommended scenario and should be avoided as much as possible.
-            if (flag) {
-                compensate_delta_time();
-                set_vnpu_and_idle(atomic_load(&g_vnpu_sched_context->owner), next_vnpu_id);
+            if (timeslice > 0) {
+                uint64_t debt = atomic_load(&g_vnpu_sched_context->vnpu_turn_max_sync[g_vnpu_id]);
+                (void)atomic_fetch_sub(&g_vnpu_sched_context->vnpu_cur_timeslice[g_vnpu_id], debt);
+                LOG_DEBUG("Leader vNPU %d turn %u: applied debt=%llu ns (max of sibling syncs).", g_vnpu_id, turn_id,
+                          (unsigned long long)debt);
             }
+
+            set_vnpu_and_idle(atomic_load(&g_vnpu_sched_context->owner), next_vnpu_id);
             atomic_store(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id], turn_id + 1);
         }
         pthread_mutex_unlock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
     }
-    pthread_mutex_unlock(&g_sched_mutex);
     hashmap_destroy(stream_map);
     hashmap_destroy(event_map);
     return NULL;
@@ -481,6 +555,13 @@ void share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
             atomic_store(&g_vnpu_sched_context->last_kernel_time_ns[i], 0ULL);
             atomic_store(&g_vnpu_sched_context->vnpu_core_limit_quota[i], 0);
             atomic_store(&g_vnpu_sched_context->vnpu_schedule_turn[i], 0);
+            atomic_store(&g_vnpu_sched_context->vnpu_quota_timeslice[i], 0ULL);
+            atomic_store(&g_vnpu_sched_context->vnpu_cur_timeslice[i], 0ULL);
+            atomic_store(&g_vnpu_sched_context->vnpu_quota_injected_for_turn[i], (uint_fast8_t)0xFF);
+            atomic_store(&g_vnpu_sched_context->vnpu_sync_expected[i], 0);
+            atomic_store(&g_vnpu_sched_context->vnpu_sync_completed[i], 0);
+            atomic_store(&g_vnpu_sched_context->vnpu_turn_max_sync[i], 0ULL);
+            atomic_store(&g_vnpu_sched_context->vnpu_timeslice_for_turn[i], 0ULL);
             pthread_mutex_init(&g_vnpu_sched_context->vnpu_schedule_mutex[i], &attr);
         }
 
@@ -499,8 +580,7 @@ int vnpu_scheduler_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
     uint8_t aicore_limit_percent = get_core_limit_quota();
     atomic_store(&g_vnpu_sched_context->vnpu_core_limit_quota[g_vnpu_id], aicore_limit_percent);
     uint64_t aicore_cur_timesilice = aicore_limit_percent * VNPU_SCHEULE_PERIOD / HUNDRED_PERCENT;
-    set_core_cur_timeslice(0);
-    set_core_quota_timeslice(aicore_cur_timesilice);
+    atomic_store(&g_vnpu_sched_context->vnpu_quota_timeslice[g_vnpu_id], aicore_cur_timesilice);
 
     pthread_t vnpu_scheduler_tid;
     int rc = pthread_create(&vnpu_scheduler_tid, NULL, vnpu_scheduler_thread, NULL);
@@ -526,7 +606,6 @@ int aicore_limiter_initialize(void)
     }
 
     share_mem_init(vnpu_sched_shm);
-    pthread_mutex_init(&g_sched_mutex, NULL);
 
     rc = vnpu_scheduler_init(vnpu_sched_shm);
     CHECK_RETURN_ERROR_CODE(rc, "Failed to initialize vnpu scheduler.");

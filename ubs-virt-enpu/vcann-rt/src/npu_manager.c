@@ -73,26 +73,6 @@ char *get_vnpu_shm_id(void)
     return g_npu_info.shm_id;
 }
 
-uint64_t get_core_quota_timeslice(void)
-{
-    return g_npu_info.core_quota_timeslice;
-}
-
-void set_core_quota_timeslice(uint64_t time)
-{
-    g_npu_info.core_quota_timeslice = time;
-}
-
-int64_t get_core_cur_timeslice(void)
-{
-    return g_npu_info.core_cur_timeslice;
-}
-
-void set_core_cur_timeslice(int64_t time)
-{
-    g_npu_info.core_cur_timeslice = time;
-}
-
 int get_card_id(void)
 {
     return g_npu_info.card_id;
