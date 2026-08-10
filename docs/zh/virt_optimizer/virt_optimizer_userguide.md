@@ -1,10 +1,10 @@
-# UBS virt-optimizer 用户指南
+# UBS virt-optimizer用户指南
 
 ## 介绍
 
-`ubs-optimizer`是基于C++语言开发的，在昇腾虚拟化场景下针对虚拟机性能优化的调优工具。
+`ubs-optimizer`是基于C++ 语言开发的，在昇腾虚拟化场景下针对虚拟机性能优化的调优工具。
 
-本章内容旨在帮助开发者快速掌握ubs-optimizer的核心功能以及适用场景，提供可直接运行的代码，并规避常见问题。
+本章内容旨在帮助开发者快速掌握ubs-optimizer的核心功能以及适用场景，提供可直接运行的代码，并避免常见问题。
 
 ## 前置条件
 
@@ -13,9 +13,9 @@
     - 判断是否为虚拟机智算场景，具体可参考[性能优化方法](#性能优化方法)中的应用场景。
     - 判断是否为满足ubs-optimizer环境要求，具体可参考[部署说明](./virt_optimizer_installation.md)中的应用场景。
 
-2. 使用ubs-optimizer服务及功能前需完成ubs-optimizer的环境准备与安装准备, 参考[部署说明](./virt_optimizer_installation.md)中的软件安装。
+2. 使用ubs-optimizer服务及功能前需完成ubs-optimizer的环境准备与安装准备，参考[部署说明](./virt_optimizer_installation.md)中的软件安装。
 
-## ubs-optimizer 业务部署与启动
+## ubs-optimizer业务部署与启动
 
 1. 获取ubs-optimizer最新的rpm包，并安装到系统。
 
@@ -25,7 +25,7 @@
       rpm -ivh ubs-optimizer-0.1.0-k5.1-aarch64.rpm
       ```
 
-    - x86架构操作系统
+    - x86 架构操作系统
 
       ```bash
       rpm -ivh ubs-optimizer-0.1.0-k5.1-x86_64.rpm
@@ -82,14 +82,14 @@
       | sampling_interval | 取值范围：[1,600]<br>默认：30<br>单位：s | 采集周期 | 需为整数 |
       | bind_port | 取值范围：[1024,49151]<br>默认：10101 | 服务侦听端口 | - |
       | vm_name | 默认：openeuler | 虚拟机实例名称 | - |
-      | npu_type | 取值：{d802, d803} | NPU设备标识符 | A2 使用 d802<br>A3 使用 d803 |
-      | system-ipi_collector | 取值：{enable, disable}<br>默认：enable | 启用处理器间中断（IPI）监控 | enable：启用<br>disable：关闭 |
+      | npu_type | 取值：{d802, d803} | NPU设备标识符 | A2 使用d802<br>A3 使用d803 |
+      | system-ipi_collector | 取值：{enable, disable}<br>默认：enable | 启用处理器间中断（IPI）监管 | enable：启用<br>disable：关闭 |
       | system-sched_collector | 取值：{enable, disable}<br>默认：enable | 启用进程调度器分析 | enable：启用<br>disable：关闭 |
-      | system-numa_collector | 取值：{enable, disable}<br>默认：enable | 启用 NUMA 内存访问监控 | enable：启用<br>disable：关闭 |
+      | system-numa_collector | 取值：{enable, disable}<br>默认：enable | 启用NUMA内存访问监管 | enable：启用<br>disable：关闭 |
 
       > 说明
       >
-      > - 尽可能将表 eBPF指标采集配置说明中的{system-ipi_collector，system-sched_collector，system-numa_collector}全部启用，错误的数据会导致调优项判断异常。
+      > - 尽可能将表eBPF指标采集配置说明中的{system-ipi_collector，system-sched_collector，system-numa_collector}全部启用，错误的数据会导致调优项判断异常。
       > - 虚拟机和物理机的正常通信要求配置免密和主机名解析。
       
    c. 保存配置文件。
@@ -120,7 +120,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
 ## 示例
 
-示例的部署及使用场景为：昇腾NPU+鲲鹏CPU的协同计算架构场景，执行以下操作进行性能调优。
+示例的部署及使用场景为：昇腾NPU+ 鲲鹏CPU的协同计算架构场景，执行以下操作进行性能调优。
 
 1. 虚拟机和物理机部署ubs-optimizer，完成配置文件配置。
 2. 虚拟机性能数据采集，并拷贝数据至物理机“/var/ubs-opt/data/”路径。
@@ -136,9 +136,9 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
 4. 根据当前应用场景在[性能优化方法](#性能优化方法)中，找到对应的优化描述。
 
-      [性能优化方法](#性能优化方法)中，对应的优化项为GICv4.1以及HugePage 2M优化。
+      [性能优化方法](#性能优化方法)中，对应的优化项为GICv4.1 以及HugePage 2M优化。
 
-5. 评估后，选择配置GICv4.1优化项，并手动配置GICv4.1优化项，配置操作如下：
+5. 评估后，选择配置GICv4.1 优化项，并手动配置GICv4.1 优化项，配置操作如下：
 
     a.修改宿主机的/etc/default/grub，在GRUB_CMDLINE_LINUX项的末尾加入以下参数：
 
@@ -162,39 +162,39 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
 当前ubs-optimizer支持以下两种场景：
 
-**场景1：昇腾NPU+鲲鹏CPU的协同计算架构场景**
+**场景 1：昇腾NPU+ 鲲鹏CPU的协同计算架构场景**
 
 该场景有如下限制：
 
-|项目|版本信息|
+|项目 | 版本信息 |
 |:----|:----|
 |架构|ARM架构，鲲鹏型号CPU，昇腾型号NPU|
 |操作系统|openEuler 22.03 LTS SP4|
-|NPU驱动|Ascend HDK 24.1.1及以上|
-|软件版本|<ul><li>Libvirt v9.4及以上</li><li>QEMU v8.1及以上</li></ul>|
-|硬件要求|<ul><li>Atlas 900 A3 SuperPoD 超节点A900</li><li>A3 SuperPoD 超节点</li><li>Atlas 800T A2 训练服务器</li><li>A800T A2 训练服务器</li></ul>|
+|NPU驱动|Ascend HDK 24.1.1 及以上 |
+|软件版本|<ul><li>Libvirt v9.4 及以上</li><li>QEMU v8.1 及以上</li></ul>|
+|硬件要求|<ul><li>Atlas 900 A3 SuperPoD超节点A900</li><li>A3 SuperPoD超节点</li><li>Atlas 800T A2 训练服务器</li><li>A800T A2 训练服务器</li></ul>|
 
-**场景2：昇腾NPU+X86架构CPU的协同计算架构场景**
+**场景 2：昇腾NPU+X86 架构CPU的协同计算架构场景**
 
 该场景有如下限制：
 
-|项目|版本信息|
+|项目 | 版本信息 |
 |:----|:----|
-|架构|X86架构，昇腾型号NPU33|
+|架构|X86 架构，昇腾型号NPU33|
 |操作系统|TencentOS Server 3.1|
-|NPU驱动|Ascend HDK 25.3.RC1及以上|
-|软件版本|<ul><li>Libvirt v9.4及以上</li><li>QEMU v8.1及以上</li></ul>|
-|硬件要求|G8600服务器|
+|NPU驱动|Ascend HDK 25.3.RC1 及以上 |
+|软件版本|<ul><li>Libvirt v9.4 及以上</li><li>QEMU v8.1 及以上</li></ul>|
+|硬件要求|G8600 服务器|
 
 ## 性能优化方法
 
-### 场景1：昇腾NPU+鲲鹏CPU的协同计算架构场景
+### 场景 1：昇腾NPU+ 鲲鹏CPU的协同计算架构场景
 
 #### WriteCombine优化
 
 - 原理介绍
 
-  `WC`（Write Combining，写合并）是一种提升主机向非缓存PCIe设备写入性能的技术。写入WC区域的数据会暂存于64字节缓冲区，待缓冲区填满或触发刷新事件（如写入地址超出当前缓冲区范围）时，执行合并写入，显著提升总线利用率，实现更高吞吐量。该特性在当前约束限制下的物理机上默认开启，本章节主要指导用户如何开启虚拟机内的WC特性，用户需要修改物理机内核代码、QEMU代码后重新编译安装。
+  `WC`（Write Combining，写合并）是一种提升主机向非缓存PCIe设备写入性能的技术。写入WC区域的数据会暂存于 64 字节缓冲区，待缓冲区填满或触发刷新事件（如写入地址超出当前缓冲区范围）时，执行合并写入，显著提升总线利用率，实现更高吞吐量。该特性在当前约束限制下的物理机上默认开启，本章节主要指导用户如何开启虚拟机内的WC特性，用户需要修改物理机内核代码、QEMU代码后重新编译安装。
 
 - 配置方法
   
@@ -246,11 +246,11 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
   2. 手动配置每一个cpuset（物理CPU）唯一对应一个vCPU（虚拟CPU）。
       
-      示例：物理机上CPU编号有0-191
+      示例：物理机上CPU编号有 0-191
 
       ![img.png](./images/image-202531014.png "CPU信息")
 
-      虚拟机XML中配置`cputune`，配置192个`vcpupin`,其中cpuset依次为0-191，vCPU依次为0-191，cpuset与vcpu一一对应。
+      虚拟机XML中配置`cputune`，配置 192 个`vcpupin`,其中cpuset依次为 0-191，vCPU依次为 0-191，cpuset与vcpu一一对应。
 
       ![img.png](./images/image-202531015.png "XML配置")
 
@@ -281,7 +281,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
   2. 在XML中查询物理机的PCI和虚拟机的PCI对应关系。
 
-      执行以下命令，通过source内address中的bus来找到该NPU对应的虚拟机映射PCI，因为该bus是和步骤1的PCI号一一对应，比如第一个NPU的PCI号是01:00.0，这里`bus`就是0x01,<`Device`>.<`Function`>为00.0
+      执行以下命令，通过source内address中的bus来找到该NPU对应的虚拟机映射PCI，因为该bus是和步骤 1 的PCI号一一对应，比如第一个NPU的PCI号是 01:00.0，这里`bus`就是 0x01,<`Device`>.<`Function`>为 00.0
 
       ```bash
       virsh edit <vm_name>
@@ -311,7 +311,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
       01:00.0 Processing accelerators: Huawei Technologies Co., Ltd. Device d802 (rev 20)
       ```
 
-      此处01:00.0设备，domain为0000，Bus为01，Slot.Function为00.0;
+      此处 01:00.0 设备，domain为 0000，Bus为 01，Slot.Function为 00.0;
       
       查看其NUMA号：
 
@@ -321,9 +321,9 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
       ![img.png](./images/image-202531018.png "NUMA编号")
 
-      上图说明该设备在物理机上绑定的numa为0
+      上图说明该设备在物理机上绑定的numa为 0
 
-  4. 进入到虚拟机中/sys/bus/pci/devices目录下，查看该NPU在虚拟机上的绑定的NUMA，返回信息-1，即表示现在还没有绑定
+  4. 进入到虚拟机中/sys/bus/pci/devices目录下，查看该NPU在虚拟机上的绑定的NUMA，返回信息 -1，即表示现在还没有绑定
 
       ```bash
       cd /sys/bus/pci/devices
@@ -334,7 +334,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
       ![img.png](./images/image-202531019.png "xml配置")
 
-      虚拟机xml中hostdev字段中，直通的NPU设备PCI地址中，domain为0000，Bus为08，Slot.Function为00.0
+      虚拟机xml中hostdev字段中，直通的NPU设备PCI地址中，domain为 0000，Bus为 08，Slot.Function为 00.0
       
       查看其NPU设备绑定numa：
 
@@ -462,7 +462,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
 #### vCPU隔离独占
 
-设置vCPU隔离独占使得虚拟机的CPU不再被物理机任务频繁抢占，减少上下文切换和 VM-exit/entry 开销。vCPU隔离会导致物理机CPU被虚拟机完全独占，降低多虚拟机场景下的CPU复用率，追求极致性能的场景可以开启本特性，谨慎开启。
+设置vCPU隔离独占使得虚拟机的CPU不再被物理机任务频繁抢占，减少上下文切换和VM-exit/entry开销。vCPU隔离会导致物理机CPU被虚拟机完全独占，降低多虚拟机场景下的CPU复用率，追求超高性能的场景可以开启本特性，谨慎开启。
 
 1. 编辑GRUB文件，进行虚机CPU分配配置。
 
@@ -523,7 +523,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
   1. 配置GIC Version。
     
-      重启物理机，在开机自检时进入BIOS。在路径Advanced > Processor Configuration > GIC Version中将GIC Version设置为4.1。
+      重启物理机，在开机自检时进入BIOS。在路径Advanced > Processor Configuration > GIC Version中将GIC Version设置为 4.1。
 
   2. 编辑GRUB文件，以使能GICv4.1。
       执行以下命令编辑GRUB文件。
@@ -570,13 +570,13 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
       cat /proc/cmdline | grep vgic_v4_enable
       ```
 
-### 场景2 昇腾NPU+鲲鹏CPU的协同计算架构场景
+### 场景 2 昇腾NPU+ 鲲鹏CPU的协同计算架构场景
 
 #### WriteCombine优化
 
 - 原理介绍
 
-  `WC`（Write Combining，写合并）是一种提升主机向非缓存PCIe设备写入性能的技术。写入WC区域的数据会暂存于64字节缓冲区，待缓冲区填满或触发刷新事件（如写入地址超出当前缓冲区范围）时，执行合并写入，显著提升总线利用率，实现更高吞吐量。该特性在当前约束限制下的物理机上默认开启，本章节主要指导用户如何开启虚拟机内的WC特性，用户需要修改物理机内核代码、QEMU代码后重新编译安装。
+  `WC`（Write Combining，写合并）是一种提升主机向非缓存PCIe设备写入性能的技术。写入WC区域的数据会暂存于 64 字节缓冲区，待缓冲区填满或触发刷新事件（如写入地址超出当前缓冲区范围）时，执行合并写入，显著提升总线利用率，实现更高吞吐量。该特性在当前约束限制下的物理机上默认开启，本章节主要指导用户如何开启虚拟机内的WC特性，用户需要修改物理机内核代码、QEMU代码后重新编译安装。
 
 - 配置方法
 
@@ -634,7 +634,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
       ![img.png](./images/image-202531014.png "虚拟机编号")
 
-      虚拟机XML中配置`<cputune>`，配置192个`<vcpupin>`,其中cpuset依次为0-191，vCPU依次为0-191，cpuset与vcpu一一对应。
+      虚拟机XML中配置`<cputune>`，配置 192 个`<vcpupin>`,其中cpuset依次为 0-191，vCPU依次为 0-191，cpuset与vcpu一一对应。
 
       ![img.png](./images/image-202531015.png "虚拟机XML配置")
 
@@ -656,7 +656,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
       ```bash
       lspci | grep d802 
-      # 其中A2为d802，A3为d803
+      # 其中A2 为d802，A3为d803
       ```
 
       示例如下：
@@ -665,7 +665,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
   2. 在XML中查询物理机的PCI和虚拟机的PCI对应关系。
       
-      执行以下命令，通过source内address中的bus来找到该NPU对应的虚拟机映射PCI，因为该bus是和步骤1的PCI号一一对应，比如第一个NPU的PCI号是01:00.0，这里bus就是0x01
+      执行以下命令，通过source内address中的bus来找到该NPU对应的虚拟机映射PCI，因为该bus是和步骤1的PCI号一一对应，比如第一个NPU的PCI号是 01:00.0，这里bus就是 0x01
 
         ```bash
         virsh edit <vm_name>
@@ -695,7 +695,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
       01:00.0 Processing accelerators: Huawei Technologies Co., Ltd. Device d802 (rev 20)
       ```
 
-      此处01:00.0设备，domain为0000，Bus为01，Slot.Function为00.0；查看其NUMA号：
+      此处 01:00.0 设备，domain为0000，Bus为01，Slot.Function为00.0；查看其NUMA号：
 
       ```bash
       cat /sys/bus/pci/devices/0000\:02\:00.0/numa_node
@@ -741,7 +741,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
       为虚拟机的NPU设备地址，numa_num为物理机上与虚拟机一一对应的NPU设备，将虚拟机上NPU设备绑定的NUMA配置为与物理机一致。
   6. 重复以上操作，在虚拟机中，为所有直通虚拟机的NPU绑定NUMA，能够有效减少性能劣化。
 
-#### CPU 空闲处理优化
+#### CPU空闲处理优化
 
 - 原理介绍
 
@@ -782,7 +782,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
 - 原理介绍
 
-  将虚拟机大页设置成2M，减少页表层次和TLB压力，提高内存访问效率;该特性不影响正常业务场景。
+  将虚拟机大页设置成 2M，减少页表层次和TLB压力，提高内存访问效率;该特性不影响正常业务场景。
 
 - 配置方法
 
@@ -843,7 +843,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
 - 原理介绍
   
-  设置vCPU隔离独占使得虚拟机的CPU不再被物理机任务频繁抢占，减少上下文切换和 VM-exit/entry 开销。vCPU隔离会导致物理机CPU被虚拟机完全独占，降低多虚拟机场景下的CPU复用率，追求极致性能的场景可以开启本特性，谨慎开启。
+  设置vCPU隔离独占使得虚拟机的CPU不再被物理机任务频繁抢占，减少上下文切换和VM-exit/entry开销。vCPU隔离会导致物理机CPU被虚拟机完全独占，降低多虚拟机场景下的CPU复用率，追求极致性能的场景可以开启本特性，谨慎开启。
 
 - 配置方法
 
@@ -991,7 +991,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
 - 原理介绍
 
-  该优化项目针对服务器专注大模型推理任务，无其他高I/O任务的场景进行针对优化，停止Linux 的中断负载均衡服务，避免该服务自动把硬件中断分配到不同 CPU 核心上，将中断固定在当前CPU核心，避免跨核延迟，提高实时性。同时，该优化项通过修改linux自带的系统性能调优守护进程tuned的配置方案，进行CPU响应速度提升。
+  该优化项目针对服务器专注大模型推理任务，无其他高I/O任务的场景进行针对优化，停止Linux的中断负载均衡服务，避免该服务自动把硬件中断分配到不同CPU核心上，将中断固定在当前CPU核心，避免跨核延迟，提高实时性。同时，该优化项通过修改linux自带的系统性能调优守护进程tuned的配置方案，进行CPU响应速度提升。
 - 配置方法
 
 1. 大模型推理服务启动前需在物理机执行以下操作：
@@ -1008,7 +1008,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
       tuned-adm profile latency-performance
       ```
 
-2. 大模型推理服务启动前需在虚拟机执行以下操作:
+2. 大模型推理服务启动前需在虚拟机执行以下操作：
 
     a.关闭对CPU的中断自动分配。
 
@@ -1047,7 +1047,7 @@ UBS Optimizer会对虚拟机的性能数据进行分析，并列出可执行的�
 
 - 原理介绍
   
-  该优化项目通过整内核内存地址布局策略，减少内存地址随机化操作，可降低加载和初始化延迟，提升推理服务的响应速度。同时通过调整内核大页共享扫描策略，停止 KSM 页面扫描，减少页面合并带来的内存访问开销。
+  该优化项目通过整内核内存地址布局策略，减少内存地址随机化操作，可降低加载和初始化延迟，提升推理服务的响应速度。同时通过调整内核大页共享扫描策略，停止KSM页面扫描，减少页面合并带来的内存访问开销。
 - 配置方法
 
 大模型推理服务启动前，在虚拟机执行以下操作：

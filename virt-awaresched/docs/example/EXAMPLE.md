@@ -38,5 +38,6 @@ vasctl opt reassign --scope VM1
 ```bash
 vasctl opt recover
 ```
+
 示例信息如下：
 ![手动恢复](images/手动恢复.png "手动恢复示例")

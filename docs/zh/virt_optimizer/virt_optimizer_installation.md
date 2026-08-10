@@ -1,4 +1,4 @@
-# UBS virt-optimizer 安装指南
+# UBS virt-optimizer安装指南
 
 # 部署说明
 
@@ -19,7 +19,7 @@ ubs-optimizer的发布件如下：
    |项目|版本信息|
    |:----|:----|
    |架构|ARM架构，鲲鹏型号CPU，昇腾型号NPU|
-   |硬件|Atlas 900 A3 SuperPoD 超节点A900；A3 SuperPoD 超节点；Atlas 800T A2 训练服务器；A800T A2 训练服务器|
+   |硬件|Atlas 900 A3 SuperPoD超节点A900；A3 SuperPoD超节点；Atlas 800T A2 训练服务器；A800T A2 训练服务器|
    |操作系统|openEuler 22.03 LTS SP3|
    |CPU架构|aarch64|
    |用户权限|安装与管理需 `root` 权限|
@@ -36,8 +36,8 @@ ubs-optimizer的发布件如下：
 
 ## 软件安装
 
-> 宿主机和虚拟机均需要安装 `ubs-optimizer` RPM 包。  
-> 安装 RPM 包前，请确保操作系统已加载 `vsock` 内核驱动：
+> 宿主机和虚拟机均需要安装 `ubs-optimizer` RPM包。  
+> 安装RPM包前，请确保操作系统已加载 `vsock` 内核驱动：
 >
 > ```bash
 > modprobe vsock
