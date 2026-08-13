@@ -41,9 +41,20 @@
 | （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
 | （可选）MindCluster | 26.1.0（直接使用Docker部署则不需要）|
 
-#### Atlas 300I Duo 加速卡产品
+#### Atlas 850E Server 产品
 
 **表 4 软件版本**
+
+| 软件                | 版本                                                                        |
+|:---------------------|:-----------------------------------------------------------------------------|
+| CANN                | 9.1.0                                                                  |
+| HDK                 | 25.6.0及以上版本                                                            |
+| （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
+| （可选）MindCluster | 26.1.0（直接使用Docker部署则不需要）|
+
+#### Atlas 300I Duo 加速卡产品
+
+**表 5 软件版本**
 
 | 软件                | 版本                                                                        |
 |:---------------------|:-----------------------------------------------------------------------------|
@@ -59,14 +70,14 @@
 ```shell
 # Atlas A2 / A3 推理系列产品，Atlas 300I Duo 加速卡产品：设置容器共享模式
 npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
-# Atlas 350 加速卡产品：设置容器共享模式
+# Atlas 350 加速卡产品，Atlas 850E Server 产品：设置容器共享模式
 npu-smi set -t device-share -i ${id} -d ${value}
 
 # 查询设备容器共享模式
 npu-smi info -t device-share -i ${id}
 ```
 
-**表 5 参数说明**
+**表 6 参数说明**
 
 |参数|参数选项|说明|
 |:---|:---|:---|
@@ -88,7 +99,7 @@ npu-smi info -t device-share -i ${id}
 npu-smi set -t device-share-cfg-recover -d ${value}
 ```
 
-**表 6 参数说明**
+**表 7 参数说明**
 
 |参数|参数选项|说明|
 |:---|:---|:---|
@@ -100,7 +111,7 @@ npu-smi set -t device-share-cfg-recover -d ${value}
 npu-smi set -t multi-die-policy -d ${value}
 ```
 
-**表 7 参数说明**
+**表 8 参数说明**
 
 |参数|参数选项|说明|
 |:---|:---|:---|
@@ -376,7 +387,7 @@ vCANN-RT支持两种方式启动业务容器：
             - 弹性模式（elastic）
             - 争抢模式（best-effort）
             
-          - 每种模式的详细介绍参见[表7](#table7)，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制。
+          - 每种模式的详细介绍参见[表9](#table9)，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制。
 
   - host-arch: 系统架构 huawei-arm / huawei-x86
   - containers:
@@ -392,7 +403,7 @@ vCANN-RT支持两种方式启动业务容器：
           - hostPath:
               - path: ${preload_path}/ld.so.preload # [步骤1](#step1)中创建的ld.so.preload文件路径。
 
-  对于Atlas 350 加速卡产品，yaml配置文件的格式需要做以下修改：
+  对于Atlas 350 加速卡产品和Atlas 850E Server 产品，yaml配置文件的格式需要做以下修改：
 
   1. 删除910b相关配置：ring-controller.atlas: ascend-910b 及 accelerator-type: module-910b-8
 
@@ -410,7 +421,7 @@ vCANN-RT支持两种方式启动业务容器：
     
   对于Atlas 300I Duo 加速卡产品，不支持k8s部署。
 
-  **表 8 调度模式介绍**<a id="table7"></a>
+  **表 9 调度模式介绍**<a id="table9"></a>
 
   |模式名称|特点描述|
   |:---|:---|
@@ -451,7 +462,7 @@ vCANN-RT支持两种方式启动业务容器：
       scheduling-policy=2
     ```
 
-    **表 9 配置项说明**
+    **表 10 配置项说明**
 
     |参数|参数选项|说明|
     |:---|:---|:---|
@@ -460,13 +471,13 @@ vCANN-RT支持两种方式启动业务容器：
     |aicore-quota|AI Core资源配额，单位为%|表示算力使用的时间比例，需配置为整数。假设当前每个time slice为100ms, 申请了20%的算力资源，那么该容器有20ms的NPU使用权。|
     |memory-quota|HBM资源配额，单位为MB|表示显存资源使用容量，需配置为整数。当前容器内所有进程使用的HBM总量不能超过HBM资源配额。|
     |shm-id|共享内存文件名称|该文件名称采用物理NPU对应的VDie ID, 可以保证全局唯一。<br>通过`npu-smi info -t board -i ${id} -c ${chip_id}`命令查询VDie ID。<br>查询完成之后，可以通过`-`符号拼接成文件名称，例如：`shm-id=11111111-22222222-33333333-44444444-55555555` |
-    |scheduling-policy|<ul>默认配置为2。<li>1: 固定配额模式（fixed-share）</li><li>2: 弹性模式（elastic）</li><li>3: 争抢模式（best-effort）</li></ul>|调度策略（具体介绍可参见[表7](#table7)，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制）。|
+    |scheduling-policy|<ul>默认配置为2。<li>1: 固定配额模式（fixed-share）</li><li>2: 弹性模式（elastic）</li><li>3: 争抢模式（best-effort）</li></ul>|调度策略（具体介绍可参见[表9](#table9)，其中在争抢模式下，为充分利用算力资源，此时aicore的使用将不受配额的限制，但 HBM 的使用仍受配额的限制）。|
 
     此外，需要设置配置文件具有合适的权限，建议为644。
 
 2. 启动业务容器。
 
-    用户在启动容器时，需要将软切分相关动态库、文件和设备挂载到容器(具体可参见[表9](#table9))，容器启动命令可参考(假如使用第0张NPU卡)：
+    用户在启动容器时，需要将软切分相关动态库、文件和设备挂载到容器(具体可参见[表11](#table11))，容器启动命令可参考(假如使用第0张NPU卡)：
 
     ```bash
       docker run -it --name=${container_name} \
@@ -491,7 +502,7 @@ vCANN-RT支持两种方式启动业务容器：
 
       3. 执行`export LD_PRELOAD=/opt/enpu/vcann-rt/lib/libvruntime.so`命令加载动态库。
 
-    **表 10 参数说明**<a id="table9"></a>
+    **表 11 参数说明**<a id="table11"></a>
 
     |文件/工具|路径|
     |:---|:---|
@@ -528,7 +539,7 @@ vCANN-RT支持两种方式启动业务容器：
 
 ### 环境变量汇总
 
-**表 11 环境变量列表**
+**表 12 环境变量列表**
 
 | 环境变量 | 范围 | 默认值 | 说明 |
 |-|-|-|-|
