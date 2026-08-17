@@ -49,6 +49,7 @@ extern "C" {
 #define DCMI_TIMEOUT_THRESHOLD (100ULL * NS_PER_MS)              // 100ms
 #define UTILIZATION_RATE_MAX (95)
 #define UTILIZATION_RATE_MIN (80)
+#define SYNC_WAIT_TIMEOUT_NS (200ULL * NS_PER_MS)
 
 typedef struct cache_streams {
     int num_streams;
@@ -70,6 +71,7 @@ extern void add_stream(rtStream_t stream);
 extern void remove_stream(void *unused, rtStream_t stm);
 extern void set_event_destroy_status(void *evt);
 uint64_t ns_now(void);
+extern void synchronize_and_clear_streams(void);
 
 #if defined(__cplusplus)
 }

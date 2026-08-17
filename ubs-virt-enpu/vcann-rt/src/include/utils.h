@@ -11,8 +11,16 @@
 */
 #ifndef __UTILS_H__
 #define __UTILS_H__
+#include <stdint.h>
 #include <sys/file.h>
 #include "common.h"
+
+#if defined(__cplusplus)
+#include <atomic>
+using atomic_uint_fast64_t = std::atomic<uint_fast64_t>;
+#else
+#include <stdatomic.h>
+#endif
 
 #if defined(__cplusplus)
 extern "C" {
@@ -45,6 +53,7 @@ static inline bool file_lock_isvalid(const file_lock *lock)
 }
 
 extern void *map_share_mem(const char *shmID, size_t size);
+extern uint64_t atomic_fetch_max_uint64(atomic_uint_fast64_t *p, uint64_t v);
 
 #if defined(__cplusplus)
 }

@@ -138,3 +138,15 @@ void file_lock_destroy(file_lock *lock)
     lock->fd = -1;
     lock->held = false;
 }
+
+// old = atomic_load(p); if (v > old) atomic_store(p, v); return old;
+uint64_t atomic_fetch_max_uint64(atomic_uint_fast64_t *p, uint64_t v)
+{
+    uint64_t old = atomic_load(p);
+    while (v > old) {
+        if (atomic_compare_exchange_weak(p, &old, v)) {
+            break;
+        }
+    }
+    return old;
+}

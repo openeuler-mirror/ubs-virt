@@ -53,6 +53,13 @@ typedef struct shared_memory {
     atomic_int slide_window_len;
     atomic_uint_fast64_t last_slide_window_time_ns;
     pthread_mutex_t npu_utilization_monitor_mutex;
+    atomic_uint_fast64_t vnpu_quota_timeslice[MAX_VNPU];
+    atomic_uint_fast64_t vnpu_cur_timeslice[MAX_VNPU];
+    atomic_uint_fast8_t vnpu_quota_injected_for_turn[MAX_VNPU];
+    atomic_int vnpu_sync_expected[MAX_VNPU];
+    atomic_int vnpu_sync_completed[MAX_VNPU];
+    atomic_uint_fast64_t vnpu_turn_max_sync[MAX_VNPU];
+    atomic_uint_fast64_t vnpu_timeslice_for_turn[MAX_VNPU];
 } vnpu_time_slice_sched_t;
 
 typedef struct npu_info {
@@ -64,8 +71,6 @@ typedef struct npu_info {
     bool in_used;
     size_t mem_limit_quota;
     uint8_t core_limit_quota;
-    uint64_t core_quota_timeslice;
-    int64_t core_cur_timeslice;
     bool is_core_limit;
     schedule_policy_t sched_policy;
     char shm_id[SHM_ID_LEN];
@@ -84,10 +89,6 @@ extern char *get_vnpu_shm_id(void);
 extern int get_mem_used(size_t *used);
 extern int get_device_id(void);
 extern uint8_t get_vnpu_id(void);
-extern uint64_t get_core_quota_timeslice(void);
-extern void set_core_quota_timeslice(uint64_t time);
-extern int64_t get_core_cur_timeslice(void);
-extern void set_core_cur_timeslice(int64_t time);
 extern int get_card_id(void);
 extern schedule_policy_t get_sched_policy(void);
 extern bool check_init_success(void);
