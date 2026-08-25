@@ -43,6 +43,15 @@ int dcmi_get_card_id_device_id_from_phyid(int *card_id, int *device_id, unsigned
     return 0;
 }
 
+int dcmi_get_device_chip_info(int card_id, int device_id, struct dcmi_chip_info *chip_info)
+{
+    printf("call stub_dcmi_get_device_chip_info\n");
+    if (chip_info != NULL) {
+        chip_info->aicore_cnt = 20;
+    }
+    return 0;
+}
+
 int dcmiv2_init(void)
 {
     printf("call stub_dcmiv2_init\n");
@@ -64,5 +73,14 @@ int dcmiv2_get_device_proc_mem_info(int dev_id, struct dcmi_proc_mem_info *proc_
 int dcmiv2_get_device_list(int *device_list, int *device_count, int list_len)
 {
     printf("call stub_dcmiv2_get_device_list\n");
+    return 0;
+}
+
+int dcmiv2_get_device_chip_info(int dev_id, struct dcmi_chip_info_v2 *chip_info)
+{
+    printf("call stub_dcmiv2_get_device_chip_info, dev_id=%d\n", dev_id);
+    if (chip_info != NULL) {
+        chip_info->aicore_cnt = 24;
+    }
     return 0;
 }

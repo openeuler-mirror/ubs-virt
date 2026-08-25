@@ -38,10 +38,13 @@ typedef int (*dcmi_get_device_utilization_rate_func)(int logic_id, int card_id, 
 typedef int (*dcmi_get_device_resource_info_func)(int logic_id, int card_id, int device_id,
                                                   struct dcmi_proc_mem_info *proc_info, int *proc_num);
 
+typedef int (*dcmi_aicore_num_func)(int logic_id, int card_id, int device_id, unsigned int *aicore_num);
+
 typedef struct {
     dcmi_init_func init_callback;
     dcmi_get_device_utilization_rate_func get_device_utilization_rate_callback;
     dcmi_get_device_resource_info_func get_device_resource_info_callback;
+    dcmi_aicore_num_func get_device_aicore_num_callback;
 } dcmi_operations;
 
 extern int enpu_dcmi_get_card_info(uint32_t phy_id, int *card_id, int *device_id, int *logic_id, uint8_t soc_version);
@@ -50,6 +53,7 @@ extern int enpu_dcmi_get_device_utilization_rate(int logic_id, int card_id, int 
                                                  unsigned int *utilization_rate);
 extern int enpu_dcmi_get_aicore_utilization_rate(int logic_id, int card_id, int device_id,
                                                  unsigned int *utilization_rate);
+extern int enpu_dcmi_get_aicore_num(int logic_id, int card_id, int device_id, unsigned int *aicore_num);
 extern int register_callback(uint8_t soc_version);
 
 #if defined(__cplusplus)

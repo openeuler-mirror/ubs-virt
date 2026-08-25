@@ -129,7 +129,7 @@ int hashmap_get_ptr(HashMap *map, void *key, void **ptr)
         }
         node = node->next;
     }
-    LOG_ERROR("Hashmap get ptr failed.");
+    LOG_DEBUG("Hashmap get ptr failed.");
     return -1;
 }
 

@@ -15,6 +15,7 @@
 
 #define NPU_UTILIZATION (13)
 #define NPU_AICORE_UTILIZATION (2)
+#define AICORE_UTILIZATION (2)
 #define MAX_DEVICE_LIST_NUM 64
 
 typedef struct {
@@ -48,6 +49,10 @@ dcmi_get_device_resource_info(int card_id, int device_id, struct dcmi_proc_mem_i
 
 int __attribute__((weak))
 dcmi_get_card_id_device_id_from_phyid(int *card_id, int *device_id, unsigned int device_phy_id);
+
+int __attribute__((weak)) dcmi_get_device_chip_info(int card_id, int device_id, struct dcmi_chip_info *chip_info);
+
+int __attribute__((weak)) dcmiv2_get_device_chip_info(int dev_id, struct dcmi_chip_info_v2 *chip_info);
 
 int _dcmiv2_init_callback()
 {
@@ -97,6 +102,42 @@ int _dcmi_get_device_resource_info_callback(int logic_id, int card_id, int devic
     return dcmi_get_device_resource_info(card_id, device_id, proc_info, proc_num);
 }
 
+int _dcmiv2_get_device_aicore_num_callback(int logic_id, int card_id, int device_id, unsigned int *aicore_num)
+{
+    (void)card_id;
+    (void)device_id;
+    struct dcmi_chip_info_v2 chip_info;
+    int ret = memset_s(&chip_info, sizeof(chip_info), 0, sizeof(chip_info));
+    if (ret != 0) {
+        LOG_ERROR("memset_s chip_info_v2 failed, ret=%d.", ret);
+        return ENPU_FAIL;
+    }
+    ret = dcmiv2_get_device_chip_info(logic_id, &chip_info);
+    if (ret != 0) {
+        LOG_ERROR("dcmiv2_get_device_chip_info failed, logic_id=%d ret=%d.", logic_id, ret);
+        return ret;
+    }
+    *aicore_num = chip_info.aicore_cnt;
+    return 0;
+}
+
+int _dcmi_get_device_aicore_num_callback(int logic_id, int card_id, int device_id, unsigned int *aicore_num)
+{
+    (void)logic_id;
+    struct dcmi_chip_info chip_info;
+    int ret = memset_s(&chip_info, sizeof(chip_info), 0, sizeof(chip_info));
+    if (ret != 0) {
+        LOG_ERROR("memset_s chip_info failed, ret=%d.", ret);
+        return ENPU_FAIL;
+    }
+    ret = dcmi_get_device_chip_info(card_id, device_id, &chip_info);
+    if (ret != 0) {
+        return ret;
+    }
+    *aicore_num = chip_info.aicore_cnt;
+    return 0;
+}
+
 int register_callback(uint8_t soc_version)
 {
     if (soc_version == SOC_VERSION_ASCEND_950) {
@@ -104,6 +145,7 @@ int register_callback(uint8_t soc_version)
         g_dcmi_ops.init_callback = _dcmiv2_init_callback;
         g_dcmi_ops.get_device_utilization_rate_callback = _dcmiv2_get_device_utilization_rate_callback;
         g_dcmi_ops.get_device_resource_info_callback = _dcmiv2_get_device_resource_info_callback;
+        g_dcmi_ops.get_device_aicore_num_callback = _dcmiv2_get_device_aicore_num_callback;
     } else {
         g_dcmi_ops.init_callback = _dcmi_init_callback;
         if (soc_version == SOC_VERSION_ASCEND_310) {
@@ -113,10 +155,11 @@ int register_callback(uint8_t soc_version)
             g_dcmi_ops.get_device_utilization_rate_callback = _dcmi_get_device_utilization_rate_callback;
         }
         g_dcmi_ops.get_device_resource_info_callback = _dcmi_get_device_resource_info_callback;
+        g_dcmi_ops.get_device_aicore_num_callback = _dcmi_get_device_aicore_num_callback;
     }
 
     if (g_dcmi_ops.init_callback == NULL || g_dcmi_ops.get_device_utilization_rate_callback == NULL ||
-        g_dcmi_ops.get_device_resource_info_callback == NULL) {
+        g_dcmi_ops.get_device_resource_info_callback == NULL || g_dcmi_ops.get_device_aicore_num_callback == NULL) {
         return ENPU_FAIL;
     }
     return ENPU_SUCCESS;
@@ -160,6 +203,23 @@ int enpu_dcmi_get_device_utilization_rate(int logic_id, int card_id, int device_
     // Using NPU total utilization. (Other choices: 2. AICore, 3. AICpu)
     return g_dcmi_ops.get_device_utilization_rate_callback(logic_id, card_id, device_id, NPU_UTILIZATION,
                                                            utilization_rate);
+}
+
+// Get AI Core Utilization
+int enpu_dcmi_get_aicore_utilization_rate(int logic_id, int card_id, int device_id, unsigned int *utilization_rate)
+{
+    return g_dcmi_ops.get_device_utilization_rate_callback(logic_id, card_id, device_id, AICORE_UTILIZATION,
+                                                           utilization_rate);
+}
+
+// Get the number of physical AI Cores of the device
+int enpu_dcmi_get_aicore_num(int logic_id, int card_id, int device_id, unsigned int *aicore_num)
+{
+    if (aicore_num == NULL) {
+        LOG_ERROR("enpu_dcmi_get_aicore_num: aicore_num is null.");
+        return ENPU_FAIL;
+    }
+    return g_dcmi_ops.get_device_aicore_num_callback(logic_id, card_id, device_id, aicore_num);
 }
 
 static void *enpu_get_resource_info_thread(void *arg)

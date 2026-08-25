@@ -26,6 +26,7 @@
 #include "npu_manager.h"
 #include "runtime_stub.h"
 #include "securec.h"
+#include "vnpu_stats.h"
 
 extern "C" {
 // Globals defined in core_limiter.c needed for state inspection.
@@ -389,4 +390,130 @@ TEST_F(CoreLimiterTest, check_and_borrow_timeslice_dead)
     int dead = (g_vnpu_id + 1) % MAX_VNPU;
     check_and_borrow_timeslice(dead);
     SUCCEED();
+}
+
+// ---- launch stats dispatch pipeline (block_dim statistics feeding vnpu_stats) ----
+
+// stream_is_capturing: NULL stream, unknown stream and captured stream.
+TEST_F(CoreLimiterTest, stream_is_capturing_guards)
+{
+    EXPECT_FALSE(stream_is_capturing(NULL));
+
+    rtStream_t stm = reinterpret_cast<rtStream_t>(0x6001);
+    EXPECT_FALSE(stream_is_capturing(stm)); // not registered -> lookup miss
+
+    g_cache_streams.num_streams = 0;
+    add_stream(stm);
+    bool capture = true;
+    set_stream_capture(&capture, stm);
+    EXPECT_TRUE(stream_is_capturing(stm));
+
+    (void)hashmap_remove(stream_map, stm); // cleanup for later cases
+}
+
+// capture stats accumulate per stream and transfer to the model on demand.
+TEST_F(CoreLimiterTest, capture_stats_accumulate_and_transfer)
+{
+    rtStream_t stm = reinterpret_cast<rtStream_t>(0x6002);
+    rtModel_t mdl = reinterpret_cast<rtModel_t>(0x6003);
+
+    EXPECT_EQ(capture_stats_transfer_to_model(stm, NULL), -1); // null model guard
+    EXPECT_EQ(capture_stats_transfer_to_model(stm, mdl), -1);  // no stats entry yet
+
+    capture_stats_add(stm, 10);
+    capture_stats_add(stm, 6);
+    capture_stats_add(NULL, 5); // null stream guard
+
+    EXPECT_EQ(model_stats_get(NULL, NULL, NULL), -1); // null model guard
+    EXPECT_EQ(model_stats_get(mdl, NULL, NULL), -1);  // no model entry yet
+
+    ASSERT_EQ(capture_stats_transfer_to_model(stm, mdl), 0);
+    uint64_t blockDim = 0;
+    uint64_t count = 0;
+    ASSERT_EQ(model_stats_get(mdl, &blockDim, &count), 0);
+    EXPECT_EQ(blockDim, 16U);
+    EXPECT_EQ(count, 2U);
+}
+
+// Task-group intervals attribute launches to the group handle; a task update
+// refreshes the group value from the update interval accumulation.
+TEST_F(CoreLimiterTest, task_grp_and_update_flow)
+{
+    rtStream_t stm = reinterpret_cast<rtStream_t>(0x6004);
+    rtStream_t updStm = reinterpret_cast<rtStream_t>(0x6005);
+    rtModel_t mdl = reinterpret_cast<rtModel_t>(0x6006);
+    rtTaskGrp_t grp = reinterpret_cast<rtTaskGrp_t>(0x7001);
+    rtTaskGrp_t updGrp = reinterpret_cast<rtTaskGrp_t>(0x7002);
+
+    // End without begin: state guards are silent no-ops.
+    task_grp_end(stm, grp);
+    task_update_end(updStm);
+
+    // Group interval: two launches of blockDim 8 are attributed to grp (16).
+    task_grp_begin(stm);
+    launch_stats_dispatch(stm, 8);
+    launch_stats_dispatch(stm, 8);
+    task_grp_end(stm, grp);
+
+    // Update interval: three launches of blockDim 5 refresh updGrp (15).
+    task_update_begin(updStm, updGrp);
+    launch_stats_dispatch(updStm, 5);
+    launch_stats_dispatch(updStm, 5);
+    launch_stats_dispatch(updStm, 5);
+    task_update_end(updStm);
+
+    // The model receives the group's block_dim and the launch count.
+    ASSERT_EQ(capture_stats_transfer_to_model(stm, mdl), 0);
+    uint64_t blockDim = 0;
+    uint64_t count = 0;
+    ASSERT_EQ(model_stats_get(mdl, &blockDim, &count), 0);
+    EXPECT_EQ(blockDim, 16U); // stream buffer 0 + group 16
+    EXPECT_EQ(count, 2U);
+}
+
+// A plain (non-capturing, non-grouped) launch goes straight to vnpu_stats_record.
+TEST_F(CoreLimiterTest, launch_stats_dispatch_plain_kernel_records_vnpu_stats)
+{
+    uint8_t id = get_vnpu_id();
+    vnpu_stats_aggregate_t before;
+    vnpu_stats_aggregate_t after;
+    ASSERT_EQ(vnpu_stats_query(id, &before), ENPU_SUCCESS);
+
+    launch_stats_dispatch(reinterpret_cast<rtStream_t>(0x6007), 32);
+
+    ASSERT_EQ(vnpu_stats_query(id, &after), ENPU_SUCCESS);
+    EXPECT_EQ(after.sum_block_dim - before.sum_block_dim, 32U);
+    EXPECT_EQ(after.launch_count - before.launch_count, 1U);
+}
+
+// A capturing stream buffers launches into capture stats instead of recording
+// them into the vnpu stats buckets.
+TEST_F(CoreLimiterTest, launch_stats_dispatch_capturing_stream_buffers)
+{
+    rtStream_t stm = reinterpret_cast<rtStream_t>(0x6008);
+    rtModel_t mdl = reinterpret_cast<rtModel_t>(0x6009);
+
+    g_cache_streams.num_streams = 0;
+    restore_streams(stm);
+    bool capture = true;
+    set_stream_capture(&capture, stm);
+
+    uint8_t id = get_vnpu_id();
+    vnpu_stats_aggregate_t before;
+    vnpu_stats_aggregate_t after;
+    ASSERT_EQ(vnpu_stats_query(id, &before), ENPU_SUCCESS);
+    launch_stats_dispatch(stm, 7);
+    ASSERT_EQ(vnpu_stats_query(id, &after), ENPU_SUCCESS);
+    EXPECT_EQ(after.sum_block_dim, before.sum_block_dim); // not recorded directly
+    EXPECT_EQ(after.launch_count, before.launch_count);
+
+    // The launch landed in the stream's capture buffer instead.
+    ASSERT_EQ(capture_stats_transfer_to_model(stm, mdl), 0);
+    uint64_t blockDim = 0;
+    uint64_t count = 0;
+    ASSERT_EQ(model_stats_get(mdl, &blockDim, &count), 0);
+    EXPECT_EQ(blockDim, 7U);
+    EXPECT_EQ(count, 1U);
+
+    (void)hashmap_remove(stream_map, stm); // cleanup
 }

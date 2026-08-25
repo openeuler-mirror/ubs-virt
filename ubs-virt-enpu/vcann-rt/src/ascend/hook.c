@@ -56,6 +56,9 @@ rt_entry_t rt_library_entry[] = {
     {.name = "rtStreamEndCapture"},
     {.name = "rtsModelExecute"},
     {.name = "rtModelExecuteSync"},
+    {.name = "rtStreamGetCaptureInfo"},
+    {.name = "rtModelGetStreams"},
+    {.name = "rtStreamGetTasks"},
     {.name = "rtStarsTaskLaunch"},
     {.name = "rtStarsTaskLaunchWithFlag"},
     {.name = "rtCmoTaskLaunch"},
@@ -98,8 +101,14 @@ rt_entry_t rt_library_entry[] = {
     {.name = "rtCntNotifyDestroy"},
     {.name = "rtsCntNotifyRecord"},
     {.name = "rtsCntNotifyWaitWithTimeout"},
+    {.name = "rtEventElapsedTime"},
     /* Other Part */
     {.name = "rtStreamSynchronize"},
     {.name = "rtStreamDestroy"},
     {.name = "rtDestroyStreamForce"},
+    /* Task Group Part */
+    {.name = "rtsStreamBeginTaskGrp"},
+    {.name = "rtsStreamEndTaskGrp"},
+    {.name = "rtsStreamBeginTaskUpdate"},
+    {.name = "rtsStreamEndTaskUpdate"},
 };

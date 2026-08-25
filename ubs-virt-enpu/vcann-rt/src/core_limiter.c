@@ -16,6 +16,7 @@
 #include "npu_manager.h"
 #include "runtime_hook.h"
 #include "utils.h"
+#include "vnpu_stats.h"
 
 vnpu_time_slice_sched_t *g_vnpu_sched_context = NULL;
 uint8_t g_vnpu_id = 0;
@@ -29,6 +30,29 @@ cache_streams_t g_cache_streams = {.num_streams = 0, .streams = {NULL}};
 
 HashMap *stream_map = NULL;
 HashMap *event_map = NULL;
+
+static HashMap *capture_stats_map = NULL;
+static HashMap *model_stats_map = NULL;
+
+#define MAX_GRPS_PER_CAPTURE 64
+
+typedef struct {
+    uint64_t block_dim;
+    uint64_t count;
+    rtTaskGrp_t grp_handles[MAX_GRPS_PER_CAPTURE];
+    int grp_count;
+} stats_buffer_t;
+
+typedef struct {
+    int mode;
+    rtTaskGrp_t update_handle;
+    uint64_t tmp_block_dim;
+    uint64_t tmp_count;
+} task_grp_state_t;
+
+static HashMap *task_grp_state_map = NULL;
+static HashMap *taskGroup_map = NULL;
+static pthread_mutex_t g_stats_map_mutex;
 
 uint64_t ns_now(void)
 {
@@ -448,6 +472,7 @@ void *vnpu_scheduler_thread(void *arg)
     (void)arg;
     uint8_t turn_id = -1;
     int next_vnpu_id = -1;
+    uint64_t last_avg_update_ns = 0; /* avg_duration 每 VNPU_STATS_WINDOW_NS 刷一次 */
     // g_sched_locking = true : user can not launch task by core_limiter
     atomic_store(&g_sched_locking, true);
     while (!g_terminate) {
@@ -467,6 +492,14 @@ void *vnpu_scheduler_thread(void *arg)
             }
             ns_sleep(WAITING_SLEEP_PERIOD);
             continue;
+        }
+
+        uint64_t now = ns_now();
+        if (now - last_avg_update_ns >= VNPU_STATS_WINDOW_NS) {
+            last_avg_update_ns = now;
+            uint64_t kernel_count = 0;
+            uint64_t kernel_avg_time = get_ker_ave_exec_time(&kernel_count);
+            vnpu_stats_set_local_avg_duration(get_vnpu_id(), kernel_avg_time, kernel_count);
         }
 
         // Consumption time slice. The lock is released to the user process within the specified time.
@@ -522,6 +555,24 @@ void *vnpu_scheduler_thread(void *arg)
     return NULL;
 }
 
+#define SCHED_SHM_STALE_THRESHOLD_NS (2ULL * NS_PER_S)
+/* 判断调度 shm 是否属于残留内存 */
+static bool sched_shm_is_stale(void)
+{
+    uint64_t now = ns_now();
+    uint64_t newest_alive = 0;
+    for (int i = 0; i < MAX_VNPU; ++i) {
+        uint64_t t = atomic_load(&g_vnpu_sched_context->last_alive_time_ns[i]);
+        if (t > newest_alive) {
+            newest_alive = t;
+        }
+    }
+    if (newest_alive == 0) {
+        return false; /* 从未有心跳、全新初始化场景，交给 magic 处理 */
+    }
+    return (now > newest_alive) && ((now - newest_alive) > SCHED_SHM_STALE_THRESHOLD_NS);
+}
+
 void share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
 {
     g_vnpu_sched_context = vnpu_sched_shm;
@@ -529,7 +580,12 @@ void share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
 
     while (!g_terminate) {
         if (atomic_load(&g_vnpu_sched_context->magic_number) == MAGIC_INITIALIZED) {
-            return;
+            if (!sched_shm_is_stale()) {
+                return; /* 同轮次有进程心跳，正常复用 */
+            }
+            LOG_INFO("Sched shm belongs to a dead run (all alive-heartbeats stale), re-initializing.");
+            atomic_store(&g_vnpu_sched_context->magic_number, MAGIC_UNINITIALIZED);
+            continue;
         }
 
         if (atomic_load(&g_vnpu_sched_context->magic_number) == MAGIC_INITIALIZING) {
@@ -622,6 +678,52 @@ int aicore_limiter_initialize(void)
         hashmap_destroy(stream_map);
         return ENPU_FAIL;
     }
+
+    capture_stats_map = hashmap_create(MAX_STREAMS_PER_PROCESS);
+    if (!capture_stats_map) {
+        LOG_ERROR("Capture stats hash map init failed.");
+        hashmap_destroy(stream_map);
+        hashmap_destroy(event_map);
+        return ENPU_FAIL;
+    }
+
+    /* model 数量通常远少于 stream */
+    model_stats_map = hashmap_create(MAX_STREAMS_PER_PROCESS);
+    if (!model_stats_map) {
+        LOG_ERROR("Model stats hash map init failed.");
+        hashmap_destroy(stream_map);
+        hashmap_destroy(event_map);
+        hashmap_destroy(capture_stats_map);
+        return ENPU_FAIL;
+    }
+
+    task_grp_state_map = hashmap_create(MAX_STREAMS_PER_PROCESS);
+    if (!task_grp_state_map) {
+        LOG_ERROR("Task grp state hash map init failed.");
+        hashmap_destroy(stream_map);
+        hashmap_destroy(event_map);
+        hashmap_destroy(capture_stats_map);
+        hashmap_destroy(model_stats_map);
+        return ENPU_FAIL;
+    }
+
+    taskGroup_map = hashmap_create(MAX_EVENT_PER_PROCESS);
+    if (!taskGroup_map) {
+        LOG_ERROR("TaskGroup hash map init failed.");
+        hashmap_destroy(stream_map);
+        hashmap_destroy(event_map);
+        hashmap_destroy(capture_stats_map);
+        hashmap_destroy(model_stats_map);
+        hashmap_destroy(task_grp_state_map);
+        return ENPU_FAIL;
+    }
+
+    pthread_mutexattr_t stats_attr;
+    pthread_mutexattr_init(&stats_attr);
+    pthread_mutexattr_settype(&stats_attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&g_stats_map_mutex, &stats_attr);
+    pthread_mutexattr_destroy(&stats_attr);
+
     return rc;
 }
 
@@ -704,4 +806,318 @@ void remove_stream(void *unused, rtStream_t stm)
 void set_event_destroy_status(void *evt)
 {
     (void)hashmap_remove(event_map, evt);
+}
+
+bool stream_is_capturing(rtStream_t stm)
+{
+    if (stream_map == NULL || stm == NULL) {
+        return false;
+    }
+    bool capturing = false;
+    int rc = hashmap_get_capture_status(stream_map, (void *)stm, &capturing);
+    if (rc != 0) {
+        return false;
+    }
+    return capturing;
+}
+
+void capture_stats_add(rtStream_t stm, uint32_t block_dim)
+{
+    if (capture_stats_map == NULL || stm == NULL) {
+        return;
+    }
+    pthread_mutex_lock(&g_stats_map_mutex);
+    void *ptr = NULL;
+    stats_buffer_t *buf = NULL;
+    if (hashmap_get_ptr(capture_stats_map, (void *)stm, &ptr) == 0 && ptr != NULL) {
+        buf = (stats_buffer_t *)ptr;
+    } else {
+        buf = (stats_buffer_t *)calloc(1, sizeof(stats_buffer_t));
+        if (buf == NULL) {
+            LOG_ERROR("Failed to alloc capture stats buffer for stream %p.", (void *)stm);
+            pthread_mutex_unlock(&g_stats_map_mutex);
+            return;
+        }
+        if (hashmap_put(capture_stats_map, (void *)stm, (void *)buf, false) != 0) {
+            LOG_WARN("Failed to insert capture stats entry for stream %p, stats dropped.", (void *)stm);
+            free(buf);
+            pthread_mutex_unlock(&g_stats_map_mutex);
+            return;
+        }
+    }
+    buf->block_dim += block_dim;
+    buf->count += 1;
+    pthread_mutex_unlock(&g_stats_map_mutex);
+}
+
+int capture_stats_transfer_to_model(rtStream_t stm, rtModel_t mdl)
+{
+    if (capture_stats_map == NULL || model_stats_map == NULL || stm == NULL || mdl == NULL) {
+        return -1;
+    }
+    pthread_mutex_lock(&g_stats_map_mutex);
+    void *stream_ptr = NULL;
+    if (hashmap_get_ptr(capture_stats_map, (void *)stm, &stream_ptr) != 0 || stream_ptr == NULL) {
+        LOG_DEBUG("No capture stats for stream %p during transfer.", (void *)stm);
+        pthread_mutex_unlock(&g_stats_map_mutex);
+        return -1;
+    }
+    stats_buffer_t *stream_buf = (stats_buffer_t *)stream_ptr;
+
+    /* 累加到 model */
+    void *model_ptr = NULL;
+    stats_buffer_t *model_buf = NULL;
+    if (hashmap_get_ptr(model_stats_map, (void *)mdl, &model_ptr) == 0 && model_ptr != NULL) {
+        model_buf = (stats_buffer_t *)model_ptr;
+    } else {
+        model_buf = (stats_buffer_t *)calloc(1, sizeof(stats_buffer_t));
+        if (model_buf == NULL) {
+            LOG_ERROR("Failed to alloc model stats buffer for model %p.", (void *)mdl);
+            pthread_mutex_unlock(&g_stats_map_mutex);
+            return -1;
+        }
+        if (hashmap_put(model_stats_map, (void *)mdl, (void *)model_buf, false) != 0) {
+            LOG_WARN("Failed to insert model stats entry for model %p, stats dropped.", (void *)mdl);
+            free(model_buf);
+            pthread_mutex_unlock(&g_stats_map_mutex);
+            return -1;
+        }
+    }
+    model_buf->block_dim += stream_buf->block_dim;
+    model_buf->count += stream_buf->count;
+    /* group handle 以引用方式追加到 model */
+    for (int i = 0; i < stream_buf->grp_count; ++i) {
+        if (model_buf->grp_count >= MAX_GRPS_PER_CAPTURE) {
+            LOG_WARN("Model %p grp handles overflow (max %d), rest groups not tracked.", (void *)mdl,
+                     MAX_GRPS_PER_CAPTURE);
+            break;
+        }
+        model_buf->grp_handles[model_buf->grp_count++] = stream_buf->grp_handles[i];
+    }
+
+    /* 清空 stream */
+    stream_buf->block_dim = 0;
+    stream_buf->count = 0;
+    stream_buf->grp_count = 0;
+    pthread_mutex_unlock(&g_stats_map_mutex);
+    return 0;
+}
+
+static uint64_t task_group_map_get(rtTaskGrp_t handle);
+
+static uint64_t model_stats_total_block_dim(stats_buffer_t *buf)
+{
+    uint64_t total = buf->block_dim;
+    for (int i = 0; i < buf->grp_count; ++i) {
+        total += task_group_map_get(buf->grp_handles[i]);
+    }
+    return total;
+}
+
+int model_stats_get(rtModel_t mdl, uint64_t *block_dim, uint64_t *count)
+{
+    if (model_stats_map == NULL || mdl == NULL) {
+        return -1;
+    }
+    pthread_mutex_lock(&g_stats_map_mutex);
+    void *ptr = NULL;
+    if (hashmap_get_ptr(model_stats_map, (void *)mdl, &ptr) != 0 || ptr == NULL) {
+        pthread_mutex_unlock(&g_stats_map_mutex);
+        return -1;
+    }
+    stats_buffer_t *buf = (stats_buffer_t *)ptr;
+    if (block_dim != NULL) {
+        *block_dim = model_stats_total_block_dim(buf);
+    }
+    if (count != NULL) {
+        *count = buf->count;
+    }
+    pthread_mutex_unlock(&g_stats_map_mutex);
+    return 0;
+}
+
+/* 查询 stream 的 task-group 状态，无则返回 NULL（返回值仅在持锁上下文内使用） */
+static task_grp_state_t *task_grp_state_get(rtStream_t stm)
+{
+    if (task_grp_state_map == NULL || stm == NULL) {
+        return NULL;
+    }
+    void *ptr = NULL;
+    if (hashmap_get_ptr(task_grp_state_map, (void *)stm, &ptr) != 0 || ptr == NULL) {
+        return NULL;
+    }
+    return (task_grp_state_t *)ptr;
+}
+
+static task_grp_state_t *task_grp_state_reset(rtStream_t stm)
+{
+    if (task_grp_state_map == NULL || stm == NULL) {
+        return NULL;
+    }
+    void *ptr = NULL;
+    task_grp_state_t *st = NULL;
+    if (hashmap_get_ptr(task_grp_state_map, (void *)stm, &ptr) == 0 && ptr != NULL) {
+        st = (task_grp_state_t *)ptr;
+    } else {
+        st = (task_grp_state_t *)calloc(1, sizeof(task_grp_state_t));
+        if (st == NULL) {
+            LOG_ERROR("Failed to alloc task grp state for stream %p.", (void *)stm);
+            return NULL;
+        }
+        if (hashmap_put(task_grp_state_map, (void *)stm, (void *)st, false) != 0) {
+            LOG_WARN("Failed to insert task grp state for stream %p.", (void *)stm);
+            free(st);
+            return NULL;
+        }
+    }
+    st->mode = 0;
+    st->update_handle = NULL;
+    st->tmp_block_dim = 0;
+    st->tmp_count = 0;
+    return st;
+}
+
+/* 写入/覆盖 group 的 blockDim（已存在则覆盖刷新） */
+static void task_group_map_set(rtTaskGrp_t handle, uint64_t block_dim)
+{
+    if (taskGroup_map == NULL || handle == NULL) {
+        return;
+    }
+    void *ptr = NULL;
+    uint64_t *val = NULL;
+    if (hashmap_get_ptr(taskGroup_map, (void *)handle, &ptr) == 0 && ptr != NULL) {
+        val = (uint64_t *)ptr;
+    } else {
+        val = (uint64_t *)calloc(1, sizeof(uint64_t));
+        if (val == NULL) {
+            LOG_ERROR("Failed to alloc taskGroup_map entry for handle %p.", (void *)handle);
+            return;
+        }
+        if (hashmap_put(taskGroup_map, (void *)handle, (void *)val, false) != 0) {
+            LOG_WARN("Failed to insert taskGroup_map entry for handle %p, stats dropped.", (void *)handle);
+            free(val);
+            return;
+        }
+    }
+    *val = block_dim;
+}
+
+static uint64_t task_group_map_get(rtTaskGrp_t handle)
+{
+    if (taskGroup_map == NULL || handle == NULL) {
+        return 0;
+    }
+    void *ptr = NULL;
+    if (hashmap_get_ptr(taskGroup_map, (void *)handle, &ptr) != 0 || ptr == NULL) {
+        return 0;
+    }
+    return *(uint64_t *)ptr;
+}
+
+void task_grp_begin(rtStream_t stm)
+{
+    pthread_mutex_lock(&g_stats_map_mutex);
+    task_grp_state_t *st = task_grp_state_reset(stm);
+    if (st == NULL) {
+        pthread_mutex_unlock(&g_stats_map_mutex);
+        return;
+    }
+    st->mode = 1; /* IN_GRP */
+    pthread_mutex_unlock(&g_stats_map_mutex);
+}
+
+void task_grp_end(rtStream_t stm, rtTaskGrp_t handle)
+{
+    pthread_mutex_lock(&g_stats_map_mutex);
+    task_grp_state_t *st = task_grp_state_get(stm);
+    if (st == NULL || st->mode != 1) {
+        pthread_mutex_unlock(&g_stats_map_mutex);
+        return;
+    }
+    /* group 的 blockDim 到 taskGroup_map（Update 之前构建值生效） */
+    task_group_map_set(handle, st->tmp_block_dim);
+
+    /* 把 handle 记到当前 stream 的 capture_stats_map（EndCapture 时随图转移到 model）.
+     * 无条目时创建条目，保证非 capture 场景的 group 也能登记（后续 EndCapture 可转移）. */
+    if (capture_stats_map != NULL) {
+        void *ptr = NULL;
+        stats_buffer_t *cap = NULL;
+        if (hashmap_get_ptr(capture_stats_map, (void *)stm, &ptr) == 0 && ptr != NULL) {
+            cap = (stats_buffer_t *)ptr;
+        } else {
+            cap = (stats_buffer_t *)calloc(1, sizeof(stats_buffer_t));
+            if (cap == NULL) {
+                LOG_ERROR("Failed to alloc capture stats buffer for stream %p.", (void *)stm);
+                cap = NULL;
+            } else if (hashmap_put(capture_stats_map, (void *)stm, (void *)cap, false) != 0) {
+                LOG_WARN("Failed to insert capture stats entry for stream %p, group not tracked.", (void *)stm);
+                free(cap);
+                cap = NULL;
+            }
+        }
+        if (cap != NULL) {
+            if (cap->grp_count < MAX_GRPS_PER_CAPTURE) {
+                cap->grp_handles[cap->grp_count++] = handle;
+            } else {
+                LOG_WARN("Group handles overflow (max %d) for stream %p, group %p not tracked.", MAX_GRPS_PER_CAPTURE,
+                         (void *)stm, (void *)handle);
+            }
+            cap->count += st->tmp_count;
+        }
+    }
+    st->mode = 0;
+    st->tmp_block_dim = 0;
+    st->tmp_count = 0;
+    pthread_mutex_unlock(&g_stats_map_mutex);
+}
+
+void task_update_begin(rtStream_t stm, rtTaskGrp_t handle)
+{
+    pthread_mutex_lock(&g_stats_map_mutex);
+    task_grp_state_t *st = task_grp_state_reset(stm);
+    if (st == NULL) {
+        pthread_mutex_unlock(&g_stats_map_mutex);
+        return;
+    }
+    st->mode = 2; /* IN_UPDATE */
+    st->update_handle = handle;
+    pthread_mutex_unlock(&g_stats_map_mutex);
+}
+
+void task_update_end(rtStream_t stm)
+{
+    pthread_mutex_lock(&g_stats_map_mutex);
+    task_grp_state_t *st = task_grp_state_get(stm);
+    if (st == NULL || st->mode != 2) {
+        pthread_mutex_unlock(&g_stats_map_mutex);
+        return;
+    }
+    /* 用 Update 区间的累加值刷新 group */
+    task_group_map_set(st->update_handle, st->tmp_block_dim);
+    st->mode = 0;
+    st->update_handle = NULL;
+    st->tmp_block_dim = 0;
+    st->tmp_count = 0;
+    pthread_mutex_unlock(&g_stats_map_mutex);
+}
+
+void launch_stats_dispatch(rtStream_t stm, uint32_t block_dim)
+{
+    pthread_mutex_lock(&g_stats_map_mutex);
+    /* 1. TaskUpdate / TaskGrp 区间内的 kernellaunch 优先归属 task group */
+    task_grp_state_t *st = task_grp_state_get(stm);
+    if (st != NULL && st->mode != 0) {
+        st->tmp_block_dim += block_dim;
+        st->tmp_count += 1;
+        pthread_mutex_unlock(&g_stats_map_mutex);
+        return;
+    }
+    pthread_mutex_unlock(&g_stats_map_mutex);
+    /* 2. 图捕获中的算子. capture_stats_add 内部持锁. */
+    if (stream_is_capturing(stm)) {
+        capture_stats_add(stm, block_dim);
+        return;
+    }
+    /* 3. 单算子 */
+    vnpu_stats_record(get_vnpu_id(), block_dim, 1ULL);
 }
