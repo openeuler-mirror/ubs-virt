@@ -138,3 +138,5 @@ virt-awaresched
 本项目采用 [Mulan PSL v2](https://license.coscl.org.cn/MulanPSL2) 开源许可证。
 
 ---
+
+此开源项目非华为产品，仅提供有限支持。

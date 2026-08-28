@@ -138,3 +138,5 @@ Please read [Contribution Guide](docs/contributing/CONTRIBUTING.md) and comply w
 This project is licensed under [Mulan PSL v2](https://license.coscl.org.cn/MulanPSL2).
 
 ---
+
+This open-source project is not a Huawei product. Huawei offers only limited support.
