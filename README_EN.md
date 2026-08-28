@@ -15,3 +15,5 @@ Ubs-virt includes multiple virtualization feature components, each offering capa
 1. ubs-virt-enpu: [ubs-virt-enpu Instruction](./ubs-virt-enpu/README.md)
 2. virt-awaresched: [virt-awaresched Instruction](./virt-awaresched/README.md)
 3. virt-optimizer: [virt-optimizer Instruction](./virt-optimizer/README.md)
+
+This open-source project is not a Huawei product. Huawei offers only limited support.
