@@ -15,7 +15,7 @@
 |--|--|
 |UBS Virt-awaresched|master|
 |UBS Virt-optimizer|master|
-
+|UBS Virt-enpu|master|
 ### 软件版本配套说明
 
 **UBS Virt-awaresched**
@@ -46,6 +46,62 @@
 | rpm-build          | 4.18.2 及以上版本  |
 |OS| openEuler 24.03 LTS SP4|
 
+**UBS Virt-enpu**
+
+表 1 Atlas A2 推理系列产品软件版本
+
+| 软件                | 版本                                                                        |
+|:---------------------|:-----------------------------------------------------------------------------|
+| CANN                | 8.5.0 、9.1.0                                                                  |
+| HDK                 | 25.5.0及以上版本                                                            |
+| （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
+| （可选）MindCluster | 26.0.0（直接使用Docker部署则不需要）|
+
+表 2 Atlas A3 推理系列产品软件版本
+
+| 软件                | 版本                                                                        |
+|:---------------------|:-----------------------------------------------------------------------------|
+| CANN                | 8.5.0 、9.1.0                                                                  |
+| HDK                 | 26.0.0及以上版本                                                            |
+| （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
+| （可选）MindCluster | 26.0.0（直接使用Docker部署则不需要）|
+
+表 3 Atlas 350 加速卡产品软件版本
+
+| 软件                | 版本                                                                        |
+|:---------------------|:-----------------------------------------------------------------------------|
+| CANN                | 9.1.0                                                                  |
+| HDK                 | 25.7.0及以上版本                                                            |
+| （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
+| （可选）MindCluster | 26.1.0（直接使用Docker部署则不需要）|
+
+表 4 Atlas 850E Server 产品软件版本
+
+| 软件                | 版本                                                                        |
+|:---------------------|:-----------------------------------------------------------------------------|
+| CANN                | 9.1.0                                                                  |
+| HDK                 | 25.6.0及以上版本                                                            |
+| （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
+| （可选）MindCluster | 26.1.0（直接使用Docker部署则不需要）|
+
+表 5 Atlas 950 SuperPoD 产品软件版本
+
+| 软件                | 版本                                                                        |
+|:---------------------|:-----------------------------------------------------------------------------|
+| CANN                | 9.1.0                                                                  |
+| HDK                 | 25.1.0及以上版本                                                            |
+| （可选）Kubernetes  | 1.17.x~1.34.x，推荐使用1.19.x及以上版本。<br>（直接使用Docker部署则不需要）|
+| （可选）MindCluster | 26.1.0（直接使用Docker部署则不需要）|
+
+表 6 Atlas 300I Duo 加速卡产品软件版本
+
+| 软件                | 版本                                                                        |
+|:---------------------|:-----------------------------------------------------------------------------|
+| CANN                | 9.1.0                                                                  |
+| HDK                 | 26.1.0及以上版本                                                            |
+| （可选）Kubernetes  | 不涉及（仅支持Docker部署）                                                       |
+| （可选）MindCluster | 不涉及（仅支持Docker部署）|
+
 ### 硬件版本配套说明
 
 **UBS Virt-awaresched**
@@ -60,6 +116,15 @@
 |--|--|
 |架构|AArch64、x86_64|
 
+**UBS Virt-enpu**
+
+* Atlas A2 推理系列产品
+* Atlas 300I Duo 加速卡产品
+* Atlas 950 SuperPoD 产品
+* Atlas 850E Server 产品
+* Atlas 350 加速卡产品
+* Atlas A3 推理系列产品
+  
 ## UBS Virt-awaresched
  
 ### 更新说明
@@ -76,6 +141,20 @@
 
 ## UBS Virt-optimizer
  
+### 更新说明
+
+无
+
+### 已解决问题
+
+无
+
+### 遗留问题
+
+无
+
+## UBS Virt-enpu
+
 ### 更新说明
 
 无
@@ -108,3 +187,7 @@
 |《[UBS virt-optimizer安装指南](../docs/zh/virt_optimizer/virt_optimizer_installation.md)》|本文档描述了UBS virt-optimizer的安装指南，包括部署说明、环境要求、软件安装、进程管理及卸载等内容。|
 |《[UBS virt-optimizer安全声明](../docs/zh/virt_optimizer/virt_optimizer_security_description.md)》|本文档描述了离线性能调优工具的安全声明，强调仅限开发使用，需及时关闭以规避安全风险。|
 |《[UBS virt-optimizer用户指南](../docs/zh/virt_optimizer/virt_optimizer_userguide.md)》|本文档介绍了ubs-optimizer的核心功能、适用场景、代码示例及常见问题。|
+
+**UBS Virt-enpu**
+
+无。
