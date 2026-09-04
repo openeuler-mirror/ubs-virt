@@ -1,5 +1,7 @@
 # ubs-virt-enpu
 
+<p> English | <a href="README.md">简体中文</a> </p>
+
 ## Overview
 
 ubs-virt-enpu supports hardware- and software-based dynamic allocation, multi-task parallel execution, and resource isolation, significantly improving AI hardware resource utilization and performance.

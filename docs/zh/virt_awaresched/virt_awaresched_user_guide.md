@@ -6,7 +6,7 @@
 
 VSched包含vas-daemon用户态服务和前端CLI工具两部分。
 
-- 虚拟化感知调度服务进程（vas-daemon）依赖libvirt监控虚拟机事件，对已创建和服务启动后创建的范围绑核虚拟机进行vCPU1:1绑核调度，尽可能将vCPU线程重分配到同一cluster的CPU上，并定时进行cluster间CPU碎片资源整理。vas-daemon服务启动后，采集环境CPU拓扑信息，侦听虚拟机事件和CLI指令，定时整理CPU碎片资源。
+- 虚拟化感知调度服务进程（vas-daemon）依赖libvirt监管虚拟机事件，对已创建和服务启动后创建的范围绑核虚拟机进行vCPU1:1绑核调度，尽可能将vCPU线程重分配到同一cluster的CPU上，并定时进行cluster间CPU碎片资源整理。vas-daemon服务启动后，采集环境CPU拓扑信息，侦听虚拟机事件和CLI指令，定时整理CPU碎片资源。
 - 前端CLI工具（vasctl）支持使用指令查询虚拟机vCPU绑定信息，手动触发重调度，修改配置。vasctl执行时，进行指令解析并完成参数校验，通过校验后，与服务端建链并转发指令，返回执行结果。
 
 ### 特性描述

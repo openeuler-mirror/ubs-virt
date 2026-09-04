@@ -1,5 +1,7 @@
 # ubs-virt
 
+<p> English | <a href="README.md">简体中文</a> </p>
+
 ## Overview
 
 Ubs-virt includes multiple virtualization feature components, each offering capabilities like soft partitioning of NPU computing power, tuning VM linearity, and optimizing NPU passthrough for large model inference performance in VMs.

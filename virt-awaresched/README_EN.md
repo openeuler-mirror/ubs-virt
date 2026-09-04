@@ -1,5 +1,7 @@
 # Virtual Aware Scheduler
 
+<p> English | <a href="README.md">简体中文</a>
+
 > This project has been open-sourced in the [openEuler](https://www.openeuler.org/) community. You are welcome to use and contribute to it.
 
 ## 📍Overview
