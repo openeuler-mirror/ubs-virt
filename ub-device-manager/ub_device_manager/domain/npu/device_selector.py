@@ -3,8 +3,15 @@
 from enum import StrEnum
 from typing import Optional, cast
 
-from ub_device_manager.app.models import UbDevice
+from pydantic import BaseModel, constr
+
 from ub_device_manager.domain.npu.npu_client import UbDeviceInfo
+
+
+class UbDevice(BaseModel):
+    type: str
+    id: str
+    guid: Optional[constr(max_length=128)] = None
 
 
 class UbDeviceType(StrEnum):

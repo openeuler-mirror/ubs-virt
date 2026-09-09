@@ -875,28 +875,6 @@ components:
           description: Returned message.
           example: "success."
 
-    UbDevice:
-      type: object
-      description: UB device selected from the host inventory.
-      required:
-        - type
-        - id
-      properties:
-        type:
-          type: string
-          description: UB device type, such as NPU, NIC_VFE, NIC_PFE, or SSU.
-          example: "NPU"
-        id:
-          type: string
-          description: UB device ID.
-          example: "0-1"
-        guid:
-          type: string
-          maxLength: 128
-          nullable: true
-          description: UB device GUID. It is populated from the host inventory during device selection.
-          example: "0xcc08-a000-0-2-000000-00000000000201ff"
-
     BoundUbDevice:
       type: object
       description: Bound device information. When need_nic is true, the list includes selected affinity NIC devices distinguished by type.
