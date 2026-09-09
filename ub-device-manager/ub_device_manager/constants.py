@@ -1,0 +1,37 @@
+﻿##########################################################################################################
+# Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+#
+# ub-device-manager is licensed under the Mulan PSL v2.
+# You can use this software according to the terms and conditions of the Mulan PSL v2.
+# You may obtain a copy of Mulan PSL v2 at:
+#      http://license.coscl.org.cn/MulanPSL2
+# THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+# See the Mulan PSL v2 for more details.
+##########################################################################################################
+
+NPU_LIST_CONTEXT_KEY = "NPU_LIST_CONTEXT_KEY"
+DELETE_VM_CONTEXT_KEY = "DELETE_VM_CONTEXT_KEY"
+CREATE_VM_REQUEST_CONTEXT_KEY = "CREATE_VM_REQUEST_CONTEXT_KEY"
+VM_XML_CONTEXT_KEY = "vm_xml"
+BIND_REQUEST_CONTEXT_KEY = "BIND_REQUEST_CONTEXT_KEY"    # Input for the binding task
+BIND_RESULT_CONTEXT_KEY = "BIND_RESULT_CONTEXT_KEY"      # Binding result
+BOUND_DEVICES_CONTEXT_KEY = "BOUND_DEVICES_CONTEXT_KEY"  # Bound devices (with GUID and type) used to build VM XML
+
+UNBIND_REQUEST_CONTEXT_KEY = "UNBIND_REQUEST_CONTEXT_KEY"
+
+# SSU 相关: 任务链上下文键
+SSU_LIST_CONTEXT_KEY = "SSU_LIST_CONTEXT_KEY"                          # 存储空间列表结果
+SSU_SHOW_REQUEST_CONTEXT_KEY = "SSU_SHOW_REQUEST_CONTEXT_KEY"          # 按名称查询存储空间入参
+SSU_SHOW_RESULT_CONTEXT_KEY = "SSU_SHOW_RESULT_CONTEXT_KEY"            # 按名称查询存储空间结果
+SSU_FREE_REQUEST_CONTEXT_KEY = "SSU_FREE_REQUEST_CONTEXT_KEY"          # 释放存储空间入参
+SSU_ALLOC_REQUEST_CONTEXT_KEY = "SSU_ALLOC_REQUEST_CONTEXT_KEY"        # 分配存储空间入参
+SSU_ALLOC_RESULT_CONTEXT_KEY = "SSU_ALLOC_RESULT_CONTEXT_KEY"          # 分配存储空间结果
+SSU_PERM_REQUEST_CONTEXT_KEY = "SSU_PERM_REQUEST_CONTEXT_KEY"          # 添加/删除访问权限入参
+SSU_NS_STATUS_REQUEST_CONTEXT_KEY = "SSU_NS_STATUS_REQUEST_CONTEXT_KEY"    # 命名空间状态查询入参
+SSU_NS_STATUS_RESULT_CONTEXT_KEY = "SSU_NS_STATUS_RESULT_CONTEXT_KEY"      # 命名空间状态结果
+SSU_NS_CONNECT_INFO_REQUEST_CONTEXT_KEY = "SSU_NS_CONNECT_INFO_REQUEST_CONTEXT_KEY"  # 连接信息查询入参
+SSU_NS_CONNECT_INFO_RESULT_CONTEXT_KEY = "SSU_NS_CONNECT_INFO_RESULT_CONTEXT_KEY"    # 连接信息结果
+SSU_VFE_LIST_CONTEXT_KEY = "SSU_VFE_LIST_CONTEXT_KEY"                  # SSU 专用 VFE 列表结果
+SSU_VFE_BIND_REQUEST_CONTEXT_KEY = "SSU_VFE_BIND_REQUEST_CONTEXT_KEY"  # VFE 绑定入参
+SSU_VFE_UNBIND_REQUEST_CONTEXT_KEY = "SSU_VFE_UNBIND_REQUEST_CONTEXT_KEY"  # VFE 解绑入参
