@@ -50,7 +50,7 @@ systemctl status vas-daemon
 
 ![服务正常启动](images/服务正常启动.png "服务正常启动示例")
 
-如果服务启动失败, 请查看服务日志(默认路径: `/var/log/vas/vas.log`), 确认启动失败原因.
+如果服务启动失败, 请查看服务日志(默认路径: `/var/log/vas/vas.log`), 确认启动失败原因。
 
 ---
 
@@ -74,7 +74,7 @@ systemctl status vas-daemon
 ## 动态绑核模式环境准备
 
 - 配置grub.cfg
-  1. 打开/boot/efi/openEuler/grub.cfg文件
+  1. 打开/boot/efi/openEuler/grub.cfg文件。
 
         ```shell
         vi /boot/efi/openEuler/grub.cfg
@@ -91,7 +91,7 @@ systemctl status vas-daemon
 - 选核范围决策<br>
   DA_UTIL_TASKGROUP开关控制动态亲和CPU利用率阈值策略，默认开启。配置说明如表格所示。
 
-| 配置项 | 执行命令                                                        | 说明                                                                                                            |
-|:----|:------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------|
-| 开启  | echo DA_UTIL_TASKGROUP > /sys/kernel/debug/sched/feature    | 默认值为开启。<br>开启状态下，通过检测任务组(taskgroup)在preferred_cpus中的利用率进行选核范围决策。                                              |
-| 关闭  | echo NO_DA_UTIL_TASKGROUP > /sys/kernel/debug/sched/feature | 不适用组调度时建议关闭<br>关闭状态下，通过检测preferred_cpus的总利用率(即包括非taskgroup进程在preferred_cpus的使用量)进行选核范围决策。 |
+  | 配置项 | 执行命令                                                        | 说明                                                                                                            |
+  |:----|:------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------|
+  | 开启  | echo DA_UTIL_TASKGROUP > /sys/kernel/debug/sched/feature    | 默认值为开启。<br>开启状态下，通过检测任务组(taskgroup)在preferred_cpus中的利用率进行选核范围决策。                                              |
+  | 关闭  | echo NO_DA_UTIL_TASKGROUP > /sys/kernel/debug/sched/feature | 不适用组调度时建议关闭<br>关闭状态下，通过检测preferred_cpus的总利用率(即包括非taskgroup进程在preferred_cpus的使用量)进行选核范围决策。 |

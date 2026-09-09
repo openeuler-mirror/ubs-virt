@@ -65,7 +65,7 @@ vasctl [-h | --help] COMMAND TYPE [-h | --help][OPTIONS]
   vasctl COMMAND TYPE -h
   ```
 
-  > **说明**
+  > [!NOTE] 说明
   >
   > 单命令查询会返回该命令的相关参数信息。
 
