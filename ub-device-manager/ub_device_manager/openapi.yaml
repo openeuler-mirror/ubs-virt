@@ -1,4 +1,4 @@
-#-- coding: utf-8 -- #Copyright (c) Huawei Technologies Co., Ltd. 2026-2026. All rights reserved.
+﻿#-- coding: utf-8 -- #Copyright (c) Huawei Technologies Co., Ltd. 2026-2026. All rights reserved.
 # ubs-optimizer is licensed under Mulan PSL v2.
 # You can use this software according to the terms and conditions of the Mulan PSL v2.
 # You may obtain a copy of Mulan PSL v2 at:
@@ -85,7 +85,7 @@ paths:
                   $ref: '#/components/schemas/NsConnectInfo'
 
 
-  /ssu/list:
+  /ssu:
     get:
       summary: 列出所有已分配的存储空间信息
       description: 获取系统中所有已分配的 SSU 存储空间详细信息, 包括命名空间列表、容量、LBA 格式和使用类型等
@@ -219,7 +219,52 @@ paths:
           description: 未找到指定的 SSU 资源
 
 
-  /ssu-vfe/list:
+  /ssu/attach:
+    post:
+      summary: 挂载已分配的 SSU 存储空间
+      description: 将指定的存储空间挂载到系统, 返回挂载后的设备路径
+      operationId: ssu_attach
+      tags:
+        - SSU
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SsuSpaceReq'
+      responses:
+        '200':
+          description: 挂载成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SsuAttachResult'
+
+  /ssu/detach:
+    post:
+      summary: 卸载已分配的 SSU 存储空间
+      description: 将指定的存储空间从系统卸载, 释放设备占用
+      operationId: ssu_detach
+      tags:
+        - SSU
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SsuSpaceReq'
+      responses:
+        '200':
+          description: 卸载成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+
+
+
+
+  /ssu-vfe:
     get:
       summary: 查询所有的 SSU 专用 VFE
       description: 查询用于 SSU 建联的 VFE 信息
@@ -616,6 +661,7 @@ components:
       required:
         - upi
         - vfe_guid
+        - bus_guid
       properties:
         upi:
           type: integer
@@ -626,8 +672,11 @@ components:
           example: "0000-0-0000-00000000"
         bus_guid:
           type: string
-          description: Bus GUID to which the VFE is bound.
-          example: "0000-0-0000-00000000"
+          maxLength: 32
+          description: >-
+            Bus instance GUID. Can be empty (empty string means ubse creates a
+            new VM bus instance internally); when non-empty, its length must be 32.
+          example: ""
 
 
     UnbindSsuVfeReq:
@@ -744,37 +793,41 @@ components:
       type: integer
       description: >
         Allocation strategy:
-        0: Distributed strategy.
-        1: Sequential strategy.
+        0: STRIPED (distributed strategy).
+        1: LINEAR (sequential strategy).
+        2: NORMAL.
       enum:
         - 0
         - 1
+        - 2
 
     SsuAllocSpaceReq:
       type: object
       description: Storage allocation request.
       required:
+        - name
+        - ns_size_gb
+        - ns_num
         - lba_format
         - strategy
       properties:
         name:
           type: string
+          minLength: 1
           maxLength: 48
-          default: ""
           description: Request identifier, with a maximum length of 48 characters.
-        ns_size:
+        ns_size_gb:
           type: integer
           format: int64
-          default: 0
-          description: >
-            Requested total capacity in bytes.
-            With a striped strategy, it must be divisible by ns_num and the quotient must be a multiple of chunkSize.
+          minimum: 1
+          description: >-
+            Requested total capacity in GB. Must be greater than or equal to 1.
         ns_num:
           type: integer
           format: int32
-          default: 1
           minimum: 1
-          description: Number of namespaces. strategy does not apply when this value is 1.
+          description: >-
+            Number of namespaces. When ns_num is 1, strategy cannot be STRIPED (0).
         lba_format:
           $ref: '#/components/schemas/SsuLbaFormat'
         strategy:
@@ -782,7 +835,54 @@ components:
         tenant:
           type: string
           default: ""
-          description: Requester tenant isolation identifier. Use a Base64-encoded string in JSON payloads.
+          description: >-
+            Requester tenant isolation identifier. Can be empty; when non-empty,
+            only [a-zA-Z0-9_-.:] is allowed.
+
+
+
+    SsuSpaceReq:
+      type: object
+      description: Attach/detach request for a storage space.
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 48
+          description: SSU storage space identifier.
+          example: "ssu-volume-001"
+        nqn:
+          type: string
+          maxLength: 69
+          default: ""
+          description: Host NVMe Qualified Name (NQN). Can be empty.
+          example: "nqn.2014-08.org.nvmexpress:uuid:fedcba98-7654-3210-fedc-ba9876543210"
+        src_eid:
+          type: string
+          default: ""
+          maxLength: 17
+          description: Source EID (Endpoint Identifier). Can be empty.
+          example: "0x0000"
+
+
+
+
+
+    SsuAttachResult:
+      type: object
+      description: Result of attaching a storage space.
+      required:
+        - dev_paths
+      properties:
+        dev_paths:
+          type: array
+          description: Device paths returned after the storage space is attached.
+          items:
+            type: string
+            maxLength: 128
+          example: ["/dev/nvme0n1"]
 
     SsuInfo:
       type: object

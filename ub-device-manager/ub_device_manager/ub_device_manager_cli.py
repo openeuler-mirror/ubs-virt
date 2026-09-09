@@ -66,7 +66,7 @@ def get_server_client() -> httpx.Client:
     transport = httpx.HTTPTransport(uds=UDS_PATH, retries=0)
     return httpx.Client(
         base_url="http://ub-device-manager",
-        timeout=100,
+        timeout=300,
         proxy=None,
         transport=transport
     )
@@ -547,8 +547,7 @@ def build_executor(raw_path, req_method, api_params, help_text):
                 console.print(res.text)
         else:
             try:
-                data_content = res.json()
-                parse_error_response(data_content)
+                parse_error_response({"code": res.status_code, "msg": res.json()})
                 if verbose:
                     console.print(res.text)
             except Exception:

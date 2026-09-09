@@ -19,9 +19,11 @@ from ub_device_manager.app.models import (
     Message,
     NsConnectInfo,
     SsuAllocSpaceReq,
+    SsuAttachResult,
     SsuInfo,
     SsuNsStatus,
     SsuPermReq,
+    SsuSpaceReq,
     UnbindSsuVfeReq,
     VfeForSsu,
 )
@@ -38,6 +40,9 @@ from ub_device_manager.constants import (
     SSU_PERM_REQUEST_CONTEXT_KEY,
     SSU_SHOW_REQUEST_CONTEXT_KEY,
     SSU_SHOW_RESULT_CONTEXT_KEY,
+    SSU_SPACE_ATTACH_REQUEST_CONTEXT_KEY,
+    SSU_SPACE_ATTACH_RESULT_CONTEXT_KEY,
+    SSU_SPACE_DETACH_REQUEST_CONTEXT_KEY,
     SSU_VFE_BIND_REQUEST_CONTEXT_KEY,
     SSU_VFE_LIST_CONTEXT_KEY,
     SSU_VFE_UNBIND_REQUEST_CONTEXT_KEY,
@@ -53,6 +58,8 @@ from ub_device_manager.domain.ssu.ssu_tasks import (
     RemoveSsuAccessPermTask,
     ShowSsuNsStatusTask,
     ShowSsuTask,
+    SsuSpaceAttachTask,
+    SsuSpaceDetachTask,
     UnbindSsuVfeTask,
 )
 
@@ -104,7 +111,7 @@ async def bind_ssu_vfe_bus(body: BindSsuVfeReq) -> Message:
     return Message(msg="Bind SSU VFE successfully")
 
 
-@app.get('/ssu-vfe/list', response_model=List[VfeForSsu], tags=['SSU'])
+@app.get('/ssu-vfe', response_model=List[VfeForSsu], tags=['SSU'])
 async def get_ssu_vfe_list() -> List[VfeForSsu]:
     """
     List all SSU-specific VFEs.
@@ -161,7 +168,7 @@ async def ssu_alloc(body: SsuAllocSpaceReq) -> SsuInfo:
     return (await chain.run_chain()).get(SSU_ALLOC_RESULT_CONTEXT_KEY)
 
 
-@app.get('/ssu/list', response_model=List[SsuInfo], tags=['SSU'])
+@app.get('/ssu', response_model=List[SsuInfo], tags=['SSU'])
 async def get_ssu_list() -> List[SsuInfo]:
     """
     List all allocated storage spaces.
@@ -187,6 +194,36 @@ async def remove_ssu_perm(body: SsuPermReq) -> Message:
     )
     await chain.run_chain()
     return Message(msg="Remove SSU access permission successfully")
+
+
+@app.post('/ssu/attach', response_model=SsuAttachResult, tags=['SSU'])
+async def ssu_attach(body: SsuSpaceReq) -> SsuAttachResult:
+    """
+    Attach an allocated storage space.
+    """
+    logger.info("Start ssu attach request, name: {}", body.name)
+    chain = (
+        AsyncTaskChain()
+        .with_context({SSU_SPACE_ATTACH_REQUEST_CONTEXT_KEY: body})
+        .apply_async_task(SsuSpaceAttachTask)
+    )
+    dev_paths = (await chain.run_chain()).get(SSU_SPACE_ATTACH_RESULT_CONTEXT_KEY)
+    return SsuAttachResult(dev_paths=dev_paths)
+
+
+@app.post('/ssu/detach', response_model=Message, tags=['SSU'])
+async def ssu_detach(body: SsuSpaceReq) -> Message:
+    """
+    Detach an allocated storage space.
+    """
+    logger.info("Start ssu detach request, name: {}", body.name)
+    chain = (
+        AsyncTaskChain()
+        .with_context({SSU_SPACE_DETACH_REQUEST_CONTEXT_KEY: body})
+        .apply_async_task(SsuSpaceDetachTask)
+    )
+    await chain.run_chain()
+    return Message(msg="Detach SSU storage space successfully")
 
 
 @app.get('/ssu/{name}', response_model=SsuInfo, tags=['SSU'])

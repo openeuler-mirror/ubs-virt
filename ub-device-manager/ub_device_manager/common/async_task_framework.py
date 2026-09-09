@@ -59,8 +59,13 @@ async def acquire_lock(lock_name: str = "_default_lock", timeout: Optional[float
     """
     lock = _LOCKS.setdefault(lock_name, asyncio.Lock())
     context = _get_or_create_context()
-    acquired_names = context.get(_LOCK_NAMES_KEY)
-    if acquired_names is not None and lock_name in acquired_names:
+    acquired_names = context.get(_LOCK_NAMES_KEY,)
+
+    if not isinstance(acquired_names, set):
+        acquired_names = set()
+
+        context.set(_LOCK_NAMES_KEY, acquired_names)
+    if lock_name in acquired_names:
         return True
     try:
         if timeout is not None:
@@ -69,9 +74,7 @@ async def acquire_lock(lock_name: str = "_default_lock", timeout: Optional[float
             await lock.acquire()
     except asyncio.TimeoutError:
         return False
-    if acquired_names is None:
-        acquired_names = set()
-        context.set(_LOCK_NAMES_KEY, acquired_names)
+
     acquired_names.add(lock_name)
     return True
 

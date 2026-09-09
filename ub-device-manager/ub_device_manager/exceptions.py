@@ -74,3 +74,13 @@ class InvalidUnbindDeviceRequest(UbDmHTTPException):
 class UnbindDeviceNotFound(UbDmHTTPException):
     msg = 'no ub devices found for the bus instance'
     code = 548
+
+
+class SsuNotFound(UbDmHTTPException):
+    msg = 'ssu resource not found'
+    code = 404
+
+
+class InvalidSsuRequest(UbDmHTTPException):
+    msg = 'invalid ssu request'
+    code = 400
