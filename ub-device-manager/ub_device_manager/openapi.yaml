@@ -1,0 +1,937 @@
+openapi: 3.0.3
+info:
+  title: UB Device Manager
+  version: 1.0.0
+  description: 仅在本地节点运行的 UDS HTTP 服务
+servers:
+  - url: http://localhost
+tags:
+  - name: VM
+    description: 虚机创建、删除等生命周期管理接口
+  - name: SSU
+    description: SSU 存储资源管理接口
+  - name: UB
+    description: UB/NPU 设备查询接口
+  - name: Task
+    description: 异步任务状态查询接口
+paths:
+
+  /ssu-ns/{name}:
+    get:
+      summary: 获取存储空间命名信息
+      description: 查询指定存储空间下各命名空间的容量使用情况, 包括总容量和已用容量
+      operationId: show_ssu_ns_status
+      tags:
+        - SSU
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 存储空间标识
+
+
+      responses:
+        '200':
+          description: 成功响应
+          content:
+            application/json:
+              schema:
+                type: array
+                description: 命名空间统计信息列表
+                items:
+                  $ref: '#/components/schemas/SsuNsStatus'
+  /ssu-ns/connect-info:
+    get:
+      summary: 查询指定存储空间在指定 VFE 上的 NVMe 连接信息
+      description: 查询指定存储空间在指定 VFE 上的 NVMe 连接信息, 包括子系统 NQN、Host NQN、命名空间 ID 等
+      operationId: get_ns_connnect_info
+      tags:
+        - SSU
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: 存储空间标识
+        - name: vfe_guid
+          in: query
+          required: false
+          schema:
+            type: string
+          description: vfe_guid
+          example: "0000-0-00000000"
+      responses:
+        '200':
+          description: 成功响应
+          content:
+            application/json:
+              schema:
+                type: array
+                description: 命名空间统计信息列表
+                items:
+                  $ref: '#/components/schemas/NsConnectInfo'
+
+
+  /ssu/list:
+    get:
+      summary: 列出所有已分配的存储空间信息
+      description: 获取系统中所有已分配的 SSU 存储空间详细信息, 包括命名空间列表、容量、LBA 格式和使用类型等
+      operationId: get_ssu_list      # [可选] 接口的唯一标识符（代码生成时常作为函数名）
+      tags:
+        - SSU
+      responses:
+        '200':
+          description: 成功响应
+          content:
+            application/json:
+              schema:
+                type: array
+                description: SSU 分配结果列表
+                items:
+                  $ref: '#/components/schemas/SsuInfo'
+
+  /ssu/{name}:
+    get:
+      summary: 根据名称获取已分配的存储空间信息
+      description: 根据名称获取已分配的存储空间信息, 包括命名空间列表、容量、LBA 格式和使用类型等
+      operationId: show_ssu_alloc_info
+      tags:
+        - SSU
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: SSU 的名称
+      responses:
+        '200':
+          description: 成功响应
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SsuInfo'
+    delete:
+      summary: 释放 SSU 空间
+      description: 根据给定的 SSU 名称，释放其对应的空间资源
+      operationId: free_ssu
+      tags:
+        - SSU
+      parameters:
+        - name: name
+          in: path
+          required: true
+          description: SSU 的名称
+          schema:
+            type: string
+            example: "ssu-volume-001"
+      responses:
+        '200':
+          description: 释放SSU成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+
+  /ssu/alloc:
+    post:
+      summary: 分配 SSU 存储空间
+      description: 根据请求参数分配指定数量和大小的命名空间, 支持顺序分配和分布式分配两种策略
+      operationId: ssu_alloc
+      tags:
+        - SSU
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SsuAllocSpaceReq'
+      responses:
+        '200':
+          description: 成功响应
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SsuInfo'
+
+
+  /ssu/add-perm:
+    post:
+      summary: 添加 SSU 访问权限
+      description: 为指定的 SSU 卷添加特定主机的 NQN 访问权限
+      operationId: add_ssu_perm
+      tags:
+        - SSU
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SsuPermReq'
+      responses:
+        '200':
+          description: 权限添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: 请求参数错误（如 NQN 格式不正确、SSU 名称为空）
+        '404':
+          description: 未找到指定的 SSU 资源
+
+  /ssu/rm-perm:
+    post:
+      summary: 删除 SSU 访问权限
+      description: 为指定的 SSU 卷删除指定主机 NQN 访问权限
+      operationId: remove_ssu_perm
+      tags:
+        - SSU
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SsuPermReq'
+      responses:
+        '200':
+          description: 权限删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: 请求参数错误（如 NQN 格式不正确、SSU 名称为空）
+        '404':
+          description: 未找到指定的 SSU 资源
+
+
+  /ssu-vfe/list:
+    get:
+      summary: 查询所有的 SSU 专用 VFE
+      description: 查询用于 SSU 建联的 VFE 信息
+      operationId: get_ssu_vfe_list
+      tags:
+        - SSU
+      responses:
+        '200':
+          description: 成功响应
+          content:
+            application/json:
+              schema:
+                type: array
+                description: SSU 专用的 VFE 列表
+                items:
+                  $ref: '#/components/schemas/VfeForSsu'
+
+  /ssu-vfe/bind:
+    post:
+      summary: 将指定的 VFE 绑定到总线
+      description: 将指定的 VFE 绑定到总线，以实现虚机通过此 VFE 与物理机通信，不填 bus_guid 时默认分配
+      operationId: bind_ssu_vfe_bus
+      tags:
+        - SSU
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BindSsuVfeReq'
+
+      responses:
+        '200':
+          description: 权限添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+
+  /ssu-vfe/unbind:
+    post:
+      summary: 将指定的 VFE 与 bus_guid 解绑
+      description: 传入 VFE 的 GUID，并封装为 VFE 对象以及通过查询 UBSE 找到 VFE 对应的 bus_guid ，组合后调用解绑接口，由于虚机仅能使用一个 ssu-vfe，因此参数为唯一 vfe_guid
+      operationId: unbind_ssu_vfe
+      tags:
+        - SSU
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnbindSsuVfeReq'
+      responses:
+        '200':
+          description: 解绑 bus 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+  /npu:
+    get:
+      summary: 列出所有的npu设备信息
+      description: 获取当前节点中所有npu设备的详细信息, 包括id、guid和总线实例GUID等
+      operationId: get_npu_list      # [可选] 接口的唯一标识符（代码生成时常作为函数名）
+      tags:
+        - UB
+      responses:
+        '200':
+          description: 成功响应
+          content:
+            application/json:
+              schema:
+                type: array
+                description: NPU 信息列表
+                items:
+                  $ref: '#/components/schemas/NpuDeviceInfo'
+  /npu/bind:
+    post:
+      summary: 使能 UB 设备
+      description: >
+        校验并选择指定的 UB 设备（need_nic 为 true 时按 NPU 亲和关系自动追加 NIC 设备），
+        调用 UBSE 分配设备得到总线实例 GUID，再查询该总线实例的 tid、uba、size。
+        返回 tid、uba、size、bus_guid 和已绑定的设备列表。
+      operationId: bind_npu_device
+      tags:
+        - UB
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BindNpuDeviceRequest'
+      responses:
+        '200':
+          description: 使能 UB 设备成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BindNpuDeviceResult'
+        '400':
+          description: 请求参数不合法（如 upi 格式错误、设备列表为空）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '545':
+          description: NPU 设备选择失败（设备不存在、已被绑定、空闲数量不足或无可用亲和 NIC）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+  /npu/unbind:
+    post:
+      summary: 去使能 UB 设备
+      description: >
+        根据总线实例 GUID 查询其绑定的所有 UB 设备，若不存在任何绑定设备则返回失败；
+        否则将这些设备与总线实例 GUID 一起传入 UBSE free_devices 接口释放。
+      operationId: unbind_npu_device
+      tags:
+        - UB
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnbindNpuDeviceRequest'
+      responses:
+        '200':
+          description: 去使能 UB 设备成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: 请求参数不合法（bus_guid 为空）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '534':
+          description: UB 设备释放失败（UBSE free_devices 调用失败）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '548':
+          description: 总线实例不存在或其下无绑定设备
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+  /vm/create:
+    post:
+      summary: 创建 A5 NPU 直通虚机
+      description: >
+        根据用户提供的 libvirt domain XML 和 UB 设备需求，在本机选择并分配 UB/NPU 设备，
+        组装 A5 NPU 直通虚机 XML，并在启用 libvirt 创建开关时定义并启动虚机。
+        XML 参数可以是 XML 内容，也可以是服务端可读取的 XML 文件路径。
+      operationId: create_vm
+      tags:
+        - VM
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVmRequest'
+      responses:
+        '200':
+          description: 创建虚机成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: 请求参数或输入 XML 不合法
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '545':
+          description: NPU 设备选择失败（设备不存在、已被绑定、空闲数量不足或无可用亲和 NIC）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '543':
+          description: 组装虚机 XML 失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '544':
+          description: libvirt 定义或启动虚机失败
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+  /vm/{name}:
+    delete:
+      summary: 根据虚机名称删除虚机
+      description: 根据虚机名称调用libvirt删除虚机, 若其存在ub设备则进行unbind
+      operationId: delete_vm
+      tags:
+        - VM
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: 虚机 的名称
+      responses:
+        '200':
+          description: 成功响应
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          description: 请求参数错误（如 虚机名称为空）
+        '404':
+          description: 未找到指定的 虚机
+
+components:
+  schemas:
+
+    CreateVmRequest:
+      type: object
+      description: Request to create an A5 NPU passthrough VM.
+      required:
+        - upi
+      properties:
+        xml_text:
+          type: string
+          nullable: true
+          description: libvirt domain XML content. Exactly one of xml_text and xml_path must be provided.
+          example: <domain><name>vm</name></domain>
+        xml_path:
+          type: string
+          nullable: true
+          description: Path to a libvirt domain XML file readable by the server. Exactly one of xml_text and xml_path must be provided.
+          example: /path/to/domain.xml
+        upi:
+          type: string
+          description: User isolation identifier in hexadecimal (one to four digits; prefix and digits are case-insensitive), from 0x0000 to 0x1000.
+          example: "0x000f"
+        need_nic:
+          type: boolean
+          default: false
+          description: Whether to automatically select NIC devices based on NPU affinity.
+          example: false
+        npu_ids:
+          type: array
+          nullable: true
+          description: Explicit NPU device IDs. Duplicates are not allowed and this field is mutually exclusive with npu_count.
+          items:
+            type: string
+          example: ["1-1", "1-2"]
+        npu_count:
+          type: integer
+          nullable: true
+          minimum: 0
+          description: Number of free NPUs to select automatically; mutually exclusive with npu_ids. Zero creates a regular VM without NPUs.
+          example: 2
+
+    BindNpuDeviceRequest:
+      type: object
+      description: Request to bind UB devices. Exactly one of ids and count must be provided.
+      required:
+        - upi
+      properties:
+        upi:
+          type: string
+          description: User isolation identifier in hexadecimal (one to four digits; prefix and digits are case-insensitive), from 0x0000 to 0x1000.
+          example: "0x000f"
+        ids:
+          type: array
+          nullable: true
+          description: Explicit NPU device IDs. Duplicates are not allowed; only 1, 2, 4, or 8 IDs are allowed and this field is mutually exclusive with count.
+          items:
+            type: string
+          example: ["1-1", "1-2"]
+        count:
+          type: integer
+          nullable: true
+          minimum: 1
+          description: Number of free NPUs to select automatically. Only 1, 2, 4, or 8 are allowed and this field is mutually exclusive with ids.
+          example: 2
+        need_nic:
+          type: boolean
+          default: false
+          description: Whether to automatically select NIC devices based on NPU affinity.
+          example: false
+
+    UnbindNpuDeviceRequest:
+      type: object
+      description: Request to unbind UB devices.
+      required:
+        - bus_guid
+      properties:
+        bus_guid:
+          type: string
+          maxLength: 128
+          description: Bus instance GUID returned when UB devices were bound.
+          example: "0xcc08-a002-0-0-000000-00000038c8c1008c"
+    BindNpuDeviceResult:
+      type: object
+      description: UB device binding result.
+      required:
+        - tid
+        - uba
+        - size
+        - bus_guid
+        - devices
+      properties:
+        tid:
+          type: integer
+          description: Bus instance TID.
+          example: 11
+        uba:
+          type: integer
+          description: Bus instance UBA.
+          example: 22
+        size:
+          type: integer
+          description: Bus instance memory size.
+          example: 1024
+        bus_guid:
+          type: string
+          maxLength: 128
+          description: Bus instance GUID returned after device allocation.
+          example: "0xcc08-a002-0-0-000000-00000038c8c1008c"
+        devices:
+          type: array
+          description: Bound UB devices.
+          items:
+            $ref: '#/components/schemas/BoundUbDevice'
+
+    NsConnectInfo:
+      type: object
+      description: Storage connection information.
+      properties:
+        src_eid:
+          type: string
+          default: ""
+          description: Source EID.
+        tgt_eid:
+          type: string
+          default: ""
+          description: Target EID.
+        tgt_nqn:
+          type: string
+          default: ""
+          description: Target NQN address.
+        host_nqn:
+          type: string
+          default: ""
+          description: Host NQN.
+        ns_uuid:
+          type: string
+          default: ""
+          description: Namespace UUID.
+        ns_id:
+          type: integer
+          default: 0
+          description: Namespace ID.
+
+
+    SsuNsStatus:
+      type: object
+      description: Namespace usage statistics.
+      properties:
+        ns_uuid:
+          type: string
+          default: ""
+          description: Namespace UUID.
+        ns_id:
+          type: integer
+          default: 0
+          description: Namespace ID.
+        total_size:
+          type: integer
+          default: 0
+          description: Total namespace size.
+        used_size:
+          type: integer
+          default: 0
+          description: Used namespace size.
+
+    BindSsuVfeReq:
+      type: object
+      description: Request to bind a VFE.
+      required:
+        - upi
+        - vfe_guid
+      properties:
+        upi:
+          type: integer
+          description: Tenant isolation identifier.
+        vfe_guid:
+          type: string
+          description: SSU VFE GUID.
+          example: "0000-0-0000-00000000"
+        bus_guid:
+          type: string
+          description: Bus GUID to which the VFE is bound.
+          example: "0000-0-0000-00000000"
+
+
+    UnbindSsuVfeReq:
+      type: object
+      description: Request to unbind a VFE.
+      required:
+        - upi
+        - vfe_guid
+      properties:
+        upi:
+          type: integer
+          description: Tenant isolation identifier.
+        vfe_guid:
+          type: string
+          description: SSU VFE GUID.
+          example: "0000-0-0000-00000000"
+
+
+    VfeForSsu:
+      type: object
+      description: SSU VFE hardware resource information.
+      properties:
+        slot_id:
+          type: integer
+          format: uint8
+          default: 0
+          minimum: 0
+          maximum: 255
+          description: Slot ID.
+        chip_id:
+          type: integer
+          format: uint8
+          default: 0
+          minimum: 0
+          maximum: 255
+          description: Chip ID.
+        die_id:
+          type: integer
+          format: uint8
+          default: 0
+          minimum: 0
+          maximum: 255
+          description: Die ID
+        pfe_id:
+          type: integer
+          format: uint16
+          default: 0
+          minimum: 0
+          maximum: 65535
+          description: Physical function element ID.
+        vfe_id:
+          type: integer
+          format: uint16
+          default: 0
+          minimum: 0
+          maximum: 65535
+          description: Virtual function element ID.
+        vfe_guid:
+          type: string
+          description: vfe_guid
+        bind_bus_guid:
+          type: string
+          default: ""
+          description: Bound bus instance GUID.
+
+
+    SsuVfeAllocReq:
+      type: object
+      description: Request to bind a VFE to a VM.
+      required:
+        - upi
+        - vfe_guid
+      properties:
+        upi:
+          type: integer
+          description: Tenant isolation identifier.
+        vfe_guid:
+          type: string
+          format: bytearray-hex
+          description: VFE GUID.
+        bus_guid:
+          type: string
+          format: bytearray-hex
+          description: VM bus instance GUID, supplied as a hexadecimal string.
+
+
+    SsuPermReq:
+      type: object
+      required:
+        - name
+        - nqn
+      properties:
+        name:
+          type: string
+          description: SSU name.
+          example: "ssu-volume-001"
+        nqn:
+          type: string
+          description: NVMe host NQN identifier.
+          example: "nqn.2014-08.org.nvmexpress:uuid:fedcba98-7654-3210-fedc-ba9876543210"
+
+
+    SsuLbaFormat:
+      type: integer
+      description: >
+        LBA format definition.
+        FORMAT_512 = 512  # 512B
+        FORMAT_4K = 4096  # 4K
+      enum:
+        - 512
+        - 4096
+
+    SsuAllocStrategy:
+      type: integer
+      description: >
+        Allocation strategy:
+        0: Distributed strategy.
+        1: Sequential strategy.
+      enum:
+        - 0
+        - 1
+
+    SsuAllocSpaceReq:
+      type: object
+      description: Storage allocation request.
+      required:
+        - lba_format
+        - strategy
+      properties:
+        name:
+          type: string
+          maxLength: 48
+          default: ""
+          description: Request identifier, with a maximum length of 48 characters.
+        ns_size:
+          type: integer
+          format: int64
+          default: 0
+          description: >
+            Requested total capacity in bytes.
+            With a striped strategy, it must be divisible by ns_num and the quotient must be a multiple of chunkSize.
+        ns_num:
+          type: integer
+          format: int32
+          default: 1
+          minimum: 1
+          description: Number of namespaces. strategy does not apply when this value is 1.
+        lba_format:
+          $ref: '#/components/schemas/SsuLbaFormat'
+        strategy:
+          $ref: '#/components/schemas/SsuAllocStrategy'
+        tenant:
+          type: string
+          default: ""
+          description: Requester tenant isolation identifier. Use a Base64-encoded string in JSON payloads.
+
+    SsuInfo:
+      type: object
+      description: SSU allocation result.
+      required:
+        - name
+        - strategy
+        - namespace_cnt
+        - namespaces
+      properties:
+        name:
+          type: string
+          maxLength: 256 # Update when the actual UBS_SSU_MAX_NAME_LENGTH is available.
+          description: SSU name (fixed-length string).
+          example: "ssu-volume-001"
+        strategy:
+          type: integer
+          format: int32
+          description: Allocation strategy.
+          example: 1
+        namespace_cnt:
+          type: integer
+          format: int64
+          minimum: 0
+          description: Number of namespaces.
+          example: 2
+        namespaces:
+          type: array
+          description: Namespace information entries.
+          items:
+            $ref: '#/components/schemas/SsuNamespaceInfo'
+
+    SsuNamespaceInfo:
+      type: object
+      description: SSU namespace details.
+      required:
+        - tgt_eid
+        - tgt_nqn
+        - ns_uuid
+        - ns_id
+        - ns_dev_path
+        - ns_size
+        - lba_format
+      properties:
+        tgt_eid:
+          type: string
+          maxLength: 64 # Update when the actual UBS_SSU_MAX_EID_LENGTH is available.
+          description: Target EID (Endpoint Identifier).
+          example: "nqn.2014-08.org.nvmexpress:uuid:fedcba98-7654-3210-fedc-ba9876543210"
+        tgt_nqn:
+          type: string
+          maxLength: 256 # Update when the actual UBS_SSU_MAX_NQN_LENGTH is available.
+          description: Target NQN (NVMe Qualified Name).
+          example: "nqn.2014-08.com.example:nvme:subsystem-1"
+        ns_uuid:
+          type: string
+          maxLength: 64 # Update when the actual UBS_SSU_MAX_UUID_LENGTH is available.
+          description: Namespace UUID.
+          example: "123e4567-e89b-12d3-a456-426614174000"
+        ns_id:
+          type: integer
+          minimum: 0
+          description: Namespace ID.
+          example: 1
+        ns_dev_path:
+          type: string
+          maxLength: 128 # Update when the actual UBS_SSU_MAX_DEV_PATH_LENGTH is available.
+          description: Namespace device path in the VM.
+          example: "/dev/nvme0n1"
+        ns_size:
+          type: integer
+          minimum: 0
+          description: Namespace size in bytes.
+          example: 1099511627776
+        lba_format:
+          type: integer
+          description: LBA format (Logical Block Address Format).
+          example: 0
+
+
+    Message:
+      type: object
+      description: Response message.
+      required:
+        - msg
+      properties:
+        msg:
+          type: string
+          maxLength: 256
+          description: Returned message.
+          example: "success."
+
+    UbDevice:
+      type: object
+      description: UB device selected from the host inventory.
+      required:
+        - type
+        - id
+      properties:
+        type:
+          type: string
+          description: UB device type, such as NPU, NIC_VFE, NIC_PFE, or SSU.
+          example: "NPU"
+        id:
+          type: string
+          description: UB device ID.
+          example: "0-1"
+        guid:
+          type: string
+          maxLength: 128
+          nullable: true
+          description: UB device GUID. It is populated from the host inventory during device selection.
+          example: "0xcc08-a000-0-2-000000-00000000000201ff"
+
+    BoundUbDevice:
+      type: object
+      description: Bound device information. When need_nic is true, the list includes selected affinity NIC devices distinguished by type.
+      required:
+        - id
+        - guid
+        - type
+      properties:
+        id:
+          type: string
+          maxLength: 64
+          description: UB device ID.
+          example: "1-1"
+        guid:
+          type: string
+          maxLength: 128
+          description: UB device GUID.
+          example: "0xcc08-a000-0-2-000000-00000000000201ff"
+        type:
+          type: string
+          maxLength: 64
+          description: UB device type, such as NPU or NIC_VFE.
+          example: "NPU"
+
+    NpuDeviceInfo:
+      type: object
+      description: NPU device information.
+      required:
+        - id
+        - guid
+      properties:
+        id:
+          type: string
+          maxLength: 64
+          description: NPU device ID (fixed-length string).
+          example: "0-1"
+        guid:
+          type: string
+          maxLength: 128
+          description: NPU device GUID (fixed-length string).
+          example: "0xcc08-a000-0-2-000000-00000000000201ff"
+        bus_guid:
+          type: string
+          maxLength: 128
+          nullable: true
+          description: Bus instance GUID bound to the NPU device (fixed-length string).
+          example: "0xcc08-a002-0-0-000000-00000038c8c1008c"
+
