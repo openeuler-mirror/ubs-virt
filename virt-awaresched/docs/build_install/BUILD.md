@@ -64,7 +64,7 @@ bash build.sh package
 
 ```filepath
 └── output                                                            # 打包输出文件目录
-    └── virt-awaresched-1.0.0-1.aarch64.rpm                           # virt-awaresched rpm安装包
+    └── virt-awaresched-<version>-<release>.aarch64.rpm               # virt-awaresched rpm安装包
 ```
 
 ## 方式二：基于预编译镜像环境编译
