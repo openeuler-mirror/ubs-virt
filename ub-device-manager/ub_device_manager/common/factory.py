@@ -13,9 +13,7 @@ from starlette.responses import JSONResponse
 
 from ub_device_manager.app.vm_app import app as vm_app
 from ub_device_manager.app.npu_app import app as npu_app
-
-# TODO: SSU API is not ready.
-# from ub_device_manager.app.ssu_app import app as ssu_app
+from ub_device_manager.app.ssu_app import app as ssu_app
 from ub_device_manager.common.logger import REQUEST_ID_VAR
 
 _TITLE = "Ub device manager"
@@ -93,9 +91,7 @@ def create_app() -> FastAPI:
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR
         )
 
-    new_app.router.routes.extend(vm_app.routes + npu_app.routes)
-    # TODO: SSU API is not ready.
-    # new_app.router.routes.extend(vm_app.routes + npu_app.routes + ssu_app.routes)
+    new_app.router.routes.extend(vm_app.routes + npu_app.routes + ssu_app.routes)
 
     return new_app
 

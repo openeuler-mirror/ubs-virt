@@ -15,4 +15,4 @@ title = "UB Device Manager"
 level = "INFO"
 max_file_size= "10 MB"
 max_file_count = 10
-stdout = true
+stdout = false

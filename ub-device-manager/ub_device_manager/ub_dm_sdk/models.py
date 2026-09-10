@@ -9,7 +9,8 @@
 # IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 # See the Mulan PSL v2 for more details.
 ##########################################################################################################
-from typing import Optional
+from enum import IntEnum
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -46,3 +47,42 @@ class NpuDeviceInfo(BaseModel):
     id: str
     guid: str
     bus_guid: Optional[str] = None
+
+
+class SsuLbaFormat(IntEnum):
+    FORMAT_512 = 512
+    FORMAT_4K = 4096
+
+
+class SsuAllocStrategy(IntEnum):
+    STRIPED = 0
+    LINEAR = 1
+    NORMAL = 2
+
+
+class SsuAllocSpaceReq(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(..., min_length=1, max_length=48)
+    ns_size_gb: int = Field(..., ge=1)
+    ns_num: int = Field(..., ge=1)
+    lba_format: SsuLbaFormat = SsuLbaFormat.FORMAT_512
+    strategy: SsuAllocStrategy = SsuAllocStrategy.NORMAL
+    tenant: Optional[str] = None
+
+
+class SsuNamespaceInfo(BaseModel):
+    tgt_eid: str = ""
+    tgt_nqn: str = ""
+    ns_uuid: str = ""
+    ns_id: int = 0
+    ns_dev_path: str = ""
+    ns_size: int = 0
+    lba_format: int = 0
+
+
+class SsuInfo(BaseModel):
+    name: str
+    strategy: int
+    namespace_cnt: int
+    namespaces: List[SsuNamespaceInfo] = Field(default_factory=list)
