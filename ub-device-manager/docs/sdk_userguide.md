@@ -6,7 +6,7 @@ ub-device-manager 提供 Python SDK，进行虚拟机创建和 NPU 设备管理�
 
 SDK 包路径：
 
-```python
+```output
 ub_device_manager.ub_dm_sdk
 ```
 
@@ -37,7 +37,6 @@ SDK 使用同步调用方式。函数调用会等待服务端返回结果，不�
 ```bash
 python3.11 -c "import ub_device_manager.ub_dm_sdk; print('SDK available')"
 ```
-
 
 ## 3. 创建客户端
 
@@ -88,7 +87,8 @@ for device in devices:
 | `guid` | 对应的 UB 设备 GUID。 |
 | `bus_guid` | 已绑定的 bus instance GUID；未绑定时可能为 `None` 或空字符串。 |
 
-创建或绑定时，使用本接口返回的设备 ID，不要直接使用 npu-smi 中的设备编号。
+> [!NOTE] 说明
+> 创建或绑定时，使用本接口返回的设备 ID，不要直接使用 npu-smi 中的设备编号。
 
 ### 4.2 绑定 NPU
 
@@ -114,11 +114,12 @@ bind_npu_device(
 | `need_nic` | 否 | 是否同时申请配套 Hi1825 网卡 VFE，默认 `False`。 |
 | `client` | 否 | 客户端对象；省略时使用默认客户端。 |
 
-指定 ID 时，数量也只能为 1、2、4 或 8 个。
+> [!NOTE] 说明
+> 指定 ID 时，数量也只能为 1、2、4 或 8 个。
 
 #### 示例
 
-申请两张指定 NPU，并申请配套Hi1825网卡 VFE：
+申请两张指定 NPU，并申请配套 Hi1825 网卡 VFE：
 
 ```python
 from ub_device_manager.ub_dm_sdk import bind_npu_device
@@ -163,7 +164,8 @@ tid, uba, size, bus_guid, devices = bind_npu_device(
 | `bus_guid` | 本次分配的 bus instance GUID。 |
 | `devices` | `BoundUbDevice` 对象列表，每项包含 `id`、`guid`、`type`。 |
 
-该接口不创建虚拟机。调用成功后，应保存返回信息，用于手动配置 XML 和后续解绑。
+> [!NOTE] 说明
+> 该接口不创建虚拟机。调用成功后，应保存返回信息，用于手动配置 XML 和后续解绑。
 
 ### 4.3 解绑 NPU
 
@@ -184,7 +186,7 @@ unbind_npu_device(
 )
 ```
 
-`BUS_GUID` 替换为绑定时返回的实际值。
+将`BUS_GUID` 替换为绑定时返回的实际值。
 
 该函数成功时返回 `None`。
 
@@ -212,12 +214,14 @@ create_vm(
 
 #### 参数
 
+参数说明：
+
 | 参数 | 是否必填 | 说明 |
 | --- | --- | --- |
 | `upi` | 是 | 用户隔离标识，范围为 `"0x0001"`～`"0x0fff"`。 |
 | `xml_text` | 与 `xml_path` 二选一 | 基础 XML 文本。 |
 | `xml_path` | 与 `xml_text` 二选一 | 服务端可读取的基础 XML 文件路径。 |
-| `need_nic` | 否 | 是否同时申请配套Hi1825网卡 VFE。 |
+| `need_nic` | 否 | 是否同时申请配套 Hi1825 网卡 VFE。 |
 | `npu_ids` | 否 | NPU 设备 ID 字符串列表。 |
 | `npu_count` | 否 | 自动选择的 NPU 数量，支持 1、2、4、8。 |
 | `client` | 否 | 客户端对象。 |
@@ -234,6 +238,8 @@ create_vm(
 
 #### 可选内存亲和策略
 
+**核心概念定义**
+
 下面先说明策略里用到的几个名称：
 
 - **NPU 亲和 NUMA**：与该 NPU 具有亲和关系的宿主 NUMA 节点。
@@ -241,9 +247,13 @@ create_vm(
 - **虚拟机内存绑定 NUMA 集合 `N`**：虚拟机内存允许使用的所有宿主 NUMA 编号，由 XML 的内存绑定配置确定。重复编号只保留一次。
 - **虚拟机内存绑定 NUMA 集合对应的 Socket 集合 `S`**：`N` 里的每个 NUMA 都有所属的 Socket。把这些 Socket 编号放在一起，重复编号只保留一次，就得到 `S`。
 
-例如，XML 配置允许虚拟机内存使用宿主 NUMA 1、2，那么 `N={1,2}`；如果 NUMA 1 属于 Socket 0、NUMA 2 属于 Socket 1，那么 `S={0,1}`。
+示例：
 
-策略判断的是每张待选 NPU 的亲和 NUMA 或亲和 Socket 是否属于上述集合：
+XML 配置允许虚拟机内存使用宿主 NUMA 1、2，那么 `N={1,2}`；如果 NUMA 1 属于 Socket 0、NUMA 2 属于 Socket 1，那么 `S={0,1}`。
+
+策略判断的是每张待选 NPU 的亲和 NUMA 或亲和 Socket 是否属于上述集合。
+
+**策略选择规则**
 
 | 策略 | 选择规则 |
 | --- | --- |
@@ -253,17 +263,22 @@ create_vm(
 
 集合用于判断每张 NPU 是否符合条件，不要求从集合中的每个 NUMA 或 Socket 都分配 NPU。
 
-`preferred` 在亲和 Socket 属于集合 `S` 的候选中，不再按 NPU 的亲和 NUMA 是否属于集合 `N` 增加优先级。自动选卡时，各优先级内按 UBSE 设备 ID 字符串升序选择。指定 `npu_ids` 时应省略 `affinity_policy`，按原有流程使用指定设备。
+> [!NOTE] 说明
+> 
+> - `preferred` 在亲和 Socket 属于集合 `S` 的候选中，不再按 NPU 的亲和 NUMA 是否属于集合 `N` 增加优先级。
+> 自动选卡时，各优先级内按 UBSE 设备 ID 字符串升序选择。
+> 指定 `npu_ids` 时应省略 `affinity_policy`，按原有流程使用指定设备。
+> 省略 `affinity_policy` 或传入 `None` 时，不执行新增的内存亲和 XML 检查和拓扑读取，自动选卡仍按库存顺序进行。
 
-省略 `affinity_policy` 或传入 `None` 时，不执行新增的内存亲和 XML 检查和拓扑读取，自动选卡仍按库存顺序进行。
-
-使用前提：
+**使用前提与约束**
 
 - 虚拟机的全部内存都必须使用大页，通过 `memoryBacking/hugepages` 配置。
 - 通过 `numatune` 指定虚拟机内存允许使用的宿主 NUMA，采用 `placement='static'` 和 `mode='strict'` 配置。允许使用一个或多个宿主 NUMA，也支持跨 Socket。
 - 启用亲和策略时，XML 中不能包含 `<devices>` 下的 `<memory>` 附加内存设备（如 DIMM、virtio-mem）。
 
-例如，在自己的基础 XML 中添加或修改以下两个与 `<cpu>` 同级的配置段，并保存为 `/home/vm-affinity.xml`。这是配置片段，需要保留基础 XML 的其他内容，并根据宿主资源调整大页大小和 NUMA 编号：
+示例：
+
+在基础 XML 中添加或修改以下两个与 `<cpu>` 同级的配置段，并保存为 `/home/vm-affinity.xml`。这是配置片段，需要保留基础 XML 的其他内容，并根据宿主资源调整大页大小和 NUMA 编号：
 
 ```xml
 <memoryBacking>
@@ -276,6 +291,8 @@ create_vm(
 </numatune>
 ```
 
+**集合N的确定规则**
+
 上例允许虚拟机内存使用宿主 NUMA 1、2，因此 `N={1,2}`。即使虚拟机内部没有配置 NUMA 划分，也可以这样绑定宿主 NUMA。
 
 虚拟机内部也可以划分为多个 NUMA 节点，每个节点关联一部分虚拟机内存。虚拟机内部的 NUMA 编号和宿主 NUMA 编号要分开看。
@@ -286,85 +303,96 @@ create_vm(
 2. 没有单独的 `memnode` 配置时，使用 `numatune/memory` 中的宿主 NUMA 编号。
 3. 把各部分内存允许使用的宿主 NUMA 编号合在一起，重复编号只保留一次，就得到 `N`。
 
-例如，一部分内存允许使用宿主 NUMA `0,1`，另一部分允许使用 `1,2`，那么 `N={0,1,2}`。
+示例：
 
-`hugepages/page` 的 `nodeset` 填写虚拟机内部的 NUMA 编号，`numatune` 的 `nodeset` 填写宿主 NUMA 编号。组件根据集合 `N` 选择 NPU，不保证各 NUMA 的内存分配比例或 NPU 数量均衡。
+一部分内存允许使用宿主 NUMA `0,1`，另一部分允许使用 `1,2`，那么 `N={0,1,2}`。
+
+> [!NOTE] 说明
+> 
+> `hugepages/page` 的 `nodeset` 填写虚拟机内部的 NUMA 编号。
+> `numatune` 的 `nodeset` 填写宿主 NUMA 编号。
+> 组件根据集合 `N` 选择 NPU，不保证各 NUMA 的内存分配比例或 NPU 数量均衡。
 
 同时传入 `need_nic=True` 时，自动选卡会先排除没有空闲配套 NIC_VFE 的 NPU，再执行亲和筛选。
 
-亲和策略与 `npu_ids` 同传、缺少 `npu_count`，或 XML 的大页、内存绑定格式和模式不符合要求时返回 400；参数类型或策略枚举值不合法返回 422；亲和拓扑读取失败返回 503；符合策略的空闲 NPU 不足，或 XML 内存绑定引用了宿主不存在的 NUMA 时，当前返回 545。后一种情况需要核对并修改 XML 中的宿主 NUMA 编号。
+**错误码说明**
+
+- 400：亲和策略与 `npu_ids` 同传、缺少 `npu_count`，或 XML 的大页、内存绑定格式和模式不符合要求时返回 400。
+- 422：参数类型或策略枚举值不合法返回 422。
+- 503：亲和拓扑读取失败返回 503。
+- 545：符合策略的空闲 NPU 不足，或 XML 内存绑定引用了宿主不存在的 NUMA 时，当前返回 545。此情况需要核对并修改 XML 中的宿主 NUMA 编号。
 
 #### 示例
 
-使用指定 NPU 创建虚拟机：
+1. 使用指定 NPU 创建虚拟机：
 
-```python
-from ub_device_manager.ub_dm_sdk import create_vm
+    ```python
+    from ub_device_manager.ub_dm_sdk import create_vm
 
-result = create_vm(
-    upi="0x000f",
-    xml_path="/home/vm-base.xml",
-    npu_ids=["1-1", "1-2"],
-    client=client,
-)
+    result = create_vm(
+        upi="0x000f",
+        xml_path="/home/vm-base.xml",
+        npu_ids=["1-1", "1-2"],
+        client=client,
+    )
 
-print(result)
-```
+    print(result)
+    ```
 
-自动选择 8 张 NPU，并申请配套Hi1825网卡：
+2. 自动选择 8 个 NPU，并申请配套 Hi1825 网卡：
 
-```python
-result = create_vm(
-    upi="0x000f",
-    xml_path="/home/vm-base.xml",
-    npu_count=8,
-    need_nic=True,
-    client=client,
-)
-```
+    ```python
+    result = create_vm(
+        upi="0x000f",
+        xml_path="/home/vm-base.xml",
+        npu_count=8,
+        need_nic=True,
+        client=client,
+    )
+    ```
 
-使用 XML 文本：
+3. 使用 XML 文本：
 
-```python
-from pathlib import Path
+    ```python
+    from pathlib import Path
 
-xml_text = Path("/home/vm-base.xml").read_text(encoding="utf-8")
+    xml_text = Path("/home/vm-base.xml").read_text(encoding="utf-8")
 
-result = create_vm(
-    upi="0x000f",
-    xml_text=xml_text,
-    npu_count=2,
-    client=client,
-)
-```
+    result = create_vm(
+        upi="0x000f",
+        xml_text=xml_text,
+        npu_count=2,
+        client=client,
+    )
+    ```
 
-创建普通虚拟机：
+4. 创建普通虚拟机：
 
-```python
-result = create_vm(
-    upi="0x000f",
-    xml_path="/home/vm-base.xml",
-    client=client,
-)
-```
+    ```python
+    result = create_vm(
+        upi="0x000f",
+        xml_path="/home/vm-base.xml",
+        client=client,
+    )
+    ```
 
-使用本节准备的 `/home/vm-affinity.xml`，按 `preferred` 策略自动选择 4 张 NPU；`client` 沿用前文设置了较长超时的客户端：
+5. 使用本节准备的 `/home/vm-affinity.xml`，按 `preferred` 策略自动选择 4 个 NPU；`client` 沿用前文设置了较长超时的客户端：
 
-```python
-result = create_vm(
-    upi="0x000f",
-    xml_path="/home/vm-affinity.xml",
-    npu_count=4,
-    affinity_policy="preferred",
-    client=client,
-)
-```
+    ```python
+    result = create_vm(
+        upi="0x000f",
+        xml_path="/home/vm-affinity.xml",
+        npu_count=4,
+        affinity_policy="preferred",
+        client=client,
+    )
+    ```
 
-成功时返回字典：
+6. 成功时返回字典：
 
-```python
-{"msg": "Create VM successfully"}
-```
+    ```python
+    {"msg": "Create VM successfully"}
+    ```
 
 ### 5.2 删除虚拟机
 

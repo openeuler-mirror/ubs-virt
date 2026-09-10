@@ -41,6 +41,7 @@ enpu-manager 通过 HTTP over UDS 的 REST API 接收 vNPU 分配/释放/查询�
 | CANN                | 8.5.0~9.1.0                                                                |
 | HDK                 | 配套 Ascend 950 的 HDK 版本                                                 |
 
+> [!NOTE] 说明
 > enpu-manager 自身运行在宿主机侧，不依赖 Docker；Docker 仅用于拉起业务容器（参见 [vCANN-RT 使用说明](../vcann-rt/README.md)）。
 
 ### 系统要求
@@ -58,7 +59,8 @@ cd ubs-virt-enpu/enpu-manager
 
 ## 编译
 
-> 仅**源码部署**需要执行本节；通过 RPM / DEB 包安装可跳过本节，直接看[部署](#部署)。
+> [!NOTE] 说明
+> 仅**源码部署**需要执行本节；若使用 RPM / DEB 包安装可跳过本节，直接参见[部署](#部署)章节。
 
 编译前需要设置 CANN 环境变量:
 
@@ -80,44 +82,46 @@ bash build.sh
 
 ### 方式一：RPM 包安装（openEuler）
 
-获取或构建 RPM 包后执行：
+- 获取或构建 RPM 包后执行：
 
-```shell
-sudo rpm -ivh enpu-manager-*.rpm
-```
+    ```shell
+    sudo rpm -ivh enpu-manager-*.rpm
+    ```
 
-RPM 安装会自动完成：
-- 把 `enpu-manager` 二进制部署到 `/usr/bin/`
-- 把默认配置文件部署到 `/etc/enpu/enpu-manager.conf`
-- 把 systemd service 部署到 `/usr/lib/systemd/system/enpu-manager.service`
-- **无需手动配置 `LD_LIBRARY_PATH`**
+    RPM 安装会自动完成：
 
-如需从源码自行构建 RPM 包：
+    - 把 `enpu-manager` 二进制部署到 `/usr/bin/`
+    - 把默认配置文件部署到 `/etc/enpu/enpu-manager.conf`
+    - 把 systemd service 部署到 `/usr/lib/systemd/system/enpu-manager.service`
+    - **无需手动配置 `LD_LIBRARY_PATH`**
 
-```shell
-sudo dnf install cmake gcc gcc-c++ cjson-devel rpm-build
-cd deploy && bash build_rpm.sh
-# 产物位于 rpmbuild/RPMS/
-```
+- 如需从源码自行构建 RPM 包：
+
+    ```shell
+    sudo dnf install cmake gcc gcc-c++ cjson-devel rpm-build
+    cd deploy && bash build_rpm.sh
+    # 产物位于 rpmbuild/RPMS/
+    ```
 
 ### 方式二：DEB 包安装（Ubuntu/Debian）
 
-获取或构建 DEB 包后执行：
+- 获取或构建 DEB 包后执行：
 
-```shell
-sudo dpkg -i enpu-manager_*.deb
-sudo apt-get install -f    # 自动补齐依赖
-```
+    ```shell
+    sudo dpkg -i enpu-manager_*.deb
+    sudo apt-get install -f    # 自动补齐依赖
+    ```
 
-DEB 安装的能力与 RPM 一致。
+    > [!NOTE] 说明
+    > DEB 安装的能力与 RPM 一致。
 
-如需从源码自行构建 DEB 包：
+- 如需从源码自行构建 DEB 包：
 
-```shell
-sudo apt-get install build-essential cmake debhelper libcjson-dev
-cd deploy && bash build_deb.sh
-# 产物位于 debbuild/output/
-```
+    ```shell
+    sudo apt-get install build-essential cmake debhelper libcjson-dev
+    cd deploy && bash build_deb.sh
+    # 产物位于 debbuild/output/
+    ```
 
 ### 方式三：手动安装（开发调试用）
 
@@ -144,8 +148,8 @@ sudo systemctl daemon-reload
 | `config_dir`               | string   | /etc/enpu    |  否       | vCANN-RT 配置根目录（生成 `npu_info.config` 的基础路径）。                                                          |
 | `state_dir`               | string   | /var/lib/enpu-manager |  否       | 状态持久化目录（`checkpoint.json`）。                                                                                                       |
 | `share-strategy`           | string   | compact      |  是       | vNPU 分配策略，可选 `compact` / `anti-fragment`，详见下方表 5。                                                                                              |
-| `oversub-ratio`            | string   | 0（全禁用）  |  是       | per-die 超分比例，多个值按 phy_id 顺序逗号分隔（CSV 格式），`0` 表示该 die 不参与超分。单值写法表示所有 die 都填这个值。示例：`oversub-ratio=0.2,0.2,0.0,0.3` 表示 phy0/phy1 各 0.2、phy2 禁用、phy3 为 0.3。<br>**注意**：启用显存超分的卡（`oversub-ratio > 0`）上运行的容器必须启用软切分（vCANN-RT），否则 vCANN-RT 不会上报 `hbm_used`，超分比例计算不准确。 |
-| `swap-pre-watermark`       | int      | 80           |  是       | 预换出水水位，单位为百分比（%），即 die 的 HBM 使用率。使用率达到该值时触发预换出（提前腾出显存）。                                                            |
+| `oversub-ratio`            | string   | 0（全禁用）  |  是       | per-die 超分比例，多个值按 phy_id 顺序逗号分隔（CSV 格式），`0` 表示该 die 不参与超分。<br>单值写法表示所有 die 都填这个值。<br>示例：`oversub-ratio=0.2,0.2,0.0,0.3` 表示 phy0/phy1 各 0.2、phy2 禁用、phy3 为 0.3。<br>**注意**：启用显存超分的卡（`oversub-ratio > 0`）上运行的容器必须启用软切分（vCANN-RT），否则 vCANN-RT 不会上报 `hbm_used`，超分比例计算不准确。 |
+| `swap-pre-watermark`       | int      | 80           |  是       | 预换出水水位，单位为百分比（%），即 die 的 HBM 使用率。<br>使用率达到该值时触发预换出机制（提前腾出显存）。                                                            |
 | `log_level`                | string   | info         | 是        | 日志级别：`debug(4)` / `info(3)` / `warn(2)` / `error(1)` / `fatal(0)`。                                                                                    |
 | `log_dir`                  | string   | /var/log/enpu-manager | 是 | 日志文件输出目录。                                                                                                                                         |
 
@@ -855,7 +859,8 @@ vNPU 分配成功后，enpu-manager 会在宿主机侧生成 vCANN-RT 所需的�
 | `ASCEND_HOME_PATH`        | 编译 | /usr/local/Ascend/cann | CANN 安装路径，可通过 `source /path/to/cann/set_env.sh` 设置。                                  |
 | `ENPU_ASCEND_DRIVER_PATH` | 编译 | /usr/local/Ascend  | HDK driver 安装路径。                                                                          |
 
-> 通过 RPM / DEB 包安装的用户无需配置 `LD_LIBRARY_PATH`，运行时依赖已在包安装时部署到系统标准路径。仅手动安装方式下需自行保证 `libenpu_manager.so`、`libcjson.so.1` 等可被加载。
+> [!NOTE] 说明
+> 通过 RPM 或 DEB 包安装的用户无需配置 `LD_LIBRARY_PATH`，运行时依赖已在包安装时部署到系统标准路径。仅在手动安装方式下需确保 `libenpu_manager.so`、`libcjson.so.1` 等可被加载。
 
 ## 约束
 

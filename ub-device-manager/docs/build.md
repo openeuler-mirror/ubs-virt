@@ -4,11 +4,12 @@
 
 本文介绍 ub-device-manager 的构建依赖、构建方法和构建产物。
 
-ub-device-manager 使用 Python 实现，构建过程将服务端、Python SDK、CLI 和配置文件打包为 RPM。
+ub-device-manager 基于 Python 实现，构建过程将服务端、Python SDK、CLI 和相关配置文件打包为 RPM。
 
-本文安装构建依赖的命令默认使用 root 用户执行。
+> [!NOTE] 说明
+> 本文安装构建依赖的命令默认使用 root 用户执行。
 
-默认构建的软件包使用 Python 3.11 的安装路径和启动命令。构建过程不安装 Python 运行依赖，也不验证 libvirt、UBS Engine 或 NPU 驱动是否可用；运行环境准备见[安装部署指导](./install.md)。
+当前默认构建的软件包使用 Python 3.11 的安装路径和启动命令。构建过程不安装 Python 运行依赖，也不验证 libvirt、UBS Engine 或 NPU 驱动是否可用；具体运行环境准备参见[安装部署指导](./install.md)。
 
 | 项目 | 要求 |
 | --- | --- |
@@ -19,6 +20,7 @@ ub-device-manager 使用 Python 实现，构建过程将服务端、Python SDK�
 ## 2. 构建依赖
 
 安装构建依赖：
+
 ```bash
 dnf install -y rpm-build tar gzip git
 ```
@@ -26,13 +28,15 @@ dnf install -y rpm-build tar gzip git
 ## 3. 构建方法
 
 ### 3.1 获取源码
+
 拉取开源 ubs-virt 项目的 `br_UnifiedBus` 分支，并进入 ub-device-manager 源码目录：
+
 ```bash
 git clone -b br_UnifiedBus https://gitcode.com/openeuler/ubs-virt.git
 cd ubs-virt/ub-device-manager
 ```
 
-主要构建文件如下：
+主要构建文件如下所示：
 
 | 文件或目录 | 说明 |
 | --- | --- |
@@ -43,7 +47,8 @@ cd ubs-virt/ub-device-manager
 
 在 `ub-device-manager` 目录执行：
 
-> 每次构建会清理 `output/` 中已有的 `ub-device-manager-*.rpm`。需要保留历史产物时，请提前备份。
+> [!NOTE] 说明
+> 每次构建会清理 `output/` 目录中已有的 `ub-device-manager-*.rpm`文件。如需保留历史产物时，请在构建前进行备份。
 
 ```bash
 bash build_rpm.sh
@@ -56,7 +61,6 @@ bash build_rpm.sh
 ```
 
 ## 4. 构建产物
-
 
 构建完成后，从 `output/` 目录获取用于安装和部署的 RPM 软件包：
 

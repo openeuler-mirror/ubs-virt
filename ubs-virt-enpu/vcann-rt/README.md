@@ -225,6 +225,7 @@ bash make_build.sh
 用户可以选择将软切分动态库`libvruntime.so`和检测工具`enpu-monitor`分别拷贝到`/opt/enpu/vcann-rt/lib`和`/opt/enpu/vcann-rt/tools`目录。（如果选择不拷贝，则需要在后面的流程中修改相应的路径。）
 
 ### 配置preload文件
+
   <span id="step1"></span>
   创建ld.so.preload文件，并将libvruntime.so的路径配置到ld.so.preload文件中，用于预加载软切分动态库。
 
@@ -444,6 +445,7 @@ vCANN-RT支持两种方式启动业务容器：
   ```
 
   可根据实际业务进行参数配置：
+
   - metadata:
       - name: 容器名,建议与yaml文件名一致。
       - namespace: 命名空间。
@@ -477,7 +479,7 @@ vCANN-RT支持两种方式启动业务容器：
 
   2. 节点资源配置参数名修改为huawei.com/npu，示例如下
 
-      ```
+      ```yaml 
       resources:
           requests:
               # should be equal to huawei.com/scheduler.softShareDev.aicoreQuota
@@ -587,7 +589,6 @@ vCANN-RT支持两种方式启动业务容器：
     |配置文件|<ul><li>主机侧可存放在自定义路径。</li><li>容器内为固定路径：`/etc/enpu/vcann-rt/npu_info.config`</li></ul>|
     |预加载动态库文件|主机侧可存放在自定义路径，容器内为固定路径：`/etc/ld.so.preload`。不建议将`ld.so.preload`文件放置在主机的`/etc`目录，否则将在主机侧预加载软切分动态库，可能影响主机侧业务。|
 
-
 ### 启动业务，使用vCANN-RT服务
 
   - 拉起容器之后，可通过环境变量`ENPU_LOG_LEVEL`配置日志级别。例如：
@@ -595,6 +596,7 @@ vCANN-RT支持两种方式启动业务容器：
     ```bash
     export ENPU_LOG_LEVEL=3
     ```
+
     日志级别由高到低分别是FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。默认日志级别为INFO，设置日志级别为DEBUG后，可在日志文件（日志文件路径：`/var/log/enpu/vcann-rt/`）中查看DEBUG日志，屏显仅打印INFO及以上级别日志。
 
   - 推理任务启动时，会自动拉起vCANN-RT服务进行算力控制和显存控制，软切分服务启动成功之后会设置一个进程级环境变量`ENPU_ENABLE=True`。如果日志回显内容为`"Successfully to initialize all module."`, 则表示vCANN-RT服务启动成功。

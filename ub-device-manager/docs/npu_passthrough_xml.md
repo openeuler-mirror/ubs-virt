@@ -8,45 +8,46 @@
 
 ## 1. 准备基础 XML
 
-先按照[普通虚拟机创建指导](./vm_basics.md)准备已验证可用的基础 XML、独立磁盘、网络和大页资源，保存为 `/home/vm-npu-manual.xml`，将虚拟机名称设为 `vm-npu-manual`。
+参照[普通虚拟机创建指导](./vm_basics.md)准备已验证可用的基础 XML、独立磁盘、网络和大页资源，保存至 `/home/vm-npu-manual.xml`，将虚拟机名称设为 `vm-npu-manual`。
 
-基础 XML 暂不包含 UB controller、UB hostdev 或 `ubmem_vmmu` 参数。
+> [!NOTE] 说明
+> 基础 XML 暂不包含 UB controller、UB hostdev 或 `ubmem_vmmu` 参数。
 
 ## 2. 绑定设备并保存返回信息
 
-查询可用 NPU：
+1. 查询可用 NPU：
 
-```bash
-ubdmctl npu list
-```
+    ```bash
+    ubdmctl npu list
+    ```
 
-选择未绑定的设备，例如 `1-1`，执行绑定：
+2. 选择未绑定的设备，例如 `1-1`，执行绑定：
 
-```bash
-ubdmctl npu bind --upi 0x000f --ids 1-1
-```
+    ```bash
+    ubdmctl npu bind --upi 0x000f --ids 1-1
+    ```
 
-如需同时申请配套 Hi1825 网卡 VFE，增加 `--need_nic true`。参数说明见[CLI 使用指南](cli_userguide.md)。
+3. 如需同时申请配套 Hi1825 网卡 VFE，增加 `--need_nic true`。参数说明见[CLI 使用指南](cli_userguide.md)。
 
-保存本次返回的 `bus_guid`、`tid`、`uba`、`size` 和完整的 `devices` 列表。以下是单设备返回数据示例：
+4. 保存本次返回的 `bus_guid`、`tid`、`uba`、`size` 和完整的 `devices` 列表。以下是单设备返回数据示例：
 
-```json
-{
-  "bus_guid": "cc08-ffff-0-0-000000-011101ff7e2c0080",
-  "tid": 1,
-  "uba": 3298534883328,
-  "size": 49152,
-  "devices": [
+    ```json
     {
-      "id": "1-1",
-      "guid": "cc08-a002-0-2-000000-0000008405480188",
-      "type": "NPU"
+      "bus_guid": "cc08-ffff-0-0-000000-011101ff7e2c0080",
+      "tid": 1,
+      "uba": 3298534883328,
+      "size": 49152,
+      "devices": [
+        {
+          "id": "1-1",
+          "guid": "cc08-a002-0-2-000000-0000008405480188",
+          "type": "NPU"
+        }
+      ]
     }
-  ]
-}
-```
+    ```
 
-后续示例只说明上述数据如何映射到 XML，所有分配值必须替换为本次绑定的实际回显。
+5. 后续示例只说明上述数据如何映射到 XML，所有分配值必须替换为本次绑定的实际回显。
 
 ## 3. 配置字段对应关系
 
@@ -59,8 +60,8 @@ ubdmctl npu bind --upi 0x000f --ids 1-1
 | 设备顺序 `i`，从 0 开始 | hostdev 的 `address/@eid` | 从 `0x2` 开始依次递增；controller 已使用 `0x1`。                            |
 | 设备顺序 `i`，从 0 开始 | hostdev 的 `ports/port/@tport` | 从 `0` 开始依次递增。`index` 固定为 `0`，`teid` 固定为 `0x1`。                  |
 | 本例固定值 `1` | `<iommufds>` 和 hostdev 的 `iommufd` 属性 | 两处必须对应。该值不等同于绑定回显中的 `tid`。                                      |
-| `tid`、`uba`、`size` | `ubmem_vmmu` 的同名参数 | 绑定接口返回的uba,tid,size                                             |
-| 当前宿主机 SMBIOS Type 131 | `sysinfo/type131/entry` | 从当前宿主机读取，并根据返回值根据规则进行转换，参考 SMBIOS Type 131 说明                   |
+| `tid`、`uba`、`size` | `ubmem_vmmu` 的同名参数 | 绑定接口返回的`uba`、`tid`、`size`。                                             |
+| 当前宿主机 SMBIOS Type 131 | `sysinfo/type131/entry` | 从当前宿主机读取，并根据返回值按规则进行转换，参考 SMBIOS Type 131 说明。                  |
 
 ## 4. 配置 UB 直通与 SMBIOS Type 131
 
@@ -110,7 +111,8 @@ ubdmctl npu bind --upi 0x000f --ids 1-1
 <iommu model='ummu'/>
 ```
 
-每条 `devices` 记录对应一个 hostdev，配套 `NIC_VFE` 使用相同的节点结构。多设备时，按返回列表顺序设置各自 GUID、递增的 `eid` 和 `tport`，使用不同的 alias，并同步调整 controller 的 `ports num`。例如返回 8 条设备时，controller 的端口数为 `8`，hostdev 的 `eid` 为 `0x2`～`0x9`，`tport` 为 `0`～`7`。
+> [!NOTE] 说明
+> 每条 `devices` 记录对应一个 hostdev，配套 `NIC_VFE` 使用相同的节点结构。多设备时，按返回列表顺序设置各自 GUID、递增的 `eid` 和 `tport`，使用不同的 alias，并同步调整 controller 的 `ports num`。例如返回 8 条设备时，controller 的端口数为 `8`，hostdev 的 `eid` 为 `0x2` ～ `0x9`，`tport` 为 `0` ～ `7`。
 
 ### 4.3 添加设备映射参数
 
@@ -129,10 +131,10 @@ ubdmctl npu bind --upi 0x000f --ids 1-1
 
 #### 4.4.1 用途与前提
 
-SMBIOS Type 131 是产品使用的 OEM 扩展记录，其中包含 `UB INFO` 及服务器组网信息。将这些信息提供给虚拟机后，配套 NPU 驱动安装程序可据此感知服务器类型，按产品规则选择 UB 或 PCIe 驱动安装路径。 
+SMBIOS Type 131 是产品使用的 OEM 扩展记录，其中包含 `UB INFO` 及服务器组网信息。将这些信息提供给虚拟机后，配套 NPU 驱动安装程序可据此感知服务器类型，按产品规则选择 UB 或 PCIe 驱动安装路径。
 本节适用于 openEuler 24.03 LTS SP4 的配套环境，需要 libvirt 和 QEMU 已适配 Type 131 XML 字段及其客体呈现功能。 
-使用 `ubdmctl vm create` 自动创建 NPU 直通虚拟机时，当前 UBDM 已负责读取 、解析并补充这些字段，用户无需手动添加。
-仅绑定NPU进行XML配置的用户，需要对宿主机type 131信息字段进行转换，并进行xml字段补充；
+使用 `ubdmctl vm create` 自动创建 NPU 直通虚拟机时，当前 UBDM 已负责读取、解析并补充这些字段，用户无需手动添加。
+仅绑定NPU进行XML配置的用户，需要对宿主机type 131信息字段进行转换，并进行xml字段补充。
 
 #### 4.4.2 读取宿主机记录
 
@@ -144,7 +146,7 @@ dmidecode -t 131 -u
 
 以下为示例，实际字段应以当前宿主机回显为准：
 
-```text
+```output
 Handle 0x8300, DMI type 131, 77 bytes
 OEM-specific Type
     Header and Data:
@@ -164,7 +166,7 @@ OEM-specific Type
 | 偏移 | 示例字节 | 字段 | 示例数值或含义 | XML 属性                            |
 | --- | --- | --- | --- |-----------------------------------|
 | `00h` | `83` | Type | `0x83`，即 Type 131。 | 不单独填写，由 `<type131>` 表示            |
-| `01h` | `4D` | Length | 表总长度77字节 | 不填写                               |
+| `01h` | `4D` | Length | 表总长度为77字节 | 不填写                               |
 | `02h`～`03h` | `00 83` | Handle | 表标识符 | 不填写                               |
 | `04h` | `00` | Flag | 本例表示 BMC 信息获取成功；当前 UBDM 只接受值 `00`。 | `flag='0'`                        |
 | `05h`～`06h` | `01 00` | PodId | `0x0001`，即组网 ID `1`。 | `pod_id='1'`                      |
@@ -176,7 +178,6 @@ OEM-specific Type
 | `10h`～`4Ch` | 全 `00` | Reserved | 61 字节预留数据。 | 当前 UBDM 不映射到 XML 属性。              |
 
 例如 `PodId` 的 `01 00` 应按小端序解释为 `0x0001`，转换为十进制 `1`。本例 `Mesh_Type` 的原始值为 `00`，对应 `mesh_type='0'`。
-
 
 #### 4.4.4 填写 XML
 
@@ -200,41 +201,42 @@ OEM-specific Type
 
 #### 4.4.5 在虚拟机内验证
 
-定义并启动虚拟机后，在虚拟机内使用 root 用户执行：
+1. 定义并启动虚拟机后，在虚拟机内使用 root 用户执行：
 
-```bash
-dmidecode -t 131 -u
-```
+    ```bash
+    dmidecode -t 131 -u
+    ```
 
-确认存在 Type 131 记录，并核对 Flag、PodId、SlotId、Mesh_Type、SuperPodId、ServedIndex 和 `UB INFO` 是否与所填写的宿主机字段对应。数值按小端序解释，不要求 Handle、预留区等未映射内容逐字节一致。
+2. 确认存在 Type 131 记录，并核对 Flag、PodId、SlotId、Mesh_Type、SuperPodId、ServedIndex 和 `UB INFO` 是否与所填写的宿主机字段对应。数值按小端序解释，不要求 Handle、预留区等未映射内容逐字节一致。
 
-仅在宿主机执行 `virsh dumpxml` 看见 `<type131>`，还不能代替虚拟机内的实际读取验证。如果虚拟机内没有记录，应先检查 XML 配置和配套 libvirt/QEMU 是否支持该扩展；如果记录正确但驱动安装路径仍不符合预期，应检查 HDK 版本和产品配套要求。
+3. 仅在宿主机执行 `virsh dumpxml` 看见 `<type131>`，还不能代替虚拟机内的实际读取验证。如果虚拟机内没有记录，应先检查 XML 配置和配套 libvirt/QEMU 是否支持该扩展；如果记录正确但驱动安装路径仍不符合预期，应检查 HDK 版本和产品配套要求。
 
 #### 4.4.6 OpenStack 场景说明
 
-本小节仅适用于已集成 Type 131 读取与 XML 注入适配的 Nova 版本，UBDM 手动创建流程无需配置 Nova。Nova 必须具有读取宿主机记录并生成相应 XML 的代码，libvirt/QEMU 也必须支持 Type 131 扩展；仅新增 rootwrap 过滤规则，不会使未经适配的 Nova 自动注入 Type 131。
+本小节仅适用于已集成 Type 131 读取与 XML 注入适配的 Nova 版本，UBDM 手动创建流程无需配置 Nova。
+Nova 必须具有读取宿主机记录并生成相应 XML 的代码，libvirt/QEMU 也必须支持 Type 131 扩展；仅新增 rootwrap 过滤规则，不会使未经适配的 Nova 自动注入 Type 131。
 
-按所提供的配套 Nova 部署方式，可配置读取命令的 rootwrap 授权：
+1. 按所提供的配套 Nova 部署方式，可配置读取命令的 rootwrap 授权：
 
-```bash
-mkdir -p /etc/nova/rootwrap.d
-vi /etc/nova/rootwrap.d/ubs_dmidecode.filters
-```
+    ```bash
+    mkdir -p /etc/nova/rootwrap.d
+    vi /etc/nova/rootwrap.d/ubs_dmidecode.filters
+    ```
 
-写入以下内容：
+2. 写入以下内容：
 
-```ini
-[Filters]
-dmidecode: CommandFilter, dmidecode, root
-```
+    ```ini
+    [Filters]
+    dmidecode: CommandFilter, dmidecode, root
+    ```
 
-确认宿主机已安装 `dmidecode`，Nova 的 rootwrap 配置包含上述过滤文件目录，且命令调用方式与配套适配一致。保存后，在允许重启计算服务的维护时段执行：
+3. 确认宿主机已安装 `dmidecode`，Nova 的 rootwrap 配置包含上述过滤文件目录，且命令调用方式与配套适配一致。保存后，在允许重启计算服务的维护时段执行：
 
-```bash
-systemctl restart openstack-nova-compute
-```
+    ```bash
+    systemctl restart openstack-nova-compute
+    ```
 
-以上服务名称以配套部署为例。后续新建虚拟机时，由适配后的 Nova 读取并注入 Type 131；已有虚拟机不会仅因重启计算服务而自动更新。创建后仍应按第 4.4.5 节在虚拟机内验证。
+以上服务名称以配套部署为例。后续新建虚拟机时，将由适配后的 Nova 读取并注入 Type 131；已有虚拟机不会仅因重启计算服务而自动更新。创建后仍应按[在虚拟机内验证](#445-在虚拟机内验证)的要求，在虚拟机内验证。
 
 ## 5. 定义、启动和验证
 
