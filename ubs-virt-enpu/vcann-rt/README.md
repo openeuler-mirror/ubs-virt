@@ -8,6 +8,8 @@
 
 ### 软件版本
 
+<span id="version"></span>
+
 #### Atlas A2 推理系列产品
 
 **表 1 软件版本**
@@ -137,7 +139,8 @@ npu-smi set -t multi-die-policy -d ${value}
 可以使用如下方式获取`vCANN-RT`源码。
 
 ```shell
-git clone <ubs-virt-enpu-vcann-rt-url>
+git clone https://gitcode.com/openeuler/ubs-virt.git
+cd ubs-virt-enpu/vcann-rt
 ```
 
 ### 源码目录结构
@@ -153,7 +156,47 @@ git clone <ubs-virt-enpu-vcann-rt-url>
 
 ## 编译
 
-在编译vCANN-RT源码前，用户需要设置CANN的环境变量。如果驱动安装在非默认路径，还需要设置驱动路径环境变量。
+vCANN-RT支持两种方式编译：
+
+### 方式一：基于物理机/业务容器CANN环境编译
+
+在编译vCANN-RT源码前，用户根据物理机/业务容器的CANN环境设置CANN的环境变量。如果驱动安装在非默认路径，还需要设置驱动路径环境变量。
+
+`vCANN-RT`在代码仓中提供了统一的编译构建脚本（即`make_build.sh`文件），可以直接执行该脚本文件进行编译构建。
+
+```shell
+bash make_build.sh
+```
+
+编译完成之后，会在`build`目录下面产生相应的编译产物。
+
+### 方式二：基于预编译镜像环境编译
+
+下载预编译镜像，预编译镜像中已安装`vCANN-RT`编译所需依赖，基于预编译镜像编译`vCANN-RT`可节省环境准备时间。
+
+```shell
+docker pull swr.cn-north-4.myhuaweicloud.com/ubscore/ubs-virt:oe2403-v1
+```
+
+启动容器，需要将物理机的驱动挂着到容器内,示例如下
+
+```shell
+docker run -it --name=enpu swr.cn-north-4.myhuaweicloud.com/ubscore/ubs-virt:oe2403-v1 /bin/bash 
+```
+
+在容器内下载源码
+
+```shell
+git clone https://gitcode.com/openeuler/ubs-virt.git
+cd ubs-virt-enpu/vcann-rt
+```
+
+在编译vCANN-RT源码前，用户需要根据实际业务场景选择CANN版本并设置环境变量，预编译镜像中的CANN安装路径为`/usr/local/Ascend/cann-xxx`。软切分支持的CANN版本可见[软件版本](#version)。
+
+```shell
+# 以CANN 9.1.0为例，具体环境变量设置命令请参考CANN官方文档
+source /usr/local/Ascend/cann-9.1.0/set_env.sh
+```
 
 `vCANN-RT`在代码仓中提供了统一的编译构建脚本（即`make_build.sh`文件），可以直接执行该脚本文件进行编译构建。
 
