@@ -137,21 +137,12 @@ def get_param_python_type(type_str: str):
 
 def get_param_cli_type(type_str: str):
     t = type_str.lower()
-    # 保留 bool 为原生 bool，仅 array/object 使用 str 以便自定义 JSON 解析
-    if t in ("array", "object"):
-        return str
-    return get_param_python_type(type_str)
+    # 全部通过 str 接收 CLI 原始数据，后续统一交由 cast_and_validate_value 类型强转与校验
+    return str
 
 
 def parse_relaxed_json(raw: str):
-    """Repair JSON whose quotes were stripped by the shell and parse it.
-
-    Shells remove double quotes and split on spaces, so --cfg {"a": 1, "b": 2}
-    arrives as fragments like '{a:' '1,' 'b:' '2}'. This joins them back into
-    valid JSON by quoting bare keys and string values and re-inserting commas
-    that brace expansion ate. Returns a dict/list, or None if the text cannot
-    be repaired.
-    """
+    """Repair JSON whose quotes were stripped by the shell and parse it."""
     s = raw.strip()
     if not s:
         return None
@@ -289,9 +280,9 @@ def cast_and_validate_value(raw_val, target_type, param_name: str):
             return val
         if isinstance(val, str):
             lv = val.strip().lower()
-            if lv in ("yes", "true", "True", "1", ""):
+            if lv in ("yes", "true", "1"):
                 return True
-            elif lv in ("no", "false", "False", "0"):
+            elif lv in ("no", "false", "0"):
                 return False
             else:
                 console.print(
@@ -363,10 +354,8 @@ def parse_route_to_cmd(path: str, method: str):
     if not path_parts:
         return None, None
 
-    # The first path level becomes the group name
     group_name = path_parts[0]
 
-    # Single-level path, e.g. /ssu-vfe
     if len(path_parts) == 1:
         if method.lower() == "get":
             return group_name, "list"
@@ -378,7 +367,6 @@ def parse_route_to_cmd(path: str, method: str):
     last_part = path_parts[-1]
     is_last_part_variable = last_part.startswith("{") and last_part.endswith("}")
 
-    # Case 1: the path ends with a path variable
     if is_last_part_variable:
         if method.lower() == "get":
             return group_name, "show"
@@ -388,7 +376,6 @@ def parse_route_to_cmd(path: str, method: str):
             return group_name, "update"
         else:
             return group_name, f"{method.lower()}"
-    # Case 2: the path ends with a plain action, use its last segment as the command name
     else:
         return group_name, last_part
 
@@ -401,7 +388,6 @@ group_commands = []
 
 for path, methods in openapi_spec.get("paths", {}).items():
     for method, details in methods.items():
-        # Get the group name and command name via the conversion function
         sub_group_name, cmd_name = parse_route_to_cmd(path, method)
 
         if not sub_group_name or not cmd_name:
@@ -416,7 +402,6 @@ for path, methods in openapi_spec.get("paths", {}).items():
             p_name = p_resolved.get("name")
             p_in = p_resolved.get("in", "query")
             p_desc = p_resolved.get("description", f"{p_in} parameter: {p_name}")
-            # Read the parameter schema and type
             p_schema = resolve_schema(p_resolved.get("schema", {}), components)
             p_type = p_schema.get("type", "string")
             extracted_params[p_name] = {
@@ -449,10 +434,8 @@ for path, methods in openapi_spec.get("paths", {}).items():
 
 
 def parse_error_response(resp_json: dict):
-    """Parse the ErrorResponse structure and print messages + code"""
     code = resp_json.get("code", -1)
     msg = resp_json.get("msg", "未知错误")
-    # Print concise error info directly for plain text
     console.print(f"\n[bold red]Request failed![/bold red]")
     console.print(f"messages: {msg}")
     console.print(f"code: {code}\n")
@@ -467,21 +450,11 @@ def build_executor(raw_path, req_method, api_params, help_text):
                 v is not None for k, v in kwargs.items() if k not in ["cli_verbose", "_is_callback"]):
             return
 
-        # Unquoted JSON like --cfg {"a": 1, "b": 2} is split by the shell into
-        # several tokens; click collects the extras in ctx.args. Attach them to
-        # the array/object parameter so the fragments can be re-joined.
+        # 检查是否有无法识别的未绑定命令行参数，如果有直接报错提示，不再盲目向后填充
         extra_args = list(getattr(ctx, "args", None) or []) if ctx else []
         if extra_args:
-            greedy_names = [n for n, i in api_params.items() if i["type"] in ("array", "object")]
-            if not greedy_names:
-                console.print(f"[bold red]\\u274C Error: Unexpected extra argument: {' '.join(extra_args)}[/bold red]")
-                raise typer.Exit(code=1)
-            # Attach to the last array/object param that received a value.
-            targets = [n for n in greedy_names if kwargs.get(n.replace("-", "_")) is not None]
-            target = (targets or greedy_names)[-1]
-            kw_name = target.replace("-", "_")
-            existing = kwargs.get(kw_name)
-            kwargs[kw_name] = f"{existing} {' '.join(extra_args)}" if existing is not None else " ".join(extra_args)
+            console.print(f"[bold red]\u274C Error: Unexpected extra arguments: {' '.join(extra_args)}[/bold red]")
+            raise typer.Exit(code=1)
 
         final_path = raw_path
         query_params = {}
@@ -556,46 +529,34 @@ def build_executor(raw_path, req_method, api_params, help_text):
 
     sig_parameters = []
 
-    # Path params -> positional arguments (Argument)
+    # Path params -> POSITIONAL_OR_KEYWORD
     for param_name, info in api_params.items():
         if info["in"] == "path":
             safe_name = param_name.replace("-", "_")
-            py_type = get_param_cli_type(info["type"])
             sig_parameters.append(
                 inspect.Parameter(
-                    safe_name, inspect.Parameter.KEYWORD_ONLY,
+                    safe_name,
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
                     default=typer.Argument(..., help=info["description"]),
-                    annotation=py_type
+                    annotation=str
                 )
             )
 
-    # Non-path params -> options (Option)
+    # Non-path params -> KEYWORD_ONLY Options
     for param_name, info in api_params.items():
         if info["in"] != "path":
             safe_name = param_name.replace("-", "_")
-            py_type = get_param_cli_type(info["type"])
             option_help = info["description"]
 
-            if info["type"] in ("array", "object"):
-                option_help += ' (JSON-like value, no quotes needed, e.g. {"a": 1, "b": 2})'
-                default_val = ... if info["required"] else None
-                param_option = typer.Option(default_val, f"--{param_name}", help=option_help)
-            elif info["type"] == "boolean":
-                param_option = typer.Option(
-                    None,
-                    f"--{param_name}/--no-{param_name}",
-                    show_default=False,
-                    help=f"{option_help} (support --{param_name} / --no-{param_name} or set true/false)"
-                )
-            else:
-                default_val = ... if info["required"] else None
-                param_option = typer.Option(default_val, f"--{param_name}", help=option_help)
+            default_val = ... if info["required"] else None
+            param_option = typer.Option(default_val, f"--{param_name}", help=option_help)
 
             sig_parameters.append(
                 inspect.Parameter(
-                    safe_name, inspect.Parameter.KEYWORD_ONLY,
+                    safe_name,
+                    inspect.Parameter.KEYWORD_ONLY,
                     default=param_option,
-                    annotation=py_type
+                    annotation=str
                 )
             )
 
