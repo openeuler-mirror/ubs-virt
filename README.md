@@ -1,5 +1,7 @@
 # ubs-virt
 
+<p> 简体中文 | <a href="README_EN.md">English</a> </p>
+
 ## 介绍
 
 Ubs-virt 包含多个虚拟化功能组件，分别提供NPU算力软切分，虚拟机线性度调优，NPU直通虚拟机大模型推理性能调优的功能。
