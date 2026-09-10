@@ -243,20 +243,6 @@ class Message(BaseModel):
     )
 
 
-class UbDevice(BaseModel):
-    type: str = Field(
-        ...,
-        description='UB device type, such as NPU, NIC_VFE, NIC_PFE, or SSU.',
-        examples=['NPU'],
-    )
-    id: str = Field(..., description='UB device ID.', examples=['0-1'])
-    guid: Optional[constr(max_length=128)] = Field(
-        None,
-        description='UB device GUID. It is populated from the host inventory during device selection.',
-        examples=['0xcc08-a000-0-2-000000-00000000000201ff'],
-    )
-
-
 class BoundUbDevice(BaseModel):
     id: constr(max_length=64) = Field(
         ..., description='UB device ID.', examples=['1-1']
