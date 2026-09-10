@@ -30,7 +30,8 @@ ubs-opt stop_ebpf
     ```
 
 2. 查看/var/ubs-opt/data/data.json：
-![img.png](../images/image-20253108.png "data.json")
+
+    ![img.png](./images/image-20253108.png "data.json")
 
 3. 采集完成后，执行以下命令停止ubs-optimizer服务。
 
