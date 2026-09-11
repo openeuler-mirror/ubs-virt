@@ -99,6 +99,7 @@ extern void log_print(EnpuLogLevel level, const char *filename, int line, const 
 extern int log_init(void);
 extern void log_shutdown(void);
 extern LogConfig g_log_config;
+extern bool g_log_silent;
 
 extern int log_queue_init(LogQueue *queue);
 extern void log_queue_destroy(LogQueue *queue);

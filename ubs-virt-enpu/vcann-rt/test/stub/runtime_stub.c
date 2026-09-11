@@ -62,3 +62,42 @@ int stub_enpu_load_config(void)
     CHECK_RETURN_ERROR_CODE(rc, "Failed to initialize npu manager.");
     return enpu_config_info_init();
 }
+
+bool stub_is_core_limiter(void)
+{
+    return false;
+}
+
+int stub_get_random_fd(void)
+{
+    return -1;
+}
+ssize_t stub_read_fail(int fd, void *buf, size_t size)
+{
+    (void)fd;
+    (void)buf;
+    (void)size;
+    return 0;
+}
+
+ssize_t stub_read_success(int fd, void *buf, size_t size)
+{
+    (void)fd;
+    (void)size;
+    if (buf == NULL) {
+        return 0;
+    }
+    uint32_t val = UINT32_MAX / 5 - 1;
+    memcpy(buf, &val, sizeof(val));
+    return size;
+}
+
+bool stub_is_random_sampling_true(void)
+{
+    return true;
+}
+
+bool stub_is_random_sampling_false(void)
+{
+    return false;
+}

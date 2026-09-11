@@ -34,6 +34,7 @@ extern "C" {
 #define MAX_CORE_QUOTA 100
 #define MB_TO_B (1024 * 1024)
 #define MAX_DEVICE_LIST_NUM 64
+#define DEFAULT_AICORE_NUM 20
 
 typedef enum
 {
@@ -76,6 +77,7 @@ typedef struct npu_info {
     char shm_id[SHM_ID_LEN];
     bool initialization;
     uint8_t soc_version;
+    uint32_t aicore_num;
 } npu_info;
 
 extern void enpu_global_init(void);
@@ -83,6 +85,7 @@ extern void enpu_global_init_post(void);
 
 extern bool is_core_limit(void);
 extern uint8_t get_core_limit_quota(void);
+extern uint32_t get_aicore_num(void);
 extern size_t get_mem_limit_quota(void);
 extern void set_mem_limit_quota(size_t mem);
 extern char *get_vnpu_shm_id(void);

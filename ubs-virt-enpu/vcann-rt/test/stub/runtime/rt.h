@@ -57,6 +57,8 @@ typedef void *rtArgsHandle;
 typedef void *rtRandomNumTaskInfo_t;
 typedef void *rtReduceInfo_t;
 typedef void *rtTaskUpdateCfg_t;
+typedef void *rtTaskGrp_t;
+typedef void *rtTask_t;
 
 typedef enum tagRtStreamCaptureMode
 {
@@ -65,6 +67,14 @@ typedef enum tagRtStreamCaptureMode
     RT_STREAM_CAPTURE_MODE_RELAXED = 2,
     RT_STREAM_CAPTURE_MODE_MAX
 } rtStreamCaptureMode;
+
+typedef enum tagRtStreamCaptureStatus
+{
+    RT_STREAM_CAPTURE_STATUS_NONE = 0,
+    RT_STREAM_CAPTURE_STATUS_ACTIVE = 1,
+    RT_STREAM_CAPTURE_STATUS_INVALIDATED = 2,
+    RT_STREAM_CAPTURE_STATUS_MAX
+} rtStreamCaptureStatus;
 
 typedef enum
 {
@@ -190,6 +200,11 @@ typedef enum tagRtMemInfoType
     RUNTIME_FUNCTION_ENTRY(rtModelExecuteAsync, rtModel_t mdl, rtStream_t stm, uint32_t flag)                          \
     RUNTIME_FUNCTION_ENTRY(rtStreamBeginCapture, rtStream_t stm, const rtStreamCaptureMode mode)                       \
     RUNTIME_FUNCTION_ENTRY(rtStreamEndCapture, rtStream_t stm, rtModel_t *captureMdl)                                  \
+    RUNTIME_FUNCTION_ENTRY(rtModelGetStreams, rtModel_t const mdl, rtStream_t *streams, uint32_t *numStreams)          \
+    RUNTIME_FUNCTION_ENTRY(rtStreamGetTasks, rtStream_t const stm, rtTask_t *tasks, uint32_t *numTasks)                \
+    RUNTIME_FUNCTION_ENTRY(rtStreamGetCaptureInfo, rtStream_t stm, rtStreamCaptureStatus *const status,                \
+                           rtModel_t *captureMdl)                                                                      \
+    RUNTIME_FUNCTION_ENTRY(rtEventElapsedTime, float *timeInterval, rtEvent_t startEvent, rtEvent_t endEvent)          \
     RUNTIME_FUNCTION_ENTRY(rtsModelExecute, rtModel_t mdl, int32_t timeout)                                            \
     RUNTIME_FUNCTION_ENTRY(rtModelExecuteSync, rtModel_t mdl, rtStream_t stm, uint32_t flag, int32_t timeout)          \
     RUNTIME_FUNCTION_ENTRY(rtsModelExecuteAsync, rtModel_t mdl, rtStream_t stm)                                        \

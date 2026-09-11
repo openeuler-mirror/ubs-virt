@@ -19,6 +19,7 @@
 #include "npu_manager.h"
 #include "runtime_stub.h"
 #include "securec.h"
+#include "vnpu_stats.h"
 
 class TaskTest : public testing::Test {
 protected:
@@ -58,7 +59,11 @@ TEST_F(TaskTest, rtFftsPlusTaskLaunchTest)
 {
     rtFftsPlusTaskInfo_t *fftsPlusTaskInfo = nullptr;
     rtStream_t stm = nullptr;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t ret = rtFftsPlusTaskLaunch(fftsPlusTaskInfo, stm);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = rtFftsPlusTaskLaunch(fftsPlusTaskInfo, stm);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
@@ -67,7 +72,11 @@ TEST_F(TaskTest, rtFftsPlusTaskLaunchWithFlagTest)
     rtFftsPlusTaskInfo_t *fftsPlusTaskInfo = nullptr;
     rtStream_t stm = nullptr;
     uint32_t flag = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t ret = rtFftsPlusTaskLaunchWithFlag(fftsPlusTaskInfo, stm, flag);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = rtFftsPlusTaskLaunchWithFlag(fftsPlusTaskInfo, stm, flag);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
@@ -75,7 +84,11 @@ TEST_F(TaskTest, rtFftsTaskLaunchTest)
 {
     rtFftsTaskInfo_t *fftsTaskInfo = nullptr;
     rtStream_t stm = nullptr;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t ret = rtFftsTaskLaunch(fftsTaskInfo, stm);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = rtFftsTaskLaunch(fftsTaskInfo, stm);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
@@ -84,7 +97,11 @@ TEST_F(TaskTest, rtFftsTaskLaunchWithFlagTest)
     rtFftsTaskInfo_t *fftsTaskInfo = nullptr;
     rtStream_t stm = nullptr;
     uint32_t flag = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t ret = rtFftsTaskLaunchWithFlag(fftsTaskInfo, stm, flag);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = rtFftsTaskLaunchWithFlag(fftsTaskInfo, stm, flag);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
@@ -93,7 +110,11 @@ TEST_F(TaskTest, rtStarsTaskLaunchTest)
     void *taskSqe = nullptr;
     uint32_t sqeLen = 0;
     rtStream_t stm = nullptr;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t ret = rtStarsTaskLaunch(taskSqe, sqeLen, stm);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = rtStarsTaskLaunch(taskSqe, sqeLen, stm);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
@@ -103,7 +124,11 @@ TEST_F(TaskTest, rtStarsTaskLaunchWithFlagTest)
     uint32_t sqeLen = 0;
     rtStream_t stm = nullptr;
     uint32_t flag = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t ret = rtStarsTaskLaunchWithFlag(taskSqe, sqeLen, stm, flag);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = rtStarsTaskLaunchWithFlag(taskSqe, sqeLen, stm, flag);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
@@ -112,7 +137,11 @@ TEST_F(TaskTest, rtCmoTaskLaunchTest)
     rtCmoTaskInfo_t *taskInfo = nullptr;
     rtStream_t stm = nullptr;
     uint32_t flag = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t ret = rtCmoTaskLaunch(taskInfo, stm, flag);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = rtCmoTaskLaunch(taskInfo, stm, flag);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
@@ -123,7 +152,11 @@ TEST_F(TaskTest, rtCmoAddrTaskLaunchTest)
     rtCmoOpCode_t cmoOpCode = nullptr;
     rtStream_t stm = nullptr;
     uint32_t flag = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t ret = rtCmoAddrTaskLaunch(cmoAddrInfo, destMax, cmoOpCode, stm, flag);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = rtCmoAddrTaskLaunch(cmoAddrInfo, destMax, cmoOpCode, stm, flag);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
@@ -132,7 +165,11 @@ TEST_F(TaskTest, rtBarrierTaskLaunchTest)
     rtBarrierTaskInfo_t *taskInfo = nullptr;
     rtStream_t stm = nullptr;
     uint32_t flag = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t ret = rtBarrierTaskLaunch(taskInfo, stm, flag);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = rtBarrierTaskLaunch(taskInfo, stm, flag);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
@@ -140,7 +177,11 @@ TEST_F(TaskTest, rtMultipleTaskInfoLaunchTest)
 {
     rtBarrierTaskInfo_t *taskInfo = nullptr;
     rtStream_t stm = nullptr;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t ret = rtMultipleTaskInfoLaunch(taskInfo, stm);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    rtMultipleTaskInfoLaunch(taskInfo, stm);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
@@ -149,6 +190,10 @@ TEST_F(TaskTest, rtMultipleTaskInfoLaunchWithFlagTest)
     void *taskInfo = nullptr;
     rtStream_t stm = nullptr;
     uint32_t flag = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t ret = rtMultipleTaskInfoLaunchWithFlag(taskInfo, stm, flag);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = rtMultipleTaskInfoLaunchWithFlag(taskInfo, stm, flag);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }

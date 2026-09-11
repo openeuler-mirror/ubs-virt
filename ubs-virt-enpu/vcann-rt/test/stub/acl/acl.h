@@ -37,6 +37,7 @@ typedef void *aclrtAllocatorAddr;
 typedef void *aclrtTaskGrp;
 
 #define ACL_RT_SUCCESS 0
+#define ACL_EVENT_TIME_LINE 0x00000008U
 
 static const int ACL_ERROR_NONE = 0;
 static const int ACL_SUCCESS = 0;

@@ -12,8 +12,10 @@
 #include <dlfcn.h>
 #include <stdarg.h>
 #include "common.h"
+#include "dcmi_wrapper.h"
 #include "npu_manager.h"
 #include "runtime_hook.h"
+#include "vnpu_stats.h"
 
 static void die(const char *fmt, ...)
 {
@@ -70,9 +72,75 @@ static int monitor_npu_utilization(void)
     return ENPU_SUCCESS;
 }
 
+static int monitor_vnpu_utilization(void)
+{
+    int ret = vnpu_stats_init(get_vnpu_shm_id());
+    if (ret != ENPU_SUCCESS) {
+        LOG_WARN("vNPU stats shared memory unavailable, skip vNPU Utilization output.");
+        return ENPU_SUCCESS;
+    }
+
+    unsigned int npu_util = 0;
+    ret = enpu_dcmi_get_device_utilization_rate(get_logic_id(), get_card_id(), get_device_id(), &npu_util);
+    if (ret != ENPU_SUCCESS) {
+        LOG_WARN("Failed to get physical NPU utilization (ret=%d), skip vNPU Utilization output.", ret);
+        return ENPU_SUCCESS;
+    }
+
+    unsigned int aicore_util = 0;
+    ret = enpu_dcmi_get_aicore_utilization_rate(get_logic_id(), get_card_id(), get_device_id(), &aicore_util);
+    if (ret != ENPU_SUCCESS) {
+        LOG_WARN("Failed to get AI Core utilization (ret=%d), skip vNPU Utilization output.", ret);
+        return ENPU_SUCCESS;
+    }
+
+    uint8_t my_vnpu = get_vnpu_id();
+    double numerator = 0.0;
+    double denominator = 0.0;
+    for (int i = 0; i < MAX_VNPU; ++i) {
+        vnpu_stats_aggregate_t agg = {0};
+        if (vnpu_stats_query((uint8_t)i, &agg) != ENPU_SUCCESS) {
+            continue;
+        }
+        if (agg.sum_block_dim == 0ULL) {
+            continue;
+        }
+        int64_t avg_duration = vnpu_stats_get_avg_duration_ns((uint8_t)i);
+        double term = (double)agg.sum_block_dim * (double)avg_duration;
+        denominator += term;
+        if ((uint8_t)i == my_vnpu) {
+            numerator = term;
+        }
+    }
+
+    double weight = (denominator > 0.0) ? (numerator / denominator) : 0.0;
+    double vnpu_util = 0.0;
+    double vnpu_aicore_util = 0.0;
+    if (denominator > 0.0) {
+        vnpu_util = weight * (double)npu_util;
+        vnpu_aicore_util = weight * (double)aicore_util;
+        if (vnpu_util < 0.0) {
+            vnpu_util = 0.0;
+        }
+        if (vnpu_aicore_util < 0.0) {
+            vnpu_aicore_util = 0.0;
+        }
+    }
+
+    die("       NPU Utilization(%)        : %.1f\n"
+        "       vNPU Utilization(%)       : %.1f\n"
+        "       NPU AICore Usage Rate(%)  : %.1f\n"
+        "       vNPU AICore Usage Rate(%) : %.1f\n",
+        (double)npu_util, vnpu_util, (double)aicore_util, vnpu_aicore_util);
+    return ENPU_SUCCESS;
+}
+
 int main(int argc, char *argv[])
 {
     int ret;
+
+    /* enpu-monitor 只包含业务输出（配额/使用率）*/
+    g_log_silent = true;
 
     ret = log_init();
     CHECK_RETURN_ERROR_CODE(ret, "Log init failed.");
@@ -98,6 +166,9 @@ int main(int argc, char *argv[])
 
     ret = monitor_npu_utilization();
     CHECK_RETURN_ERROR_CODE(ret, "Npu utilization monitor failed.");
+
+    ret = monitor_vnpu_utilization();
+    CHECK_RETURN_ERROR_CODE(ret, "vNPU utilization monitor failed.");
 
     return ENPU_SUCCESS;
 }

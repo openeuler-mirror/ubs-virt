@@ -89,6 +89,9 @@ typedef enum
     RUNTIME_HOOK_ENUM(rtStreamEndCapture),
     RUNTIME_HOOK_ENUM(rtsModelExecute),
     RUNTIME_HOOK_ENUM(rtModelExecuteSync),
+    RUNTIME_HOOK_ENUM(rtStreamGetCaptureInfo),
+    RUNTIME_HOOK_ENUM(rtModelGetStreams),
+    RUNTIME_HOOK_ENUM(rtStreamGetTasks),
     RUNTIME_HOOK_ENUM(rtStarsTaskLaunch),
     RUNTIME_HOOK_ENUM(rtStarsTaskLaunchWithFlag),
     RUNTIME_HOOK_ENUM(rtCmoTaskLaunch),
@@ -131,10 +134,16 @@ typedef enum
     RUNTIME_HOOK_ENUM(rtCntNotifyDestroy),
     RUNTIME_HOOK_ENUM(rtsCntNotifyRecord),
     RUNTIME_HOOK_ENUM(rtsCntNotifyWaitWithTimeout),
+    RUNTIME_HOOK_ENUM(rtEventElapsedTime),
     /* Other Part */
     RUNTIME_HOOK_ENUM(rtStreamSynchronize),
     RUNTIME_HOOK_ENUM(rtStreamDestroy),
     RUNTIME_HOOK_ENUM(rtDestroyStreamForce),
+    /* Task Group Part */
+    RUNTIME_HOOK_ENUM(rtsStreamBeginTaskGrp),
+    RUNTIME_HOOK_ENUM(rtsStreamEndTaskGrp),
+    RUNTIME_HOOK_ENUM(rtsStreamBeginTaskUpdate),
+    RUNTIME_HOOK_ENUM(rtsStreamEndTaskUpdate),
     RUNTIME_ENTRY_END,
 } rt_hook_enum_t;
 

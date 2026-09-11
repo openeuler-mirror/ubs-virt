@@ -19,6 +19,7 @@
 #include "npu_manager.h"
 #include "runtime_stub.h"
 #include "securec.h"
+#include "vnpu_stats.h"
 
 class GraphTest : public testing::Test {
 protected:
@@ -59,7 +60,11 @@ TEST_F(GraphTest, rtModelExecute)
     rtModel_t mdl = nullptr;
     rtStream_t stm = nullptr;
     uint32_t flag = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t error = rtModelExecute(mdl, stm, flag);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    error = rtModelExecute(mdl, stm, flag);
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
 
@@ -68,7 +73,11 @@ TEST_F(GraphTest, rtModelExecuteAsync)
     rtModel_t mdl = nullptr;
     rtStream_t stm = nullptr;
     uint32_t flag = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t error = rtModelExecuteAsync(mdl, stm, flag);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    error = rtModelExecuteAsync(mdl, stm, flag);
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
 
@@ -76,7 +85,11 @@ TEST_F(GraphTest, rtsModelExecute)
 {
     rtModel_t mdl = nullptr;
     int32_t timeout = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t error = rtsModelExecute(mdl, timeout);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    error = rtsModelExecute(mdl, timeout);
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
 
@@ -86,7 +99,11 @@ TEST_F(GraphTest, rtModelExecuteSync)
     rtStream_t stm = nullptr;
     uint32_t flag = 0;
     int32_t timeout = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t error = rtModelExecuteSync(mdl, stm, flag, timeout);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    error = rtModelExecuteSync(mdl, stm, flag, timeout);
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
 
@@ -110,6 +127,10 @@ TEST_F(GraphTest, rtsModelExecuteAsync)
 {
     rtModel_t mdl = nullptr;
     rtStream_t stm = nullptr;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
     rtError_t error = rtsModelExecuteAsync(mdl, stm);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    error = rtsModelExecuteAsync(mdl, stm);
     EXPECT_EQ(error, RT_ERROR_NONE);
 }

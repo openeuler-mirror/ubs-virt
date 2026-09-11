@@ -28,7 +28,7 @@ using atomic_int = std::atomic<int>;
 extern "C" {
 #endif
 
-#define MAGIC_INITIALIZED 0x495A4544U  // IZED
+#define MAGIC_INITIALIZED 0x495A4546U  // IZEF (v2, was 0x495A4544 IZED)
 #define MAGIC_INITIALIZING 0x5A494E47U // ZING
 #define MAGIC_UNINITIALIZED 0x0
 #define MAX_STREAMS_PER_PROCESS 128
@@ -70,7 +70,19 @@ extern void set_event_record_status(void *evt, rtStream_t stm);
 extern void add_stream(rtStream_t stream);
 extern void remove_stream(void *unused, rtStream_t stm);
 extern void set_event_destroy_status(void *evt);
+
+extern bool stream_is_capturing(rtStream_t stm);
+extern void capture_stats_add(rtStream_t stm, uint32_t block_dim);
+extern int capture_stats_transfer_to_model(rtStream_t stm, rtModel_t mdl);
+extern int model_stats_get(rtModel_t mdl, uint64_t *block_dim, uint64_t *count);
+extern void task_grp_begin(rtStream_t stm);
+extern void task_grp_end(rtStream_t stm, rtTaskGrp_t handle);
+extern void task_update_begin(rtStream_t stm, rtTaskGrp_t handle);
+extern void task_update_end(rtStream_t stm);
+extern void launch_stats_dispatch(rtStream_t stm, uint32_t block_dim);
+
 uint64_t ns_now(void);
+void ns_sleep(uint64_t ns);
 extern void synchronize_and_clear_streams(void);
 
 #if defined(__cplusplus)

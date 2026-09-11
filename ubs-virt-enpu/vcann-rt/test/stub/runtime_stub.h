@@ -14,7 +14,9 @@
 #define RUNTIME_STUB_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -39,10 +41,17 @@ void *npu_utilization_monitor_thread(void *arg);
 bool slide_window_check(int owner);
 void check_and_borrow_timeslice(int owner);
 int calculate_alive_vnpu_num(void);
+bool stub_is_core_limiter(void);
 
 // config.c
 int check_int32(int32_t option, const char *option_name);
 int check_str(const char *str, const char *option_name);
+
+int stub_get_random_fd(void);
+ssize_t stub_read_fail(int fd, void *buf, size_t size);
+ssize_t stub_read_success(int fd, void *buf, size_t size);
+bool stub_is_random_sampling_true(void);
+bool stub_is_random_sampling_false(void);
 
 #if defined(__cplusplus)
 }

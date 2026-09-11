@@ -20,6 +20,7 @@ set(VNPU_SRC_FILES
     ${PROJECT_SOURCE_DIR}/src/mem_limiter.c
     ${PROJECT_SOURCE_DIR}/src/npu_manager.c
     ${PROJECT_SOURCE_DIR}/src/log.c
+    ${PROJECT_SOURCE_DIR}/src/vnpu_stats.c
     ${PROJECT_SOURCE_DIR}/src/ascend/device.c
     ${PROJECT_SOURCE_DIR}/src/ascend/event.c
     ${PROJECT_SOURCE_DIR}/src/ascend/graph.c
@@ -47,6 +48,7 @@ set(VNPU_TESTCASE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/core_limiter_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/log_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/mem_limiter_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/vnpu_stats_test.cpp
 )
 
 set(VNPU_STUB_FILES

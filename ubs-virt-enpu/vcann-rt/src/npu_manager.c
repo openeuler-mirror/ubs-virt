@@ -21,6 +21,7 @@
 #include "mem_limiter.h"
 #include "runtime_hook.h"
 #include "utils.h"
+#include "vnpu_stats.h"
 
 pthread_once_t once_init = PTHREAD_ONCE_INIT;
 pthread_once_t post_init_flag = PTHREAD_ONCE_INIT;
@@ -46,6 +47,11 @@ void set_mem_limit_quota(size_t mem)
 uint8_t get_core_limit_quota(void)
 {
     return g_npu_info.core_limit_quota;
+}
+
+uint32_t get_aicore_num(void)
+{
+    return g_npu_info.aicore_num;
 }
 
 int get_device_id(void)
@@ -174,6 +180,16 @@ int enpu_device_init(void)
     g_npu_info.card_id = card_id;
     g_npu_info.device_id = device_id;
     g_npu_info.logic_id = logic_id;
+
+    unsigned int aicore_num = 0;
+    rc = enpu_dcmi_get_aicore_num(logic_id, card_id, device_id, &aicore_num);
+    if (rc == ENPU_SUCCESS && aicore_num > 0) {
+        g_npu_info.aicore_num = aicore_num;
+    } else {
+        g_npu_info.aicore_num = DEFAULT_AICORE_NUM;
+        LOG_WARN("Failed to get aicore num (ret=%d), fallback to default %u.", rc, (unsigned)DEFAULT_AICORE_NUM);
+    }
+    LOG_INFO("Device aicore num = %u.", g_npu_info.aicore_num);
     return ENPU_SUCCESS;
 }
 
@@ -190,6 +206,9 @@ static void __enpu_global_init(void)
 
     rc = memory_limiter_init();
     CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to initialize memory limiter");
+
+    rc = vnpu_stats_init(get_vnpu_shm_id());
+    CHECK_ERROR_CODE(rc, "Failed to initialize vnpu stats, utilization statistics will be unavailable");
 
     rc = aicore_limiter_initialize();
     CHECK_COND_RETURN(rc != ENPU_SUCCESS, "Failed to initialize aicore limiter");

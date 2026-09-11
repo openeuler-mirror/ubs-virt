@@ -394,6 +394,7 @@ static int rotate_log_by_size(void)
 static bool g_log_initialized = false;
 static volatile bool g_log_running = false;
 static pthread_mutex_t g_log_init_mutex = PTHREAD_MUTEX_INITIALIZER;
+bool g_log_silent = false;
 
 static void parse_level_env(const char *env_name, EnpuLogLevel default_val, EnpuLogLevel *target)
 {
@@ -428,7 +429,9 @@ int log_init(void)
     pthread_mutex_init(&g_log_config.print_mutex, NULL);
     pthread_mutex_init(&g_log_config.compress_mutex, NULL);
 
-    printf("[eNPU] dir_path: %s\n", g_log_config.log_dir);
+    if (!g_log_silent) {
+        printf("[eNPU] dir_path: %s\n", g_log_config.log_dir);
+    }
 
     char *mkdir_argv[] = {"mkdir", "-p", (char *)g_log_config.log_dir, NULL};
     (void)safe_exec(mkdir_argv);
@@ -465,7 +468,9 @@ int log_init(void)
         return ENPU_FAIL;
     }
 
-    printf("[eNPU] Async logging enabled with queue size %d.\n", LOG_QUEUE_SIZE);
+    if (!g_log_silent) {
+        printf("[eNPU] Async logging enabled with queue size %d.\n", LOG_QUEUE_SIZE);
+    }
     g_log_initialized = true;
     pthread_mutex_unlock(&g_log_init_mutex);
     return ENPU_SUCCESS;
@@ -697,7 +702,7 @@ static int write_log_message(const LogMessage *msg, char *time_str, char *log_li
             CHECK_COND_LOG_PRINT(copy_ret, "memcpy_s truncation marker failed");
         }
         fprintf(g_log_config.log_file, "%s", log_line);
-        if (msg->level <= ENPU_LOG_INFO) {
+        if (msg->level <= ENPU_LOG_WARN || (msg->level == ENPU_LOG_INFO && !g_log_silent)) {
             fprintf(stderr, "%s", log_line);
         }
     }
