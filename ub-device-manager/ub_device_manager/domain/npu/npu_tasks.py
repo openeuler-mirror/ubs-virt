@@ -40,7 +40,8 @@ from ub_device_manager.domain.npu.device_selector import UbDeviceSelector, UbDev
 
 # The UPI prefix and hexadecimal digits are case-insensitive; short forms are accepted.
 UPI_PATTERN = re.compile(r"^0[xX][0-9a-fA-F]{1,4}$")
-UPI_MAX = 0x1000
+UPI_MAX = 0x0FFF
+UPI_MIN = 0x0001
 # A single NPU binding request may contain only 1, 2, 4, or 8 devices.
 ALLOWED_DEVICE_COUNTS = {1, 2, 4, 8}
 
@@ -77,8 +78,8 @@ class BindNpuDeviceTask(AsyncTask):
             raise InvalidBindDeviceRequest(
                 "upi must be a hexadecimal string with 1~4 digits, for example 0x000f or 0x0f"
             )
-        if int(request.upi, 16) > UPI_MAX:
-            raise InvalidBindDeviceRequest("upi must be in range 0x0000~0x1000")
+        if not UPI_MIN <= int(request.upi, 16) <= UPI_MAX:
+            raise InvalidBindDeviceRequest("upi must be in range 0x0001~0x0fff")
         # Exactly one of ids and count must be provided.
         if bool(request.ids) == bool(request.count):
             raise InvalidBindDeviceRequest("exactly one of ids and count is required")
@@ -99,7 +100,7 @@ class BindNpuDeviceTask(AsyncTask):
         try:
             devices = self.device_selector.resolve_npu_devices(inventory, ids=request.ids, count=request.count,
                                                                need_nic=request.need_nic
-            )
+                                                               )
         except ValueError as exc:
             raise ResolveNpuDevicesFailed(str(exc))
         device_list = [
@@ -113,8 +114,11 @@ class BindNpuDeviceTask(AsyncTask):
         )
         self.context.set(BOUND_DEVICES_CONTEXT_KEY, [device.model_dump() for device in devices])
         self.context.set(BIND_RESULT_CONTEXT_KEY, BindNpuDeviceResult(tid=tid, uba=uba, size=size, bus_guid=bus_guid,
-            devices=[BoundUbDevice(id=device.id, guid=device.guid, type=device.type)for device in devices],
-        ))
+                                                                      devices=[
+                                                                          BoundUbDevice(id=device.id, guid=device.guid,
+                                                                                        type=device.type) for device in
+                                                                          devices],
+                                                                      ))
         logger.info("Bind UB devices finished, devices: {}, bus_guid: {}", device_list, bus_guid)
 
 

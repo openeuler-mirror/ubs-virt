@@ -510,7 +510,7 @@ components:
           example: /path/to/domain.xml
         upi:
           type: string
-          description: User isolation identifier in hexadecimal (one to four digits; prefix and digits are case-insensitive), from 0x0000 to 0x1000.
+          description: User isolation identifier in hexadecimal (one to four digits; prefix and digits are case-insensitive), from 0x0001 to 0x0fff.
           example: "0x000f"
         need_nic:
           type: boolean

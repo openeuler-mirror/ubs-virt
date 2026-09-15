@@ -43,9 +43,6 @@ def create_app() -> FastAPI:
     @new_app.middleware("http")
     async def add_process_time_header(request: Request, call_next):
         start_time = time.time()
-
-        logger.info(f"Received request: {request.method} {request.url.path}")
-
         response = await call_next(request)
 
         process_time = time.time() - start_time
@@ -83,7 +80,7 @@ def create_app() -> FastAPI:
 
     @new_app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
-        error_msg = f"Unhandled exception: {request.method} {request.url.path}, error: {exc}"
+        error_msg = f"Exception: {request.method} {request.url.path}, error: {exc}"
         logger.error(error_msg)
 
         return JSONResponse(

@@ -19,6 +19,7 @@ from contextvars import ContextVar
 REQUEST_ID_VAR = ContextVar("request_id", default="")
 LOG_PATH = "/var/log/ub_device_manager/ub_device_manager.log"
 
+
 class InterceptHandler(logging.Handler):
     def emit(self, record):
         try:
@@ -37,14 +38,19 @@ class InterceptHandler(logging.Handler):
 def request_id_filter(record):
     req_id = REQUEST_ID_VAR.get()
     record["extra"]["request_id"] = req_id if req_id else "-"
+    if record["name"] == "logging" and record["function"] == "callHandlers":
+        return False
     return True
 
 
 def setup_logging():
+    logging.getLogger("uvicorn.error").disabled = True
     logger.remove()
 
     logger.add(
         sink=LOG_PATH,
+        backtrace=False,
+        diagnose=False,
         rotation=CONFIG.get("log", {}).get("max_file_size", "10 MB"),
         retention=CONFIG.get("log", {}).get("max_file_count", 10),
         compression="zip",

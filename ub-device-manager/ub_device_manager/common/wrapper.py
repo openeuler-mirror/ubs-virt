@@ -52,7 +52,7 @@ def try_catch_log(func):
 
         try:
             result = await func(*args, **kwargs)
-            logger.info(f"Call {func_name} successful, result: {result}.")
+            logger.debug(f"Call {func_name} successful, result: {result}.")
             return result
         except Exception as e:
             logger.error(f"Call {func_name} failed, error: {str(e)}")
