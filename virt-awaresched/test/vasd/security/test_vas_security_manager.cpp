@@ -31,6 +31,18 @@ void TestVasSecurityManager::TearDown()
     Test::TearDown();
 }
 
+static int GetCapMockFillPermitted(__user_cap_header_struct *capHeader, __user_cap_data_struct *capData)
+{
+    (void)capHeader;
+    capData[0].effective = 0;
+    capData[0].permitted = 0xFFFFFFFF;
+    capData[0].inheritable = 0;
+    capData[1].effective = 0;
+    capData[1].permitted = 0xFFFFFFFF;
+    capData[1].inheritable = 0;
+    return 0;
+}
+
 TEST_F(TestVasSecurityManager, testGetCapabilities)
 {
     MOCKER(VasSecurityManager::GetCap).stubs().will(returnValue(-1)).then(returnValue(0));
@@ -51,7 +63,7 @@ TEST_F(TestVasSecurityManager, testModifyEffectiveCapabilities)
         CAP_FOWNER,
     };
     int effectiveCapabilities = 999;
-    MOCKER(VasSecurityManager::GetCap).stubs().will(returnValue(0)).then(returnValue(0));
+    MOCKER(VasSecurityManager::GetCap).stubs().will(invoke(GetCapMockFillPermitted));
     MOCKER(VasSecurityManager::SetCap).stubs().will(returnValue(0)).then(returnValue(0));
     EXPECT_EQ(VasSecurityManager::ModifyEffectiveCapabilities(caps, VasCapOperateType::CAP_ADD), VAS_OK);
     EXPECT_EQ(VasSecurityManager::ModifyEffectiveCapabilities(caps, VasCapOperateType::CAP_DELETE), VAS_OK);
@@ -65,7 +77,7 @@ TEST_F(TestVasSecurityManager, testClearCapabilities)
     const std::vector<__u32> caps = {
         CAP_DAC_OVERRIDE,
     };
-    MOCKER(VasSecurityManager::GetCap).stubs().will(returnValue(0)).then(returnValue(-1));
+    MOCKER(VasSecurityManager::GetCap).stubs().will(invoke(GetCapMockFillPermitted));
     MOCKER(VasSecurityManager::SetCap).stubs().will(returnValue(0)).then(returnValue(-1));
     EXPECT_EQ(VasSecurityManager::ModifyEffectiveCapabilities(caps, VasCapOperateType::CAP_ADD), VAS_OK);
     VasSecurityManager::ClearCapabilities(caps);

@@ -10,3 +10,11 @@ comp.cmake
 coverage.info
 test.info
 output
+build
+rpmbuild
+_deps
+**/ebpf/src/client/bpfs/vmlinux.h
+virt-awaresched/test/VirtAwareSched_ut
+virt-awaresched/test/logPath_/
+virt-awaresched/test/test_log_file*
+package

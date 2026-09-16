@@ -18,7 +18,6 @@
 ###     -t | --target   Specifying build target, default is `all`
 ###                     Supported targets:
 ###                         `all`       build all target in source code
-###                         `3rdparty`  build 3rdparty libs
 ###                         `test`      build all tests in test/ directory
 
 trans_params=()
@@ -172,9 +171,6 @@ function parse_args() {
 function clean() {
     local target_dirs=()
     case $1 in
-        "3rdparty")
-            target_dirs+=("${PROJECT_ROOT_DIR}/deps")
-            ;;
         "package")
             target_dirs+=("${PROJECT_ROOT_DIR}/cmake-build-release")
             ;;
@@ -199,13 +195,21 @@ function clean() {
 }
 
 function build_package() {
+    local pkg_name="virt-awaresched"
+    local pkg_version="1.0.0"
     mkdir -p "${PROJECT_ROOT_DIR}"/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-    cp "${PROJECT_ROOT_DIR}"/package/virt-awaresched.tar.gz  "${PROJECT_ROOT_DIR}"/rpmbuild/SOURCES/
-    sed -i "s|%define project_dir %{name}|%define project_dir $PROJECT_ROOT_DIR|" "${PROJECT_ROOT_DIR}"/virt-awaresched.spec
+    # 打源码压缩包（命名须与 spec 中 Source0 一致：virt-awaresched-<version>.tar.gz）
+    tar -czf "${PROJECT_ROOT_DIR}/rpmbuild/SOURCES/${pkg_name}-${pkg_version}.tar.gz" \
+        --exclude './build' \
+        --exclude './output' \
+        --exclude './rpmbuild' \
+        --exclude './cmake-build-*' \
+        --transform "s,^\.,${pkg_name}-${pkg_version}," \
+        -C "${PROJECT_ROOT_DIR}" .
     rpmbuild -D "_topdir ${PROJECT_ROOT_DIR}/rpmbuild" -bb --clean "${PROJECT_ROOT_DIR}"/virt-awaresched.spec
     mkdir -p "${PROJECT_ROOT_DIR}"/output
     rm -rf "${PROJECT_ROOT_DIR}"/output/*
-    cp -p "${PROJECT_ROOT_DIR}"/rpmbuild/RPMS/*/*virt-awaresched*.rpm "${PROJECT_ROOT_DIR}"/output
+    cp -p "${PROJECT_ROOT_DIR}"/rpmbuild/RPMS/*/*.rpm "${PROJECT_ROOT_DIR}"/output
 }
 
 echo $(date +"[%Y-%m-%d %H:%M]"): "$0" "$@"
