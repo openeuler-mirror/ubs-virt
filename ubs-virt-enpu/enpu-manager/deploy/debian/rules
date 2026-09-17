@@ -1,0 +1,80 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+# Copyright (c) Huawei Technologies Co., Ltd. 2026. All rights reserved.
+# Licensed under Mulan PSL v2.
+
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+DESTDIR = $(CURDIR)/debian/enpu-manager
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	# CANN path: must be set for build
+	if [ -z "$${ASCEND_HOME_PATH}" ]; then \
+		echo "[ERROR] ASCEND_HOME_PATH is not set!"; \
+		echo "  Please set it before building, e.g.:"; \
+		echo "  export ASCEND_HOME_PATH=/usr/local/Ascend/cann"; \
+		exit 1; \
+	fi
+	@echo "[INFO] ASCEND_HOME_PATH=$${ASCEND_HOME_PATH}"
+	@echo "[INFO] ENPU_ASCEND_DRIVER_PATH=$${ENPU_ASCEND_DRIVER_PATH:-/usr/local/Ascend}"
+
+override_dh_auto_build:
+	# Step 1: Build core shared library
+	cd $(CURDIR)/core && \
+		ASCEND_HOME_PATH="$${ASCEND_HOME_PATH}" \
+		ENPU_ASCEND_DRIVER_PATH="$${ENPU_ASCEND_DRIVER_PATH:-/usr/local/Ascend}" \
+		bash make_build.sh
+
+	# Verify core build output
+	test -f $(CURDIR)/core/build/output/libenpu_manager.so.1.0.0 || { echo "[ERROR] core build output not found"; exit 1; }
+
+	# Step 2: Build standalone binaries (enpu-manager + enpu-cli)
+	cd $(CURDIR)/standalone && \
+		ASCEND_HOME_PATH="$${ASCEND_HOME_PATH}" \
+		ENPU_ASCEND_DRIVER_PATH="$${ENPU_ASCEND_DRIVER_PATH:-/usr/local/Ascend}" \
+		bash build.sh
+
+	# Verify standalone build output
+	test -f $(CURDIR)/standalone/build/output/enpu-manager || { echo "[ERROR] standalone build output not found"; exit 1; }
+	test -f $(CURDIR)/standalone/build/output/enpu-cli || { echo "[ERROR] enpu-cli build output not found"; exit 1; }
+
+override_dh_auto_test:
+	# No test run during package build
+
+override_dh_strip:
+	dh_strip --no-automatic-dbgsym
+
+override_dh_shlibdeps:
+	dh_shlibdeps -- --ignore-missing-info
+
+override_dh_auto_install:
+	# Binaries
+	install -D -m 0500 $(CURDIR)/standalone/build/output/enpu-manager \
+		$(DESTDIR)/usr/bin/enpu-manager
+	install -D -m 0500 $(CURDIR)/standalone/build/output/enpu-cli \
+		$(DESTDIR)/usr/bin/enpu-cli
+
+	# Shared library — versioned and soversion symlinks
+	install -D -m 0500 $(CURDIR)/core/build/output/libenpu_manager.so.1.0.0 \
+		$(DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH)/libenpu_manager.so.1.0.0
+	ln -sf libenpu_manager.so.1.0.0 \
+		$(DESTDIR)/usr/lib/$(DEB_HOST_MULTIARCH)/libenpu_manager.so.1
+
+	# Configuration file
+	install -D -m 0400 $(CURDIR)/config/enpu-manager.conf \
+		$(DESTDIR)/etc/enpu/enpu-manager.conf
+
+	# Systemd service unit
+	install -D -m 0400 $(CURDIR)/deploy/enpu-manager.service \
+		$(DESTDIR)/lib/systemd/system/enpu-manager.service
+
+	# Documentation
+	install -D -m 0644 $(CURDIR)/README.md \
+		$(DESTDIR)/usr/share/doc/enpu-manager/README.md
+
+	# State / log / data directories
+	install -d -m 0700 $(DESTDIR)/var/lib/enpu-manager
+	install -d -m 0700 $(DESTDIR)/var/log/enpu-manager
+	install -d -m 0700 $(DESTDIR)/opt/enpu

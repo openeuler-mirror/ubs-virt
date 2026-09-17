@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        ASCEND_HOME_PATH="${ASCEND_HOME_PATH:-/usr/local/Ascend/cann}"
+        ENPU_ASCEND_DRIVER_PATH="${ENPU_ASCEND_DRIVER_PATH:-/usr/local/Ascend}"
+        [ -f "${ASCEND_HOME_PATH}/lib64/libascendcl.so" ] || echo "[WARNING] libascendcl.so not found. Install Ascend CANN Toolkit."
+        [ -f "${ENPU_ASCEND_DRIVER_PATH}/driver/lib64/driver/libdcmi.so" ] || echo "[WARNING] libdcmi.so not found. Install Ascend NPU Driver."
+        ;;
+esac
+
+#DEBHELPER#
+exit 0
