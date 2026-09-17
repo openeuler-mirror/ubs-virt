@@ -18,6 +18,7 @@ import re
 import httpx
 import typer
 from rich.console import Console
+from rich.markup import escape as escape_markup
 from rich.table import Table
 from rich.tree import Tree
 import yaml
@@ -34,6 +35,30 @@ UDS_PATH = os.getenv("UBDM_UDS_PATH", "/var/run/ub_device_manager/ub_device_mana
 app = typer.Typer(help="\U0001F680 Ub Device Manager Control Center (CLI)")
 console = Console()
 
+# ANSI escape sequences (OSC, CSI, and single-character Fe escapes).
+_ANSI_ESCAPE_PATTERN = re.compile(
+    r"\x1b(?:\][^\x07\x1b]*(?:\x07|\x1b\\)|\[[0-?]*[ -/]*[@-~]|[@-Z\\-_])"
+)
+# All control characters, used for single-line text.
+_CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+# Control characters except newline, used for multi-line text.
+_MULTILINE_CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x09\x0b-\x1f\x7f-\x9f]")
+
+
+def sanitize_console_text(text, multiline: bool = False) -> str:
+    """Sanitize untrusted text before printing it to the terminal.
+
+    Removes ANSI escape sequences and control characters, and escapes Rich markup
+    so that server-controlled content cannot change terminal state, inject
+    formatting, or forge additional output lines.
+    """
+    if not isinstance(text, str):
+        text = str(text)
+    text = _ANSI_ESCAPE_PATTERN.sub("", text)
+    pattern = _MULTILINE_CONTROL_CHAR_PATTERN if multiline else _CONTROL_CHAR_PATTERN
+    text = pattern.sub("", text)
+    return escape_markup(text)
+
 
 def render_tree_data(data, parent_tree: Tree = None, root_label: str = "Response Data"):
     """Recursively render any dict/list as a tree mind map."""
@@ -47,7 +72,7 @@ def render_tree_data(data, parent_tree: Tree = None, root_label: str = "Response
     # Recurse into branches
     if isinstance(data, dict):
         for k, v in data.items():
-            branch = parent_tree.add(f"[cyan]{k}[/cyan]")
+            branch = parent_tree.add(f"[cyan]{sanitize_console_text(k)}[/cyan]")
             render_tree_data(v, branch)
     elif isinstance(data, list):
         if len(data) == 0:
@@ -59,14 +84,14 @@ def render_tree_data(data, parent_tree: Tree = None, root_label: str = "Response
             render_tree_data(item, item_node)
     else:
         # Leaf node for plain string/number/bool/None values
-        parent_tree.add(f"[white]{repr(data)}[/white]")
+        parent_tree.add(f"[white]{sanitize_console_text(repr(data))}[/white]")
 
 
 def get_server_client() -> httpx.Client:
     transport = httpx.HTTPTransport(uds=UDS_PATH, retries=0)
     return httpx.Client(
         base_url="http://ub-device-manager",
-        timeout=300,
+        timeout=1200,
         proxy=None,
         transport=transport
     )
@@ -80,7 +105,7 @@ if os.path.exists(local_yaml_path):
         try:
             openapi_spec = yaml.load(f, Loader=yaml.SafeLoader)
         except Exception as e:
-            console.print(f"[bold red]\u274C Error: Failed to parse openapi.yaml. Reason: {e}[/bold red]")
+            console.print(f"[bold red]\u274C Error: Failed to parse openapi.yaml. Reason: {sanitize_console_text(e)}[/bold red]")
             sys.exit(1)
 else:
     console.print(f"[bold red]\u274C Error: Local contract file not found: {local_yaml_path}[/bold red]")
@@ -137,7 +162,7 @@ def get_param_python_type(type_str: str):
 
 def get_param_cli_type(type_str: str):
     t = type_str.lower()
-    # 全部通过 str 接收 CLI 原始数据，后续统一交由 cast_and_validate_value 类型强转与校验
+    # All raw CLI values are received as str and later cast/validated by cast_and_validate_value
     return str
 
 
@@ -274,7 +299,7 @@ def cast_and_validate_value(raw_val, target_type, param_name: str):
         return None
     val = try_parse_json(raw_val)
 
-    # 增强对 bool 类型值的兼容解析（兼容原生 bool、字符以及数字）
+    # Improve compatibility when parsing bool values (native bool, strings, and numbers).
     if target_type is bool:
         if isinstance(val, bool):
             return val
@@ -286,7 +311,7 @@ def cast_and_validate_value(raw_val, target_type, param_name: str):
                 return False
             else:
                 console.print(
-                    f"[bold red]\u274C 参数 {param_name} 类型错误，需要布尔值(true/false/yes/no)，输入: {raw_val}[/bold red]")
+                    f"[bold red]\u274C 参数 {param_name} 类型错误，需要布尔值(true/false/yes/no)，输入: {sanitize_console_text(raw_val)}[/bold red]")
                 raise typer.Exit(1)
         if isinstance(val, int):
             return bool(val)
@@ -305,14 +330,14 @@ def cast_and_validate_value(raw_val, target_type, param_name: str):
                     return repaired
                 console.print(
                     f"[bold red]Parameter {param_name} type error: expected array, "
-                    f"use comma separated values (--{param_name} 1,2,3) or quoted JSON, input: {raw_val}[/bold red]")
+                    f"use comma separated values (--{param_name} 1,2,3) or quoted JSON, input: {sanitize_console_text(raw_val)}[/bold red]")
                 raise typer.Exit(1)
             items = [item.strip() for item in re.split(r"[,\s]+", stripped) if item.strip()]
             if items:
                 return [try_parse_json(item) for item in items]
         console.print(
             f"[bold red]Parameter {param_name} type error: expected array, "
-            f"use comma separated values (--{param_name} 1,2,3) or quoted JSON, input: {raw_val}[/bold red]")
+            f"use comma separated values (--{param_name} 1,2,3) or quoted JSON, input: {sanitize_console_text(raw_val)}[/bold red]")
         raise typer.Exit(1)
 
     if target_type is dict:
@@ -329,23 +354,23 @@ def cast_and_validate_value(raw_val, target_type, param_name: str):
                     return repaired
                 console.print(
                     f"[bold red]Parameter {param_name} type error: expected object, "
-                    f"use key=value pairs (--{param_name} a=1,b=2) or quoted JSON, input: {raw_val}[/bold red]")
+                    f"use key=value pairs (--{param_name} a=1,b=2) or quoted JSON, input: {sanitize_console_text(raw_val)}[/bold red]")
                 raise typer.Exit(1)
             pairs = parse_key_value_pairs(stripped)
             if pairs is not None:
                 return pairs
         console.print(
             f"[bold red]Parameter {param_name} type error: expected object, "
-            f"use key=value pairs (--{param_name} a=1,b=2) or quoted JSON, input: {raw_val}[/bold red]")
+            f"use key=value pairs (--{param_name} a=1,b=2) or quoted JSON, input: {sanitize_console_text(raw_val)}[/bold red]")
         raise typer.Exit(1)
 
     # Cast scalar values.
     try:
         return target_type(val)
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as exc:
         console.print(
-            f"[bold red]\u274C 参数 {param_name} 类型错误，需要 {target_type.__name__}，输入值: {raw_val}[/bold red]")
-        raise typer.Exit(1)
+            f"[bold red]\u274C 参数 {param_name} 类型错误，需要 {target_type.__name__}，输入值: {sanitize_console_text(raw_val)}[/bold red]")
+        raise typer.Exit(1) from exc
 
 
 ## Convert routes and HTTP methods to elegant CLI commands
@@ -437,8 +462,8 @@ def parse_error_response(resp_json: dict):
     code = resp_json.get("code", -1)
     msg = resp_json.get("msg", "未知错误")
     console.print(f"\n[bold red]Request failed![/bold red]")
-    console.print(f"messages: {msg}")
-    console.print(f"code: {code}\n")
+    console.print(f"messages: {sanitize_console_text(msg)}")
+    console.print(f"code: {sanitize_console_text(code)}\n")
 
 
 def build_executor(raw_path, req_method, api_params, help_text):
@@ -450,10 +475,10 @@ def build_executor(raw_path, req_method, api_params, help_text):
                 v is not None for k, v in kwargs.items() if k not in ["cli_verbose", "_is_callback"]):
             return
 
-        # 检查是否有无法识别的未绑定命令行参数，如果有直接报错提示，不再盲目向后填充
+        # Reject unrecognized/unbound CLI arguments instead of blindly padding them afterwards.
         extra_args = list(getattr(ctx, "args", None) or []) if ctx else []
         if extra_args:
-            console.print(f"[bold red]\u274C Error: Unexpected extra arguments: {' '.join(extra_args)}[/bold red]")
+            console.print(f"[bold red]\u274C Error: Unexpected extra arguments: {sanitize_console_text(' '.join(extra_args))}[/bold red]")
             raise typer.Exit(code=1)
 
         final_path = raw_path
@@ -465,7 +490,7 @@ def build_executor(raw_path, req_method, api_params, help_text):
             user_value = kwargs.get(safe_name)
 
             if info["required"] and user_value is None:
-                console.print(f"[bold red]\u274C Error: Missing required parameter: {param_name}[/bold red]")
+                console.print(f"[bold red]\u274C Error: Missing required parameter: {sanitize_console_text(param_name)}[/bold red]")
                 raise typer.Exit(code=1)
 
             if user_value is not None:
@@ -499,8 +524,8 @@ def build_executor(raw_path, req_method, api_params, help_text):
                 with get_server_client() as c:
                     res = c.request(**request_kwargs)
             except Exception as req_err:
-                console.print(f"\n[bold red]\u274C Network request failed: {req_err}[/bold red]")
-                raise typer.Exit(code=1)
+                console.print(f"\n[bold red]\u274C Network request failed: {sanitize_console_text(req_err)}[/bold red]")
+                raise typer.Exit(code=1) from req_err
 
         if str(res.status_code).startswith("20"):
             console.print("\n[bold green]\u2714 Execution successful. ")
@@ -510,21 +535,21 @@ def build_executor(raw_path, req_method, api_params, help_text):
                     table = Table(show_header=True, header_style="bold green")
                     headers = data_content[0].keys()
                     for h in headers:
-                        table.add_column(str(h), style="cyan")
+                        table.add_column(sanitize_console_text(h), style="cyan")
                     for item in data_content:
-                        table.add_row(*[str(item.get(h, "")) for h in headers])
+                        table.add_row(*[sanitize_console_text(item.get(h, "")) for h in headers])
                     console.print(table)
                 else:
                     render_tree_data(data_content)
             except Exception:
-                console.print(res.text)
+                console.print(sanitize_console_text(res.text, multiline=True))
         else:
             try:
                 parse_error_response({"code": res.status_code, "msg": res.json()})
                 if verbose:
-                    console.print(res.text)
+                    console.print(sanitize_console_text(res.text, multiline=True))
             except Exception:
-                console.print(res.text)
+                console.print(sanitize_console_text(res.text, multiline=True))
             raise typer.Exit(code=1)
 
     sig_parameters = []

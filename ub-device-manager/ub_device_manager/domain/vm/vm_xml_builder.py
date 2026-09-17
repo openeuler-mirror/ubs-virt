@@ -13,6 +13,8 @@ from __future__ import annotations
 from typing import Any
 from xml.etree import ElementTree as ET
 
+from defusedxml import ElementTree as DefusedET
+
 from ub_device_manager.app.models import BindNpuDeviceResult
 
 
@@ -27,7 +29,7 @@ MIN_GUID_PARTS_FOR_CONTROLLER_TYPE = 4
 
 class VmXmlBuilder:
     def validate_input_xml(self, xml: str) -> None:
-        root = ET.fromstring(xml)
+        root = DefusedET.fromstring(xml)
         self._validate_input_xml(root)
 
     def build(
@@ -46,7 +48,7 @@ class VmXmlBuilder:
         if not bus_guid:
             raise ValueError("bus_guid is required to build UB VM XML")
 
-        root = self._ensure_qemu_namespace(ET.fromstring(xml))
+        root = self._ensure_qemu_namespace(DefusedET.fromstring(xml))
         devices_node = self._get_or_create_devices(root)
 
         iommufd_id = self._ensure_iommufds(root)

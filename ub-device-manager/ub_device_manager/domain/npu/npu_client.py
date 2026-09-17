@@ -31,43 +31,43 @@ class AffinityDeviceInfo(BaseModel):
 class UbDeviceInfo(BaseModel):
     """Host UB device inventory entry, including NPUs and passthrough NICs."""
     id: constr(max_length=64) = Field(
-        ..., description='NPU 设备ID (固定长度字符串)', examples=['0-1']
+        ..., description='NPU device ID (fixed-length string)', examples=['0-1']
     )
     type: constr(max_length=32) = Field(
-        ..., description='NPU 设备类型 (固定长度字符串)', examples=['NPU']
+        ..., description='NPU device type (fixed-length string)', examples=['NPU']
     )
     guid: constr(max_length=128) = Field(
         ...,
-        description='NPU 设备GUID (固定长度字符串)',
+        description='NPU device GUID (fixed-length string)',
         examples=['0xcc08-a000-0-2-000000-00000000000201ff'],
     )
     bus_guid: Optional[constr(max_length=128)] = Field(
         None,
-        description='NPU 设备BUS_INSTANCE_GUID (固定长度字符串)',
+        description='NPU device BUS_INSTANCE_GUID (fixed-length string)',
         examples=['0xcc08-a002-0-0-000000-00000038c8c1008c'],
     )
     affinity_devs: List[AffinityDeviceInfo] = Field(
         default_factory=list,
-        description='与当前 UB 设备存在亲和关系的设备列表',
+        description='Devices that have an affinity relationship with the current UB device.',
     )
 
 
 class DeviceRef(BaseModel):
     device_id: constr(min_length=1, max_length=64) = Field(
-        ..., description='UB 设备 ID', examples=['1-1']
+        ..., description='UB device ID', examples=['1-1']
     )
     device_type: constr(min_length=1, max_length=64) = Field(
-        ..., description='UB 设备类型', examples=['NPU']
+        ..., description='UB device type', examples=['NPU']
     )
 
 
 class AllocDevicesParams(BaseModel):
-    """调用下游组件的分配设备接口的入参"""
+    """Input for the downstream component's device allocation interface."""
     upi: constr(min_length=1, max_length=64) = Field(
-        ..., description='用户隔离标识', examples=['0x000f']
+        ..., description='User isolation identifier', examples=['0x000f']
     )
-    bus_guid: str = Field('', description='已有总线实例 GUID, 新建总线实例时传空串')
-    device_list: List[DeviceRef] = Field(..., min_length=1, description='待分配的 UB 设备列表')
+    bus_guid: str = Field('', description='Existing bus instance GUID; pass an empty string to create a new bus instance.')
+    device_list: List[DeviceRef] = Field(..., min_length=1, description='List of UB devices to allocate.')
 
 
 # Device types allowed for VM passthrough.

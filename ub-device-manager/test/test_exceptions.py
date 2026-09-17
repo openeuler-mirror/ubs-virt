@@ -19,7 +19,7 @@ from ub_device_manager.exceptions import (
 
 
 class TestUbDmHTTPException:
-    """最基础的异常体系测试"""
+    """Basic exception hierarchy tests."""
 
     def test_default_detail(self):
         exc = InvalidCreateVmRequest()

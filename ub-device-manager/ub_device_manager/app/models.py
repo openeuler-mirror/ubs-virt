@@ -18,6 +18,13 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, conint, constr
 
 
+class NpuCount(IntEnum):
+    integer_1 = 1
+    integer_2 = 2
+    integer_4 = 4
+    integer_8 = 8
+
+
 class CreateVmRequest(BaseModel):
     xml_text: Optional[str] = Field(
         None,
@@ -29,9 +36,11 @@ class CreateVmRequest(BaseModel):
         description='Path to a libvirt domain XML file readable by the server. Exactly one of xml_text and xml_path must be provided.',
         examples=['/path/to/domain.xml'],
     )
-    upi: str = Field(
+    upi: constr(
+        pattern=r'^0[xX]([1-9a-fA-F][0-9a-fA-F]{0,2}|0[1-9a-fA-F][0-9a-fA-F]{0,2}|00[1-9a-fA-F][0-9a-fA-F]?|000[1-9a-fA-F])$'
+    ) = Field(
         ...,
-        description='User isolation identifier in hexadecimal (one to four digits; prefix and digits are case-insensitive), from 0x0000 to 0x1000.',
+        description='User isolation identifier in hexadecimal (one to four digits; prefix and digits are case-insensitive), from 0x0001 to 0x0fff.',
         examples=['0x000f'],
     )
     need_nic: Optional[bool] = Field(
@@ -44,17 +53,26 @@ class CreateVmRequest(BaseModel):
         description='Explicit NPU device IDs. Duplicates are not allowed and this field is mutually exclusive with npu_count.',
         examples=[['1-1', '1-2']],
     )
-    npu_count: Optional[conint(ge=0)] = Field(
+    npu_count: Optional[NpuCount] = Field(
         None,
-        description='Number of free NPUs to select automatically; mutually exclusive with npu_ids. Zero creates a regular VM without NPUs.',
+        description='Number of free NPUs to select automatically; mutually exclusive with npu_ids. Only 1, 2, 4, or 8 are allowed. Omit both npu_ids and npu_count to create a regular VM without NPUs.',
         examples=[2],
     )
 
 
+class Count(IntEnum):
+    integer_1 = 1
+    integer_2 = 2
+    integer_4 = 4
+    integer_8 = 8
+
+
 class BindNpuDeviceRequest(BaseModel):
-    upi: str = Field(
+    upi: constr(
+        pattern=r'^0[xX]([1-9a-fA-F][0-9a-fA-F]{0,2}|0[1-9a-fA-F][0-9a-fA-F]{0,2}|00[1-9a-fA-F][0-9a-fA-F]?|000[1-9a-fA-F])$'
+    ) = Field(
         ...,
-        description='User isolation identifier in hexadecimal (one to four digits; prefix and digits are case-insensitive), from 0x0000 to 0x1000.',
+        description='User isolation identifier in hexadecimal (one to four digits; prefix and digits are case-insensitive), from 0x0001 to 0x0fff.',
         examples=['0x000f'],
     )
     ids: Optional[List[str]] = Field(
@@ -62,7 +80,7 @@ class BindNpuDeviceRequest(BaseModel):
         description='Explicit NPU device IDs. Duplicates are not allowed; only 1, 2, 4, or 8 IDs are allowed and this field is mutually exclusive with count.',
         examples=[['1-1', '1-2']],
     )
-    count: Optional[conint(ge=1)] = Field(
+    count: Optional[Count] = Field(
         None,
         description='Number of free NPUs to select automatically. Only 1, 2, 4, or 8 are allowed and this field is mutually exclusive with ids.',
         examples=[2],
@@ -105,7 +123,7 @@ class BindSsuVfeReq(BaseModel):
     )
     bus_guid: constr(max_length=32) = Field(
         ...,
-        description='Bus instance GUID. Can be empty; when non-empty, its length must be 32.',
+        description='Bus instance GUID. Can be empty (empty string means ubse creates a new VM bus instance internally); when non-empty, its length must be 32.',
         examples=[''],
     )
 
@@ -171,13 +189,13 @@ class SsuAllocSpaceReq(BaseModel):
     )
     ns_num: conint(ge=1) = Field(
         ...,
-        description='Number of namespaces. strategy does not apply when this value is 1.',
+        description='Number of namespaces. When ns_num is 1, strategy cannot be STRIPED (0).',
     )
     lba_format: SsuLbaFormat
     strategy: SsuAllocStrategy
-    tenant: Optional[str] = Field(
+    tenant: Optional[constr(pattern=r'^[a-zA-Z0-9_.:-]*$')] = Field(
         '',
-        description='Requester tenant isolation identifier. Only [a-zA-Z0-9_-.:] is allowed.',
+        description='Requester tenant isolation identifier. Can be empty; when non-empty, only [a-zA-Z0-9_-.:] is allowed.',
     )
 
 
@@ -200,7 +218,7 @@ class SsuSpaceReq(BaseModel):
 
 
 class SsuAttachResult(BaseModel):
-    dev_paths: List[str] = Field(
+    dev_paths: List[constr(max_length=128)] = Field(
         ...,
         description='Device paths returned after the storage space is attached.',
         examples=[['/dev/nvme0n1']],

@@ -4,10 +4,12 @@ import time
 
 import uuid
 from contextlib import asynccontextmanager
+from typing import Dict
 
 from http import HTTPStatus
 
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.exceptions import RequestValidationError
 from loguru import logger
 from starlette.responses import JSONResponse
 
@@ -30,6 +32,53 @@ async def lifespan(app: FastAPI):
 
 def get_logger(request: Request):
     return request.state.request_logger
+
+
+_BODY_LOCATION = "body"
+_PATTERN_ERROR_TYPES = frozenset({"string_pattern_mismatch", "string_pattern_mismatch_exact"})
+_VALUE_ERROR_PREFIX = "Value error, "
+
+
+def _collect_body_field_hints(request: Request) -> Dict[str, str]:
+    """Collect readable hints for the request-body fields declared on the matched route.
+
+    The hints are derived from the Pydantic field metadata so that the 422 response
+    stays understandable even for complex constraints (such as the UPI regular
+    expression) without leaking the raw regex pattern to the caller.
+    """
+    route = request.scope.get("route")
+    body_params = getattr(getattr(route, "dependant", None), "body_params", None) or ()
+    hints: Dict[str, str] = {}
+    for body_param in body_params:
+        annotation = getattr(getattr(body_param, "field_info", None), "annotation", None)
+        if annotation is None:
+            annotation = getattr(body_param, "type_", None)
+        model_fields = getattr(annotation, "model_fields", None)
+        if not model_fields:
+            continue
+        for field_name, model_field in model_fields.items():
+            description = (getattr(model_field, "description", None) or "").strip().rstrip(".")
+            if not description:
+                continue
+            examples = getattr(model_field, "examples", None) or []
+            hints[field_name] = f"{description} (e.g. {examples[0]})" if examples else description
+    return hints
+
+
+def _format_validation_error(error: Dict, field_hints: Dict[str, str]) -> str:
+    """Render a single Pydantic validation error as a human-readable message."""
+    location = [str(part) for part in error.get("loc", ()) if part != _BODY_LOCATION]
+    field = ".".join(location) if location else "request"
+    top_level_field = location[0] if location else ""
+
+    if error.get("type") in _PATTERN_ERROR_TYPES:
+        hint = field_hints.get(top_level_field, "the value does not match the required format")
+        return f"{field}: invalid format, {hint}"
+
+    message = str(error.get("msg", "invalid value"))
+    if message.startswith(_VALUE_ERROR_PREFIX):
+        message = message[len(_VALUE_ERROR_PREFIX):]
+    return f"{field}: {message}"
 
 
 def create_app() -> FastAPI:
@@ -65,6 +114,23 @@ def create_app() -> FastAPI:
             return response
         finally:
             REQUEST_ID_VAR.reset(token)
+
+    @new_app.exception_handler(RequestValidationError)
+    async def request_validation_exception_handler(
+            request: Request, exc: RequestValidationError):
+        field_hints = _collect_body_field_hints(request)
+        details = "; ".join(
+            _format_validation_error(error, field_hints) for error in exc.errors()
+        )
+        error_msg = f"Invalid request parameters: {details}"
+        logger.error(
+            f"Request validation failed: {request.method} {request.url.path}, "
+            f"detail: {error_msg}")
+
+        return JSONResponse(
+            content=error_msg,
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY
+        )
 
     @new_app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):

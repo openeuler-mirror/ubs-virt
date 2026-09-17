@@ -12,24 +12,24 @@ openapi: 3.0.3
 info:
   title: UB Device Manager
   version: 1.0.0
-  description: 仅在本地节点运行的 UDS HTTP 服务
+  description: UDS HTTP service that runs only on the local node
 servers:
   - url: http://localhost
 tags:
   - name: VM
-    description: 虚机创建、删除等生命周期管理接口
+    description: Lifecycle management APIs for creating, deleting, and managing VMs
   - name: SSU
-    description: SSU 存储资源管理接口
+    description: SSU storage resource management APIs
   - name: UB
-    description: UB/NPU 设备查询接口
+    description: UB/NPU device query APIs
   - name: Task
-    description: 异步任务状态查询接口
+    description: Async task status query APIs
 paths:
 
   /ssu-ns/{name}:
     get:
-      summary: 获取存储空间命名信息
-      description: 查询指定存储空间下各命名空间的容量使用情况, 包括总容量和已用容量
+      summary: Get storage space namespace information
+      description: Query capacity usage of each namespace under a storage space, including total and used capacity
       operationId: show_ssu_ns_status
       tags:
         - SSU
@@ -39,23 +39,23 @@ paths:
           required: true
           schema:
             type: string
-          description: 存储空间标识
+          description: Storage space identifier
 
 
       responses:
         '200':
-          description: 成功响应
+          description: Successful response
           content:
             application/json:
               schema:
                 type: array
-                description: 命名空间统计信息列表
+                description: Namespace statistics list
                 items:
                   $ref: '#/components/schemas/SsuNsStatus'
   /ssu-ns/connect-info:
     get:
-      summary: 查询指定存储空间在指定 VFE 上的 NVMe 连接信息
-      description: 查询指定存储空间在指定 VFE 上的 NVMe 连接信息, 包括子系统 NQN、Host NQN、命名空间 ID 等
+      summary: Query NVMe connection information for a storage space on a specified VFE
+      description: Query NVMe connection information for a storage space on a specified VFE, including subsystem NQN, host NQN, namespace ID, etc.
       operationId: get_ns_connnect_info
       tags:
         - SSU
@@ -65,7 +65,7 @@ paths:
           required: true
           schema:
             type: string
-          description: 存储空间标识
+          description: Storage space identifier
         - name: vfe_guid
           in: query
           required: false
@@ -75,38 +75,38 @@ paths:
           example: "0000-0-00000000"
       responses:
         '200':
-          description: 成功响应
+          description: Successful response
           content:
             application/json:
               schema:
                 type: array
-                description: 命名空间统计信息列表
+                description: Namespace statistics list
                 items:
                   $ref: '#/components/schemas/NsConnectInfo'
 
 
   /ssu:
     get:
-      summary: 列出所有已分配的存储空间信息
-      description: 获取系统中所有已分配的 SSU 存储空间详细信息, 包括命名空间列表、容量、LBA 格式和使用类型等
-      operationId: get_ssu_list      # [可选] 接口的唯一标识符（代码生成时常作为函数名）
+      summary: List all allocated storage spaces
+      description: Get details of all allocated SSU storage spaces in the system, including namespace list, capacity, LBA format, and usage type
+      operationId: get_ssu_list      # [optional] unique operation identifier (often used as the function name during code generation)
       tags:
         - SSU
       responses:
         '200':
-          description: 成功响应
+          description: Successful response
           content:
             application/json:
               schema:
                 type: array
-                description: SSU 分配结果列表
+                description: List of SSU allocation results
                 items:
                   $ref: '#/components/schemas/SsuInfo'
 
   /ssu/{name}:
     get:
-      summary: 根据名称获取已分配的存储空间信息
-      description: 根据名称获取已分配的存储空间信息, 包括命名空间列表、容量、LBA 格式和使用类型等
+      summary: Get allocated storage space information by name
+      description: Get allocated storage space information by name, including namespace list, capacity, LBA format, and usage type
       operationId: show_ssu_alloc_info
       tags:
         - SSU
@@ -116,17 +116,17 @@ paths:
           required: true
           schema:
             type: string
-          description: SSU 的名称
+          description: SSU name
       responses:
         '200':
-          description: 成功响应
+          description: Successful response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SsuInfo'
     delete:
-      summary: 释放 SSU 空间
-      description: 根据给定的 SSU 名称，释放其对应的空间资源
+      summary: Free SSU space
+      description: Free the space resource corresponding to the given SSU name
       operationId: free_ssu
       tags:
         - SSU
@@ -134,13 +134,13 @@ paths:
         - name: name
           in: path
           required: true
-          description: SSU 的名称
+          description: SSU name
           schema:
             type: string
             example: "ssu-volume-001"
       responses:
         '200':
-          description: 释放SSU成功
+          description: SSU freed successfully
           content:
             application/json:
               schema:
@@ -148,8 +148,8 @@ paths:
 
   /ssu/alloc:
     post:
-      summary: 分配 SSU 存储空间
-      description: 根据请求参数分配指定数量和大小的命名空间, 支持顺序分配和分布式分配两种策略
+      summary: Allocate SSU storage space
+      description: Allocate a specified number and size of namespaces based on the request parameters; supports both sequential and distributed allocation strategies
       operationId: ssu_alloc
       tags:
         - SSU
@@ -161,7 +161,7 @@ paths:
               $ref: '#/components/schemas/SsuAllocSpaceReq'
       responses:
         '200':
-          description: 成功响应
+          description: Successful response
           content:
             application/json:
               schema:
@@ -170,8 +170,8 @@ paths:
 
   /ssu/add-perm:
     post:
-      summary: 添加 SSU 访问权限
-      description: 为指定的 SSU 卷添加特定主机的 NQN 访问权限
+      summary: Add SSU access permission
+      description: Add NQN access permission for a specific host to the specified SSU volume
       operationId: add_ssu_perm
       tags:
         - SSU
@@ -183,20 +183,20 @@ paths:
               $ref: '#/components/schemas/SsuPermReq'
       responses:
         '200':
-          description: 权限添加成功
+          description: Permission added successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
         '400':
-          description: 请求参数错误（如 NQN 格式不正确、SSU 名称为空）
+          description: Invalid request parameters (e.g., malformed NQN or empty SSU name)
         '404':
-          description: 未找到指定的 SSU 资源
+          description: Specified SSU resource not found
 
   /ssu/rm-perm:
     post:
-      summary: 删除 SSU 访问权限
-      description: 为指定的 SSU 卷删除指定主机 NQN 访问权限
+      summary: Remove SSU access permission
+      description: Remove the NQN access permission of a specific host from the specified SSU volume
       operationId: remove_ssu_perm
       tags:
         - SSU
@@ -208,21 +208,21 @@ paths:
               $ref: '#/components/schemas/SsuPermReq'
       responses:
         '200':
-          description: 权限删除成功
+          description: Permission removed successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
         '400':
-          description: 请求参数错误（如 NQN 格式不正确、SSU 名称为空）
+          description: Invalid request parameters (e.g., malformed NQN or empty SSU name)
         '404':
-          description: 未找到指定的 SSU 资源
+          description: Specified SSU resource not found
 
 
   /ssu/attach:
     post:
-      summary: 挂载已分配的 SSU 存储空间
-      description: 将指定的存储空间挂载到系统, 返回挂载后的设备路径
+      summary: Attach an allocated SSU storage space
+      description: Attach the specified storage space to the system and return the device paths after attaching
       operationId: ssu_attach
       tags:
         - SSU
@@ -234,7 +234,7 @@ paths:
               $ref: '#/components/schemas/SsuSpaceReq'
       responses:
         '200':
-          description: 挂载成功
+          description: Attached successfully
           content:
             application/json:
               schema:
@@ -242,8 +242,8 @@ paths:
 
   /ssu/detach:
     post:
-      summary: 卸载已分配的 SSU 存储空间
-      description: 将指定的存储空间从系统卸载, 释放设备占用
+      summary: Detach an allocated SSU storage space
+      description: Detach the specified storage space from the system and release the device
       operationId: ssu_detach
       tags:
         - SSU
@@ -255,7 +255,7 @@ paths:
               $ref: '#/components/schemas/SsuSpaceReq'
       responses:
         '200':
-          description: 卸载成功
+          description: Detached successfully
           content:
             application/json:
               schema:
@@ -266,26 +266,26 @@ paths:
 
   /ssu-vfe:
     get:
-      summary: 查询所有的 SSU 专用 VFE
-      description: 查询用于 SSU 建联的 VFE 信息
+      summary: List all SSU-specific VFEs
+      description: Query VFE information used for SSU connection setup
       operationId: get_ssu_vfe_list
       tags:
         - SSU
       responses:
         '200':
-          description: 成功响应
+          description: Successful response
           content:
             application/json:
               schema:
                 type: array
-                description: SSU 专用的 VFE 列表
+                description: List of SSU-specific VFEs
                 items:
                   $ref: '#/components/schemas/VfeForSsu'
 
   /ssu-vfe/bind:
     post:
-      summary: 将指定的 VFE 绑定到总线
-      description: 将指定的 VFE 绑定到总线，以实现虚机通过此 VFE 与物理机通信，不填 bus_guid 时默认分配
+      summary: Bind the specified VFE to the bus
+      description: Bind the specified VFE to the bus so that the VM can communicate with the physical machine through this VFE; when bus_guid is omitted, it is allocated automatically
       operationId: bind_ssu_vfe_bus
       tags:
         - SSU
@@ -298,7 +298,7 @@ paths:
 
       responses:
         '200':
-          description: 权限添加成功
+          description: Permission added successfully
           content:
             application/json:
               schema:
@@ -306,8 +306,8 @@ paths:
 
   /ssu-vfe/unbind:
     post:
-      summary: 将指定的 VFE 与 bus_guid 解绑
-      description: 传入 VFE 的 GUID，并封装为 VFE 对象以及通过查询 UBSE 找到 VFE 对应的 bus_guid ，组合后调用解绑接口，由于虚机仅能使用一个 ssu-vfe，因此参数为唯一 vfe_guid
+      summary: Unbind the specified VFE from bus_guid
+      description: Pass in the VFE GUID, wrap it as a VFE object, look up the corresponding bus_guid via UBSE, and call the unbind API with the combination. Because a VM can use only one ssu-vfe, the parameter is a unique vfe_guid
       operationId: unbind_ssu_vfe
       tags:
         - SSU
@@ -319,35 +319,35 @@ paths:
               $ref: '#/components/schemas/UnbindSsuVfeReq'
       responses:
         '200':
-          description: 解绑 bus 成功
+          description: Bus unbound successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
   /npu:
     get:
-      summary: 列出所有的npu设备信息
-      description: 获取当前节点中所有npu设备的详细信息, 包括id、guid和总线实例GUID等
-      operationId: get_npu_list      # [可选] 接口的唯一标识符（代码生成时常作为函数名）
+      summary: List all NPU devices
+      description: Get details of all NPU devices on the current node, including ID, GUID, and bus instance GUID
+      operationId: get_npu_list      # [optional] unique operation identifier (often used as the function name during code generation)
       tags:
         - UB
       responses:
         '200':
-          description: 成功响应
+          description: Successful response
           content:
             application/json:
               schema:
                 type: array
-                description: NPU 信息列表
+                description: NPU information list
                 items:
                   $ref: '#/components/schemas/NpuDeviceInfo'
   /npu/bind:
     post:
-      summary: 使能 UB 设备
+      summary: Enable UB devices
       description: >
-        校验并选择指定的 UB 设备（need_nic 为 true 时按 NPU 亲和关系自动追加 NIC 设备），
-        调用 UBSE 分配设备得到总线实例 GUID，再查询该总线实例的 tid、uba、size。
-        返回 tid、uba、size、bus_guid 和已绑定的设备列表。
+        Validate and select the specified UB devices (when need_nic is true, NIC devices are added automatically based on NPU affinity),
+        call UBSE to allocate devices to obtain the bus instance GUID, then query the tid, uba, and size of that bus instance.
+        Returns tid, uba, size, bus_guid, and the list of bound devices.
       operationId: bind_npu_device
       tags:
         - UB
@@ -359,29 +359,29 @@ paths:
               $ref: '#/components/schemas/BindNpuDeviceRequest'
       responses:
         '200':
-          description: 使能 UB 设备成功
+          description: UB devices enabled successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/BindNpuDeviceResult'
         '400':
-          description: 请求参数不合法（如 upi 格式错误、设备列表为空）
+          description: Invalid request parameters (e.g., malformed upi or empty device list)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
         '545':
-          description: NPU 设备选择失败（设备不存在、已被绑定、空闲数量不足或无可用亲和 NIC）
+          description: NPU device selection failed (device does not exist, is already bound, has insufficient free devices, or has no available affinity NIC)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
   /npu/unbind:
     post:
-      summary: 去使能 UB 设备
+      summary: Disable UB devices
       description: >
-        根据总线实例 GUID 查询其绑定的所有 UB 设备，若不存在任何绑定设备则返回失败；
-        否则将这些设备与总线实例 GUID 一起传入 UBSE free_devices 接口释放。
+        Query all UB devices bound to the bus instance GUID; if no device is bound, return a failure;
+        otherwise pass these devices together with the bus instance GUID to the UBSE free_devices interface for release.
       operationId: unbind_npu_device
       tags:
         - UB
@@ -393,36 +393,36 @@ paths:
               $ref: '#/components/schemas/UnbindNpuDeviceRequest'
       responses:
         '200':
-          description: 去使能 UB 设备成功
+          description: UB devices disabled successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
         '400':
-          description: 请求参数不合法（bus_guid 为空）
+          description: Invalid request parameters (bus_guid is empty)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
         '534':
-          description: UB 设备释放失败（UBSE free_devices 调用失败）
+          description: Failed to release UB devices (UBSE free_devices call failed)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
         '548':
-          description: 总线实例不存在或其下无绑定设备
+          description: The bus instance does not exist or has no bound devices
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
   /vm/create:
     post:
-      summary: 创建 A5 NPU 直通虚机
+      summary: Create an A5 NPU passthrough VM
       description: >
-        根据用户提供的 libvirt domain XML 和 UB 设备需求，在本机选择并分配 UB/NPU 设备，
-        组装 A5 NPU 直通虚机 XML，并在启用 libvirt 创建开关时定义并启动虚机。
-        XML 参数可以是 XML 内容，也可以是服务端可读取的 XML 文件路径。
+        Based on the user-provided libvirt domain XML and UB device requirements, select and allocate UB/NPU devices on the local host,
+        assemble the A5 NPU passthrough VM XML, and define and start the VM when the libvirt creation switch is enabled.
+        The XML parameter can be XML content or the path to an XML file readable by the server.
       operationId: create_vm
       tags:
         - VM
@@ -434,39 +434,39 @@ paths:
               $ref: '#/components/schemas/CreateVmRequest'
       responses:
         '200':
-          description: 创建虚机成功
+          description: VM created successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
         '400':
-          description: 请求参数或输入 XML 不合法
+          description: Invalid request parameters or input XML
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
         '545':
-          description: NPU 设备选择失败（设备不存在、已被绑定、空闲数量不足或无可用亲和 NIC）
+          description: NPU device selection failed (device does not exist, is already bound, has insufficient free devices, or has no available affinity NIC)
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
         '543':
-          description: 组装虚机 XML 失败
+          description: Failed to assemble the VM XML
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
         '544':
-          description: libvirt 定义或启动虚机失败
+          description: Failed to define or start the VM via libvirt
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
   /vm/{name}:
     delete:
-      summary: 根据虚机名称删除虚机
-      description: 根据虚机名称调用libvirt删除虚机, 若其存在ub设备则进行unbind
+      summary: Delete a VM by name
+      description: Delete the VM via libvirt by VM name; if it has UB devices, unbind them
       operationId: delete_vm
       tags:
         - VM
@@ -476,18 +476,18 @@ paths:
           required: true
           schema:
             type: string
-          description: 虚机 的名称
+          description: VM name
       responses:
         '200':
-          description: 成功响应
+          description: Successful response
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Message'
         '400':
-          description: 请求参数错误（如 虚机名称为空）
+          description: Invalid request parameters (e.g., empty VM name)
         '404':
-          description: 未找到指定的 虚机
+          description: Specified VM not found
 
 components:
   schemas:
@@ -510,6 +510,7 @@ components:
           example: /path/to/domain.xml
         upi:
           type: string
+          pattern: '^0[xX]([1-9a-fA-F][0-9a-fA-F]{0,2}|0[1-9a-fA-F][0-9a-fA-F]{0,2}|00[1-9a-fA-F][0-9a-fA-F]?|000[1-9a-fA-F])$'
           description: User isolation identifier in hexadecimal (one to four digits; prefix and digits are case-insensitive), from 0x0001 to 0x0fff.
           example: "0x000f"
         need_nic:
@@ -527,8 +528,15 @@ components:
         npu_count:
           type: integer
           nullable: true
-          minimum: 0
-          description: Number of free NPUs to select automatically; mutually exclusive with npu_ids. Zero creates a regular VM without NPUs.
+          enum:
+            - 1
+            - 2
+            - 4
+            - 8
+          description: >-
+            Number of free NPUs to select automatically; mutually exclusive with
+            npu_ids. Only 1, 2, 4, or 8 are allowed. Omit both npu_ids and
+            npu_count to create a regular VM without NPUs.
           example: 2
 
     BindNpuDeviceRequest:
@@ -539,7 +547,8 @@ components:
       properties:
         upi:
           type: string
-          description: User isolation identifier in hexadecimal (one to four digits; prefix and digits are case-insensitive), from 0x0000 to 0x1000.
+          pattern: '^0[xX]([1-9a-fA-F][0-9a-fA-F]{0,2}|0[1-9a-fA-F][0-9a-fA-F]{0,2}|00[1-9a-fA-F][0-9a-fA-F]?|000[1-9a-fA-F])$'
+          description: User isolation identifier in hexadecimal (one to four digits; prefix and digits are case-insensitive), from 0x0001 to 0x0fff.
           example: "0x000f"
         ids:
           type: array
@@ -551,7 +560,11 @@ components:
         count:
           type: integer
           nullable: true
-          minimum: 1
+          enum:
+            - 1
+            - 2
+            - 4
+            - 8
           description: Number of free NPUs to select automatically. Only 1, 2, 4, or 8 are allowed and this field is mutually exclusive with ids.
           example: 2
         need_nic:
@@ -835,6 +848,7 @@ components:
         tenant:
           type: string
           default: ""
+          pattern: '^[a-zA-Z0-9_.:-]*$'
           description: >-
             Requester tenant isolation identifier. Can be empty; when non-empty,
             only [a-zA-Z0-9_-.:] is allowed.
