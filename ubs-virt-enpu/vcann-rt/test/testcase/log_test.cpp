@@ -364,3 +364,22 @@ TEST_F(LogTest, LogTest_log_print_not_initialized)
     int ret = log_init();
     EXPECT_EQ(ret, ENPU_SUCCESS);
 }
+
+// log_print must bail out early instead of dereferencing a NULL filename.
+TEST_F(LogTest, LogTest_log_print_null_filename)
+{
+    ASSERT_EQ(log_init(), ENPU_SUCCESS);
+    log_print(ENPU_LOG_INFO, nullptr, TEST_LINE_NUMBER, "null filename must be rejected");
+    usleep(WAIT_FOR_LOG_WRITE_US);
+    SUCCEED();
+}
+
+// An out-of-range level still passes the min_log_level filter and must be
+// rendered as "UNKNOWN" by write_log_message instead of indexing out of bounds.
+TEST_F(LogTest, LogTest_log_print_out_of_range_level)
+{
+    ASSERT_EQ(log_init(), ENPU_SUCCESS);
+    log_print(static_cast<EnpuLogLevel>(-1), __FILE__, TEST_LINE_NUMBER, "negative level");
+    usleep(WAIT_FOR_LOG_WRITE_US);
+    SUCCEED();
+}

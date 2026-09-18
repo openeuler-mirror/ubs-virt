@@ -54,6 +54,7 @@ static inline bool file_lock_isvalid(const file_lock *lock)
 
 extern void *map_share_mem(const char *shmID, size_t size);
 extern uint64_t atomic_fetch_max_uint64(atomic_uint_fast64_t *p, uint64_t v);
+extern void unmap_share_mem(void *addr, size_t size);
 
 #if defined(__cplusplus)
 }

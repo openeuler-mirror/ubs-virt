@@ -174,7 +174,10 @@ RUNTIME_HOOK_DEFINE(rtStreamEndCapture, rtStream_t stm, rtModel_t *captureMdl)
         bool capture = false;
         set_stream_capture(&capture, stm);
         if (captureMdl != NULL && *captureMdl != NULL) {
-            capture_stats_transfer_to_model(stm, *captureMdl);
+            int transfer_ret = capture_stats_transfer_to_model(stm, *captureMdl);
+            if (transfer_ret != 0) {
+                LOG_WARN("Failed to transfer capture stats to model for stream %p.", (void *)stm);
+            }
         }
     }
     return ret;

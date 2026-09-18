@@ -16,6 +16,7 @@
 #include <runtime/rt.h>
 #include <stdint.h>
 #include <sys/file.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <mockcpp/mockcpp.hpp>
 
@@ -50,6 +51,39 @@ file_lock stub_file_lock_invalid(const char *path, int operation)
     lock.fd = -1;
     lock.held = false;
     return lock;
+}
+
+const char *stub_lock_path_null()
+{
+    return nullptr;
+}
+
+const char *stub_lock_path_no_slash()
+{
+    return "memctl.lock";
+}
+
+const char *stub_lock_path_root_only()
+{
+    return "/memctl.lock";
+}
+
+// 319 chars: longer than FILE_PATH_LEN (256), so strcpy_s must fail.
+const char *stub_lock_path_too_long()
+{
+    static char long_path[320];
+    static bool initialized = false;
+    if (!initialized) {
+        (void)memset(long_path, 'a', sizeof(long_path) - 1);
+        long_path[sizeof(long_path) - 1] = '\0';
+        initialized = true;
+    }
+    return long_path;
+}
+
+const char *stub_lock_path_nested()
+{
+    return "../__build/ut_nested/ut_dir/memctl.lock";
 }
 }
 
@@ -89,33 +123,33 @@ protected:
     int fd_ = -1;
 };
 
-// create_file_lock_base_dir succeeds when system() returns 0.
+// create_file_lock_base_dir succeeds when mkdir() returns 0.
 TEST_F(MemLimiterTest, CreateFileLockBaseDirSuccess)
 {
-    MOCKER(system, int(const char *)).stubs().will(returnValue(0));
+    MOCKER(mkdir, int(const char *, mode_t)).stubs().will(returnValue(0));
     EXPECT_EQ(create_file_lock_base_dir(), ENPU_SUCCESS);
 }
 
 // create_file_lock_base_dir is idempotent: second call also succeeds.
 TEST_F(MemLimiterTest, CreateFileLockBaseDirIdempotent)
 {
-    MOCKER(system, int(const char *)).stubs().will(returnValue(0));
+    MOCKER(mkdir, int(const char *, mode_t)).stubs().will(returnValue(0));
     EXPECT_EQ(create_file_lock_base_dir(), ENPU_SUCCESS);
     EXPECT_EQ(create_file_lock_base_dir(), ENPU_SUCCESS);
 }
 
-// create_file_lock_base_dir fails when system() returns -1 and errno != EEXIST.
+// create_file_lock_base_dir fails when mkdir() returns -1 and errno != EEXIST.
 TEST_F(MemLimiterTest, CreateFileLockBaseDirFailure)
 {
-    MOCKER(system, int(const char *)).stubs().will(returnValue(-1));
+    MOCKER(mkdir, int(const char *, mode_t)).stubs().will(returnValue(-1));
     errno = EACCES;
     EXPECT_EQ(create_file_lock_base_dir(), ENPU_FAIL);
 }
 
-// create_file_lock_base_dir treats EEXIST as benign even when system() returns -1.
+// create_file_lock_base_dir treats EEXIST as benign even when mkdir() returns -1.
 TEST_F(MemLimiterTest, CreateFileLockBaseDirRetFailErrnoEexist)
 {
-    MOCKER(system, int(const char *)).stubs().will(returnValue(-1));
+    MOCKER(mkdir, int(const char *, mode_t)).stubs().will(returnValue(-1));
     errno = EEXIST;
     EXPECT_EQ(create_file_lock_base_dir(), ENPU_SUCCESS);
 }
@@ -123,14 +157,14 @@ TEST_F(MemLimiterTest, CreateFileLockBaseDirRetFailErrnoEexist)
 // memory_limiter_init returns ENPU_SUCCESS on mkdir success.
 TEST_F(MemLimiterTest, MemoryLimiterInitSuccess)
 {
-    MOCKER(system, int(const char *)).stubs().will(returnValue(0));
+    MOCKER(mkdir, int(const char *, mode_t)).stubs().will(returnValue(0));
     EXPECT_EQ(memory_limiter_init(), ENPU_SUCCESS);
 }
 
 // memory_limiter_init propagates create_file_lock_base_dir failure.
 TEST_F(MemLimiterTest, MemoryLimiterInitPropagatesFailure)
 {
-    MOCKER(system, int(const char *)).stubs().will(returnValue(-1));
+    MOCKER(mkdir, int(const char *, mode_t)).stubs().will(returnValue(-1));
     errno = EACCES;
     EXPECT_EQ(memory_limiter_init(), ENPU_FAIL);
 }
@@ -269,7 +303,7 @@ TEST_F(MemLimiterTest, GuardMemoryReleasesLockOnSuccess)
 // create_file_lock_base_dir returns ENPU_SUCCESS even if a previous call set errno.
 TEST_F(MemLimiterTest, CreateFileLockBaseDirResetsErrno)
 {
-    MOCKER(system, int(const char *)).stubs().will(returnValue(0));
+    MOCKER(mkdir, int(const char *, mode_t)).stubs().will(returnValue(0));
     errno = EIO;
     EXPECT_EQ(create_file_lock_base_dir(), ENPU_SUCCESS);
 }

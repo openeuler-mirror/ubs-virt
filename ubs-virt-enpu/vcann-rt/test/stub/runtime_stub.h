@@ -46,6 +46,7 @@ bool stub_is_core_limiter(void);
 // config.c
 int check_int32(int32_t option, const char *option_name);
 int check_str(const char *str, const char *option_name);
+int load_str(const char *key, const char *value, char *ret_value, size_t ret_len);
 
 int stub_get_random_fd(void);
 ssize_t stub_read_fail(int fd, void *buf, size_t size);

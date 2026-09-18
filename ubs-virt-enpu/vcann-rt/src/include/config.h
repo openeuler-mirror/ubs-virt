@@ -39,6 +39,7 @@ struct Config {
 extern struct Config config;
 
 int load_config(const char *file_path);
+int check_shm_id(const char *str, const char *option_name);
 
 #if defined(__cplusplus)
 }

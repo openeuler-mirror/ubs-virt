@@ -200,7 +200,10 @@ int enpu_dcmi_get_card_info(uint32_t phy_id, int *card_id, int *device_id, int *
 // Get NPU Utilization
 int enpu_dcmi_get_device_utilization_rate(int logic_id, int card_id, int device_id, unsigned int *utilization_rate)
 {
-    // Using NPU total utilization. (Other choices: 2. AICore, 3. AICpu)
+    if (utilization_rate == NULL) {
+        LOG_ERROR("Invalid param: utilization_rate is NULL.");
+        return ENPU_FAIL;
+    }
     return g_dcmi_ops.get_device_utilization_rate_callback(logic_id, card_id, device_id, NPU_UTILIZATION,
                                                            utilization_rate);
 }
@@ -208,6 +211,10 @@ int enpu_dcmi_get_device_utilization_rate(int logic_id, int card_id, int device_
 // Get AI Core Utilization
 int enpu_dcmi_get_aicore_utilization_rate(int logic_id, int card_id, int device_id, unsigned int *utilization_rate)
 {
+    if (utilization_rate == NULL) {
+        LOG_ERROR("Invalid param: utilization_rate is NULL.");
+        return ENPU_FAIL;
+    }
     return g_dcmi_ops.get_device_utilization_rate_callback(logic_id, card_id, device_id, AICORE_UTILIZATION,
                                                            utilization_rate);
 }
@@ -268,7 +275,7 @@ int enpu_dcmi_get_device_resource_info(int logic_id, int card_id, int device_id,
         return ENPU_FAIL;
     }
 
-    memset_s(proc_info, sizeof(proc_info), 0, sizeof(proc_info));
+    (void)memset_s(proc_info, sizeof(proc_info), 0, sizeof(proc_info));
     mem_info_args args = {.logic_id = logic_id,
                           .card_id = card_id,
                           .device_id = device_id,

@@ -38,18 +38,26 @@ protected:
 
     void SetUp()
     {
-        (void)sprintf_s(g_log_config.log_dir, sizeof(g_log_config.log_dir), "%s", "../build/log/enpu/");
-        open(stub_lock_path(), O_CREAT | O_RDONLY, 777); // ut memctl.lock,777
+        (void)sprintf_s(g_log_config.log_dir, sizeof(g_log_config.log_dir), "%s", "../__build/log/enpu/");
+        fd_ = open(stub_lock_path(), O_CREAT | O_RDONLY, 0755); // ut中的memctl.lock文件,设置为755权限
+        MOCKER(lock_path).stubs().will(invoke(stub_lock_path));
+        MOCKER(enpu_load_config).stubs().will(invoke(stub_enpu_load_config));
         enpu_global_init();
         MOCKER(load_rt_libraries).stubs().will(invoke(stub_load_rt_libraries));
-        MOCKER(lock_path).stubs().will(invoke(stub_lock_path));
     }
 
     void TearDown()
     {
         GlobalMockObject::verify();
         GlobalMockObject::reset();
+        if (fd_ >= 0) {
+            close(fd_);
+            fd_ = -1;
+        }
     }
+
+private:
+    int fd_ = -1;
 };
 
 TEST_F(HashMapTest, hashmap_createTest_success)

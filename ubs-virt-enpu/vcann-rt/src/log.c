@@ -371,10 +371,12 @@ int update_log_file(void)
     ret = strncpy_s(g_log_config.log_path, sizeof(g_log_config.log_path), log_path, strlen(log_path));
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret != 0, "Failed to set g_log_config.log_path %s.", log_path);
 
-    if (creat(g_log_config.log_path, LOG_FILE_RIGHT) < 0) {
+    int fd = open(g_log_config.log_path, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, LOG_FILE_RIGHT);
+    if (fd < 0) {
         perror("[eNPU] update log file error: Create new log file");
         return ENPU_FAIL;
     }
+    close(fd);
     return ENPU_SUCCESS;
 }
 
@@ -426,8 +428,19 @@ int log_init(void)
         return ENPU_SUCCESS;
     }
 
-    pthread_mutex_init(&g_log_config.print_mutex, NULL);
-    pthread_mutex_init(&g_log_config.compress_mutex, NULL);
+    int ret = pthread_mutex_init(&g_log_config.print_mutex, NULL);
+    if (ret != 0) {
+        fprintf(stderr, "[eNPU] Failed to init print_mutex, error=%d.\n", ret);
+        pthread_mutex_unlock(&g_log_init_mutex);
+        return ENPU_FAIL;
+    }
+    ret = pthread_mutex_init(&g_log_config.compress_mutex, NULL);
+    if (ret != 0) {
+        fprintf(stderr, "[eNPU] Failed to init compress_mutex, error=%d.\n", ret);
+        pthread_mutex_destroy(&g_log_config.print_mutex);
+        pthread_mutex_unlock(&g_log_init_mutex);
+        return ENPU_FAIL;
+    }
 
     if (!g_log_silent) {
         printf("[eNPU] dir_path: %s\n", g_log_config.log_dir);
@@ -436,7 +449,7 @@ int log_init(void)
     char *mkdir_argv[] = {"mkdir", "-p", (char *)g_log_config.log_dir, NULL};
     (void)safe_exec(mkdir_argv);
 
-    int ret = update_log_file();
+    ret = update_log_file();
     if (ret != ENPU_SUCCESS) {
         fprintf(stderr, "[eNPU] Failed to update log file, now log file is %s.\n", g_log_config.log_path);
         pthread_mutex_destroy(&g_log_config.print_mutex);
@@ -484,6 +497,11 @@ void log_print(EnpuLogLevel level, const char *filename, int line, const char *f
 
     if (!g_log_initialized) {
         fprintf(stderr, "[eNPU] Log module not initialized, cannot print log.\n");
+        return;
+    }
+
+    if (filename == NULL) {
+        fprintf(stderr, "[eNPU] log_print: filename is NULL.\n");
         return;
     }
 
@@ -657,8 +675,15 @@ static int prepare_log_file(void)
         if (ret != 0) {
             return ret;
         }
-        g_log_config.log_file = fopen(g_log_config.log_path, "a");
+        int fd = open(g_log_config.log_path, O_WRONLY | O_CREAT | O_APPEND | O_NOFOLLOW, FILE_OPEN_MODE);
+        if (fd < 0) {
+            perror("[eNPU] Log module open log file failed");
+            return ENPU_FAIL;
+        }
+        g_log_config.log_file = fdopen(fd, "a");
         if (!g_log_config.log_file) {
+            close(fd);
+            perror("[eNPU] Log module fdopen failed");
             return ENPU_FAIL;
         }
     }
@@ -667,6 +692,12 @@ static int prepare_log_file(void)
 
 static int write_log_message(const LogMessage *msg, char *time_str, char *log_line)
 {
+    const int log_level_count = (int)(sizeof(log_level_str) / sizeof(log_level_str[0]));
+    const char *level_str = "UNKNOWN";
+    if (msg->level >= 0 && msg->level < log_level_count) {
+        level_str = log_level_str[msg->level];
+    }
+
     int ret = rotate_log_by_size();
     if (ret != ENPU_SUCCESS) {
         return ret;
@@ -690,8 +721,8 @@ static int write_log_message(const LogMessage *msg, char *time_str, char *log_li
     }
 
     ret = snprintf_s(log_line, LOG_MSG_MAX_LEN + LOG_LINE_EXTRA_LEN, LOG_MSG_MAX_LEN + LOG_LINE_EXTRA_LEN - 1,
-                     "[%s] [%s] [%s] [%s] [%d:%lu:%s:%d] %s\n", time_str, log_level_str[msg->level], MODULE_NAME,
-                     SUB_MODULE_NAME, getpid(), (unsigned long)pthread_self(), msg->basename, msg->line, msg->message);
+                     "[%s] [%s] [%s] [%s] [%d:%lu:%s:%d] %s\n", time_str, level_str, MODULE_NAME, SUB_MODULE_NAME,
+                     getpid(), (unsigned long)pthread_self(), msg->basename, msg->line, msg->message);
     if (ret > 0) {
         size_t buf_size = LOG_MSG_MAX_LEN + LOG_LINE_EXTRA_LEN;
         if ((size_t)ret >= buf_size) {

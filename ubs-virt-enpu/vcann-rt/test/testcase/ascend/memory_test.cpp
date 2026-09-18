@@ -21,6 +21,14 @@
 #include "runtime_stub.h"
 #include "securec.h"
 
+extern "C" {
+int stub_get_mem_used_huge(size_t *used)
+{
+    *used = SIZE_MAX;
+    return ENPU_SUCCESS;
+}
+}
+
 class MemoryTest : public testing::Test {
 protected:
     static void SetUpTestCase()
@@ -228,4 +236,22 @@ TEST_F(MemoryTest, aclrtGetMemInfoImpl_FailTest)
     size_t totalSize = 1;
     rtError_t error = aclrtGetMemInfoImpl(memInfoType, &freeSize, &totalSize);
     EXPECT_EQ(error, RT_ERROR_INVALID_VALUE);
+}
+
+TEST_F(MemoryTest, rtMemGetInfoEx_NullParams)
+{
+    rtMemInfoType_t memInfoType = RT_MEMORYINFO_HBM;
+    size_t size = 0;
+    EXPECT_EQ(rtMemGetInfoEx(memInfoType, nullptr, &size), RT_ERROR_INVALID_VALUE);
+    EXPECT_EQ(rtMemGetInfoEx(memInfoType, &size, nullptr), RT_ERROR_INVALID_VALUE);
+    EXPECT_EQ(rtMemGetInfoEx(memInfoType, nullptr, nullptr), RT_ERROR_INVALID_VALUE);
+}
+
+TEST_F(MemoryTest, rtMemGetInfoEx_UsedExceedsQuota)
+{
+    MOCKER(get_mem_used, int(size_t *)).stubs().will(invoke(stub_get_mem_used_huge));
+    rtMemInfoType_t memInfoType = RT_MEMORYINFO_HBM;
+    size_t freeSize = 0;
+    size_t totalSize = 0;
+    EXPECT_EQ(rtMemGetInfoEx(memInfoType, &freeSize, &totalSize), RT_ERROR_INVALID_VALUE);
 }

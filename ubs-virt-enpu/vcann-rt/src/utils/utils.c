@@ -49,6 +49,13 @@ void *map_share_mem(const char *shmID, size_t size)
     return addr_;
 }
 
+void unmap_share_mem(void *addr, size_t size)
+{
+    if (addr != NULL && addr != MAP_FAILED) {
+        munmap(addr, size);
+    }
+}
+
 static bool file_lock_acquire(file_lock *lock, int operation)
 {
     if (!lock) {
@@ -68,7 +75,9 @@ static bool file_lock_acquire(file_lock *lock, int operation)
 
     int ret = flock(lock->fd, operation);
     if (ret != 0) {
-        LOG_ERROR("lock failed, fd %d, errno %s", lock->fd, strerror(errno));
+        char errbuf[128] = {0};
+        (void)strerror_r(errno, errbuf, sizeof(errbuf));
+        LOG_ERROR("lock failed, fd %d, errno %s", lock->fd, errbuf);
         return false;
     }
 
@@ -111,7 +120,12 @@ static bool file_lock_release(file_lock *lock)
     }
 
     int ret = flock(lock->fd, LOCK_UN);
-    CHECK_COND_RETURN_(ret != 0, false, "unlock failed, fd %d, errno %s.", lock->fd, strerror(errno));
+    if (ret != 0) {
+        char errbuf[128] = {0};
+        (void)strerror_r(errno, errbuf, sizeof(errbuf));
+        LOG_ERROR("unlock failed, fd %d, errno %s.", lock->fd, errbuf);
+        return false;
+    }
 
     lock->held = false;
     return true;
@@ -132,7 +146,9 @@ void file_lock_destroy(file_lock *lock)
     }
 
     if (close(lock->fd) == -1) {
-        LOG_ERROR("close file failed, fd %d, errno is %s", lock->fd, strerror(errno));
+        char errbuf[128] = {0};
+        (void)strerror_r(errno, errbuf, sizeof(errbuf));
+        LOG_ERROR("close file failed, fd %d, errno is %s", lock->fd, errbuf);
     }
 
     lock->fd = -1;

@@ -42,7 +42,7 @@ int get_kernel_count(rtModel_t mdl)
     // get stream of mdl
     uint32_t num_streams = 0;
     int ret = RUNTIME_HOOK_CALL(rt_library_entry, rtModelGetStreams, mdl, NULL, &num_streams);
-    if (ret != ACL_RT_SUCCESS || num_streams == 0) {
+    if (ret != ACL_RT_SUCCESS || num_streams == 0 || num_streams > MAX_STREAMS_PER_PROCESS) {
         return -1;
     }
     rtStream_t capture_streams[num_streams];
@@ -77,6 +77,10 @@ int get_random_fd(void)
 
 bool is_random_sampling(void)
 {
+    if (!g_vnpu_stats_inited) {
+        return false;
+    }
+
     if (!is_core_limit()) {
         return false;
     }
@@ -142,6 +146,8 @@ void sampling_begin(rtStream_t stm)
     ret = RUNTIME_HOOK_CALL(rt_library_entry, rtEventCreateExWithFlag, &g_sample_start_event, ACL_EVENT_TIME_LINE);
     if (ret != ACL_RT_SUCCESS || g_sample_start_event == NULL) {
         LOG_DEBUG("Sample start event create failed, ret=%d.", ret);
+        g_sample_start_event = NULL;
+        g_sample_stream = NULL;
         g_sample_flag = false;
         atomic_store(&g_sampling, false);
         return;
@@ -150,6 +156,8 @@ void sampling_begin(rtStream_t stm)
     if (ret != ACL_RT_SUCCESS) {
         LOG_DEBUG("Sample start event record failed, ret=%d.", ret);
         RUNTIME_HOOK_CALL(rt_library_entry, rtEventDestroy, g_sample_start_event);
+        g_sample_start_event = NULL;
+        g_sample_stream = NULL;
         g_sample_flag = false;
         atomic_store(&g_sampling, false);
         return;
@@ -191,6 +199,7 @@ void *sample_sync(void *args)
     RUNTIME_HOOK_CALL(rt_library_entry, rtEventDestroy, g_sample_end_event);
     g_sample_start_event = NULL;
     g_sample_end_event = NULL;
+    g_sample_stream = NULL;
     uint64_t now = ns_now();
     int ret = add_sample_record(g_sample_sync_count, (uint64_t)(use_time * NS_PER_MS), now);
     CHECK_ERROR_CODE(ret, "Add sample record failed.");
@@ -201,24 +210,38 @@ void *sample_sync(void *args)
 
 void record_event_time(rtStream_t stm, int count)
 {
-    int ret = ret =
-        RUNTIME_HOOK_CALL(rt_library_entry, rtEventCreateExWithFlag, &g_sample_end_event, ACL_EVENT_TIME_LINE);
+    int ret = RUNTIME_HOOK_CALL(rt_library_entry, rtEventCreateExWithFlag, &g_sample_end_event, ACL_EVENT_TIME_LINE);
     if (ret != ACL_RT_SUCCESS || g_sample_end_event == NULL) {
         LOG_DEBUG("Sample end event create failed, ret=%d.", ret);
         RUNTIME_HOOK_CALL(rt_library_entry, rtEventDestroy, g_sample_start_event);
+        g_sample_start_event = NULL;
+        /* 出参可能已被写过，清掉以免留下悬垂句柄（与下面 record 失败分支对称）。 */
+        g_sample_end_event = NULL;
+        g_sample_flag = false;
         return;
     }
     ret = RUNTIME_HOOK_CALL(rt_library_entry, rtEventRecord, g_sample_end_event, stm);
     if (ret != ACL_RT_SUCCESS) {
         LOG_DEBUG("Sample end event record failed, ret=%d.", ret);
         RUNTIME_HOOK_CALL(rt_library_entry, rtEventDestroy, g_sample_start_event);
+        g_sample_start_event = NULL;
         RUNTIME_HOOK_CALL(rt_library_entry, rtEventDestroy, g_sample_end_event);
+        g_sample_end_event = NULL;
+        g_sample_flag = false;
         return;
     }
     g_sample_sync_count = count;
     pthread_t thread;
     int rc = pthread_create(&thread, NULL, sample_sync, NULL);
-    CHECK_ERROR_CODE(rc, "Failed to creat sample_sync thread.");
+    if (rc != 0) {
+        LOG_ERROR("Failed to create sample_sync thread, rc=%d.", rc);
+        RUNTIME_HOOK_CALL(rt_library_entry, rtEventDestroy, g_sample_start_event);
+        g_sample_start_event = NULL;
+        RUNTIME_HOOK_CALL(rt_library_entry, rtEventDestroy, g_sample_end_event);
+        g_sample_end_event = NULL;
+        g_sample_flag = false;
+        return;
+    }
     pthread_detach(thread);
 }
 
@@ -333,12 +356,22 @@ int vnpu_stats_init(const char *base_shm_id)
         return ENPU_FAIL;
     }
 
-    srand(time(NULL));
-    pthread_mutex_init(&g_sampling_mutex, NULL);
-    pthread_mutex_init(&g_sampling_records_mutex, NULL);
+    int ret = pthread_mutex_init(&g_sampling_mutex, NULL);
+    if (ret != 0) {
+        LOG_ERROR("Failed to init g_sampling_mutex, error=%d.", ret);
+        return ENPU_FAIL;
+    }
+    ret = pthread_mutex_init(&g_sampling_records_mutex, NULL);
+    if (ret != 0) {
+        LOG_ERROR("Failed to init g_sampling_records_mutex, error=%d.", ret);
+        pthread_mutex_destroy(&g_sampling_mutex);
+        return ENPU_FAIL;
+    }
     sample_record_head = (SampleRecordNode *)malloc(sizeof(SampleRecordNode));
     if (!sample_record_head) {
         LOG_ERROR("Sample record malloc head node failed.");
+        pthread_mutex_destroy(&g_sampling_records_mutex);
+        pthread_mutex_destroy(&g_sampling_mutex);
         return ENPU_FAIL;
     }
     sample_record_head->next = NULL;
@@ -350,6 +383,8 @@ int vnpu_stats_init(const char *base_shm_id)
         LOG_ERROR("Failed to derive vnpu stats shm id, base=%s.", base_shm_id);
         free(sample_record_head);
         sample_record_head = NULL;
+        pthread_mutex_destroy(&g_sampling_records_mutex);
+        pthread_mutex_destroy(&g_sampling_mutex);
         return ENPU_FAIL;
     }
 
@@ -358,14 +393,19 @@ int vnpu_stats_init(const char *base_shm_id)
         LOG_ERROR("Failed to map vnpu stats share memory, id=%s.", stats_shm_id);
         free(sample_record_head);
         sample_record_head = NULL;
+        pthread_mutex_destroy(&g_sampling_records_mutex);
+        pthread_mutex_destroy(&g_sampling_mutex);
         return ENPU_FAIL;
     }
 
     bool is_first = false;
     if (vnpu_stats_do_init(shm, &is_first) != ENPU_SUCCESS) {
         LOG_ERROR("Failed to initialize vnpu stats share memory content.");
+        unmap_share_mem(shm, sizeof(vnpu_stats_shm_t));
         free(sample_record_head);
         sample_record_head = NULL;
+        pthread_mutex_destroy(&g_sampling_records_mutex);
+        pthread_mutex_destroy(&g_sampling_mutex);
         return ENPU_FAIL;
     }
 

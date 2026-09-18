@@ -9,6 +9,9 @@
  * MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  * See the Mulan PSL v2 for more details.
  */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE /* RTLD_NODELETE */
+#endif
 #include <dlfcn.h>
 #include <stdarg.h>
 #include "common.h"
@@ -23,8 +26,10 @@ static void die(const char *fmt, ...)
 
     va_start(ap, fmt);
     int ret = vfprintf(stderr, fmt, ap);
-    CHECK_COND_RETURN(ret < 0, "vfprintf failed.");
     va_end(ap);
+    if (ret < 0) {
+        LOG_ERROR("vfprintf failed.");
+    }
 
     return;
 }
@@ -40,7 +45,7 @@ static int parse_args(int argc, char *const argv[])
 
 static int load_rt_for_monitor(void)
 {
-    void *handle = dlopen("libruntime.so", RTLD_LAZY);
+    void *handle = dlopen("libruntime.so", RTLD_LAZY | RTLD_NODELETE);
     if (!handle) {
         LOG_ERROR("Failed to dlopen libruntime.so: %s", dlerror());
         return ENPU_FAIL;
@@ -52,6 +57,7 @@ static int load_rt_for_monitor(void)
             LOG_DEBUG("Monitor: function %s not found, skipped.", rt_library_entry[i].name);
         }
     }
+    dlclose(handle);
     return ENPU_SUCCESS;
 }
 
@@ -64,8 +70,8 @@ static int monitor_npu_utilization(void)
     CHECK_RETURN_ERROR_CODE(ret, "Failed to get mem used.");
 
     die("       Aicore Limit Quota(%)     : %d\n"
-        "       Memory Limit quota(MB)    : %lld\n"
-        "       Memory Usage(MB)          : %d\n",
+        "       Memory Limit quota(MB)    : %zu\n"
+        "       Memory Usage(MB)          : %zu\n",
         get_core_limit_quota(), get_mem_limit_quota() / 1024 / 1024, // 1024用于单位转换
         used / 1024 / 1024);                                         // 1024用于单位转换
 

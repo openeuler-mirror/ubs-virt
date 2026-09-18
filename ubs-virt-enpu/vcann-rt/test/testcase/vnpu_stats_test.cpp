@@ -34,6 +34,8 @@ extern SampleRecordNode *sample_record_head;
 extern bool g_vnpu_stats_inited;     // test-visible on purpose, see vnpu_stats.c
 extern bool g_sample_flag;           // in-flight sample marker owned by the sampling state machine
 extern std::atomic<bool> g_sampling; // C atomic_bool, layout-compatible with std::atomic<bool>
+extern rtEvent_t g_sample_start_event;
+extern rtStream_t g_sample_stream;
 }
 
 // Swap one runtime hook table entry and restore the previous pointer on scope
@@ -107,6 +109,17 @@ static rtError_t StubEventCreateFail(rtEvent_t *evt, uint32_t flag)
 {
     (void)evt;
     (void)flag;
+    return (rtError_t)0x222;
+}
+
+// 违约的被调方：返回失败却仍往出参写了值。sampling_begin 必须把全局量清掉，
+// 否则里面会留下一个来源不明的句柄。
+static rtError_t StubEventCreateFailButWrites(rtEvent_t *evt, uint32_t flag)
+{
+    (void)flag;
+    if (evt != NULL) {
+        *evt = StubEventHandle();
+    }
     return (rtError_t)0x222;
 }
 
@@ -586,6 +599,17 @@ TEST_F(VnpuStatsTest, random_sampling_test)
     EXPECT_TRUE(is_random_sampling());
 }
 
+// vnpu_stats_init 失败时会 destroy g_sampling_mutex，此时必须拒绝采样，
+// 否则 sampling_begin 会对已销毁的 mutex 加锁（EINVAL 且不加锁 = 静默失去互斥）。
+TEST_F(VnpuStatsTest, random_sampling_false_when_not_inited)
+{
+    MOCKER(read).stubs().will(invoke(stub_read_success));
+    ASSERT_TRUE(g_vnpu_stats_inited);
+    g_vnpu_stats_inited = false;
+    EXPECT_FALSE(is_random_sampling());
+    g_vnpu_stats_inited = true;
+}
+
 TEST_F(VnpuStatsTest, is_stream_capture_test)
 {
     rtStream_t stm = nullptr;
@@ -767,8 +791,24 @@ TEST_F(VnpuStatsTest, sampling_begin_failure_paths)
     }
     EXPECT_FALSE(atomic_load(&g_sampling));
     EXPECT_FALSE(g_sample_flag);
+    EXPECT_EQ(g_sample_start_event, nullptr);
+    EXPECT_EQ(g_sample_stream, nullptr);
     sampling_end(stm);
 
+    // 被调方违约：返回失败却写了出参。全局量仍必须被清空。
+    {
+        HookEntryGuard captureEntry(HOOK_rtStreamGetCaptureInfo, reinterpret_cast<void *>(StubCaptureNone));
+        HookEntryGuard createEntry(HOOK_rtEventCreateExWithFlag,
+                                   reinterpret_cast<void *>(StubEventCreateFailButWrites));
+        sampling_begin(stm);
+    }
+    EXPECT_FALSE(atomic_load(&g_sampling));
+    EXPECT_FALSE(g_sample_flag);
+    EXPECT_EQ(g_sample_start_event, nullptr);
+    EXPECT_EQ(g_sample_stream, nullptr);
+    sampling_end(stm);
+
+    // record 失败：事件已 destroy，句柄必须置 NULL，否则全局量里留着悬垂句柄。
     {
         HookEntryGuard captureEntry(HOOK_rtStreamGetCaptureInfo, reinterpret_cast<void *>(StubCaptureNone));
         HookEntryGuard createEntry(HOOK_rtEventCreateExWithFlag, reinterpret_cast<void *>(StubEventCreateOk));
@@ -777,6 +817,8 @@ TEST_F(VnpuStatsTest, sampling_begin_failure_paths)
     }
     EXPECT_FALSE(atomic_load(&g_sampling));
     EXPECT_FALSE(g_sample_flag);
+    EXPECT_EQ(g_sample_start_event, nullptr);
+    EXPECT_EQ(g_sample_stream, nullptr);
     sampling_end(stm);
 }
 
