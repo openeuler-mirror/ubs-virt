@@ -74,6 +74,13 @@ TEST_F(EventTest, rtEventCreateTest)
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
 
+TEST_F(EventTest, aclrtCreateEventImplTest)
+{
+    rtEvent_t event;
+    rtError_t ret = aclrtCreateEventImpl(&event);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
 TEST_F(EventTest, rtsEventCreateTest)
 {
     rtEvent_t event;
@@ -98,6 +105,14 @@ TEST_F(EventTest, rtEventCreateWithFlagTest)
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
 
+TEST_F(EventTest, aclrtCreateEventWithFlagImplTest)
+{
+    rtEvent_t event;
+    uint32_t flag = 0;
+    rtError_t ret = aclrtCreateEventWithFlagImpl(&event, flag);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
 TEST_F(EventTest, rtEventCreateExWithFlagTest)
 {
     rtEvent_t event;
@@ -106,11 +121,27 @@ TEST_F(EventTest, rtEventCreateExWithFlagTest)
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
 
+TEST_F(EventTest, aclrtCreateEventExWithFlagImplTest)
+{
+    rtEvent_t event;
+    uint32_t flag = 0;
+    rtError_t ret = aclrtCreateEventExWithFlagImpl(&event, flag);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
 TEST_F(EventTest, rtStreamWaitEventTest)
 {
     rtEvent_t event = nullptr;
     rtStream_t stream = nullptr;
     rtError_t ret = rtStreamWaitEvent(stream, event);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
+TEST_F(EventTest, aclrtStreamWaitEventImplTest)
+{
+    rtEvent_t event = nullptr;
+    rtStream_t stream = nullptr;
+    rtError_t ret = aclrtStreamWaitEventImpl(stream, event);
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
 
@@ -123,11 +154,38 @@ TEST_F(EventTest, rtEventRecordTest)
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
 
+TEST_F(EventTest, aclrtRecordEventImplTest)
+{
+    rtEvent_t event = nullptr;
+    rtStream_t stream = nullptr;
+    MOCKER(set_event_record_status).stubs().with(mockcpp::any(), mockcpp::any());
+    rtError_t ret = aclrtRecordEventImpl(event, stream);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
+TEST_F(EventTest, aclrtRecordEventWithFlagImplTest)
+{
+    rtEvent_t event = nullptr;
+    rtStream_t stream = nullptr;
+    uint32_t flag = 0;
+    MOCKER(set_event_record_status).stubs().with(mockcpp::any(), mockcpp::any());
+    rtError_t ret = aclrtRecordEventWithFlagImpl(event, stream, flag);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
 TEST_F(EventTest, rtEventDestroyTest)
 {
     rtEvent_t event = nullptr;
     MOCKER(set_event_destroy_status).stubs().with(mockcpp::any());
     rtError_t ret = rtEventDestroy(event);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
+TEST_F(EventTest, aclrtDestroyEventImplTest)
+{
+    rtEvent_t event = nullptr;
+    MOCKER(set_event_destroy_status).stubs().with(mockcpp::any());
+    rtError_t ret = aclrtDestroyEventImpl(event);
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
 
@@ -139,11 +197,11 @@ TEST_F(EventTest, rtStreamDestroyTest)
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
 
-TEST_F(EventTest, rtDestroyStreamForceTest)
+TEST_F(EventTest, aclrtDestroyStreamTest)
 {
     rtStream_t stream = nullptr;
     MOCKER(core_limiter).stubs().with(mockcpp::any(), mockcpp::any(), mockcpp::any());
-    rtError_t ret = rtDestroyStreamForce(stream);
+    rtError_t ret = aclrtDestroyStream(stream);
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
 
@@ -153,6 +211,15 @@ TEST_F(EventTest, rtsNotifyCreateTest)
     uint64_t flag = 0;
     MOCKER(set_event_create_status).stubs().with(mockcpp::any());
     rtError_t ret = rtsNotifyCreate(&notify, flag);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
+TEST_F(EventTest, aclrtCreateNotifyImplTest)
+{
+    rtNotify_t notify = nullptr;
+    uint64_t flag = 0;
+    MOCKER(set_event_create_status).stubs().with(mockcpp::any());
+    rtError_t ret = aclrtCreateNotifyImpl(&notify, flag);
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
 
@@ -177,6 +244,15 @@ TEST_F(EventTest, rtsNotifyWaitAndResetTest)
     rtStream_t stm = nullptr;
     uint32_t timeout = 0;
     rtError_t ret = rtsNotifyWaitAndReset(notify, stm, timeout);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
+TEST_F(EventTest, aclrtWaitAndResetNotifyImplTest)
+{
+    rtNotify_t notify = nullptr;
+    rtStream_t stm = nullptr;
+    uint32_t timeout = 0;
+    rtError_t ret = aclrtWaitAndResetNotifyImpl(notify, stm, timeout);
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
 
@@ -232,6 +308,14 @@ TEST_F(EventTest, rtCntNotifyCreateWithFlag)
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
 
+TEST_F(EventTest, aclrtCntNotifyCreateImpl)
+{
+    rtCntNotify_t cntNotify = nullptr;
+    uint32_t flags = 0;
+    rtError_t ret = aclrtCntNotifyCreateImpl(&cntNotify, flags);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
 TEST_F(EventTest, rtCntNotifyRecord)
 {
     rtCntNotify_t inCntNotify = nullptr;
@@ -257,6 +341,13 @@ TEST_F(EventTest, rtCntNotifyDestroy)
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
 
+TEST_F(EventTest, aclrtCntNotifyDestroyImpl)
+{
+    rtCntNotify_t inCntNotify = nullptr;
+    rtError_t ret = aclrtCntNotifyDestroyImpl(inCntNotify);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
 TEST_F(EventTest, rtsCntNotifyRecord)
 {
     rtCntNotify_t cntNotify = nullptr;
@@ -266,11 +357,29 @@ TEST_F(EventTest, rtsCntNotifyRecord)
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }
 
+TEST_F(EventTest, aclrtCntNotifyRecordImpl)
+{
+    rtCntNotify_t cntNotify = nullptr;
+    rtStream_t stm = nullptr;
+    aclrtCntNotifyRecordInfo info = {};
+    rtError_t ret = aclrtCntNotifyRecordImpl(cntNotify, stm, &info);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
 TEST_F(EventTest, rtsCntNotifyWaitWithTimeout)
 {
     rtCntNotify_t cntNotify = nullptr;
     rtStream_t stm = nullptr;
     rtCntNotifyWaitInfo_t info = nullptr;
     rtError_t ret = rtsCntNotifyWaitWithTimeout(cntNotify, stm, &info);
+    EXPECT_EQ(ret, ACL_RT_SUCCESS);
+}
+
+TEST_F(EventTest, aclrtCntNotifyWaitWithTimeoutImpl)
+{
+    rtCntNotify_t cntNotify = nullptr;
+    rtStream_t stm = nullptr;
+    aclrtCntNotifyWaitInfo info = {};
+    rtError_t ret = aclrtCntNotifyWaitWithTimeoutImpl(cntNotify, stm, &info);
     EXPECT_EQ(ret, ACL_RT_SUCCESS);
 }

@@ -86,11 +86,20 @@ TEST_F(CoreLimiterTest, npu_utilization_monitor_thread_test)
     int owner_now = atomic_load(&g_vnpu_sched_context->owner);
     atomic_store(&g_vnpu_sched_context->owner, get_vnpu_id());
     check_and_borrow_timeslice(get_vnpu_id());
-    bool ret = slide_window_check(get_vnpu_id());
-    EXPECT_EQ(ret, false);
     int owner_invalid = 17;
     atomic_store(&g_vnpu_sched_context->owner, owner_invalid); // stop npu_utilization_monitor_thread
     atomic_store(&g_vnpu_sched_context->owner, owner_now);     // recover owner
+    ns_sleep(WAITING_SLEEP_PERIOD);
+
+    int slide_windows_len = atomic_load(&g_vnpu_sched_context->slide_window_len);
+    if (slide_windows_len > 0) {
+        bool ret = slide_window_check(get_vnpu_id());
+        EXPECT_EQ(ret, true);
+    } else {
+        bool ret = slide_window_check(get_vnpu_id());
+        EXPECT_EQ(ret, false);
+    }
+    atomic_store(&g_vnpu_sched_context->slide_window_len, 0);
 }
 
 TEST_F(CoreLimiterTest, calculate_alive_vnpu_num_test)

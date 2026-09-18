@@ -108,3 +108,29 @@ TEST_F(DeviceTest, rtSetDeviceWithoutTsd)
     devId = -1;
     EXPECT_EQ(rtSetDeviceWithoutTsd(devId), RT_ERROR_NONE);
 }
+
+TEST_F(DeviceTest, aclrtSetDeviceImpl)
+{
+    constexpr int32_t normalDevId = 20;
+    int32_t devId = 0;
+    EXPECT_EQ(aclrtSetDeviceImpl(devId), RT_ERROR_NONE);
+    devId = normalDevId;
+    EXPECT_EQ(aclrtSetDeviceImpl(devId), RT_ERROR_NONE);
+    devId = INT32_MAX;
+    EXPECT_EQ(aclrtSetDeviceImpl(devId), RT_ERROR_NONE);
+    devId = -1;
+    EXPECT_EQ(aclrtSetDeviceImpl(devId), RT_ERROR_NONE);
+}
+
+TEST_F(DeviceTest, aclrtSetDeviceWithoutTsdVXXImpl)
+{
+    constexpr int32_t normalDevId = 20;
+    int32_t devId = 0;
+    EXPECT_EQ(aclrtSetDeviceWithoutTsdVXXImpl(devId), RT_ERROR_NONE);
+    devId = normalDevId;
+    EXPECT_EQ(aclrtSetDeviceWithoutTsdVXXImpl(devId), RT_ERROR_NONE);
+    devId = INT32_MAX;
+    EXPECT_EQ(aclrtSetDeviceWithoutTsdVXXImpl(devId), RT_ERROR_NONE);
+    devId = -1;
+    EXPECT_EQ(aclrtSetDeviceWithoutTsdVXXImpl(devId), RT_ERROR_NONE);
+}

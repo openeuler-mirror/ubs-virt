@@ -34,6 +34,7 @@ static void track_sync_model(void *param, rtStream_t stream)
 
 RUNTIME_HOOK_DEFINE(rtModelExecute, rtModel_t mdl, rtStream_t stm, uint32_t flag)
 {
+    LOG_DEBUG("Hook init rtModelExecute.");
     core_limiter(stm, NULL, NULL);
     record_model_execute_stats(mdl);
     if (is_random_sampling()) {
@@ -46,8 +47,24 @@ RUNTIME_HOOK_DEFINE(rtModelExecute, rtModel_t mdl, rtStream_t stm, uint32_t flag
     return ret;
 }
 
+RUNTIME_HOOK_DEFINE(aclmdlRIExecuteAsyncImpl, aclmdlRI modelRI, aclrtStream stream)
+{
+    LOG_DEBUG("Hook init aclmdlRIExecuteAsyncImpl.");
+    core_limiter(stream, NULL, NULL);
+    record_model_execute_stats(modelRI);
+    if (is_random_sampling()) {
+        sampling_begin(stream);
+        aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRIExecuteAsyncImpl, modelRI, stream);
+        sampling_graph_end(stream, modelRI);
+        return ret;
+    }
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRIExecuteAsyncImpl, modelRI, stream);
+    return ret;
+}
+
 RUNTIME_HOOK_DEFINE(rtModelExecuteAsync, rtModel_t mdl, rtStream_t stm, uint32_t flag)
 {
+    LOG_DEBUG("Hook init rtModelExecuteAsync.");
     core_limiter(stm, NULL, NULL);
     record_model_execute_stats(mdl);
     if (is_random_sampling()) {
@@ -62,14 +79,46 @@ RUNTIME_HOOK_DEFINE(rtModelExecuteAsync, rtModel_t mdl, rtStream_t stm, uint32_t
 
 RUNTIME_HOOK_DEFINE(rtsModelExecute, rtModel_t mdl, int32_t timeout)
 {
+    LOG_DEBUG("Hook init rtsModelExecute.");
     bool tracked = false;
     core_limiter(NULL, track_sync_model, &tracked);
     record_model_execute_stats(mdl);
-    uint64_t begin_time = ns_now();
+    if (is_random_sampling()) {
+        uint64_t begin_time = ns_now();
+        aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtsModelExecute, mdl, timeout);
+        uint64_t end_time = ns_now();
+        int rc = add_sample_record(get_kernel_count(mdl), end_time - begin_time, end_time);
+        CHECK_ERROR_CODE(rc, "Add rtsModelExecute sample record failed.");
+        if (tracked) {
+            atomic_fetch_sub(&hasModelExecuteSync, 1);
+        }
+        return ret;
+    }
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtsModelExecute, mdl, timeout);
-    uint64_t end_time = ns_now();
-    int rc = add_sample_record(get_kernel_count(mdl), end_time - begin_time, end_time);
-    CHECK_ERROR_CODE(rc, "Add rtsModelExecute sample record failed.");
+    if (tracked) {
+        atomic_fetch_sub(&hasModelExecuteSync, 1);
+    }
+    return ret;
+}
+
+RUNTIME_HOOK_DEFINE(aclmdlRIExecuteImpl, aclmdlRI modelRI, int32_t timeout)
+{
+    LOG_DEBUG("Hook init aclmdlRIExecuteImpl.");
+    bool tracked = false;
+    core_limiter(NULL, track_sync_model, &tracked);
+    record_model_execute_stats(modelRI);
+    if (is_random_sampling()) {
+        uint64_t begin_time = ns_now();
+        aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRIExecuteImpl, modelRI, timeout);
+        uint64_t end_time = ns_now();
+        int rc = add_sample_record(get_kernel_count(modelRI), end_time - begin_time, end_time);
+        CHECK_ERROR_CODE(rc, "Add aclmdlRIExecuteImpl sample record failed.");
+        if (tracked) {
+            atomic_fetch_sub(&hasModelExecuteSync, 1);
+        }
+        return ret;
+    }
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRIExecuteImpl, modelRI, timeout);
     if (tracked) {
         atomic_fetch_sub(&hasModelExecuteSync, 1);
     }
@@ -78,6 +127,7 @@ RUNTIME_HOOK_DEFINE(rtsModelExecute, rtModel_t mdl, int32_t timeout)
 
 RUNTIME_HOOK_DEFINE(rtModelExecuteSync, rtModel_t mdl, rtStream_t stm, uint32_t flag, int32_t timeout)
 {
+    LOG_DEBUG("Hook init rtModelExecuteSync.");
     bool tracked = false;
     core_limiter(stm, track_sync_model, &tracked);
     record_model_execute_stats(mdl);
@@ -99,14 +149,25 @@ RUNTIME_HOOK_DEFINE(rtModelExecuteSync, rtModel_t mdl, rtStream_t stm, uint32_t 
 
 RUNTIME_HOOK_DEFINE(rtStreamBeginCapture, rtStream_t stm, const rtStreamCaptureMode mode)
 {
+    LOG_DEBUG("Hook init rtStreamBeginCapture.");
     bool capture = true;
     core_limiter(stm, set_stream_capture, &capture);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtStreamBeginCapture, stm, mode);
     return ret;
 }
 
+RUNTIME_HOOK_DEFINE(aclmdlRICaptureBeginImpl, aclrtStream stream, aclmdlRICaptureMode mode)
+{
+    LOG_DEBUG("Hook init aclmdlRICaptureBeginImpl.");
+    bool capture = true;
+    core_limiter(stream, set_stream_capture, &capture);
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureBeginImpl, stream, mode);
+    return ret;
+}
+
 RUNTIME_HOOK_DEFINE(rtStreamEndCapture, rtStream_t stm, rtModel_t *captureMdl)
 {
+    LOG_DEBUG("Hook init rtStreamEndCapture.");
     core_limiter(stm, NULL, NULL);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtStreamEndCapture, stm, captureMdl);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {
@@ -119,8 +180,27 @@ RUNTIME_HOOK_DEFINE(rtStreamEndCapture, rtStream_t stm, rtModel_t *captureMdl)
     return ret;
 }
 
+RUNTIME_HOOK_DEFINE(aclmdlRICaptureEndImpl, aclrtStream stream, aclmdlRI *modelRI)
+{
+    LOG_DEBUG("Hook init aclmdlRICaptureEndImpl.");
+    core_limiter(stream, NULL, NULL);
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureEndImpl, stream, modelRI);
+    if (ret == ACL_RT_SUCCESS && is_core_limit()) {
+        bool capture = false;
+        set_stream_capture(&capture, stream);
+        if (modelRI != NULL && *modelRI != NULL) {
+            int transfer_ret = capture_stats_transfer_to_model(stream, *modelRI);
+            if (transfer_ret != 0) {
+                LOG_WARN("Failed to transfer capture stats to model for stream %p.", (void *)stream);
+            }
+        }
+    }
+    return ret;
+}
+
 RUNTIME_HOOK_DEFINE(rtsModelExecuteAsync, rtModel_t mdl, rtStream_t stm)
 {
+    LOG_DEBUG("Hook init rtsModelExecuteAsync.");
     core_limiter(stm, NULL, NULL);
     record_model_execute_stats(mdl);
     if (is_random_sampling()) {
