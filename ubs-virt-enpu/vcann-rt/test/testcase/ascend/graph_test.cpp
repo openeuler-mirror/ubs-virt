@@ -68,6 +68,18 @@ TEST_F(GraphTest, rtModelExecute)
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
 
+TEST_F(GraphTest, aclmdlRIExecuteAsyncImpl)
+{
+    rtModel_t mdl = nullptr;
+    rtStream_t stm = nullptr;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t error = aclmdlRIExecuteAsyncImpl(mdl, stm);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    error = aclmdlRIExecuteAsyncImpl(mdl, stm);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+}
+
 TEST_F(GraphTest, rtModelExecuteAsync)
 {
     rtModel_t mdl = nullptr;
@@ -93,6 +105,18 @@ TEST_F(GraphTest, rtsModelExecute)
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
 
+TEST_F(GraphTest, aclmdlRIExecuteImpl)
+{
+    rtModel_t mdl = nullptr;
+    int32_t timeout = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t error = aclmdlRIExecuteImpl(mdl, timeout);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    error = aclmdlRIExecuteImpl(mdl, timeout);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+}
+
 TEST_F(GraphTest, rtModelExecuteSync)
 {
     rtModel_t mdl = nullptr;
@@ -115,11 +139,27 @@ TEST_F(GraphTest, rtStreamBeginCapture)
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
 
+TEST_F(GraphTest, aclmdlRICaptureBeginImpl)
+{
+    rtStream_t stm = nullptr;
+    rtStreamCaptureMode mode = RT_STREAM_CAPTURE_MODE_GLOBAL;
+    rtError_t error = aclmdlRICaptureBeginImpl(stm, mode);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+}
+
 TEST_F(GraphTest, rtStreamEndCapture)
 {
     rtStream_t stm = nullptr;
     rtModel_t *mdl = nullptr;
     rtError_t error = rtStreamEndCapture(stm, mdl);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+}
+
+TEST_F(GraphTest, aclmdlRICaptureEndImpl)
+{
+    rtStream_t stm = nullptr;
+    rtModel_t *mdl = nullptr;
+    rtError_t error = aclmdlRICaptureEndImpl(stm, mdl);
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
 

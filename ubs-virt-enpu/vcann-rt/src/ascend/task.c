@@ -17,6 +17,7 @@
 
 RUNTIME_HOOK_DEFINE(rtFftsPlusTaskLaunch, rtFftsPlusTaskInfo_t *fftsPlusTaskInfo, rtStream_t stm)
 {
+    LOG_DEBUG("Hook init rtFftsPlusTaskLaunch.");
     core_limiter(stm, NULL, NULL);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
@@ -30,6 +31,7 @@ RUNTIME_HOOK_DEFINE(rtFftsPlusTaskLaunch, rtFftsPlusTaskInfo_t *fftsPlusTaskInfo
 
 RUNTIME_HOOK_DEFINE(rtFftsPlusTaskLaunchWithFlag, rtFftsPlusTaskInfo_t *fftsPlusTaskInfo, rtStream_t stm, uint32_t flag)
 {
+    LOG_DEBUG("Hook init rtFftsPlusTaskLaunchWithFlag.");
     core_limiter(stm, NULL, NULL);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
@@ -41,34 +43,9 @@ RUNTIME_HOOK_DEFINE(rtFftsPlusTaskLaunchWithFlag, rtFftsPlusTaskInfo_t *fftsPlus
     return RUNTIME_HOOK_CALL(rt_library_entry, rtFftsPlusTaskLaunchWithFlag, fftsPlusTaskInfo, stm, flag);
 }
 
-RUNTIME_HOOK_DEFINE(rtFftsTaskLaunch, rtFftsTaskInfo_t *fftsTaskInfo, rtStream_t stm)
-{
-    core_limiter(stm, NULL, NULL);
-    launch_stats_dispatch(stm, get_aicore_num());
-    if (is_random_sampling()) {
-        sampling_begin(stm);
-        aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtFftsTaskLaunch, fftsTaskInfo, stm);
-        sampling_end(stm);
-        return ret;
-    }
-    return RUNTIME_HOOK_CALL(rt_library_entry, rtFftsTaskLaunch, fftsTaskInfo, stm);
-}
-
-RUNTIME_HOOK_DEFINE(rtFftsTaskLaunchWithFlag, rtFftsTaskInfo_t *fftsTaskInfo, rtStream_t stm, uint32_t flag)
-{
-    core_limiter(stm, NULL, NULL);
-    launch_stats_dispatch(stm, get_aicore_num());
-    if (is_random_sampling()) {
-        sampling_begin(stm);
-        aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtFftsTaskLaunchWithFlag, fftsTaskInfo, stm, flag);
-        sampling_end(stm);
-        return ret;
-    }
-    return RUNTIME_HOOK_CALL(rt_library_entry, rtFftsTaskLaunchWithFlag, fftsTaskInfo, stm, flag);
-}
-
 RUNTIME_HOOK_DEFINE(rtStarsTaskLaunch, const void *taskSqe, uint32_t sqeLen, rtStream_t stm)
 {
+    LOG_DEBUG("Hook init rtStarsTaskLaunch.");
     core_limiter(stm, NULL, NULL);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
@@ -82,6 +59,7 @@ RUNTIME_HOOK_DEFINE(rtStarsTaskLaunch, const void *taskSqe, uint32_t sqeLen, rtS
 
 RUNTIME_HOOK_DEFINE(rtStarsTaskLaunchWithFlag, const void *taskSqe, uint32_t sqeLen, rtStream_t stm, uint32_t flag)
 {
+    LOG_DEBUG("Hook init rtStarsTaskLaunchWithFlag.");
     core_limiter(stm, NULL, NULL);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
@@ -93,49 +71,9 @@ RUNTIME_HOOK_DEFINE(rtStarsTaskLaunchWithFlag, const void *taskSqe, uint32_t sqe
     return RUNTIME_HOOK_CALL(rt_library_entry, rtStarsTaskLaunchWithFlag, taskSqe, sqeLen, stm, flag);
 }
 
-RUNTIME_HOOK_DEFINE(rtCmoTaskLaunch, rtCmoTaskInfo_t *taskInfo, rtStream_t stm, uint32_t flag)
-{
-    core_limiter(stm, NULL, NULL);
-    launch_stats_dispatch(stm, get_aicore_num());
-    if (is_random_sampling()) {
-        sampling_begin(stm);
-        aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtCmoTaskLaunch, taskInfo, stm, flag);
-        sampling_end(stm);
-        return ret;
-    }
-    return RUNTIME_HOOK_CALL(rt_library_entry, rtCmoTaskLaunch, taskInfo, stm, flag);
-}
-
-RUNTIME_HOOK_DEFINE(rtCmoAddrTaskLaunch, void *cmoAddrInfo, uint64_t destMax, rtCmoOpCode_t cmoOpCode, rtStream_t stm,
-                    uint32_t flag)
-{
-    core_limiter(stm, NULL, NULL);
-    launch_stats_dispatch(stm, get_aicore_num());
-    if (is_random_sampling()) {
-        sampling_begin(stm);
-        aclError ret =
-            RUNTIME_HOOK_CALL(rt_library_entry, rtCmoAddrTaskLaunch, cmoAddrInfo, destMax, cmoOpCode, stm, flag);
-        sampling_end(stm);
-        return ret;
-    }
-    return RUNTIME_HOOK_CALL(rt_library_entry, rtCmoAddrTaskLaunch, cmoAddrInfo, destMax, cmoOpCode, stm, flag);
-}
-
-RUNTIME_HOOK_DEFINE(rtBarrierTaskLaunch, rtBarrierTaskInfo_t *taskInfo, rtStream_t stm, uint32_t flag)
-{
-    core_limiter(stm, NULL, NULL);
-    launch_stats_dispatch(stm, get_aicore_num());
-    if (is_random_sampling()) {
-        sampling_begin(stm);
-        aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtBarrierTaskLaunch, taskInfo, stm, flag);
-        sampling_end(stm);
-        return ret;
-    }
-    return RUNTIME_HOOK_CALL(rt_library_entry, rtBarrierTaskLaunch, taskInfo, stm, flag);
-}
-
 RUNTIME_HOOK_DEFINE(rtMultipleTaskInfoLaunch, const void *taskInfo, rtStream_t stm)
 {
+    LOG_DEBUG("Hook init rtMultipleTaskInfoLaunch.");
     core_limiter(stm, NULL, NULL);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
@@ -147,21 +85,9 @@ RUNTIME_HOOK_DEFINE(rtMultipleTaskInfoLaunch, const void *taskInfo, rtStream_t s
     return RUNTIME_HOOK_CALL(rt_library_entry, rtMultipleTaskInfoLaunch, taskInfo, stm);
 }
 
-RUNTIME_HOOK_DEFINE(rtMultipleTaskInfoLaunchWithFlag, const void *taskInfo, rtStream_t stm, const uint32_t flag)
-{
-    core_limiter(stm, NULL, NULL);
-    launch_stats_dispatch(stm, get_aicore_num());
-    if (is_random_sampling()) {
-        sampling_begin(stm);
-        aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtMultipleTaskInfoLaunchWithFlag, taskInfo, stm, flag);
-        sampling_end(stm);
-        return ret;
-    }
-    return RUNTIME_HOOK_CALL(rt_library_entry, rtMultipleTaskInfoLaunchWithFlag, taskInfo, stm, flag);
-}
-
 RUNTIME_HOOK_DEFINE(rtsStreamBeginTaskGrp, rtStream_t stm)
 {
+    LOG_DEBUG("Hook init rtsStreamBeginTaskGrp.");
     core_limiter(stm, NULL, NULL);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtsStreamBeginTaskGrp, stm);
     if (ret == ACL_RT_SUCCESS) {
@@ -170,8 +96,20 @@ RUNTIME_HOOK_DEFINE(rtsStreamBeginTaskGrp, rtStream_t stm)
     return ret;
 }
 
+RUNTIME_HOOK_DEFINE(aclmdlRICaptureTaskGrpBeginImpl, aclrtStream stream)
+{
+    LOG_DEBUG("Hook init aclmdlRICaptureTaskGrpBeginImpl.");
+    core_limiter(stream, NULL, NULL);
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureTaskGrpBeginImpl, stream);
+    if (ret == ACL_RT_SUCCESS) {
+        task_grp_begin(stream);
+    }
+    return ret;
+}
+
 RUNTIME_HOOK_DEFINE(rtsStreamEndTaskGrp, rtStream_t stm, rtTaskGrp_t *handle)
 {
+    LOG_DEBUG("Hook init rtsStreamEndTaskGrp.");
     core_limiter(stm, NULL, NULL);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtsStreamEndTaskGrp, stm, handle);
     if (ret == ACL_RT_SUCCESS && handle != NULL && *handle != NULL) {
@@ -180,8 +118,20 @@ RUNTIME_HOOK_DEFINE(rtsStreamEndTaskGrp, rtStream_t stm, rtTaskGrp_t *handle)
     return ret;
 }
 
+RUNTIME_HOOK_DEFINE(aclmdlRICaptureTaskGrpEndImpl, aclrtStream stream, aclrtTaskGrp *handle)
+{
+    LOG_DEBUG("Hook init aclmdlRICaptureTaskGrpEndImpl.");
+    core_limiter(stream, NULL, NULL);
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureTaskGrpEndImpl, stream, handle);
+    if (ret == ACL_RT_SUCCESS && handle != NULL && *handle != NULL) {
+        task_grp_end(stream, *handle); /* group blockDim 确定，转移到 capture_stats_map */
+    }
+    return ret;
+}
+
 RUNTIME_HOOK_DEFINE(rtsStreamBeginTaskUpdate, rtStream_t stm, rtTaskGrp_t handle)
 {
+    LOG_DEBUG("Hook init rtsStreamBeginTaskUpdate.");
     core_limiter(stm, NULL, NULL);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtsStreamBeginTaskUpdate, stm, handle);
     if (ret == ACL_RT_SUCCESS) {
@@ -190,12 +140,35 @@ RUNTIME_HOOK_DEFINE(rtsStreamBeginTaskUpdate, rtStream_t stm, rtTaskGrp_t handle
     return ret;
 }
 
+RUNTIME_HOOK_DEFINE(aclmdlRICaptureTaskUpdateBeginImpl, aclrtStream stream, aclrtTaskGrp handle)
+{
+    LOG_DEBUG("Hook init aclmdlRICaptureTaskUpdateBeginImpl.");
+    core_limiter(stream, NULL, NULL);
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureTaskUpdateBeginImpl, stream, handle);
+    if (ret == ACL_RT_SUCCESS) {
+        task_update_begin(stream, handle); /* 后续 kernellaunch 用于刷新该 group */
+    }
+    return ret;
+}
+
 RUNTIME_HOOK_DEFINE(rtsStreamEndTaskUpdate, rtStream_t stm)
 {
+    LOG_DEBUG("Hook init rtsStreamEndTaskUpdate.");
     core_limiter(stm, NULL, NULL);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtsStreamEndTaskUpdate, stm);
     if (ret == ACL_RT_SUCCESS) {
         task_update_end(stm); /* 刷新覆盖 group 旧值 */
+    }
+    return ret;
+}
+
+RUNTIME_HOOK_DEFINE(aclmdlRICaptureTaskUpdateEndImpl, aclrtStream stream)
+{
+    LOG_DEBUG("Hook init aclmdlRICaptureTaskUpdateEndImpl.");
+    core_limiter(stream, NULL, NULL);
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureTaskUpdateEndImpl, stream);
+    if (ret == ACL_RT_SUCCESS) {
+        task_update_end(stream); /* 刷新覆盖 group 旧值 */
     }
     return ret;
 }

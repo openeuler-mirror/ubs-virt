@@ -167,23 +167,6 @@ TEST_F(KernelTest, rtKernelLaunchFwkTest)
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
-TEST_F(KernelTest, rtCpuKernelLaunchTest)
-{
-    void *soName = nullptr;
-    void *kernelName = nullptr;
-    uint32_t blockDim = 0;
-    void *args = nullptr;
-    uint32_t argsSize = 0;
-    rtSmDesc_t *smDesc = nullptr;
-    rtStream_t stm = nullptr;
-    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
-    rtError_t ret = rtCpuKernelLaunch(soName, kernelName, blockDim, args, argsSize, smDesc, stm);
-    EXPECT_EQ(ret, RT_ERROR_NONE);
-    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
-    ret = rtCpuKernelLaunch(soName, kernelName, blockDim, args, argsSize, smDesc, stm);
-    EXPECT_EQ(ret, RT_ERROR_NONE);
-}
-
 TEST_F(KernelTest, rtCpuKernelLaunchWithFlagTest)
 {
     void *soName = nullptr;
@@ -332,21 +315,6 @@ TEST_F(KernelTest, rtsLaunchKernelWithHostArgs)
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }
 
-TEST_F(KernelTest, rtsLaunchCpuKernel)
-{
-    rtFuncHandle funcHandle = nullptr;
-    uint32_t numBlocks = 0;
-    rtStream_t stm = nullptr;
-    rtKernelLaunchCfg_t *cfg = nullptr;
-    rtCpuKernelArgs_t *argsInfo = nullptr;
-    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
-    rtError_t ret = rtsLaunchCpuKernel(funcHandle, numBlocks, stm, cfg, argsInfo);
-    EXPECT_EQ(ret, RT_ERROR_NONE);
-    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
-    ret = rtsLaunchCpuKernel(funcHandle, numBlocks, stm, cfg, argsInfo);
-    EXPECT_EQ(ret, RT_ERROR_NONE);
-}
-
 TEST_F(KernelTest, rtsLaunchKernelWithConfig)
 {
     rtFuncHandle funcHandle = nullptr;
@@ -417,5 +385,178 @@ TEST_F(KernelTest, rtsLaunchUpdateTask)
     EXPECT_EQ(ret, RT_ERROR_NONE);
     MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
     ret = rtsLaunchUpdateTask(destStm, destTaskId, stm, cfg);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, aclrtLaunchKernelImpl)
+{
+    aclrtFuncHandle funcHandle = nullptr;
+    uint32_t blockDim = 0;
+    const void *argsData = nullptr;
+    size_t argsSize = 0;
+    aclrtStream stream = nullptr;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t ret = aclrtLaunchKernelImpl(funcHandle, blockDim, argsData, argsSize, stream);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = aclrtLaunchKernelImpl(funcHandle, blockDim, argsData, argsSize, stream);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, aclrtLaunchKernelWithHostArgsImpl)
+{
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t ret = aclrtLaunchKernelWithHostArgsImpl(nullptr, 0, nullptr, nullptr, nullptr, 0, nullptr, 0);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = aclrtLaunchKernelWithHostArgsImpl(nullptr, 0, nullptr, nullptr, nullptr, 0, nullptr, 0);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, aclrtLaunchKernelWithConfigImpl)
+{
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t ret = aclrtLaunchKernelWithConfigImpl(nullptr, 0, nullptr, nullptr, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = aclrtLaunchKernelWithConfigImpl(nullptr, 0, nullptr, nullptr, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, aclrtLaunchKernelV2Impl)
+{
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t ret = aclrtLaunchKernelV2Impl(nullptr, 0, nullptr, 0, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = aclrtLaunchKernelV2Impl(nullptr, 0, nullptr, 0, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, aclrtRandomNumAsyncImpl)
+{
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t ret = aclrtRandomNumAsyncImpl(nullptr, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = aclrtRandomNumAsyncImpl(nullptr, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, aclrtReduceAsyncImpl)
+{
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t ret = aclrtReduceAsyncImpl(nullptr, nullptr, 0, 0, 0, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = aclrtReduceAsyncImpl(nullptr, nullptr, 0, 0, 0, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, aclrtTaskUpdateAsyncImpl)
+{
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t ret = aclrtTaskUpdateAsyncImpl(nullptr, 0, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = aclrtTaskUpdateAsyncImpl(nullptr, 0, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, rtLaunchKernelWithArgsArray)
+{
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t ret = rtLaunchKernelWithArgsArray(nullptr, 0, nullptr, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = rtLaunchKernelWithArgsArray(nullptr, 0, nullptr, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, aclrtLaunchKernelWithArgsArrayImpl)
+{
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t ret = aclrtLaunchKernelWithArgsArrayImpl(nullptr, 0, nullptr, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = aclrtLaunchKernelWithArgsArrayImpl(nullptr, 0, nullptr, nullptr, nullptr);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, rtLaunchSIMTKernelWithHostArgs)
+{
+    void *func = nullptr;
+    rtDim3 gridDim = {};
+    rtDim3 blockDim = {};
+    size_t dynUbufSize = 0;
+    rtStream_t stm = nullptr;
+    rtKernelLaunchCfg_t cfg = nullptr;
+    void *hostArgs = nullptr;
+    uint32_t argsSize = 0;
+    rtPlaceHolderInfo_t placeHolderArray = nullptr;
+    uint32_t placeHolderNum = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t ret = rtLaunchSIMTKernelWithHostArgs(func, gridDim, blockDim, dynUbufSize, stm, &cfg, hostArgs, argsSize,
+                                                   &placeHolderArray, placeHolderNum);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = rtLaunchSIMTKernelWithHostArgs(func, gridDim, blockDim, dynUbufSize, stm, &cfg, hostArgs, argsSize,
+                                         &placeHolderArray, placeHolderNum);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, aclrtLaunchSIMTKernelWithHostArgsImpl)
+{
+    void *func = nullptr;
+    dim3 gridDim = {};
+    dim3 blockDim = {};
+    size_t dynUbufSize = 0;
+    aclrtStream stream = nullptr;
+    aclrtLaunchKernelCfg cfg = {};
+    void *hostArgs = nullptr;
+    size_t argsSize = 0;
+    aclrtPlaceHolderInfo placeHolderArray = {};
+    size_t placeHolderNum = 0;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t ret = aclrtLaunchSIMTKernelWithHostArgsImpl(func, gridDim, blockDim, dynUbufSize, stream, &cfg, hostArgs,
+                                                          argsSize, &placeHolderArray, placeHolderNum);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = aclrtLaunchSIMTKernelWithHostArgsImpl(func, gridDim, blockDim, dynUbufSize, stream, &cfg, hostArgs, argsSize,
+                                                &placeHolderArray, placeHolderNum);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, rtLaunchSIMTKernelWithArgsArray)
+{
+    void *func = nullptr;
+    rtDim3 gridDim = {};
+    rtDim3 blockDim = {};
+    size_t dynUbufSize = 0;
+    rtStream_t stm = nullptr;
+    rtKernelLaunchCfg_t cfg = nullptr;
+    void *args = nullptr;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t ret = rtLaunchSIMTKernelWithArgsArray(func, gridDim, blockDim, dynUbufSize, stm, &cfg, &args);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = rtLaunchSIMTKernelWithArgsArray(func, gridDim, blockDim, dynUbufSize, stm, &cfg, &args);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+}
+
+TEST_F(KernelTest, aclrtLaunchSIMTKernelWithArgsArrayImpl)
+{
+    void *func = nullptr;
+    dim3 gridDim = {};
+    dim3 blockDim = {};
+    size_t dynUbufSize = 0;
+    aclrtStream stream = nullptr;
+    aclrtLaunchKernelCfg cfg = {};
+    void *args = nullptr;
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_true));
+    rtError_t ret = aclrtLaunchSIMTKernelWithArgsArrayImpl(func, gridDim, blockDim, dynUbufSize, stream, &cfg, &args);
+    EXPECT_EQ(ret, RT_ERROR_NONE);
+    MOCKER(is_random_sampling).stubs().will(invoke(stub_is_random_sampling_false));
+    ret = aclrtLaunchSIMTKernelWithArgsArrayImpl(func, gridDim, blockDim, dynUbufSize, stream, &cfg, &args);
     EXPECT_EQ(ret, RT_ERROR_NONE);
 }

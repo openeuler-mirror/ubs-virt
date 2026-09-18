@@ -13,22 +13,114 @@
 #include "runtime_hook.h"
 
 rt_entry_t rt_library_entry[] = {
-    /* Init Part */
-    {.name = "rtSetDevice"},
-    {.name = "rtSetDeviceEx"},
+    /* aclrt及对应rt接口，cann-9.2.0，共73个 */
+    {.name = "rtSetDevice"}, // runtime标识待废弃
+    {.name = "aclrtSetDeviceImpl"},
+    {.name = "rtSetDeviceWithoutTsd"}, // runtime仓间接口
+    {.name = "aclrtSetDeviceWithoutTsdVXXImpl"},
+    {.name = "rtGetSocVersion"}, // 仅内部调用，不拦截，runtime标识待废弃
+
+    {.name = "rtMalloc"}, // runtime标识待废弃
+    {.name = "aclrtMallocImpl"},
+    {.name = "aclrtMallocAlign32Impl"},
+    {.name = "rtMallocCached"}, // runtime标识待废弃
+    {.name = "aclrtMallocCachedImpl"},
+    {.name = "rtMemAllocManaged"}, // runtime标识待废弃
+    {.name = "aclrtMemAllocManagedImpl"},
+    {.name = "rtMallocPhysical"}, // runtime仓间接口
+    {.name = "aclrtMallocPhysicalImpl"},
+    {.name = "rtMemGetInfoEx"}, // runtime标识待废弃
+    {.name = "aclrtGetMemInfoImpl"},
+
+    {.name = "rtLaunchKernelByFuncHandleV3"}, // runtime标识待废弃
+    {.name = "aclrtLaunchKernelImpl"},
+    {.name = "rtsLaunchKernelWithHostArgs"}, // runtime标识待废弃
+    {.name = "aclrtLaunchKernelWithHostArgsImpl"},
+    {.name = "rtsLaunchKernelWithConfig"}, // runtime标识待废弃
+    {.name = "aclrtLaunchKernelWithConfigImpl"},
+    {.name = "rtsLaunchKernelWithDevArgs"}, // runtime标识待废弃
+    {.name = "aclrtLaunchKernelV2Impl"},
+    {.name = "rtsLaunchRandomNumTask"}, // runtime标识待废弃
+    {.name = "aclrtRandomNumAsyncImpl"},
+    {.name = "rtsLaunchReduceAsyncTask"}, // runtime标识待废弃
+    {.name = "aclrtReduceAsyncImpl"},
+    {.name = "rtsLaunchUpdateTask"}, // runtime标识待废弃
+    {.name = "aclrtTaskUpdateAsyncImpl"},
+    {.name = "rtLaunchKernelWithArgsArray"},            // cann-9.2.0新增
+    {.name = "aclrtLaunchKernelWithArgsArrayImpl"},     // cann-9.2.0新增
+    {.name = "rtLaunchSIMTKernelWithHostArgs"},         // cann-9.2.0新增
+    {.name = "aclrtLaunchSIMTKernelWithHostArgsImpl"},  // cann-9.2.0新增
+    {.name = "rtLaunchSIMTKernelWithArgsArray"},        // cann-9.2.0新增
+    {.name = "aclrtLaunchSIMTKernelWithArgsArrayImpl"}, // cann-9.2.0新增
+    {.name = "rtModelExecute"},                         // runtime标识待废弃
+    {.name = "aclmdlRIExecuteAsyncImpl"},
+    {.name = "rtStreamBeginCapture"}, // runtime标识待废弃
+    {.name = "aclmdlRICaptureBeginImpl"},
+    {.name = "rtStreamEndCapture"}, // runtime标识待废弃
+    {.name = "aclmdlRICaptureEndImpl"},
+    {.name = "rtsModelExecute"}, // runtime标识待废弃
+    {.name = "aclmdlRIExecuteImpl"},
+    {.name = "rtsStreamBeginTaskGrp"},
+    {.name = "aclmdlRICaptureTaskGrpBeginImpl"},
+    {.name = "rtsStreamEndTaskGrp"},
+    {.name = "aclmdlRICaptureTaskGrpEndImpl"},
+    {.name = "rtsStreamBeginTaskUpdate"},
+    {.name = "aclmdlRICaptureTaskUpdateBeginImpl"},
+    {.name = "rtsStreamEndTaskUpdate"},
+    {.name = "aclmdlRICaptureTaskUpdateEndImpl"},
+    {.name = "rtStreamGetCaptureInfo"}, // 仅内部调用，不拦截
+    {.name = "rtModelGetStreams"},      // 仅内部调用，不拦截
+    {.name = "rtStreamGetTasks"},       // 仅内部调用，不拦截
+
+    {.name = "rtEventCreate"}, // runtime标识待废弃
+    {.name = "aclrtCreateEventImpl"},
+    {.name = "rtEventCreateWithFlag"}, // runtime标识待废弃
+    {.name = "aclrtCreateEventWithFlagImpl"},
+    {.name = "rtEventCreateExWithFlag"}, // runtime标识待废弃
+    {.name = "aclrtCreateEventExWithFlagImpl"},
+    {.name = "rtStreamWaitEvent"}, // runtime标识待废弃
+    {.name = "aclrtStreamWaitEventImpl"},
+    {.name = "rtEventRecord"}, // runtime标识待废弃
+    {.name = "aclrtRecordEventImpl"},
+    {.name = "aclrtRecordEventWithFlagImpl"},
+    {.name = "rtEventElapsedTime"}, // 仅内部调用，不拦截
+    {.name = "rtEventDestroy"},     // runtime标识待废弃
+    {.name = "aclrtDestroyEventImpl"},
+    {.name = "rtsNotifyCreate"}, // runtime标识待废弃
+    {.name = "aclrtCreateNotifyImpl"},
+    {.name = "rtsNotifyWaitAndReset"}, // runtime标识待废弃
+    {.name = "aclrtWaitAndResetNotifyImpl"},
+    {.name = "rtCntNotifyCreate"},         // runtime标识待废弃
+    {.name = "rtCntNotifyCreateWithFlag"}, // runtime标识待废弃
+    {.name = "aclrtCntNotifyCreateImpl"},
+    {.name = "rtCntNotifyDestroy"}, // runtime标识待废弃
+    {.name = "aclrtCntNotifyDestroyImpl"},
+    {.name = "rtsCntNotifyRecord"},
+    {.name = "aclrtCntNotifyRecordImpl"},
+    {.name = "rtsCntNotifyWaitWithTimeout"},
+    {.name = "aclrtCntNotifyWaitWithTimeoutImpl"},
+
+    {.name = "rtStreamSynchronize"}, // 仅内部调用，不拦截，runtime标识待废弃
+    {.name = "rtStreamDestroy"},     // runtime标识待废弃
+    {.name = "aclrtDestroyStream"},
+
+    /* rt仓间接口，cann-9.2.0，共8个 */
     {.name = "rtSetDeviceWithFlags"},
-    {.name = "rtSetDeviceWithoutTsd"},
-    {.name = "rtGetSocVersion"},
-    /* Memory Part */
-    {.name = "rtMalloc"},
-    {.name = "rtMallocCached"},
-    {.name = "rtDvppMalloc"},
+
     {.name = "rtDvppMallocWithFlag"},
-    {.name = "rtMemAlloc"},
-    {.name = "rtMemAllocManaged"},
-    {.name = "rtMallocPhysical"},
-    {.name = "rtMemGetInfoEx"},
-    /* Kernel Part */
+    {.name = "rtMemAlloc"}, // runtime标识待废弃
+
+    {.name = "rtCpuKernelLaunchWithFlag"},
+    {.name = "rtAicpuKernelLaunchExWithArgs"},
+    {.name = "rtFftsPlusTaskLaunch"},
+    {.name = "rtFftsPlusTaskLaunchWithFlag"},
+    {.name = "rtMultipleTaskInfoLaunch"},
+
+    /* 废弃rt/rts接口，cann-9.2.0，共31个 */
+    {.name = "rtSetDeviceEx"},
+
+    {.name = "rtDvppMalloc"},
+
     {.name = "rtKernelLaunch"},
     {.name = "rtKernelLaunchWithHandle"},
     {.name = "rtKernelLaunchWithHandleV2"},
@@ -36,79 +128,27 @@ rt_entry_t rt_library_entry[] = {
     {.name = "rtKernelLaunchWithFlagV2"},
     {.name = "rtKernelLaunchEx"},
     {.name = "rtKernelLaunchFwk"},
-    {.name = "rtCpuKernelLaunch"},
-    {.name = "rtAicpuKernelLaunch"},
-    {.name = "rtCpuKernelLaunchWithFlag"},
     {.name = "rtAicpuKernelLaunchWithFlag"},
-    {.name = "rtAicpuKernelLaunchExWithArgs"},
     {.name = "rtLaunchKernelByFuncHandle"},
     {.name = "rtLaunchKernelByFuncHandleV2"},
-    {.name = "rtLaunchKernelByFuncHandleV3"},
     {.name = "rtVectorCoreKernelLaunchWithHandle"},
     {.name = "rtVectorCoreKernelLaunch"},
-    {.name = "rtFftsPlusTaskLaunch"},
-    {.name = "rtFftsPlusTaskLaunchWithFlag"},
-    {.name = "rtFftsTaskLaunch"},
-    {.name = "rtFftsTaskLaunchWithFlag"},
-    {.name = "rtModelExecute"},
-    {.name = "rtModelExecuteAsync"},
-    {.name = "rtStreamBeginCapture"},
-    {.name = "rtStreamEndCapture"},
-    {.name = "rtsModelExecute"},
-    {.name = "rtModelExecuteSync"},
-    {.name = "rtStreamGetCaptureInfo"},
-    {.name = "rtModelGetStreams"},
-    {.name = "rtStreamGetTasks"},
     {.name = "rtStarsTaskLaunch"},
     {.name = "rtStarsTaskLaunchWithFlag"},
-    {.name = "rtCmoTaskLaunch"},
-    {.name = "rtCmoAddrTaskLaunch"},
-    {.name = "rtBarrierTaskLaunch"},
-    {.name = "rtMultipleTaskInfoLaunch"},
-    {.name = "rtMultipleTaskInfoLaunchWithFlag"},
+    {.name = "rtModelExecuteAsync"},
+    {.name = "rtModelExecuteSync"},
     {.name = "rtsModelExecuteAsync"},
-    {.name = "rtsLaunchKernelWithHostArgs"},
-    {.name = "rtsLaunchCpuKernel"},
-    {.name = "rtsLaunchKernelWithConfig"},
-    {.name = "rtsLaunchKernelWithDevArgs"},
-    {.name = "rtsLaunchRandomNumTask"},
-    {.name = "rtsLaunchReduceAsyncTask"},
-    {.name = "rtsLaunchUpdateTask"},
-    /* Event Part */
-    {.name = "rtEventCreate"},
+
     {.name = "rtsEventCreate"},
     {.name = "rtsEventCreateEx"},
-    {.name = "rtEventCreateWithFlag"},
-    {.name = "rtEventCreateExWithFlag"},
-    {.name = "rtStreamWaitEvent"},
-    {.name = "rtEventRecord"},
-    {.name = "rtEventDestroy"},
-    {.name = "rtEventReset"},
-    {.name = "rtsNotifyCreate"},
     {.name = "rtNotifyRecord"},
     {.name = "rtNotifyDestroy"},
-    {.name = "rtsNotifyWaitAndReset"},
     {.name = "rtStreamWaitEventWithTimeout"},
     {.name = "rtEventDestroySync"},
     {.name = "rtNotifyCreate"},
     {.name = "rtNotifyCreateWithFlag"},
     {.name = "rtNotifyWait"},
     {.name = "rtNotifyWaitWithTimeOut"},
-    {.name = "rtCntNotifyCreate"},
-    {.name = "rtCntNotifyCreateWithFlag"},
     {.name = "rtCntNotifyRecord"},
     {.name = "rtCntNotifyWaitWithTimeout"},
-    {.name = "rtCntNotifyDestroy"},
-    {.name = "rtsCntNotifyRecord"},
-    {.name = "rtsCntNotifyWaitWithTimeout"},
-    {.name = "rtEventElapsedTime"},
-    /* Other Part */
-    {.name = "rtStreamSynchronize"},
-    {.name = "rtStreamDestroy"},
-    {.name = "rtDestroyStreamForce"},
-    /* Task Group Part */
-    {.name = "rtsStreamBeginTaskGrp"},
-    {.name = "rtsStreamEndTaskGrp"},
-    {.name = "rtsStreamBeginTaskUpdate"},
-    {.name = "rtsStreamEndTaskUpdate"},
 };

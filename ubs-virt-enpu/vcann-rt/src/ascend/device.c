@@ -61,6 +61,27 @@ RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
     return ACL_RT_SUCCESS;
 }
 
+RUNTIME_HOOK_DEFINE(aclrtSetDeviceImpl, int32_t devId)
+{
+    int res = log_init();
+    CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
+    pre_rt_init();
+    enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+                       "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
+    if (devId != 0) {
+        LOG_WARN("SetDevice should only pass devId=0.");
+    }
+
+    LOG_DEBUG("Hook init aclrtSetDeviceImpl devId:%" PRIi32 ".", devId);
+    LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.", VNPU_SCHEULE_PERIOD / NS_PER_MS,
+              get_core_limit_quota());
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtSetDeviceImpl, devId);
+    CHECK_COND_RETURN_((ret != ACL_RT_SUCCESS), ret, "Call aclrtSetDeviceImpl fails, ret:%d.", ret);
+    enpu_global_init_post();
+    return ACL_RT_SUCCESS;
+}
+
 RUNTIME_HOOK_DEFINE(rtSetDeviceEx, int32_t devId)
 {
     int res = log_init();
@@ -120,6 +141,27 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceWithoutTsd, int32_t devId)
               get_core_limit_quota());
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, rtSetDeviceWithoutTsd, devId);
     CHECK_COND_RETURN_((ret != ACL_RT_SUCCESS), ret, "Call rtSetDeviceWithoutTsd fails, ret:%d.", ret);
+    enpu_global_init_post();
+    return ACL_RT_SUCCESS;
+}
+
+RUNTIME_HOOK_DEFINE(aclrtSetDeviceWithoutTsdVXXImpl, int32_t devId)
+{
+    int res = log_init();
+    CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
+    pre_rt_init();
+    enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+                       "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
+    if (devId != 0) {
+        LOG_WARN("SetDevice should only pass devId=0.");
+    }
+
+    LOG_DEBUG("Hook init aclrtSetDeviceWithoutTsdVXXImpl devId:%" PRIi32 ".", devId);
+    LOG_DEBUG("The total time slice length is: %zd, and %zd %% of it is available.", VNPU_SCHEULE_PERIOD / NS_PER_MS,
+              get_core_limit_quota());
+    aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtSetDeviceWithoutTsdVXXImpl, devId);
+    CHECK_COND_RETURN_((ret != ACL_RT_SUCCESS), ret, "Call aclrtSetDeviceWithoutTsdVXXImpl fails, ret:%d.", ret);
     enpu_global_init_post();
     return ACL_RT_SUCCESS;
 }

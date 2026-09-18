@@ -69,6 +69,32 @@ TEST_F(MemoryTest, rtMalloc)
     EXPECT_EQ(error, ACL_ERROR_STORAGE_OVER_LIMIT);
 }
 
+TEST_F(MemoryTest, aclrtMallocImpl)
+{
+    constexpr uint32_t MAX_ARR_SIZE = 20;
+    void *devPtrsArr[MAX_ARR_SIZE] = {nullptr};
+    uint64_t size = 0;
+    aclrtMemMallocPolicy policy = 0;
+    rtError_t error = aclrtMallocImpl(devPtrsArr, size, policy);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+    size = MAX_ARR_SIZE;
+    error = aclrtMallocImpl(devPtrsArr, size, policy);
+    EXPECT_EQ(error, ACL_ERROR_STORAGE_OVER_LIMIT);
+}
+
+TEST_F(MemoryTest, aclrtMallocAlign32Impl)
+{
+    constexpr uint32_t MAX_ARR_SIZE = 20;
+    void *devPtrsArr[MAX_ARR_SIZE] = {nullptr};
+    uint64_t size = 0;
+    aclrtMemMallocPolicy policy = 0;
+    rtError_t error = aclrtMallocAlign32Impl(devPtrsArr, size, policy);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+    size = MAX_ARR_SIZE;
+    error = aclrtMallocAlign32Impl(devPtrsArr, size, policy);
+    EXPECT_EQ(error, ACL_ERROR_STORAGE_OVER_LIMIT);
+}
+
 TEST_F(MemoryTest, rtMallocCached)
 {
     constexpr uint32_t MAX_ARR_SIZE = 20;
@@ -77,6 +103,16 @@ TEST_F(MemoryTest, rtMallocCached)
     rtMemType_t type = 0;
     uint16_t moduleId = 0;
     rtError_t error = rtMallocCached(devPtrsArr, size, type, moduleId);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+}
+
+TEST_F(MemoryTest, aclrtMallocCachedImpl)
+{
+    constexpr uint32_t MAX_ARR_SIZE = 20;
+    void *devPtrsArr[MAX_ARR_SIZE] = {nullptr};
+    uint64_t size = 0;
+    aclrtMemMallocPolicy policy = 0;
+    rtError_t error = aclrtMallocCachedImpl(devPtrsArr, size, policy);
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
 
@@ -124,6 +160,16 @@ TEST_F(MemoryTest, rtMemAllocManaged)
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
 
+TEST_F(MemoryTest, aclrtMemAllocManagedImpl)
+{
+    constexpr uint32_t MAX_ARR_SIZE = 20;
+    void *devPtrsArr[MAX_ARR_SIZE] = {nullptr};
+    uint64_t size = 0;
+    uint32_t flag = 1;
+    rtError_t error = aclrtMemAllocManagedImpl(devPtrsArr, size, flag);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+}
+
 TEST_F(MemoryTest, rtMallocPhysical)
 {
     rtDrvMemHandle *handle = nullptr;
@@ -131,6 +177,16 @@ TEST_F(MemoryTest, rtMallocPhysical)
     uint64_t size = 0;
     uint64_t flags = 1;
     rtError_t error = rtMallocPhysical(handle, size, prop, flags);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+}
+
+TEST_F(MemoryTest, aclrtMallocPhysicalImpl)
+{
+    rtDrvMemHandle *handle = nullptr;
+    const aclrtPhysicalMemProp *prop = nullptr;
+    uint64_t size = 0;
+    uint64_t flags = 1;
+    rtError_t error = aclrtMallocPhysicalImpl(handle, size, prop, flags);
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
 
@@ -143,6 +199,15 @@ TEST_F(MemoryTest, rtMemGetInfoEx)
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
 
+TEST_F(MemoryTest, aclrtGetMemInfoImpl)
+{
+    aclrtMemAttr memInfoType = 0;
+    size_t freeSize = 0;
+    size_t totalSize = 1;
+    rtError_t error = aclrtGetMemInfoImpl(memInfoType, &freeSize, &totalSize);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+}
+
 TEST_F(MemoryTest, rtMemGetInfoEx_FailTest)
 {
     static constexpr int32_t RT_ERROR_INVALID_VALUE = 0x07110001;
@@ -151,5 +216,16 @@ TEST_F(MemoryTest, rtMemGetInfoEx_FailTest)
     size_t freeSize = 0;
     size_t totalSize = 1;
     rtError_t error = rtMemGetInfoEx(memInfoType, &freeSize, &totalSize);
+    EXPECT_EQ(error, RT_ERROR_INVALID_VALUE);
+}
+
+TEST_F(MemoryTest, aclrtGetMemInfoImpl_FailTest)
+{
+    static constexpr int32_t RT_ERROR_INVALID_VALUE = 0x07110001;
+    MOCKER(get_mem_used, int(size_t *)).stubs().will(returnValue(-1));
+    aclrtMemAttr memInfoType = 0;
+    size_t freeSize = 0;
+    size_t totalSize = 1;
+    rtError_t error = aclrtGetMemInfoImpl(memInfoType, &freeSize, &totalSize);
     EXPECT_EQ(error, RT_ERROR_INVALID_VALUE);
 }
