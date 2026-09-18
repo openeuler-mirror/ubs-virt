@@ -56,16 +56,74 @@ const char *lock_path()
     return MEMCTL_LOCK_PATH;
 }
 
+/* 锁目录权限 0750：owner rwx / group r-x / other ---。group 不可写，否则同组进程
+ * 能 unlink 掉 memctl.lock 另建一个，破坏 guard_memory 的跨进程互斥。 */
+#define FILE_LOCK_DIR_MODE (S_IRWXU | S_IRGRP | S_IXGRP)
+
+static int mkdir_recursive(const char *path, mode_t mode)
+{
+    char tmp[FILE_PATH_LEN];
+    size_t len = strlen(path);
+    if (len == 0 || len >= sizeof(tmp)) {
+        return ENPU_FAIL;
+    }
+    if (strcpy_s(tmp, sizeof(tmp), path) != 0) {
+        return ENPU_FAIL;
+    }
+    if (tmp[len - 1] == '/') {
+        tmp[len - 1] = '\0';
+    }
+
+    for (char *p = tmp + 1; *p != '\0'; p++) {
+        if (*p == '/') {
+            *p = '\0';
+            if (mkdir(tmp, mode) != 0 && errno != EEXIST) {
+                return ENPU_FAIL;
+            }
+            *p = '/';
+        }
+    }
+    if (mkdir(tmp, mode) != 0 && errno != EEXIST) {
+        return ENPU_FAIL;
+    }
+    return ENPU_SUCCESS;
+}
+
 int create_file_lock_base_dir()
 {
-    char cmd[128];
-    int ans = snprintf_s(cmd, sizeof(cmd), sizeof(cmd), "mkdir -p -m 750 %s", FILE_LOCK_BASE_DIR);
-    CHECK_COND_RETURN_ERROR_CODE(ans < 0, "Can not concatenate string to create dir.");
-    int ret = system(cmd);
-    CHECK_COND_RETURN_ERROR_CODE(ret < 0 && errno != EEXIST, "create %s failed, err is %s.", FILE_LOCK_BASE_DIR,
-                                 strerror(errno));
+    const char *path = lock_path();
+    if (path == NULL) {
+        LOG_ERROR("lock_path() returned NULL.");
+        return ENPU_FAIL;
+    }
 
-    LOG_INFO("create %s success", FILE_LOCK_BASE_DIR);
+    char dir[FILE_PATH_LEN];
+    if (strcpy_s(dir, sizeof(dir), path) != 0) {
+        LOG_ERROR("Failed to copy lock path.");
+        return ENPU_FAIL;
+    }
+
+    char *last_slash = strrchr(dir, '/');
+    if (last_slash == NULL) {
+        LOG_ERROR("Invalid lock path (no directory component): %s.", path);
+        return ENPU_FAIL;
+    }
+    *last_slash = '\0';
+
+    if (strlen(dir) == 0) {
+        LOG_ERROR("Empty directory path derived from %s.", path);
+        return ENPU_FAIL;
+    }
+
+    int ret = mkdir_recursive(dir, FILE_LOCK_DIR_MODE);
+    if (ret != ENPU_SUCCESS) {
+        char errbuf[128] = {0};
+        (void)strerror_r(errno, errbuf, sizeof(errbuf));
+        LOG_ERROR("create %s failed, err is %s.", dir, errbuf);
+        return ENPU_FAIL;
+    }
+
+    LOG_INFO("create %s success", dir);
     return ENPU_SUCCESS;
 }
 

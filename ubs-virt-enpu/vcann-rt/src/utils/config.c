@@ -45,6 +45,26 @@ int check_str(const char *str, const char *option_name)
     return ENPU_SUCCESS;
 }
 
+int check_shm_id(const char *str, const char *option_name)
+{
+    if (strlen(str) == 0) {
+        LOG_ERROR("\"%s\" is not set. Please check the config and add it as a new line: \"%s=VALUE\"", option_name,
+                  option_name);
+        return ENPU_FAIL;
+    }
+    if (strchr(str, '/') != NULL) {
+        LOG_ERROR("\"%s\" contains invalid character '/'. Shared memory name must not contain path separators.",
+                  option_name);
+        return ENPU_FAIL;
+    }
+    if (strstr(str, "..") != NULL) {
+        LOG_ERROR("\"%s\" contains invalid sequence '..'. Shared memory name must not contain path traversal.",
+                  option_name);
+        return ENPU_FAIL;
+    }
+    return ENPU_SUCCESS;
+}
+
 int check_config()
 {
     return check_int32(config.phy_npu_id, OPTION_NPU_ID) == ENPU_SUCCESS &&
@@ -52,7 +72,7 @@ int check_config()
            check_int32(config.aicore_quota, OPTION_AICORE_QUOTA) == ENPU_SUCCESS &&
            check_int32(config.memory_quota, OPTION_MEMORY_QUOTA) == ENPU_SUCCESS &&
            check_int32(config.scheduling_policy, OPTION_SCHEDULING_POLICY) == ENPU_SUCCESS &&
-           check_str(config.shm_id, OPTION_SHM_ID) == ENPU_SUCCESS;
+           check_shm_id(config.shm_id, OPTION_SHM_ID) == ENPU_SUCCESS;
 }
 
 int load_int32(const char *key, const char *value, int32_t *ret_value)
@@ -80,7 +100,7 @@ int load_str(const char *key, const char *value, char *ret_value, size_t ret_len
 {
     CHECK_COND_RETURN_ERROR_CODE(((key == NULL) || (value == NULL) || (ret_value == NULL)),
                                  "Input para contains NULL!");
-    if (strlen(value) > ret_len) {
+    if (strlen(value) >= ret_len) {
         LOG_ERROR("Failed to load config: %s, value length (which is %lu)exceed buffer size %zu", key, strlen(value),
                   ret_len);
         return ENPU_FAIL;
@@ -117,7 +137,7 @@ int load_config(const char *file_path)
 {
     static char buffer[MAX_LINE_LENGTH];
     if (!file_path) {
-        LOG_ERROR("Invalid input args: file_path=%s", file_path);
+        LOG_ERROR("Invalid input args: file_path is NULL");
         return ENPU_FAIL;
     }
 

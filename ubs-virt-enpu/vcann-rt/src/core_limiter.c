@@ -167,11 +167,6 @@ bool is_vnpu_alive(int vnpu_id)
     return check_timeout(&g_vnpu_sched_context->last_alive_time_ns[vnpu_id], VNPU_TIMEOUT_PERIOD);
 }
 
-inline bool vnpu_has_work(int vnpu_id)
-{
-    return check_timeout(&g_vnpu_sched_context->last_kernel_time_ns[vnpu_id], VNPU_NO_TASK_TIMEOUT_PERIOD);
-}
-
 void vnpu_idling(void)
 {
     int npu_core_limit_quota = 0;
@@ -573,7 +568,7 @@ static bool sched_shm_is_stale(void)
     return (now > newest_alive) && ((now - newest_alive) > SCHED_SHM_STALE_THRESHOLD_NS);
 }
 
-void share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
+int share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
 {
     g_vnpu_sched_context = vnpu_sched_shm;
     uint64_t begin = ns_now();
@@ -581,7 +576,7 @@ void share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
     while (!g_terminate) {
         if (atomic_load(&g_vnpu_sched_context->magic_number) == MAGIC_INITIALIZED) {
             if (!sched_shm_is_stale()) {
-                return; /* 同轮次有进程心跳，正常复用 */
+                return ENPU_SUCCESS; /* 同轮次有进程心跳，正常复用 */
             }
             LOG_INFO("Sched shm belongs to a dead run (all alive-heartbeats stale), re-initializing.");
             atomic_store(&g_vnpu_sched_context->magic_number, MAGIC_UNINITIALIZED);
@@ -618,14 +613,25 @@ void share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
             atomic_store(&g_vnpu_sched_context->vnpu_sync_completed[i], 0);
             atomic_store(&g_vnpu_sched_context->vnpu_turn_max_sync[i], 0ULL);
             atomic_store(&g_vnpu_sched_context->vnpu_timeslice_for_turn[i], 0ULL);
-            pthread_mutex_init(&g_vnpu_sched_context->vnpu_schedule_mutex[i], &attr);
+            int ret = pthread_mutex_init(&g_vnpu_sched_context->vnpu_schedule_mutex[i], &attr);
+            if (ret != 0) {
+                LOG_ERROR("Failed to init vnpu_schedule_mutex[%d], error=%d.", i, ret);
+                pthread_mutexattr_destroy(&attr);
+                return ENPU_FAIL;
+            }
         }
 
-        pthread_mutex_init(&g_vnpu_sched_context->npu_utilization_monitor_mutex, &attr);
+        int ret = pthread_mutex_init(&g_vnpu_sched_context->npu_utilization_monitor_mutex, &attr);
+        if (ret != 0) {
+            LOG_ERROR("Failed to init npu_utilization_monitor_mutex, error=%d.", ret);
+            pthread_mutexattr_destroy(&attr);
+            return ENPU_FAIL;
+        }
         pthread_mutexattr_destroy(&attr);
         atomic_store(&g_vnpu_sched_context->magic_number, MAGIC_INITIALIZED);
-        return;
+        return ENPU_SUCCESS;
     }
+    return ENPU_FAIL;
 }
 
 int vnpu_scheduler_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
@@ -638,93 +644,133 @@ int vnpu_scheduler_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
     uint64_t aicore_cur_timesilice = aicore_limit_percent * VNPU_SCHEULE_PERIOD / HUNDRED_PERCENT;
     atomic_store(&g_vnpu_sched_context->vnpu_quota_timeslice[g_vnpu_id], aicore_cur_timesilice);
 
+    return ENPU_SUCCESS;
+}
+
+int vnpu_scheduler_start(void)
+{
     pthread_t vnpu_scheduler_tid;
     int rc = pthread_create(&vnpu_scheduler_tid, NULL, vnpu_scheduler_thread, NULL);
-    CHECK_COND_RETURN_ERROR_CODE(rc != 0, "Failed to create vnpu scheduler thread.");
+    if (rc != 0) {
+        LOG_ERROR("Failed to create vnpu scheduler thread, error=%d.", rc);
+        return ENPU_FAIL;
+    }
+    /* 立即 detach：下面那次 create 一旦失败就直接返回，再也无法 join 这个线程，
+     * 不 detach 会泄漏线程描述符和栈。 */
+    pthread_detach(vnpu_scheduler_tid);
 
     pthread_t vnpu_alive_tid;
     rc = pthread_create(&vnpu_alive_tid, NULL, vnpu_scheduler_flush_thread, NULL);
-    CHECK_COND_RETURN_ERROR_CODE(rc != 0, "Failed to create vnpu alive thread.");
-
-    pthread_detach(vnpu_scheduler_tid);
+    if (rc != 0) {
+        LOG_ERROR("Failed to create vnpu alive thread, error=%d.", rc);
+        return ENPU_FAIL;
+    }
     pthread_detach(vnpu_alive_tid);
     return ENPU_SUCCESS;
+}
+
+/* 统一回收 aicore_limiter_initialize 里创建的 hashmap。
+ * 这些指针都是文件级变量、初值 NULL，且 aicore_limiter_initialize 由 pthread_once
+ * 保证只执行一次，所以"尚未创建"等价于"仍为 NULL"，可在任意失败点无条件调用。 */
+static void destroy_all_stats_maps(void)
+{
+    HashMap **maps[] = {&taskGroup_map,     &task_grp_state_map, &model_stats_map,
+                        &capture_stats_map, &event_map,          &stream_map};
+    for (size_t i = 0; i < sizeof(maps) / sizeof(maps[0]); i++) {
+        if (*maps[i] != NULL) {
+            hashmap_destroy(*maps[i]);
+            *maps[i] = NULL;
+        }
+    }
 }
 
 int aicore_limiter_initialize(void)
 {
     int rc = ENPU_FAIL;
     vnpu_time_slice_sched_t *vnpu_sched_shm = NULL;
-    vnpu_sched_shm = map_share_mem(get_vnpu_shm_id(), sizeof(*g_vnpu_sched_context));
+    vnpu_sched_shm = map_share_mem(get_vnpu_shm_id(), sizeof(vnpu_time_slice_sched_t));
     if (vnpu_sched_shm == NULL) {
         LOG_ERROR("Failed to mmap share memory.");
         return ENPU_FAIL;
     }
 
-    share_mem_init(vnpu_sched_shm);
+    rc = share_mem_init(vnpu_sched_shm);
+    if (rc != ENPU_SUCCESS) {
+        LOG_ERROR("Failed to initialize shared memory.");
+        goto err_unmap;
+    }
 
     rc = vnpu_scheduler_init(vnpu_sched_shm);
-    CHECK_RETURN_ERROR_CODE(rc, "Failed to initialize vnpu scheduler.");
+    if (rc != ENPU_SUCCESS) {
+        LOG_ERROR("Failed to initialize vnpu scheduler.");
+        goto err_unmap;
+    }
 
     stream_map = hashmap_create(MAX_STREAMS_PER_PROCESS);
     if (!stream_map) {
         LOG_ERROR("Stream hash map init failed.");
-        return ENPU_FAIL;
+        goto err_unmap;
     }
 
     event_map = hashmap_create(MAX_EVENT_PER_PROCESS);
     if (!event_map) {
         LOG_ERROR("Event hash map init failed.");
-        hashmap_destroy(stream_map);
-        return ENPU_FAIL;
+        goto err_destroy_maps;
     }
 
     capture_stats_map = hashmap_create(MAX_STREAMS_PER_PROCESS);
     if (!capture_stats_map) {
         LOG_ERROR("Capture stats hash map init failed.");
-        hashmap_destroy(stream_map);
-        hashmap_destroy(event_map);
-        return ENPU_FAIL;
+        goto err_destroy_maps;
     }
 
-    /* model 数量通常远少于 stream */
     model_stats_map = hashmap_create(MAX_STREAMS_PER_PROCESS);
     if (!model_stats_map) {
         LOG_ERROR("Model stats hash map init failed.");
-        hashmap_destroy(stream_map);
-        hashmap_destroy(event_map);
-        hashmap_destroy(capture_stats_map);
-        return ENPU_FAIL;
+        goto err_destroy_maps;
     }
 
     task_grp_state_map = hashmap_create(MAX_STREAMS_PER_PROCESS);
     if (!task_grp_state_map) {
         LOG_ERROR("Task grp state hash map init failed.");
-        hashmap_destroy(stream_map);
-        hashmap_destroy(event_map);
-        hashmap_destroy(capture_stats_map);
-        hashmap_destroy(model_stats_map);
-        return ENPU_FAIL;
+        goto err_destroy_maps;
     }
 
     taskGroup_map = hashmap_create(MAX_EVENT_PER_PROCESS);
     if (!taskGroup_map) {
         LOG_ERROR("TaskGroup hash map init failed.");
-        hashmap_destroy(stream_map);
-        hashmap_destroy(event_map);
-        hashmap_destroy(capture_stats_map);
-        hashmap_destroy(model_stats_map);
-        hashmap_destroy(task_grp_state_map);
-        return ENPU_FAIL;
+        goto err_destroy_maps;
     }
 
     pthread_mutexattr_t stats_attr;
     pthread_mutexattr_init(&stats_attr);
     pthread_mutexattr_settype(&stats_attr, PTHREAD_MUTEX_RECURSIVE);
-    pthread_mutex_init(&g_stats_map_mutex, &stats_attr);
+    int ret = pthread_mutex_init(&g_stats_map_mutex, &stats_attr);
     pthread_mutexattr_destroy(&stats_attr);
+    if (ret != 0) {
+        LOG_ERROR("Failed to init g_stats_map_mutex, error=%d.", ret);
+        /* init 失败的 mutex 不能 destroy，直接去回收 hashmap */
+        goto err_destroy_maps;
+    }
 
-    return rc;
+    rc = vnpu_scheduler_start();
+    if (rc != ENPU_SUCCESS) {
+        LOG_ERROR("Failed to start vnpu scheduler threads.");
+        /* 此时调度线程可能已经跑起来，因此一律不回收，全部留给进程退出。*/
+        return ENPU_FAIL;
+    }
+
+    return ENPU_SUCCESS;
+
+err_destroy_maps:
+    destroy_all_stats_maps();
+err_unmap:
+    unmap_share_mem(vnpu_sched_shm, sizeof(*vnpu_sched_shm));
+    /* share_mem_init / vnpu_scheduler_init 已经把 g_vnpu_sched_context 指向了这块
+     * 共享内存，unmap 之后必须置 NULL，否则 core_limiter()、is_vnpu_alive() 等
+     * 无 NULL 检查的解引用点会访问已解除映射的内存。 */
+    g_vnpu_sched_context = NULL;
+    return ENPU_FAIL;
 }
 
 void set_stream_capture(void *param, rtStream_t stream)
@@ -796,7 +842,7 @@ void remove_stream(void *unused, rtStream_t stm)
                 g_cache_streams.streams[j - 1] = g_cache_streams.streams[j];
             }
             g_cache_streams.num_streams -= 1;
-            hashmap_remove(stream_map, (void *)stm);
+            (void)hashmap_remove(stream_map, (void *)stm);
             LOG_DEBUG("Stream position %d removed.", i);
             break;
         }

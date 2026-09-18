@@ -77,3 +77,49 @@ TEST_F(ConfigTest, CheckStrTest)
     int rc = check_str(str.c_str(), nullptr);
     EXPECT_EQ(rc, ENPU_FAIL);
 }
+
+TEST_F(ConfigTest, CheckShmIdRejectsInvalid)
+{
+    EXPECT_EQ(check_shm_id("", OPTION_SHM_ID), ENPU_FAIL);
+    EXPECT_EQ(check_shm_id("/tmp/shm", OPTION_SHM_ID), ENPU_FAIL);
+    EXPECT_EQ(check_shm_id("shm/id", OPTION_SHM_ID), ENPU_FAIL);
+    EXPECT_EQ(check_shm_id("..", OPTION_SHM_ID), ENPU_FAIL);
+    EXPECT_EQ(check_shm_id("../shm", OPTION_SHM_ID), ENPU_FAIL);
+}
+
+TEST_F(ConfigTest, CheckShmIdAcceptsValid)
+{
+    EXPECT_EQ(check_shm_id("AAAAAAAA-BBBBBBBB", OPTION_SHM_ID), ENPU_SUCCESS);
+    EXPECT_EQ(check_shm_id("shm.id.with.dots", OPTION_SHM_ID), ENPU_SUCCESS);
+}
+
+// A value whose length equals ret_len must be rejected (no room for the NUL).
+TEST_F(ConfigTest, LoadStrBoundaryRejected)
+{
+    constexpr size_t kBufLen = 8;
+    char buf[kBufLen] = {0};
+    EXPECT_EQ(load_str(OPTION_SHM_ID, "1234567", buf, kBufLen), ENPU_SUCCESS);
+    EXPECT_EQ(load_str(OPTION_SHM_ID, "12345678", buf, kBufLen), ENPU_FAIL);
+}
+
+// check_shm_id is wired into load_config: a path-traversal shm-id fails the load.
+TEST_F(ConfigTest, LoadConfigRejectsInvalidShmId)
+{
+    const char *path = "../__build/bad_shm_id.config";
+    const char *content = "physical-npu-id=0\n"
+                          "virtual-npu-id=0\n"
+                          "aicore-quota=50\n"
+                          "memory-quota=32768\n"
+                          "scheduling-policy=1\n"
+                          "shm-id=../evil\n";
+    FILE *f = fopen(path, "w");
+    ASSERT_NE(f, nullptr);
+    ASSERT_EQ(fputs(content, f) >= 0, true);
+    ASSERT_EQ(fclose(f), 0);
+
+    EXPECT_EQ(load_config(path), ENPU_FAIL);
+    remove(path);
+
+    // Restore the global config so later fixtures see a valid one.
+    ASSERT_EQ(load_config(MOCK_NPU_CONFIG_PATH), ENPU_SUCCESS);
+}

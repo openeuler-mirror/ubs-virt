@@ -149,6 +149,10 @@ RUNTIME_HOOK_DEFINE(rtMemGetInfoEx, rtMemInfoType_t memInfoType, size_t *freeSiz
     CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
                        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
     LOG_DEBUG("Hook mem rtMemGetInfoEx.");
+    if (freeSize == NULL || totalSize == NULL) {
+        LOG_ERROR("rtMemGetInfoEx: freeSize or totalSize is NULL.");
+        return RT_ERROR_INVALID_VALUE;
+    }
     size_t quota = get_mem_limit_quota();
     size_t used;
     int ret = get_mem_used(&used);

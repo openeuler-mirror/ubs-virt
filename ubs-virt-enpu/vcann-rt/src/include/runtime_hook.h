@@ -39,7 +39,7 @@ typedef rtError_t (*rt_symbol_t)();
     ({                                                                       \
         rt_symbol_t _entry = (rt_symbol_t)RUNTIME_FIND_ENTRY(table, symbol); \
         if (!_entry) {                                                       \
-            fprintf(stderr, "HOOK ERROR: %s - %s\n", #symbol, dlerror());    \
+            fprintf(stderr, "HOOK ERROR: %s\n", #symbol);                    \
         }                                                                    \
         _entry ? _entry(__VA_ARGS__) : ACL_ERROR_FAILURE;                    \
     })
