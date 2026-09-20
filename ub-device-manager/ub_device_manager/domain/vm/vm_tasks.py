@@ -42,7 +42,7 @@ class GetAllVmTask(AsyncTask):
     def __init__(self):
         self.vm_client = VMClient()
 
-    async def execute(self, input_data: None) -> GetVmsListResp:
+    async def execute(self) -> GetVmsListResp:
         logger.info(f"Get all vms start.")
         conn = None
         try:
@@ -61,7 +61,7 @@ class PrepareVmXmlTask(AsyncTask):
 
     async def should_run(self) -> bool:
         request: CreateVmRequest = self.context.get(CREATE_VM_REQUEST_CONTEXT_KEY)
-        if request is None:
+        if not request:
             raise InvalidCreateVmRequest("create vm request not found in task context")
         self._validate_create_request(request)
         return True
@@ -155,7 +155,7 @@ class BuildAndStartVmTask(AsyncTask):
         if not xml:
             raise VmXmlBuildFailed("loaded VM XML not found in task context")
         bind_result = self.context.get(BIND_RESULT_CONTEXT_KEY)
-        if bind_result is None:
+        if not bind_result:
             logger.info("Create VM without UB devices")
             await self.vm_client.define_and_start(xml)
             logger.info("Create VM finished without UB devices")

@@ -67,7 +67,7 @@ class BindNpuDeviceTask(AsyncTask):
         self.device_selector = UbDeviceSelector()
 
     async def should_run(self) -> bool:
-        if self.context.get(BIND_REQUEST_CONTEXT_KEY) is None:
+        if not self.context.get(BIND_REQUEST_CONTEXT_KEY):
             logger.info("No UB devices need to bind.")
             return False
         return True

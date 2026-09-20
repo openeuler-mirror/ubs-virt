@@ -66,6 +66,62 @@ from ub_device_manager.domain.ssu.ssu_tasks import (
 app = FastAPI()
 
 
+@app.post('/ssu/alloc', response_model=SsuInfo, tags=['SSU'])
+async def ssu_alloc(body: SsuAllocSpaceReq) -> SsuInfo:
+    """
+    Allocate SSU storage space.
+    """
+    logger.info("Start ssu alloc request, name: {}", body.name)
+    chain = (
+        AsyncTaskChain()
+        .with_context({SSU_ALLOC_REQUEST_CONTEXT_KEY: body})
+        .apply_async_task(AllocSsuTask)
+    )
+    return (await chain.run_chain()).get(SSU_ALLOC_RESULT_CONTEXT_KEY)
+
+
+@app.get('/ssu', response_model=List[SsuInfo], tags=['SSU'])
+async def get_ssu_list() -> List[SsuInfo]:
+    """
+    List all allocated storage spaces.
+    """
+    logger.info("Start get ssu list request")
+    chain = (
+        AsyncTaskChain()
+        .apply_async_task(GetSsuListTask)
+    )
+    return (await chain.run_chain()).get(SSU_LIST_CONTEXT_KEY)
+
+
+@app.get('/ssu/{name}', response_model=SsuInfo, tags=['SSU'])
+async def show_ssu_alloc_info(name: str) -> SsuInfo:
+    """
+    Get allocated storage space information by name.
+    """
+    logger.info("Start show ssu alloc info request, name: {}.", name)
+    chain = (
+        AsyncTaskChain()
+        .with_context({SSU_SHOW_REQUEST_CONTEXT_KEY: name})
+        .apply_async_task(ShowSsuTask)
+    )
+    return (await chain.run_chain()).get(SSU_SHOW_RESULT_CONTEXT_KEY)
+
+
+@app.delete('/ssu/{name}', response_model=Message, tags=['SSU'])
+async def free_ssu(name: str) -> Message:
+    """
+    Free SSU storage space.
+    """
+    logger.info("Start free ssu request, name: {}", name)
+    chain = (
+        AsyncTaskChain()
+        .with_context({SSU_FREE_REQUEST_CONTEXT_KEY: name})
+        .apply_async_task(FreeSsuSpaceTask)
+    )
+    await chain.run_chain()
+    return Message(msg=f"Freed {name} successfully.")
+
+
 @app.get('/ssu-ns/connect-info', response_model=List[NsConnectInfo], tags=['SSU'])
 async def get_ns_connnect_info(
         name: str, vfe_guid: Optional[str] = None
@@ -154,33 +210,6 @@ async def add_ssu_perm(body: SsuPermReq) -> Message:
     return Message(msg="Add SSU access permission successfully")
 
 
-@app.post('/ssu/alloc', response_model=SsuInfo, tags=['SSU'])
-async def ssu_alloc(body: SsuAllocSpaceReq) -> SsuInfo:
-    """
-    Allocate SSU storage space.
-    """
-    logger.info("Start ssu alloc request, name: {}", body.name)
-    chain = (
-        AsyncTaskChain()
-        .with_context({SSU_ALLOC_REQUEST_CONTEXT_KEY: body})
-        .apply_async_task(AllocSsuTask)
-    )
-    return (await chain.run_chain()).get(SSU_ALLOC_RESULT_CONTEXT_KEY)
-
-
-@app.get('/ssu', response_model=List[SsuInfo], tags=['SSU'])
-async def get_ssu_list() -> List[SsuInfo]:
-    """
-    List all allocated storage spaces.
-    """
-    logger.info("Start get ssu list request")
-    chain = (
-        AsyncTaskChain()
-        .apply_async_task(GetSsuListTask)
-    )
-    return (await chain.run_chain()).get(SSU_LIST_CONTEXT_KEY)
-
-
 @app.post('/ssu/rm-perm', response_model=Message, tags=['SSU'])
 async def remove_ssu_perm(body: SsuPermReq) -> Message:
     """
@@ -224,32 +253,3 @@ async def ssu_detach(body: SsuSpaceReq) -> Message:
     )
     await chain.run_chain()
     return Message(msg="Detach SSU storage space successfully")
-
-
-@app.get('/ssu/{name}', response_model=SsuInfo, tags=['SSU'])
-async def show_ssu_alloc_info(name: str) -> SsuInfo:
-    """
-    Get allocated storage space information by name.
-    """
-    logger.info("Start show ssu alloc info request, name: {}.", name)
-    chain = (
-        AsyncTaskChain()
-        .with_context({SSU_SHOW_REQUEST_CONTEXT_KEY: name})
-        .apply_async_task(ShowSsuTask)
-    )
-    return (await chain.run_chain()).get(SSU_SHOW_RESULT_CONTEXT_KEY)
-
-
-@app.delete('/ssu/{name}', response_model=Message, tags=['SSU'])
-async def free_ssu(name: str) -> Message:
-    """
-    Free SSU storage space.
-    """
-    logger.info("Start free ssu request, name: {}", name)
-    chain = (
-        AsyncTaskChain()
-        .with_context({SSU_FREE_REQUEST_CONTEXT_KEY: name})
-        .apply_async_task(FreeSsuSpaceTask)
-    )
-    await chain.run_chain()
-    return Message(msg=f"Freed {name} successfully.")
