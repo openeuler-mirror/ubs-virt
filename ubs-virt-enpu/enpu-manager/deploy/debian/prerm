@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    remove)
+        [ -d /run/systemd/system ] && deb-systemd-invoke stop enpu-manager.service >/dev/null 2>&1 || true
+        ;;
+esac
+
+#DEBHELPER#
+exit 0

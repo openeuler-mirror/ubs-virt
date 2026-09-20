@@ -1,0 +1,5 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: enpu-manager
+Files: *
+Copyright: 2026 Huawei Technologies Co., Ltd.
+License: MulanPSL-2.0
