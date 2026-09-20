@@ -21,6 +21,24 @@
 namespace vas::ut::security {
 using namespace vas::common;
 using namespace vas::security;
+
+// Simulate actual GetCap behavior: populate capData
+static int GetCapMockSuccess(__user_cap_header_struct *capHeader, __user_cap_data_struct *capData)
+{
+    if (capHeader == nullptr || capData == nullptr) {
+        return -1;
+    }
+    constexpr unsigned int capSegmentCount = 2;
+    for (unsigned int i = 0; i < capSegmentCount; i++) {
+        capData[i].effective = 0;
+        capData[i].permitted = 0;
+        capData[i].inheritable = 0;
+    }
+    capData[CAP_TO_INDEX(CAP_DAC_OVERRIDE)].permitted |= CAP_TO_MASK(CAP_DAC_OVERRIDE);
+    capData[CAP_TO_INDEX(CAP_FOWNER)].permitted |= CAP_TO_MASK(CAP_FOWNER);
+    return 0;
+}
+
 void TestVasSecurityManager::SetUp()
 {
     Test::SetUp();
@@ -29,18 +47,6 @@ void TestVasSecurityManager::SetUp()
 void TestVasSecurityManager::TearDown()
 {
     Test::TearDown();
-}
-
-static int GetCapMockFillPermitted(__user_cap_header_struct *capHeader, __user_cap_data_struct *capData)
-{
-    (void)capHeader;
-    capData[0].effective = 0;
-    capData[0].permitted = 0xFFFFFFFF;
-    capData[0].inheritable = 0;
-    capData[1].effective = 0;
-    capData[1].permitted = 0xFFFFFFFF;
-    capData[1].inheritable = 0;
-    return 0;
 }
 
 TEST_F(TestVasSecurityManager, testGetCapabilities)
@@ -63,7 +69,7 @@ TEST_F(TestVasSecurityManager, testModifyEffectiveCapabilities)
         CAP_FOWNER,
     };
     int effectiveCapabilities = 999;
-    MOCKER(VasSecurityManager::GetCap).stubs().will(invoke(GetCapMockFillPermitted));
+    MOCKER(VasSecurityManager::GetCap).stubs().will(invoke(GetCapMockSuccess));
     MOCKER(VasSecurityManager::SetCap).stubs().will(returnValue(0)).then(returnValue(0));
     EXPECT_EQ(VasSecurityManager::ModifyEffectiveCapabilities(caps, VasCapOperateType::CAP_ADD), VAS_OK);
     EXPECT_EQ(VasSecurityManager::ModifyEffectiveCapabilities(caps, VasCapOperateType::CAP_DELETE), VAS_OK);
@@ -77,8 +83,8 @@ TEST_F(TestVasSecurityManager, testClearCapabilities)
     const std::vector<__u32> caps = {
         CAP_DAC_OVERRIDE,
     };
-    MOCKER(VasSecurityManager::GetCap).stubs().will(invoke(GetCapMockFillPermitted));
-    MOCKER(VasSecurityManager::SetCap).stubs().will(returnValue(0)).then(returnValue(-1));
+    MOCKER(VasSecurityManager::GetCap).stubs().will(invoke(GetCapMockSuccess)).then(returnValue(-1));
+    MOCKER(VasSecurityManager::SetCap).stubs().will(returnValue(0));
     EXPECT_EQ(VasSecurityManager::ModifyEffectiveCapabilities(caps, VasCapOperateType::CAP_ADD), VAS_OK);
     VasSecurityManager::ClearCapabilities(caps);
 }
