@@ -26,6 +26,10 @@ class InvalidCreateVmRequest(UbDmHTTPException):
     code = 400
 
 
+class VmXmlTooLarge(InvalidCreateVmRequest):
+    msg = 'vm xml exceeds the maximum allowed size'
+
+
 class VmXmlBuildFailed(UbDmHTTPException):
     msg = 'vm xml build failed'
     code = 543

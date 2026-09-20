@@ -12,14 +12,15 @@
 from __future__ import annotations
 import os
 from typing import List
-from xml.etree import ElementTree
 
+from defusedxml.ElementTree import ParseError
 from loguru import logger
 from pydantic import BaseModel
 
 from ub_device_manager.app.models import BindNpuDeviceRequest, CreateVmRequest
 from ub_device_manager.common.async_task_framework import AsyncTask
-from ub_device_manager.exceptions import InvalidCreateVmRequest, VmXmlBuildFailed
+from ub_device_manager.common.config import CONFIG, parse_size
+from ub_device_manager.exceptions import InvalidCreateVmRequest, VmXmlBuildFailed, VmXmlTooLarge
 from ub_device_manager.domain.npu.npu_client import NpuClient
 from ub_device_manager.constants import (
     BIND_REQUEST_CONTEXT_KEY,
@@ -92,23 +93,49 @@ class PrepareVmXmlTask(AsyncTask):
 
     @staticmethod
     def _load_and_validate_xml(request: CreateVmRequest, xml_builder: VmXmlBuilder) -> str:
-        xml_input = request.xml_text if request.xml_text is not None else request.xml_path
+        max_xml_size = parse_size(CONFIG.get("vm", {}).get("max_xml_size", "1 MB"))
 
         if request.xml_path is not None:
+            xml_input = request.xml_path
             if not os.path.isfile(xml_input):
                 logger.error("Invalid XML file path: {}", xml_input)
                 raise InvalidCreateVmRequest("invalid xml input")
             try:
+                file_size = os.path.getsize(xml_input)
+            except OSError as exc:
+                logger.error("Stat XML file failed: {}", exc)
+                raise InvalidCreateVmRequest("invalid xml input") from exc
+            if file_size > max_xml_size:
+                logger.error(
+                    "XML file too large: {} bytes, max allowed: {} bytes",
+                    file_size,
+                    max_xml_size,
+                )
+                raise VmXmlTooLarge(
+                    f"xml file size {file_size} exceeds the maximum allowed size {max_xml_size}"
+                )
+            try:
                 with open(xml_input, "r", encoding="utf-8") as xml_file:
                     xml_input = xml_file.read()
-            except OSError as exc:
+            except (OSError, UnicodeDecodeError) as exc:
                 logger.error("Read XML file failed: {}", exc)
                 raise InvalidCreateVmRequest("invalid xml input") from exc
+        else:
+            xml_input = request.xml_text
+            text_size = len(xml_input.encode("utf-8"))
+            if text_size > max_xml_size:
+                logger.error(
+                    "XML text too large: {} bytes, max allowed: {} bytes",
+                    text_size,
+                    max_xml_size,
+                )
+                raise VmXmlTooLarge(
+                    f"xml content size {text_size} exceeds the maximum allowed size {max_xml_size}"
+                )
 
         try:
-            ElementTree.fromstring(xml_input)
             xml_builder.validate_input_xml(xml_input)
-        except (ElementTree.ParseError, ValueError) as exc:
+        except (ParseError, ValueError) as exc:
             logger.error("Invalid XML input: {}", exc)
             raise InvalidCreateVmRequest("invalid xml input") from exc
 

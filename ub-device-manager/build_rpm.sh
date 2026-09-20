@@ -4,9 +4,9 @@
 #
 # ub-device-manager is licensed under the Mulan PSL v2.
 ##########################################################################################################
-# 构建 ub-device-manager RPM 包。
-# 依赖: rpm-build tar
-# 用法: 在 openEuler 24.03 lts sp4(aarch64) 服务器执行 bash build_rpm.sh
+# Build the ub-device-manager RPM package.
+# Dependencies: rpm-build tar
+# Usage: run "bash build_rpm.sh" on an openEuler 24.03 LTS SP4 (aarch64) server.
 
 set -e
 

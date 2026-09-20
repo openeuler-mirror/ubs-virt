@@ -11,6 +11,7 @@
 ##########################################################################################################
 from loguru import logger
 import logging
+import re
 import sys
 
 from ub_device_manager.common.config import CONFIG
@@ -18,6 +19,16 @@ from contextvars import ContextVar
 
 REQUEST_ID_VAR = ContextVar("request_id", default="")
 LOG_PATH = "/var/log/ub_device_manager/ub_device_manager.log"
+
+# Matches C0/C1 control characters (including \r, \n, etc.) to prevent log injection
+CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+
+def sanitize_log_message(message):
+    """Remove control characters such as newlines and carriage returns to prevent log injection."""
+    if not isinstance(message, str):
+        message = str(message)
+    return CONTROL_CHAR_PATTERN.sub("", message)
 
 
 class InterceptHandler(logging.Handler):
@@ -38,6 +49,8 @@ class InterceptHandler(logging.Handler):
 def request_id_filter(record):
     req_id = REQUEST_ID_VAR.get()
     record["extra"]["request_id"] = req_id if req_id else "-"
+    # Filter the message content to avoid log injection via control characters such as \r and \n
+    record["message"] = sanitize_log_message(record["message"])
     if record["name"] == "logging" and record["function"] == "callHandlers":
         return False
     return True
@@ -47,23 +60,26 @@ def setup_logging():
     logging.getLogger("uvicorn.error").disabled = True
     logger.remove()
 
+    log_config = CONFIG.get("log", {})
+    log_level = log_config.get("level", "INFO")
+
     logger.add(
         sink=LOG_PATH,
         backtrace=False,
         diagnose=False,
-        rotation=CONFIG.get("log", {}).get("max_file_size", "10 MB"),
-        retention=CONFIG.get("log", {}).get("max_file_count", 10),
+        rotation=log_config.get("max_file_size", "10 MB"),
+        retention=log_config.get("max_file_count", 10),
         compression="zip",
-        level=CONFIG.get("log", {}).get("level", "INFO"),
+        level=log_level,
         enqueue=True,
         format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
                "<magenta>{extra[request_id]}</magenta> | <blue>{name}:{function}:{line}</blue> - <level>{message}</level>"
         , filter=request_id_filter)
 
-    if CONFIG.get("log", {}).get("stdout", False):
+    if log_config.get("stdout", False):
         logger.add(
             sink=sys.stdout,
-            level="INFO",
+            level=log_level,
             enqueue=True,
             format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | "
                    "<magenta>{extra[request_id]}</magenta> | <blue>{name}:{function}:{line}</blue> - <level>{message}</level>"

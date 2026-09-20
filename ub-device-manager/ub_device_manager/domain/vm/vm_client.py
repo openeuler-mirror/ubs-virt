@@ -50,10 +50,10 @@ class VMClient:
     async def connect(self) -> libvirt.virConnect:
         """Connect to libvirt."""
         try:
-            return libvirt.open(self._uri)
+            return await asyncio.to_thread(libvirt.open, self._uri)
         except Exception as e:
             logger.error(f"Failed to connect to libvirt, error: {e}")
-            raise LibvirtConnectionFailed
+            raise LibvirtConnectionFailed from e
 
     async def get_vm(self, conn: libvirt.virConnect, name: str) -> VmInfo:
         """
@@ -63,15 +63,16 @@ class VMClient:
         :param name: VM name
         """
         try:
-            domain = conn.lookupByName(name)
-            name = domain.name()
-            uuid = domain.UUIDString()
-            state = await self._state_to_str(domain.state()[0])
-            controllers = await self._parse_controllers(xml_desc=domain.XMLDesc())
+            domain = await asyncio.to_thread(conn.lookupByName, name)
+            name = await asyncio.to_thread(domain.name)
+            uuid = await asyncio.to_thread(domain.UUIDString)
+            state = await self._state_to_str((await asyncio.to_thread(domain.state))[0])
+            xml_desc = await asyncio.to_thread(domain.XMLDesc)
+            controllers = await self._parse_controllers(xml_desc=xml_desc)
             return VmInfo(name=name, uuid=uuid, state=state, controllers=controllers)
         except Exception as e:
             logger.error(f"Failed to get VM: {name}, error: {e}")
-            raise GetVmInfoFailed
+            raise GetVmInfoFailed from e
 
     async def get_all_vms(self, conn: libvirt.virConnect, vm_state = 0) -> List[VmInfo]:
         """
@@ -82,12 +83,13 @@ class VMClient:
         """
         vms = []
         try:
-            domains = conn.listAllDomains(vm_state)
+            domains = await asyncio.to_thread(conn.listAllDomains, vm_state)
             for domain in domains:
-                name = domain.name()
-                uuid = domain.UUIDString()
-                state = await self._state_to_str(domain.state()[0])
-                controllers = await self._parse_controllers(domain.XMLDesc(0))
+                name = await asyncio.to_thread(domain.name)
+                uuid = await asyncio.to_thread(domain.UUIDString)
+                state = await self._state_to_str((await asyncio.to_thread(domain.state))[0])
+                xml_desc = await asyncio.to_thread(domain.XMLDesc, 0)
+                controllers = await self._parse_controllers(xml_desc=xml_desc)
 
                 vms.append(VmInfo(
                     name=name,
@@ -98,7 +100,7 @@ class VMClient:
             return vms
         except Exception as e:
             logger.error("Failed to get all vms, error: %s", e)
-            raise GetVmInfoFailed
+            raise GetVmInfoFailed from e
 
     async def delete_vm(self, conn: libvirt.virConnect, name: str) -> str:
         """
@@ -118,7 +120,7 @@ class VMClient:
 
         except Exception as e:
             logger.error("Failed to delete vm {}, error: {}.", name, e)
-            raise VmDeletionFailed
+            raise VmDeletionFailed from e
 
     @staticmethod
     async def _parse_controllers(xml_desc: str) -> List[ControllerInfo]:
@@ -183,7 +185,7 @@ class VMClient:
         """
         if conn is not None:
             try:
-                conn.close()
+                await asyncio.to_thread(conn.close)
             except Exception as e:
                 logger.error("Failed to disconnect to libvirt, error: %s", e)
 
@@ -197,7 +199,7 @@ class VMClient:
             if domain is None:
                 raise VmDefineStartFailed("Failed to define VM domain")
 
-            domain_name = domain.name()
+            domain_name = await asyncio.to_thread(domain.name)
             logger.info("Start VM domain: {}", domain_name)
             await asyncio.to_thread(domain.create)
             logger.info("VM domain started: {}", domain_name)

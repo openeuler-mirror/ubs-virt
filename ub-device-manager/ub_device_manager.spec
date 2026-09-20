@@ -31,10 +31,12 @@ BuildArch:      aarch64
 Requires:       python3
 
 %description
-UB Device Manager: 在本地节点创建/删除 UB(NPU 直通)虚机、使能/去使能/查询 UB 设备。
-提供 HTTP、Python SDK(ub_device_manager.ub_dm_sdk) 与 ubdmctl CLI 三种入口。
-Python 依赖(fastapi/uvicorn/pydantic/loguru/httpx/typer/rich/PyYAML 等)需另行安装，
-参见包内 requirements.txt。
+UB Device Manager: creates/deletes UB (NPU passthrough) VMs on the local node, and
+enables/disables/queries UB devices.
+It provides three entry points: HTTP, the Python SDK (ub_device_manager.ub_dm_sdk),
+and the ubdmctl CLI.
+Python dependencies (fastapi/uvicorn/pydantic/loguru/httpx/typer/rich/PyYAML, etc.)
+must be installed separately; see requirements.txt inside the package.
 
 %prep
 %setup -c
@@ -49,27 +51,28 @@ mkdir -p %{buildroot}/var/log/ub_device_manager
 mkdir -p %{buildroot}/etc/systemd/system
 mkdir -p %{buildroot}%{site_packages_dir}/ub_device_manager
 
-# 清理构建机上的缓存文件
+# Remove cache files on the build machine
 find . -name "__pycache__" -type d -prune -exec rm -rf {} +
 find . -name "*.pyc" -type f -delete
 
-# 服务端主包与内置 Python SDK
+# Server main package and bundled Python SDK
 cp -r ub_device_manager/* %{buildroot}%{site_packages_dir}/ub_device_manager/
 cp requirements.txt %{buildroot}%{site_packages_dir}/ub_device_manager/requirements.txt
 
-# 配置文件: 当前代码从 site-packages 包内读取 toml, /etc 下为运维预留副本
+# Config file: the code prefers /etc/ub_device_manager/ub_device_manager.toml and falls back
+# to the copy bundled in site-packages, so operators only need to edit the /etc one.
 cp ub_device_manager/ub_device_manager.toml %{buildroot}/etc/ub_device_manager/ub_device_manager.toml
 
-# 服务模板/spec 不随包安装到 site-packages
+# The service template/spec are not installed into site-packages
 rm -f %{buildroot}%{site_packages_dir}/ub_device_manager/ub-device-manager.service
 rm -f %{buildroot}%{site_packages_dir}/ub_device_manager/ub_device_manager.spec
 
-# 渲染 systemd 服务文件中的 Python 与安装路径占位符
+# Render the Python and install path placeholders in the systemd service file
 sed -e "s|@PYTHON3@|%{_bindir}/python%{python_version}|g" \
     -e "s|@SITE_PACKAGES@|%{site_packages_dir}|g" \
     ub_device_manager/ub-device-manager.service > %{buildroot}/etc/systemd/system/ub-device-manager.service
 
-# 生成 ubdmctl 全局命令(指向 CLI 控制器)
+# Generate the global ubdmctl command (points to the CLI controller)
 cat << 'EOF' > %{buildroot}%{_bindir}/ubdmctl
 #!/bin/bash
 exec %{_bindir}/python%{python_version} %{site_packages_dir}/ub_device_manager/ub_device_manager_cli.py "$@"
@@ -83,7 +86,7 @@ getent passwd %{service_user} >/dev/null || \
     useradd -r -g %{service_user} -d / -s /sbin/nologin \
     -c "Ub Device Manager Service User" %{service_user}
 
-# 服务用户需要访问 libvirt 与 UBSE, 相关组存在时加入
+# The service user needs access to libvirt and UBSE; join the related groups when they exist
 for grp in libvirt qemu ubse; do
     if getent group "$grp" >/dev/null; then
         usermod -aG "$grp" %{service_user} || true
@@ -112,10 +115,10 @@ rm -rf %{buildroot}
 %attr(0750, %{service_user}, %{service_user}) %{site_packages_dir}/ub_device_manager
 %attr(0644, root, root) /etc/systemd/system/ub-device-manager.service
 %dir %attr(0750, %{service_user}, %{service_user}) /etc/ub_device_manager
-%attr(0640, %{service_user}, %{service_user}) /etc/ub_device_manager/ub_device_manager.toml
+%config(noreplace) %attr(0640, %{service_user}, %{service_user}) /etc/ub_device_manager/ub_device_manager.toml
 %dir %attr(0750, %{service_user}, %{service_user}) /var/log/ub_device_manager
 %attr(0755, root, root) %{_bindir}/ubdmctl
 
 %changelog
 * Tue Jun 30 2026 Developer - 1.0.0
-- 重构安装路径，支持动态 Python 版本传参，并生成 ubdmctl 全局控制命令
+- Refactor the install paths, support passing the Python version dynamically, and generate the global ubdmctl control command

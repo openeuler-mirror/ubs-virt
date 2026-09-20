@@ -30,13 +30,13 @@ class BuildRespTask(AsyncTask[UserMid, UserResp]):
         return UserResp(success=True, user_info=input_data)
 
     async def when_raise_exception(self, exception: Exception):
-        print(f"任务2自身捕获异常: {exception}")
+        print(f"Task 2 caught the exception itself: {exception}")
         raise exception
 
 # Global exception handler
 class GlobalTaskExceptionHandler(BaseExceptionHandler):
     async def handle_exception(self, exception: Exception, context: Context) -> None:
-        print(f"全局异常捕获 | context={context} | err={str(exception)}")
+        print(f"Global exception caught | context={context} | err={str(exception)}")
 
 
 
@@ -53,8 +53,8 @@ async def main():
         .apply_async_task(BuildRespTask)
     # Run the chain.
     resp = await chain.run_chain()
-    print("链路执行结果：", resp)
-    print("链路上下文：", chain._context)
+    print("Chain result: ", resp)
+    print("Chain context: ", chain._context)
 
 if __name__ == "__main__":
     asyncio.run(main())

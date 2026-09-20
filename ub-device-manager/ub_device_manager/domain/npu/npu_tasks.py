@@ -102,7 +102,7 @@ class BindNpuDeviceTask(AsyncTask):
                                                                need_nic=request.need_nic
                                                                )
         except ValueError as exc:
-            raise ResolveNpuDevicesFailed(str(exc))
+            raise ResolveNpuDevicesFailed(str(exc)) from exc
         device_list = [
             {"device_id": device.id, "device_type": device.type}
             for device in devices
@@ -149,6 +149,6 @@ class UnbindNpuDeviceTask(AsyncTask):
         logger.debug("Resolved unbind devices: {}, bus_guid: {}", device_list, bus_guid)
         try:
             await self.npu_client.free_devices(bus_guid, device_list)
-        except Exception:
-            raise UnbindDeviceFailed
+        except Exception as exc:
+            raise UnbindDeviceFailed from exc
         logger.info("Unbind UB devices finished, devices: {}, bus_guid: {}", device_list, bus_guid)
