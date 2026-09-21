@@ -23,7 +23,7 @@ def try_catch_log(func):
             skip_num = 1
 
         for idx, param_name in enumerate(params_list[skip_num:]):
-            if idx < len(args_copy):
+            if idx + skip_num < len(args_copy):
                 bind_args[param_name] = args_copy[idx + skip_num]
 
         bind_args.update(kw_copy)
