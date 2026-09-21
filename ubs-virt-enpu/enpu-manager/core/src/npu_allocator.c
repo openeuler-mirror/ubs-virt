@@ -1159,6 +1159,22 @@ int npu_allocator_set_swap_state(npu_allocator_t *a, int32_t phy_id, int vnpu_id
     return ret;
 }
 
+int npu_allocator_clear_swap(npu_allocator_t *a, int32_t phy_id, int vnpu_id)
+{
+    CHECK(a, ENPU_INVALID_PARAM);
+
+    pthread_mutex_lock(&a->lock);
+
+    shm_state_t *state = shm_manager_get_state(a->shm_mgr, phy_id);
+    if (state != NULL) {
+        shm_free(state, vnpu_id);
+    }
+    int ret = shm_manager_set_swap_state(a->shm_mgr, phy_id, vnpu_id, 0, 0);
+
+    pthread_mutex_unlock(&a->lock);
+    return ret;
+}
+
 int npu_allocator_write_swap_cmd(npu_allocator_t *a, int32_t phy_id, const char *pod_uid, int vnpu_id, int action,
                                  uint8_t to_swap_out)
 {
@@ -1309,4 +1325,29 @@ int npu_allocator_get_per_die_hbm_mb(npu_allocator_t *a, uint64_t *out_hbm_mb, i
     }
     pthread_mutex_unlock(&a->tree->tree_lock);
     return ENPU_SUCCESS;
+}
+
+int npu_allocator_set_oversub_ratio(npu_allocator_t *a, int die_index, double ratio)
+{
+    CHECK(a, ENPU_INVALID_PARAM);
+    if (die_index < 0 || die_index >= MAX_NPU_PER_NODE) {
+        return ENPU_INVALID_PARAM;
+    }
+
+    pthread_mutex_lock(&a->lock);
+    a->oversub_ratio[die_index] = ratio;
+    pthread_mutex_unlock(&a->lock);
+    return ENPU_SUCCESS;
+}
+
+double npu_allocator_get_oversub_ratio(npu_allocator_t *a, int die_index)
+{
+    if (a == NULL || die_index < 0 || die_index >= MAX_NPU_PER_NODE) {
+        return 0.0;
+    }
+
+    pthread_mutex_lock(&a->lock);
+    double ratio = a->oversub_ratio[die_index];
+    pthread_mutex_unlock(&a->lock);
+    return ratio;
 }
