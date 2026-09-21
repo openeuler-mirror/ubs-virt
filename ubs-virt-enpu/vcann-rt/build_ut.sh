@@ -17,9 +17,14 @@ cp ../test/res/test_npu_info.config .
 
 cmake .. -DBUILD_TESTS=ON -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
 make vnpu_test
+# mem-swap 模块独立单测(自制断言框架, 各含独立 main), 需单独编译并运行以计入覆盖率
+make memory_tracker_test swap_executor_test swap_hook_test
 
 echo "[DEBUG] Running tests..."
 ./test/vnpu_test --gtest_output=xml:test_detail.xml
+./test/memory_tracker_test
+./test/swap_executor_test
+./test/swap_hook_test
 
 bash ../coverage.sh
 

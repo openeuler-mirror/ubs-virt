@@ -368,7 +368,7 @@ int update_log_file(void)
     ret = snprintf_s(log_path, sizeof(log_path), sizeof(log_path) - 1, "%s%s_%s_%d_%s%s", g_log_config.log_dir,
                      MODULE_NAME, SUB_MODULE_NAME, getpid(), time_str, LOG_FILE_SUFFIX);
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret < 0, "Failed to get log file name.");
-    ret = strncpy_s(g_log_config.log_path, sizeof(g_log_config.log_path), log_path, strlen(log_path));
+    ret = strncpy_s(g_log_config.log_path, sizeof(g_log_config.log_path), log_path, sizeof(g_log_config.log_path) - 1);
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret != 0, "Failed to set g_log_config.log_path %s.", log_path);
 
     int fd = open(g_log_config.log_path, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, LOG_FILE_RIGHT);
@@ -505,20 +505,26 @@ void log_print(EnpuLogLevel level, const char *filename, int line, const char *f
         return;
     }
 
+    if (filename == NULL) {
+        fprintf(stderr, "[eNPU] log_print: filename is NULL.\n");
+        return;
+    }
+
     LogMessage msg;
     msg.level = level;
     msg.line = line;
 
     char path_buf[FILE_PATH_LEN];
-    int ret = strncpy_s(path_buf, sizeof(path_buf), filename, strlen(filename));
+    int ret = strncpy_s(path_buf, sizeof(path_buf), filename, sizeof(path_buf) - 1);
     CHECK_COND_LOG_PRINT(ret, "strncpy_s path_buf failed");
+    path_buf[sizeof(path_buf) - 1] = '\0';
     char *bname = strrchr(path_buf, '/');
     if (bname != NULL) {
         bname = bname + 1;
     } else {
         bname = path_buf;
     }
-    ret = strncpy_s(msg.basename, sizeof(msg.basename), bname, strlen(bname));
+    ret = strncpy_s(msg.basename, sizeof(msg.basename), bname, sizeof(msg.basename) - 1);
     CHECK_COND_LOG_PRINT(ret, "strncpy_s msg.basename failed");
 
     clock_gettime(CLOCK_REALTIME, &msg.timestamp);

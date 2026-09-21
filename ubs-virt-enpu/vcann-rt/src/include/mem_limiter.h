@@ -29,9 +29,10 @@ extern "C" {
 typedef int32_t rtError_t;
 static const int32_t RT_ERROR_INVALID_VALUE = 0x07110001;
 
-extern int guard_memory(size_t requested);
+extern int guard_memory(size_t requested, bool swap_enabled);
 extern int memory_limiter_init();
 extern bool memory_check(size_t requested);
+extern bool memory_check_elastic(size_t requested);
 extern const char *lock_path();
 extern int create_file_lock_base_dir();
 

@@ -10,8 +10,10 @@
 * See the Mulan PSL v2 for more details.
 */
 #include "../include/config.h"
+#include <limits.h>
 
 #define TEN_BASE 10
+#define MB_TO_B (1024 * 1024)
 
 struct Config config = {0};
 
@@ -21,6 +23,8 @@ void reset_config()
     config.vnpu_id = INVALID_VALUE;
     config.aicore_quota = INVALID_VALUE;
     config.memory_quota = INVALID_VALUE;
+    config.memory_request = 0;
+    config.memory_limit = 0;
     config.scheduling_policy = INVALID_VALUE;
     (void)memset_s(config.shm_id, sizeof(config.shm_id), 0, sizeof(config.shm_id));
 }
@@ -67,6 +71,14 @@ int check_shm_id(const char *str, const char *option_name)
 
 int check_config()
 {
+    /* memory_request/limit 的单位语义为 MB(与 memory_quota 一致),
+     * 此处仅做旧配置兼容补全, 不做 MB->B 换算; 换算统一由 enpu_config_info_init 执行,
+     * 否则会被乘两次 MB_TO_B 导致配额异常放大 */
+    if (config.memory_request == 0 && config.memory_limit == 0 && config.memory_quota != INVALID_VALUE) {
+        config.memory_request = (uint64_t)config.memory_quota;
+        config.memory_limit = (uint64_t)config.memory_quota;
+    }
+
     return check_int32(config.phy_npu_id, OPTION_NPU_ID) == ENPU_SUCCESS &&
            check_int32(config.vnpu_id, OPTION_VNPU_ID) == ENPU_SUCCESS &&
            check_int32(config.aicore_quota, OPTION_AICORE_QUOTA) == ENPU_SUCCESS &&
@@ -111,6 +123,24 @@ int load_str(const char *key, const char *value, char *ret_value, size_t ret_len
     return ENPU_SUCCESS;
 }
 
+int load_uint64(const char *key, const char *value, uint64_t *ret_value)
+{
+    CHECK_COND_RETURN_ERROR_CODE(((key == NULL) || (value == NULL) || (ret_value == NULL)),
+                                 "Input para contains NULL!");
+    errno = 0;
+    char *endptr = NULL;
+    unsigned long long result = strtoull(value, &endptr, TEN_BASE);
+    CHECK_COND_RETURN_ERROR_CODE(errno != 0, "Failed to load config: %s, value: %s, error message: %s.", key, value,
+                                 strerror(errno));
+    CHECK_COND_RETURN_ERROR_CODE((result == ULLONG_MAX), "Value out of range for config: %s, value: %s.", key, value);
+    CHECK_COND_RETURN_ERROR_CODE((endptr == value), "Empty or non-numeric value for config: %s, value: %s.", key,
+                                 value);
+    CHECK_COND_RETURN_ERROR_CODE((*endptr != '\0'), "Invalid uint64 for config: %s, value: %s (trailing characters).",
+                                 key, value);
+    *ret_value = result;
+    return ENPU_SUCCESS;
+}
+
 int save2config(const char *key, const char *value)
 {
     int rc = ENPU_SUCCESS;
@@ -122,6 +152,10 @@ int save2config(const char *key, const char *value)
         rc = load_int32(key, value, &config.aicore_quota);
     } else if (strcmp(key, OPTION_MEMORY_QUOTA) == 0) {
         rc = load_int32(key, value, &config.memory_quota);
+    } else if (strcmp(key, OPTION_MEMORY_REQUEST) == 0) {
+        rc = load_uint64(key, value, &config.memory_request);
+    } else if (strcmp(key, OPTION_MEMORY_LIMIT) == 0) {
+        rc = load_uint64(key, value, &config.memory_limit);
     } else if (strcmp(key, OPTION_SCHEDULING_POLICY) == 0) {
         rc = load_int32(key, value, &config.scheduling_policy);
     } else if (strcmp(key, OPTION_SHM_ID) == 0) {

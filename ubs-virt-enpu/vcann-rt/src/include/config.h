@@ -23,6 +23,8 @@ extern "C" {
 #define OPTION_VNPU_ID "virtual-npu-id"
 #define OPTION_AICORE_QUOTA "aicore-quota"
 #define OPTION_MEMORY_QUOTA "memory-quota"
+#define OPTION_MEMORY_REQUEST "memory-request"
+#define OPTION_MEMORY_LIMIT "memory-limit"
 #define OPTION_SHM_ID "shm-id"
 #define OPTION_SCHEDULING_POLICY "scheduling-policy"
 #define INVALID_VALUE (-1)
@@ -32,6 +34,8 @@ struct Config {
     int32_t vnpu_id;
     int32_t aicore_quota;
     int32_t memory_quota;
+    uint64_t memory_request;
+    uint64_t memory_limit;
     int32_t scheduling_policy;
     char shm_id[SHM_ID_LEN];
 };
@@ -39,6 +43,8 @@ struct Config {
 extern struct Config config;
 
 int load_config(const char *file_path);
+void reset_config(void);
+int check_config(void);
 int check_shm_id(const char *str, const char *option_name);
 
 #if defined(__cplusplus)

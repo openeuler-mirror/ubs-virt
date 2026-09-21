@@ -167,6 +167,16 @@ bool is_vnpu_alive(int vnpu_id)
     return check_timeout(&g_vnpu_sched_context->last_alive_time_ns[vnpu_id], VNPU_TIMEOUT_PERIOD);
 }
 
+/* 刷新本 vNPU 的最近任务时间戳: swap 换入完成后由 swap_hook 调用,
+ * 供换出决策依据 last kernel time 判断该 vNPU 是否有活跃业务 */
+void update_last_kernel_time_now(void)
+{
+    if (g_vnpu_sched_context == NULL) {
+        return;
+    }
+    atomic_store(&g_vnpu_sched_context->last_kernel_time_ns[g_vnpu_id], ns_now());
+}
+
 void vnpu_idling(void)
 {
     int npu_core_limit_quota = 0;
@@ -563,7 +573,7 @@ static bool sched_shm_is_stale(void)
         }
     }
     if (newest_alive == 0) {
-        return false; /* 从未有心跳、全新初始化场景，交给 magic 处理 */
+        return false; /* 从未有心跳、全新初始化场景, 交给 magic 处理 */
     }
     return (now > newest_alive) && ((now - newest_alive) > SCHED_SHM_STALE_THRESHOLD_NS);
 }
@@ -576,7 +586,7 @@ int share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
     while (!g_terminate) {
         if (atomic_load(&g_vnpu_sched_context->magic_number) == MAGIC_INITIALIZED) {
             if (!sched_shm_is_stale()) {
-                return ENPU_SUCCESS; /* 同轮次有进程心跳，正常复用 */
+                return ENPU_SUCCESS; /* 同轮次有进程心跳, 正常复用 */
             }
             LOG_INFO("Sched shm belongs to a dead run (all alive-heartbeats stale), re-initializing.");
             atomic_store(&g_vnpu_sched_context->magic_number, MAGIC_UNINITIALIZED);
@@ -655,8 +665,8 @@ int vnpu_scheduler_start(void)
         LOG_ERROR("Failed to create vnpu scheduler thread, error=%d.", rc);
         return ENPU_FAIL;
     }
-    /* 立即 detach：下面那次 create 一旦失败就直接返回，再也无法 join 这个线程，
-     * 不 detach 会泄漏线程描述符和栈。 */
+    /* 立即 detach：下面那次 create 一旦失败就直接返回, 再也无法 join 这个线程, 
+     * 不 detach 会泄漏线程描述符和栈.  */
     pthread_detach(vnpu_scheduler_tid);
 
     pthread_t vnpu_alive_tid;
@@ -669,9 +679,9 @@ int vnpu_scheduler_start(void)
     return ENPU_SUCCESS;
 }
 
-/* 统一回收 aicore_limiter_initialize 里创建的 hashmap。
- * 这些指针都是文件级变量、初值 NULL，且 aicore_limiter_initialize 由 pthread_once
- * 保证只执行一次，所以"尚未创建"等价于"仍为 NULL"，可在任意失败点无条件调用。 */
+/* 统一回收 aicore_limiter_initialize 里创建的 hashmap. 
+ * 这些指针都是文件级变量、初值 NULL, 且 aicore_limiter_initialize 由 pthread_once
+ * 保证只执行一次, 所以"尚未创建"等价于"仍为 NULL", 可在任意失败点无条件调用.  */
 static void destroy_all_stats_maps(void)
 {
     HashMap **maps[] = {&taskGroup_map,     &task_grp_state_map, &model_stats_map,
@@ -749,14 +759,14 @@ int aicore_limiter_initialize(void)
     pthread_mutexattr_destroy(&stats_attr);
     if (ret != 0) {
         LOG_ERROR("Failed to init g_stats_map_mutex, error=%d.", ret);
-        /* init 失败的 mutex 不能 destroy，直接去回收 hashmap */
+        /* init 失败的 mutex 不能 destroy, 直接去回收 hashmap */
         goto err_destroy_maps;
     }
 
     rc = vnpu_scheduler_start();
     if (rc != ENPU_SUCCESS) {
         LOG_ERROR("Failed to start vnpu scheduler threads.");
-        /* 此时调度线程可能已经跑起来，因此一律不回收，全部留给进程退出。*/
+        /* 此时调度线程可能已经跑起来, 因此一律不回收, 全部留给进程退出. */
         return ENPU_FAIL;
     }
 
@@ -767,8 +777,8 @@ err_destroy_maps:
 err_unmap:
     unmap_share_mem(vnpu_sched_shm, sizeof(*vnpu_sched_shm));
     /* share_mem_init / vnpu_scheduler_init 已经把 g_vnpu_sched_context 指向了这块
-     * 共享内存，unmap 之后必须置 NULL，否则 core_limiter()、is_vnpu_alive() 等
-     * 无 NULL 检查的解引用点会访问已解除映射的内存。 */
+     * 共享内存, unmap 之后必须置 NULL, 否则 core_limiter()、is_vnpu_alive() 等
+     * 无 NULL 检查的解引用点会访问已解除映射的内存.  */
     g_vnpu_sched_context = NULL;
     return ENPU_FAIL;
 }
@@ -982,7 +992,7 @@ int model_stats_get(rtModel_t mdl, uint64_t *block_dim, uint64_t *count)
     return 0;
 }
 
-/* 查询 stream 的 task-group 状态，无则返回 NULL（返回值仅在持锁上下文内使用） */
+/* 查询 stream 的 task-group 状态, 无则返回 NULL（返回值仅在持锁上下文内使用） */
 static task_grp_state_t *task_grp_state_get(rtStream_t stm)
 {
     if (task_grp_state_map == NULL || stm == NULL) {
@@ -1084,7 +1094,7 @@ void task_grp_end(rtStream_t stm, rtTaskGrp_t handle)
     task_group_map_set(handle, st->tmp_block_dim);
 
     /* 把 handle 记到当前 stream 的 capture_stats_map（EndCapture 时随图转移到 model）.
-     * 无条目时创建条目，保证非 capture 场景的 group 也能登记（后续 EndCapture 可转移）. */
+     * 无条目时创建条目, 保证非 capture 场景的 group 也能登记（后续 EndCapture 可转移）. */
     if (capture_stats_map != NULL) {
         void *ptr = NULL;
         stats_buffer_t *cap = NULL;
