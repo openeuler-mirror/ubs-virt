@@ -98,6 +98,9 @@ RUNTIME_HOOK_DEFINE(rtsStreamBeginTaskGrp, rtStream_t stm)
 
 RUNTIME_HOOK_DEFINE(aclmdlRICaptureTaskGrpBeginImpl, aclrtStream stream)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureTaskGrpBeginImpl, stream);
+    }
     LOG_DEBUG("Hook init aclmdlRICaptureTaskGrpBeginImpl.");
     core_limiter(stream, NULL, NULL);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureTaskGrpBeginImpl, stream);
@@ -120,6 +123,9 @@ RUNTIME_HOOK_DEFINE(rtsStreamEndTaskGrp, rtStream_t stm, rtTaskGrp_t *handle)
 
 RUNTIME_HOOK_DEFINE(aclmdlRICaptureTaskGrpEndImpl, aclrtStream stream, aclrtTaskGrp *handle)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureTaskGrpEndImpl, stream, handle);
+    }
     LOG_DEBUG("Hook init aclmdlRICaptureTaskGrpEndImpl.");
     core_limiter(stream, NULL, NULL);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureTaskGrpEndImpl, stream, handle);
@@ -142,6 +148,9 @@ RUNTIME_HOOK_DEFINE(rtsStreamBeginTaskUpdate, rtStream_t stm, rtTaskGrp_t handle
 
 RUNTIME_HOOK_DEFINE(aclmdlRICaptureTaskUpdateBeginImpl, aclrtStream stream, aclrtTaskGrp handle)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureTaskUpdateBeginImpl, stream, handle);
+    }
     LOG_DEBUG("Hook init aclmdlRICaptureTaskUpdateBeginImpl.");
     core_limiter(stream, NULL, NULL);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureTaskUpdateBeginImpl, stream, handle);
@@ -164,6 +173,9 @@ RUNTIME_HOOK_DEFINE(rtsStreamEndTaskUpdate, rtStream_t stm)
 
 RUNTIME_HOOK_DEFINE(aclmdlRICaptureTaskUpdateEndImpl, aclrtStream stream)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureTaskUpdateEndImpl, stream);
+    }
     LOG_DEBUG("Hook init aclmdlRICaptureTaskUpdateEndImpl.");
     core_limiter(stream, NULL, NULL);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureTaskUpdateEndImpl, stream);

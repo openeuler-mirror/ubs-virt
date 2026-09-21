@@ -258,6 +258,10 @@ RUNTIME_HOOK_DEFINE(rtLaunchKernelByFuncHandleV3, rtFuncHandle funcHandle, uint3
 RUNTIME_HOOK_DEFINE(aclrtLaunchKernelImpl, aclrtFuncHandle funcHandle, uint32_t numBlocks, const void *argsData,
                     size_t argsSize, aclrtStream stream)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtLaunchKernelImpl, funcHandle, numBlocks, argsData, argsSize,
+                                 stream);
+    }
     LOG_DEBUG("Hook init aclrtLaunchKernelImpl.");
     core_limiter(stream, NULL, NULL);
     launch_stats_dispatch(stream, numBlocks);
@@ -328,6 +332,10 @@ RUNTIME_HOOK_DEFINE(aclrtLaunchKernelWithHostArgsImpl, aclrtFuncHandle funcHandl
                     aclrtStream stream, aclrtLaunchKernelCfg *cfg, void *hostArgs, size_t argsSize,
                     aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtLaunchKernelWithHostArgsImpl, funcHandle, numBlocks, stream,
+                                 cfg, hostArgs, argsSize, placeHolderArray, placeHolderNum);
+    }
     LOG_DEBUG("Hook init aclrtLaunchKernelWithHostArgsImpl.");
     core_limiter(stream, NULL, NULL);
     launch_stats_dispatch(stream, numBlocks);
@@ -362,6 +370,10 @@ RUNTIME_HOOK_DEFINE(rtsLaunchKernelWithConfig, rtFuncHandle funcHandle, uint32_t
 RUNTIME_HOOK_DEFINE(aclrtLaunchKernelWithConfigImpl, aclrtFuncHandle funcHandle, uint32_t numBlocks, aclrtStream stream,
                     aclrtLaunchKernelCfg *cfg, aclrtArgsHandle argsHandle, void *reserve)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtLaunchKernelWithConfigImpl, funcHandle, numBlocks, stream, cfg,
+                                 argsHandle, reserve);
+    }
     LOG_DEBUG("Hook init aclrtLaunchKernelWithConfigImpl.");
     core_limiter(stream, NULL, NULL);
     launch_stats_dispatch(stream, numBlocks);
@@ -396,6 +408,10 @@ RUNTIME_HOOK_DEFINE(rtsLaunchKernelWithDevArgs, rtFuncHandle funcHandle, uint32_
 RUNTIME_HOOK_DEFINE(aclrtLaunchKernelV2Impl, aclrtFuncHandle funcHandle, uint32_t numBlocks, const void *argsData,
                     size_t argsSize, aclrtLaunchKernelCfg *cfg, aclrtStream stream)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtLaunchKernelV2Impl, funcHandle, numBlocks, argsData, argsSize,
+                                 cfg, stream);
+    }
     LOG_DEBUG("Hook init aclrtLaunchKernelV2Impl.");
     core_limiter(stream, NULL, NULL);
     launch_stats_dispatch(stream, numBlocks);
@@ -427,6 +443,9 @@ RUNTIME_HOOK_DEFINE(rtsLaunchRandomNumTask, const rtRandomNumTaskInfo_t *taskInf
 RUNTIME_HOOK_DEFINE(aclrtRandomNumAsyncImpl, const aclrtRandomNumTaskInfo *taskInfo, const aclrtStream stream,
                     void *reserve)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtRandomNumAsyncImpl, taskInfo, stream, reserve);
+    }
     LOG_DEBUG("Hook init aclrtRandomNumAsyncImpl.");
     core_limiter(stream, NULL, NULL);
     launch_stats_dispatch(stream, get_aicore_num());
@@ -457,6 +476,9 @@ RUNTIME_HOOK_DEFINE(rtsLaunchReduceAsyncTask, const rtReduceInfo_t *reduceInfo, 
 RUNTIME_HOOK_DEFINE(aclrtReduceAsyncImpl, void *dst, const void *src, uint64_t count, aclrtReduceKind kind,
                     aclDataType type, aclrtStream stream, void *reserve)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtReduceAsyncImpl, dst, src, count, kind, type, stream, reserve);
+    }
     LOG_DEBUG("Hook init aclrtReduceAsyncImpl.");
     core_limiter(stream, NULL, NULL);
     launch_stats_dispatch(stream, get_aicore_num());
@@ -488,6 +510,9 @@ RUNTIME_HOOK_DEFINE(rtsLaunchUpdateTask, rtStream_t destStm, uint32_t destTaskId
 RUNTIME_HOOK_DEFINE(aclrtTaskUpdateAsyncImpl, aclrtStream taskStream, uint32_t taskId, aclrtTaskUpdateInfo *info,
                     aclrtStream execStream)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtTaskUpdateAsyncImpl, taskStream, taskId, info, execStream);
+    }
     LOG_DEBUG("Hook init aclrtTaskUpdateAsyncImpl.");
     core_limiter(execStream, NULL, NULL);
     launch_stats_dispatch(execStream, get_aicore_num());
@@ -520,6 +545,10 @@ RUNTIME_HOOK_DEFINE(rtLaunchKernelWithArgsArray, void *func, uint32_t numBlocks,
 RUNTIME_HOOK_DEFINE(aclrtLaunchKernelWithArgsArrayImpl, void *func, uint32_t numBlocks, aclrtStream stream,
                     aclrtLaunchKernelCfg *cfg, void **args)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtLaunchKernelWithArgsArrayImpl, func, numBlocks, stream, cfg,
+                                 args);
+    }
     LOG_DEBUG("Hook init aclrtLaunchKernelWithArgsArrayImpl.");
     core_limiter(stream, NULL, NULL);
     launch_stats_dispatch(stream, numBlocks);
@@ -555,6 +584,10 @@ RUNTIME_HOOK_DEFINE(aclrtLaunchSIMTKernelWithHostArgsImpl, void *func, dim3 grid
                     aclrtStream stream, aclrtLaunchKernelCfg *cfg, void *hostArgs, size_t argsSize,
                     aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtLaunchSIMTKernelWithHostArgsImpl, func, gridDim, blockDim,
+                                 dynUbufSize, stream, cfg, hostArgs, argsSize, placeHolderArray, placeHolderNum);
+    }
     LOG_DEBUG("Hook init aclrtLaunchSIMTKernelWithHostArgsImpl.");
     core_limiter(stream, NULL, NULL);
     launch_stats_dispatch(stream, get_aicore_num());
@@ -590,6 +623,10 @@ RUNTIME_HOOK_DEFINE(rtLaunchSIMTKernelWithArgsArray, void *func, rtDim3 gridDim,
 RUNTIME_HOOK_DEFINE(aclrtLaunchSIMTKernelWithArgsArrayImpl, void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
                     aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtLaunchSIMTKernelWithArgsArrayImpl, func, gridDim, blockDim,
+                                 dynUbufSize, stream, cfg, args);
+    }
     LOG_DEBUG("Hook init aclrtLaunchSIMTKernelWithArgsArrayImpl.");
     core_limiter(stream, NULL, NULL);
     launch_stats_dispatch(stream, get_aicore_num());

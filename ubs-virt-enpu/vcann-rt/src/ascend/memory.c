@@ -10,6 +10,7 @@
 * See the Mulan PSL v2 for more details.
 */
 
+#include "core_limiter.h"
 #include "log.h"
 #include "mem_limiter.h"
 #include "npu_manager.h"
@@ -30,6 +31,9 @@ RUNTIME_HOOK_DEFINE(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, co
 
 RUNTIME_HOOK_DEFINE(aclrtMallocImpl, void **devPtr, size_t size, aclrtMemMallocPolicy policy)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtMallocImpl, devPtr, size, policy);
+    }
     LOG_DEBUG("Hook mem aclrtMallocImpl size:%" PRIu64 ".", size);
     int ret = guard_memory(size, get_swap_enabled());
     if (ret != ENPU_SUCCESS) {
@@ -40,6 +44,9 @@ RUNTIME_HOOK_DEFINE(aclrtMallocImpl, void **devPtr, size_t size, aclrtMemMallocP
 
 RUNTIME_HOOK_DEFINE(aclrtMallocAlign32Impl, void **devPtr, size_t size, aclrtMemMallocPolicy policy)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtMallocAlign32Impl, devPtr, size, policy);
+    }
     LOG_DEBUG("Hook mem aclrtMallocAlign32Impl size:%" PRIu64 ".", size);
     int ret = guard_memory(size, get_swap_enabled());
     if (ret != ENPU_SUCCESS) {
@@ -60,6 +67,9 @@ RUNTIME_HOOK_DEFINE(rtMallocCached, void **devPtr, uint64_t size, rtMemType_t ty
 
 RUNTIME_HOOK_DEFINE(aclrtMallocCachedImpl, void **devPtr, size_t size, aclrtMemMallocPolicy policy)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtMallocCachedImpl, devPtr, size, policy);
+    }
     LOG_DEBUG("Hook mem aclrtMallocCachedImpl size:%" PRIu64 ".", size);
     int ret = guard_memory(size, get_swap_enabled());
     if (ret != ENPU_SUCCESS) {
@@ -111,6 +121,9 @@ RUNTIME_HOOK_DEFINE(rtMemAllocManaged, void **ptr, uint64_t size, uint32_t flag,
 
 RUNTIME_HOOK_DEFINE(aclrtMemAllocManagedImpl, void **ptr, uint64_t size, uint32_t flag)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtMemAllocManagedImpl, ptr, size, flag);
+    }
     LOG_DEBUG("Hook mem aclrtMemAllocManagedImpl size:%" PRIu64 ".", size);
     int ret = guard_memory(size, get_swap_enabled());
     if (ret != ENPU_SUCCESS) {
@@ -132,6 +145,9 @@ RUNTIME_HOOK_DEFINE(rtMallocPhysical, rtDrvMemHandle *handle, size_t size, rtDrv
 RUNTIME_HOOK_DEFINE(aclrtMallocPhysicalImpl, aclrtDrvMemHandle *handle, size_t size, const aclrtPhysicalMemProp *prop,
                     uint64_t flags)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtMallocPhysicalImpl, handle, size, prop, flags);
+    }
     LOG_DEBUG("Hook mem aclrtMallocPhysicalImpl size:%zd.", size);
     int ret = guard_memory(size, get_swap_enabled());
     if (ret != ENPU_SUCCESS) {
@@ -173,6 +189,9 @@ RUNTIME_HOOK_DEFINE(rtMemGetInfoEx, rtMemInfoType_t memInfoType, size_t *freeSiz
 
 RUNTIME_HOOK_DEFINE(aclrtGetMemInfoImpl, aclrtMemAttr attr, size_t *free, size_t *total)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtGetMemInfoImpl, attr, free, total);
+    }
     (void)attr;
     int res = log_init();
     CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);

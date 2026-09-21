@@ -28,6 +28,9 @@ RUNTIME_HOOK_DEFINE(rtEventCreate, rtEvent_t *evt)
 
 RUNTIME_HOOK_DEFINE(aclrtCreateEventImpl, aclrtEvent *event)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtCreateEventImpl, event);
+    }
     LOG_DEBUG("Hook init aclrtCreateEventImpl.");
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtCreateEventImpl, event);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {
@@ -68,6 +71,9 @@ RUNTIME_HOOK_DEFINE(rtEventCreateWithFlag, rtEvent_t *evt, uint32_t flag)
 
 RUNTIME_HOOK_DEFINE(aclrtCreateEventWithFlagImpl, aclrtEvent *event, uint32_t flag)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtCreateEventWithFlagImpl, event, flag);
+    }
     LOG_DEBUG("Hook init aclrtCreateEventWithFlagImpl.");
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtCreateEventWithFlagImpl, event, flag);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {
@@ -88,6 +94,9 @@ RUNTIME_HOOK_DEFINE(rtEventCreateExWithFlag, rtEvent_t *evt, uint32_t flag)
 
 RUNTIME_HOOK_DEFINE(aclrtCreateEventExWithFlagImpl, aclrtEvent *event, uint32_t flag)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtCreateEventExWithFlagImpl, event, flag);
+    }
     LOG_DEBUG("Hook init aclrtCreateEventExWithFlagImpl.");
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtCreateEventExWithFlagImpl, event, flag);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {
@@ -109,6 +118,9 @@ RUNTIME_HOOK_DEFINE(rtStreamWaitEvent, rtStream_t stm, rtEvent_t evt)
 
 RUNTIME_HOOK_DEFINE(aclrtStreamWaitEventImpl, aclrtStream stream, aclrtEvent event)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtStreamWaitEventImpl, stream, event);
+    }
     LOG_DEBUG("Hook init aclrtStreamWaitEventImpl.");
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtStreamWaitEventImpl, stream, event);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {
@@ -131,6 +143,9 @@ RUNTIME_HOOK_DEFINE(rtEventRecord, rtEvent_t evt, rtStream_t stm)
 
 RUNTIME_HOOK_DEFINE(aclrtRecordEventImpl, aclrtEvent event, aclrtStream stream)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtRecordEventImpl, event, stream);
+    }
     LOG_DEBUG("Hook init aclrtRecordEventImpl.");
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtRecordEventImpl, event, stream);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {
@@ -142,6 +157,9 @@ RUNTIME_HOOK_DEFINE(aclrtRecordEventImpl, aclrtEvent event, aclrtStream stream)
 
 RUNTIME_HOOK_DEFINE(aclrtRecordEventWithFlagImpl, aclrtEvent event, aclrtStream stream, uint32_t flag)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtRecordEventWithFlagImpl, event, stream, flag);
+    }
     LOG_DEBUG("Hook init aclrtRecordEventWithFlagImpl.");
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtRecordEventWithFlagImpl, event, stream, flag);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {
@@ -163,6 +181,9 @@ RUNTIME_HOOK_DEFINE(rtEventDestroy, rtEvent_t evt)
 
 RUNTIME_HOOK_DEFINE(aclrtDestroyEventImpl, aclrtEvent event)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtDestroyEventImpl, event);
+    }
     LOG_DEBUG("Hook init aclrtDestroyEventImpl.");
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtDestroyEventImpl, event);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {
@@ -199,6 +220,9 @@ RUNTIME_HOOK_DEFINE(rtsNotifyCreate, rtNotify_t *notify, uint64_t flag)
 
 RUNTIME_HOOK_DEFINE(aclrtCreateNotifyImpl, aclrtNotify *notify, uint64_t flag)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtCreateNotifyImpl, notify, flag);
+    }
     LOG_DEBUG("Hook init aclrtCreateNotifyImpl.");
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtCreateNotifyImpl, notify, flag);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {
@@ -241,6 +265,9 @@ RUNTIME_HOOK_DEFINE(rtsNotifyWaitAndReset, rtNotify_t notify, rtStream_t stm, ui
 
 RUNTIME_HOOK_DEFINE(aclrtWaitAndResetNotifyImpl, aclrtNotify notify, aclrtStream stream, uint32_t timeout)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtWaitAndResetNotifyImpl, notify, stream, timeout);
+    }
     LOG_DEBUG("Hook init aclrtWaitAndResetNotifyImpl.");
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtWaitAndResetNotifyImpl, notify, stream, timeout);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {
@@ -336,6 +363,9 @@ RUNTIME_HOOK_DEFINE(rtCntNotifyCreateWithFlag, const int32_t deviceId, rtCntNoti
 
 RUNTIME_HOOK_DEFINE(aclrtCntNotifyCreateImpl, aclrtCntNotify *cntNotify, uint64_t flag)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtCntNotifyCreateImpl, cntNotify, flag);
+    }
     LOG_DEBUG("Hook init aclrtCntNotifyCreateImpl.");
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtCntNotifyCreateImpl, cntNotify, flag);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {
@@ -380,6 +410,9 @@ RUNTIME_HOOK_DEFINE(rtCntNotifyDestroy, rtCntNotify_t const inCntNotify)
 
 RUNTIME_HOOK_DEFINE(aclrtCntNotifyDestroyImpl, aclrtCntNotify cntNotify)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtCntNotifyDestroyImpl, cntNotify);
+    }
     LOG_DEBUG("Hook init aclrtCntNotifyDestroyImpl.");
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtCntNotifyDestroyImpl, cntNotify);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {
@@ -402,6 +435,9 @@ RUNTIME_HOOK_DEFINE(rtsCntNotifyRecord, rtCntNotify_t cntNotify, rtStream_t stm,
 RUNTIME_HOOK_DEFINE(aclrtCntNotifyRecordImpl, aclrtCntNotify cntNotify, aclrtStream stream,
                     aclrtCntNotifyRecordInfo *info)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtCntNotifyRecordImpl, cntNotify, stream, info);
+    }
     LOG_DEBUG("Hook init aclrtCntNotifyRecordImpl.");
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtCntNotifyRecordImpl, cntNotify, stream, info);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {
@@ -425,6 +461,9 @@ RUNTIME_HOOK_DEFINE(rtsCntNotifyWaitWithTimeout, rtCntNotify_t cntNotify, rtStre
 RUNTIME_HOOK_DEFINE(aclrtCntNotifyWaitWithTimeoutImpl, aclrtCntNotify cntNotify, aclrtStream stream,
                     aclrtCntNotifyWaitInfo *info)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtCntNotifyWaitWithTimeoutImpl, cntNotify, stream, info);
+    }
     LOG_DEBUG("Hook init aclrtCntNotifyWaitWithTimeoutImpl.");
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclrtCntNotifyWaitWithTimeoutImpl, cntNotify, stream, info);
     if (ret == ACL_RT_SUCCESS && is_core_limit()) {

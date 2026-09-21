@@ -49,6 +49,9 @@ RUNTIME_HOOK_DEFINE(rtModelExecute, rtModel_t mdl, rtStream_t stm, uint32_t flag
 
 RUNTIME_HOOK_DEFINE(aclmdlRIExecuteAsyncImpl, aclmdlRI modelRI, aclrtStream stream)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRIExecuteAsyncImpl, modelRI, stream);
+    }
     LOG_DEBUG("Hook init aclmdlRIExecuteAsyncImpl.");
     core_limiter(stream, NULL, NULL);
     record_model_execute_stats(modelRI);
@@ -103,6 +106,9 @@ RUNTIME_HOOK_DEFINE(rtsModelExecute, rtModel_t mdl, int32_t timeout)
 
 RUNTIME_HOOK_DEFINE(aclmdlRIExecuteImpl, aclmdlRI modelRI, int32_t timeout)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRIExecuteImpl, modelRI, timeout);
+    }
     LOG_DEBUG("Hook init aclmdlRIExecuteImpl.");
     bool tracked = false;
     core_limiter(NULL, track_sync_model, &tracked);
@@ -158,6 +164,9 @@ RUNTIME_HOOK_DEFINE(rtStreamBeginCapture, rtStream_t stm, const rtStreamCaptureM
 
 RUNTIME_HOOK_DEFINE(aclmdlRICaptureBeginImpl, aclrtStream stream, aclmdlRICaptureMode mode)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureBeginImpl, stream, mode);
+    }
     LOG_DEBUG("Hook init aclmdlRICaptureBeginImpl.");
     bool capture = true;
     core_limiter(stream, set_stream_capture, &capture);
@@ -185,6 +194,9 @@ RUNTIME_HOOK_DEFINE(rtStreamEndCapture, rtStream_t stm, rtModel_t *captureMdl)
 
 RUNTIME_HOOK_DEFINE(aclmdlRICaptureEndImpl, aclrtStream stream, aclmdlRI *modelRI)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureEndImpl, stream, modelRI);
+    }
     LOG_DEBUG("Hook init aclmdlRICaptureEndImpl.");
     core_limiter(stream, NULL, NULL);
     aclError ret = RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRICaptureEndImpl, stream, modelRI);
