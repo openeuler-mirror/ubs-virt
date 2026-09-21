@@ -215,7 +215,7 @@ TEST_F(MemLimiterTest, GuardMemorySuccess)
 {
     MOCKER(get_mem_used, int(size_t *)).stubs().will(invoke(stub_get_mem_used_setter));
     g_mock_mem_used_value = 512 * MB_TO_B;
-    EXPECT_EQ(guard_memory(1024), ENPU_SUCCESS);
+    EXPECT_EQ(guard_memory(1024, false), ENPU_SUCCESS);
 }
 
 // guard_memory accepts zero-size allocation even if already at quota.
@@ -223,7 +223,7 @@ TEST_F(MemLimiterTest, GuardMemoryZeroSize)
 {
     MOCKER(get_mem_used, int(size_t *)).stubs().will(invoke(stub_get_mem_used_setter));
     g_mock_mem_used_value = get_mem_limit_quota();
-    EXPECT_EQ(guard_memory(0), ENPU_SUCCESS);
+    EXPECT_EQ(guard_memory(0, false), ENPU_SUCCESS);
 }
 
 // guard_memory returns ACL_ERROR_STORAGE_OVER_LIMIT when one byte over quota.
@@ -231,14 +231,14 @@ TEST_F(MemLimiterTest, GuardMemoryOverQuota)
 {
     MOCKER(get_mem_used, int(size_t *)).stubs().will(invoke(stub_get_mem_used_setter));
     g_mock_mem_used_value = get_mem_limit_quota();
-    EXPECT_EQ(guard_memory(1), ACL_ERROR_STORAGE_OVER_LIMIT);
+    EXPECT_EQ(guard_memory(1, false), ACL_ERROR_STORAGE_OVER_LIMIT);
 }
 
 // guard_memory returns ACL_ERROR_FAILURE when file lock cannot be created.
 TEST_F(MemLimiterTest, GuardMemoryLockFails)
 {
     MOCKER(file_lock_create).stubs().will(invoke(stub_file_lock_invalid));
-    EXPECT_EQ(guard_memory(1024), ACL_ERROR_FAILURE);
+    EXPECT_EQ(guard_memory(1024, false), ACL_ERROR_FAILURE);
 }
 
 // guard_memory returns ACL_ERROR_STORAGE_OVER_LIMIT when DCMI fails.
@@ -248,7 +248,7 @@ TEST_F(MemLimiterTest, GuardMemoryDcmiFails)
     g_mock_mem_used_value = 0;
     g_mock_mem_used_return = -1;
     g_mock_mem_used_errno = EIO;
-    EXPECT_EQ(guard_memory(1024), ACL_ERROR_STORAGE_OVER_LIMIT);
+    EXPECT_EQ(guard_memory(1024, false), ACL_ERROR_STORAGE_OVER_LIMIT);
 }
 
 // memory_check returns true when both used and requested are zero.
@@ -274,7 +274,7 @@ TEST_F(MemLimiterTest, GuardMemoryAtBoundary)
     MOCKER(get_mem_used, int(size_t *)).stubs().will(invoke(stub_get_mem_used_setter));
     size_t half = get_mem_limit_quota() / 2;
     g_mock_mem_used_value = half;
-    EXPECT_EQ(guard_memory(half), ENPU_SUCCESS);
+    EXPECT_EQ(guard_memory(half, false), ENPU_SUCCESS);
 }
 
 // guard_memory releases the file lock after returning ACL_ERROR_STORAGE_OVER_LIMIT.
@@ -282,7 +282,7 @@ TEST_F(MemLimiterTest, GuardMemoryReleasesLockOnFailure)
 {
     MOCKER(get_mem_used, int(size_t *)).stubs().will(invoke(stub_get_mem_used_setter));
     g_mock_mem_used_value = get_mem_limit_quota();
-    EXPECT_EQ(guard_memory(1), ACL_ERROR_STORAGE_OVER_LIMIT);
+    EXPECT_EQ(guard_memory(1, false), ACL_ERROR_STORAGE_OVER_LIMIT);
     // If the lock was leaked, LOCK_NB would fail with EWOULDBLOCK.
     file_lock probe = file_lock_create(stub_lock_path(), LOCK_EX | LOCK_NB);
     EXPECT_TRUE(file_lock_isvalid(&probe));
@@ -294,7 +294,7 @@ TEST_F(MemLimiterTest, GuardMemoryReleasesLockOnSuccess)
 {
     MOCKER(get_mem_used, int(size_t *)).stubs().will(invoke(stub_get_mem_used_setter));
     g_mock_mem_used_value = 0;
-    EXPECT_EQ(guard_memory(1024), ENPU_SUCCESS);
+    EXPECT_EQ(guard_memory(1024, false), ENPU_SUCCESS);
     file_lock probe = file_lock_create(stub_lock_path(), LOCK_EX | LOCK_NB);
     EXPECT_TRUE(file_lock_isvalid(&probe));
     file_lock_destroy(&probe);

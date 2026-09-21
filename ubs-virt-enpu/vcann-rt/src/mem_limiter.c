@@ -17,6 +17,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include "runtime_hook.h"
+#include "shm_manager.h"
 
 bool memory_check(size_t requested)
 {
@@ -33,7 +34,40 @@ bool memory_check(size_t requested)
     return true;
 }
 
-int guard_memory(size_t requested)
+bool memory_check_elastic(size_t requested)
+{
+    size_t used = 0;
+    int ret = get_mem_used(&used);
+    CHECK_COND_RETURN_(ret != 0, false, "get mem used failed.");
+
+    size_t new_total;
+    bool overflow = __builtin_add_overflow(requested, used, &new_total);
+    CHECK_COND_RETURN_(overflow, false, "User requested mem size too big! Request:%zu B, used:%zu B.", requested, used);
+
+    size_t limit = get_mem_limit_quota();
+    CHECK_COND_RETURN_((new_total > limit), false,
+                       "Out of memory (over limit)! Request:%zu B, used:%zu B, limit quato:%zu B.", requested, used,
+                       limit);
+
+    size_t request_quota = get_mem_request_quota();
+    if (request_quota == 0 || new_total <= request_quota) {
+        LOG_DEBUG("Memory check elastic: within request quota. new_total=%zu, request=%zu", new_total, request_quota);
+        ret = check_and_swap_out(requested, SWAP_OUT_FROM_BORROWED);
+        CHECK_COND_RETURN_((ret != ENPU_SUCCESS), false, "Check and swap out failed, request=%zu.", requested);
+        return true;
+    }
+
+    size_t dynamic_free = get_mem_dynamic_free();
+    size_t borrow_needed = (used > request_quota) ? requested : new_total - request_quota;
+    CHECK_COND_RETURN_((borrow_needed > dynamic_free), false,
+                       "Out of memory (dynamic free insufficient)! borrow_needed=%zu B, dynamic_free=%zu B.",
+                       borrow_needed, dynamic_free);
+
+    LOG_DEBUG("Memory check elastic: borrow allowed. borrow_needed=%zu, dynamic_free=%zu", borrow_needed, dynamic_free);
+    return true;
+}
+
+int guard_memory(size_t requested, bool swap_enabled)
 {
     file_lock lock = file_lock_create(lock_path(), LOCK_EX);
     if (!file_lock_isvalid(&lock)) {
@@ -42,7 +76,14 @@ int guard_memory(size_t requested)
         return ACL_ERROR_FAILURE;
     }
 
-    if (!memory_check(requested)) {
+    bool check_result;
+    if (swap_enabled && get_swap_enabled()) {
+        check_result = memory_check_elastic(requested);
+    } else {
+        check_result = memory_check(requested);
+    }
+
+    if (!check_result) {
         LOG_ERROR("Guard memory out of memory error for requested:%zd", requested);
         file_lock_destroy(&lock);
         return ACL_ERROR_STORAGE_OVER_LIMIT;
@@ -56,8 +97,8 @@ const char *lock_path()
     return MEMCTL_LOCK_PATH;
 }
 
-/* 锁目录权限 0750：owner rwx / group r-x / other ---。group 不可写，否则同组进程
- * 能 unlink 掉 memctl.lock 另建一个，破坏 guard_memory 的跨进程互斥。 */
+/* 锁目录权限 0750：owner rwx / group r-x / other ---. group 不可写, 否则同组进程
+ * 能 unlink 掉 memctl.lock 另建一个, 破坏 guard_memory 的跨进程互斥.  */
 #define FILE_LOCK_DIR_MODE (S_IRWXU | S_IRGRP | S_IXGRP)
 
 static int mkdir_recursive(const char *path, mode_t mode)

@@ -32,7 +32,17 @@ typedef void *rtArgsEx_t;
 typedef void *rtBarrierTaskInfo_t;
 typedef void *rtCmoOpCode_t;
 typedef void *rtCmoTaskInfo_t;
-typedef void *rtDrvMemProp_t;
+#ifndef RT_DRV_MEM_PROP_T_DEFINED
+#define RT_DRV_MEM_PROP_T_DEFINED
+typedef struct DrvMemProp {
+    uint32_t side;
+    uint32_t devid;
+    uint32_t module_id;
+    uint32_t pg_type;
+    uint32_t mem_type;
+    uint64_t reserve;
+} rtDrvMemProp_t;
+#endif
 typedef void *rtFftsPlusTaskInfo_t;
 typedef void *rtFftsTaskInfo_t;
 typedef void *rtKernelLaunchNames_t;
@@ -362,7 +372,79 @@ typedef enum tagRtMemInfoType
 
 #define RUNTIME_FUNCTION_ENTRY(name, ...) rtError_t name(__VA_ARGS__);
 RUNTIME_FUNCTION_LIST
-#undef RUNTIME_FUNCTION_ENTRY
+
+#ifndef RT_MEM_TYPES_STUB_DEFINED
+#define RT_MEM_TYPES_STUB_DEFINED
+/* mem-swap 扩展拦截所需类型: 与 test/stub/mem_base.h 共享守卫, 先被包含者生效 */
+typedef enum
+{
+    RT_MEMCPY_KIND_HOST_TO_HOST = 0,
+    RT_MEMCPY_KIND_HOST_TO_DEVICE,
+    RT_MEMCPY_KIND_DEVICE_TO_HOST,
+    RT_MEMCPY_KIND_DEVICE_TO_DEVICE,
+    RT_MEMCPY_KIND_DEFAULT,
+    RT_MEMCPY_KIND_HOST_TO_BUF_TO_DEVICE,
+    RT_MEMCPY_KIND_INNER_DEVICE_TO_DEVICE,
+    RT_MEMCPY_KIND_INTER_DEVICE_TO_DEVICE,
+    RT_MEMCPY_KIND_MAX,
+} rtMemcpyKind;
+
+typedef struct {
+    void *dst;
+    uint64_t destMax;
+    const void *src;
+    uint64_t count;
+    rtMemcpyKind kind;
+    uint32_t flag;
+} rtMemcpyDesc_t;
+
+#ifndef ACL_MEM_LOCATION_TYPE_DEVICE
+#define ACL_MEM_LOCATION_TYPE_DEVICE 0
+#endif
+
+typedef enum
+{
+    RT_MEMCPY_HOST_TO_DEVICE = 0x00,
+    RT_MEMCPY_DEVICE_TO_HOST = 0x01,
+    RT_MEMCPY_DEVICE_TO_DEVICE = 0x02,
+} rtMemcpyKind_t;
+
+typedef enum
+{
+    RT_MEMORY_LOC_HOST = 0,
+    RT_MEMORY_LOC_DEVICE,
+    RT_MEMORY_LOC_UNREGISTERED,
+    RT_MEMORY_LOC_MANAGED,
+    RT_MEMORY_LOC_HOST_NUMA,
+    RT_MEMORY_LOC_MAX,
+    RT_MEMORY_LOC_UVM_MANAGED,
+} rtMemLocationType;
+
+typedef struct {
+    uint32_t id;
+    rtMemLocationType type;
+} rtMemLocation;
+
+typedef struct {
+    rtMemLocation location;
+    uint32_t pageSize;
+    uint32_t rsv[4];
+} rtPtrAttributes_t;
+
+typedef struct {
+    rtMemLocation dstLoc;
+    rtMemLocation srcLoc;
+    uint8_t rsv[16];
+} rtMemcpyBatchAttr;
+
+typedef struct {
+    void *dst;
+    uint64_t destMax;
+    const void *src;
+    uint64_t count;
+    rtMemcpyKind kind;
+} rtMemcpyConfig_t;
+#endif
 
 #if defined(__cplusplus)
 }

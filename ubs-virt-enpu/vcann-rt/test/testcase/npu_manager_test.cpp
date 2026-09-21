@@ -30,7 +30,9 @@ int stub_load_config(const char *path)
     config.vnpu_id = 1;
     config.scheduling_policy = SCHED_POLICY_FIXED_SHARE;
     config.aicore_quota = 8;
-    config.memory_quota = 1024; // MB
+    config.memory_request = 0;
+    config.memory_limit = 0;
+    config.memory_quota = 1024;
     strcpy_s(config.shm_id, sizeof(config.shm_id), "test_shm_id");
     return ENPU_SUCCESS;
 }
@@ -119,6 +121,8 @@ TEST_F(NpuManagerTest, EnpuConfigInfoInitSuccess)
     config.vnpu_id = 1;
     config.scheduling_policy = SCHED_POLICY_ELASTIC;
     config.aicore_quota = 4;
+    config.memory_request = 0;
+    config.memory_limit = 0;
     config.memory_quota = 512;
     strcpy_s(config.shm_id, sizeof(config.shm_id), "test_shm");
 
@@ -136,6 +140,8 @@ TEST_F(NpuManagerTest, EnpuConfigInfoInitBestEffortPolicy)
     config.phy_npu_id = 0;
     config.vnpu_id = 1;
     config.scheduling_policy = SCHED_POLICY_BEST_EFFORT;
+    config.memory_request = 0;
+    config.memory_limit = 0;
     config.memory_quota = 1024;
     strcpy_s(config.shm_id, sizeof(config.shm_id), "best_effort_shm");
 

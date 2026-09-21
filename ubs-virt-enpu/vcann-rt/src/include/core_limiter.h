@@ -82,6 +82,7 @@ extern void task_update_end(rtStream_t stm);
 extern void launch_stats_dispatch(rtStream_t stm, uint32_t block_dim);
 
 uint64_t ns_now(void);
+void update_last_kernel_time_now(void);
 void ns_sleep(uint64_t ns);
 extern void synchronize_and_clear_streams(void);
 

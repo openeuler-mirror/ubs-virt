@@ -23,6 +23,7 @@ using atomic_uint_fast64_t = std::atomic<uint_fast64_t>;
 #endif
 
 #include "config.h"
+#include "shm_manager.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -70,8 +71,11 @@ typedef struct npu_info {
     int device_id;
     uint8_t vnpu_id;
     bool in_used;
+    size_t mem_request_quota;
     size_t mem_limit_quota;
     uint8_t core_limit_quota;
+    uint64_t core_quota_timeslice;
+    int64_t core_cur_timeslice;
     bool is_core_limit;
     schedule_policy_t sched_policy;
     char shm_id[SHM_ID_LEN];
@@ -82,12 +86,14 @@ typedef struct npu_info {
 
 extern void enpu_global_init(void);
 extern void enpu_global_init_post(void);
-
+extern uint32_t get_aicore_num(void);
 extern bool is_core_limit(void);
 extern uint8_t get_core_limit_quota(void);
-extern uint32_t get_aicore_num(void);
+extern size_t get_mem_request_quota(void);
 extern size_t get_mem_limit_quota(void);
+extern bool get_swap_enabled(void);
 extern void set_mem_limit_quota(size_t mem);
+extern void set_mem_request_quota(size_t mem);
 extern char *get_vnpu_shm_id(void);
 extern int get_mem_used(size_t *used);
 extern int get_device_id(void);
@@ -101,6 +107,13 @@ extern int get_logic_id(void);
 extern int enpu_load_config(void);
 extern int enpu_device_init(void);
 extern int enpu_config_info_init(void);
+
+shm_state_t *get_shm_state(void);
+size_t get_mem_dynamic_free(void);
+size_t get_hbm_request_free(void);
+int update_shm_hbm_request(size_t request_quota);
+int update_shm_used(size_t used);
+int check_and_swap_out(size_t requested, uint8_t flag);
 extern int enpu_soc_init(void);
 #if defined(__cplusplus)
 }

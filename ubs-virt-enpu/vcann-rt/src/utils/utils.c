@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "../include/common.h"
+#include "../include/utils.h"
 
 void *map_share_mem(const char *shmID, size_t size)
 {

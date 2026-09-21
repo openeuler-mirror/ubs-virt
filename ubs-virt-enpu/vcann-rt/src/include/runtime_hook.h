@@ -39,7 +39,7 @@ typedef rtError_t (*rt_symbol_t)();
     ({                                                                       \
         rt_symbol_t _entry = (rt_symbol_t)RUNTIME_FIND_ENTRY(table, symbol); \
         if (!_entry) {                                                       \
-            fprintf(stderr, "HOOK ERROR: %s\n", #symbol);                    \
+            fprintf(stderr, "HOOK ERROR: %s - %s\n", #symbol, dlerror());    \
         }                                                                    \
         _entry ? _entry(__VA_ARGS__) : ACL_ERROR_FAILURE;                    \
     })
@@ -52,7 +52,6 @@ typedef enum
     RUNTIME_HOOK_ENUM(rtSetDeviceWithoutTsd),
     RUNTIME_HOOK_ENUM(aclrtSetDeviceWithoutTsdVXXImpl),
     RUNTIME_HOOK_ENUM(rtGetSocVersion),
-
     RUNTIME_HOOK_ENUM(rtMalloc),
     RUNTIME_HOOK_ENUM(aclrtMallocImpl),
     RUNTIME_HOOK_ENUM(aclrtMallocAlign32Impl),
@@ -61,10 +60,37 @@ typedef enum
     RUNTIME_HOOK_ENUM(rtMemAllocManaged),
     RUNTIME_HOOK_ENUM(aclrtMemAllocManagedImpl),
     RUNTIME_HOOK_ENUM(rtMallocPhysical),
+    RUNTIME_HOOK_ENUM(rtFreePhysical),
     RUNTIME_HOOK_ENUM(aclrtMallocPhysicalImpl),
     RUNTIME_HOOK_ENUM(rtMemGetInfoEx),
+    RUNTIME_HOOK_ENUM(rtMallocHost),
+    RUNTIME_HOOK_ENUM(rtFreeHost),
+    RUNTIME_HOOK_ENUM(rtReserveMemAddress),
+    RUNTIME_HOOK_ENUM(rtReleaseMemAddress),
+    RUNTIME_HOOK_ENUM(rtMapMem),
+    RUNTIME_HOOK_ENUM(rtUnmapMem),
+    RUNTIME_HOOK_ENUM(rtMemcpy),
+    RUNTIME_HOOK_ENUM(rtsPointerGetAttributes),
+    RUNTIME_HOOK_ENUM(rtMemcpyAsync),
+    RUNTIME_HOOK_ENUM(rtMemGetAllocationGranularity),
+    RUNTIME_HOOK_ENUM(rtFree),
+    RUNTIME_HOOK_ENUM(rtsCheckMemType),
+    RUNTIME_HOOK_ENUM(rtMemcpyAsyncEx),
+    RUNTIME_HOOK_ENUM(rtsMemcpyBatch),
+    RUNTIME_HOOK_ENUM(rtsMemcpyBatchAsync),
+    RUNTIME_HOOK_ENUM(rtMemcpy2d),
+    RUNTIME_HOOK_ENUM(rtMemcpy2dAsync),
+    RUNTIME_HOOK_ENUM(rtsSetMemcpyDesc),
+    RUNTIME_HOOK_ENUM(rtsMemcpyAsyncWithDesc),
+    RUNTIME_HOOK_ENUM(rtMemcpyAsyncWithOffset),
+    RUNTIME_HOOK_ENUM(rtMemset),
+    RUNTIME_HOOK_ENUM(rtMemsetAsync),
+    RUNTIME_HOOK_ENUM(rtMemPrefetchToDevice),
+    RUNTIME_HOOK_ENUM(rtsIpcMemGetExportKey),
+    RUNTIME_HOOK_ENUM(rtsIpcMemImportByKey),
+    RUNTIME_HOOK_ENUM(rtsValueWrite),
+    RUNTIME_HOOK_ENUM(rtsValueWait),
     RUNTIME_HOOK_ENUM(aclrtGetMemInfoImpl),
-
     RUNTIME_HOOK_ENUM(rtLaunchKernelByFuncHandleV3),
     RUNTIME_HOOK_ENUM(aclrtLaunchKernelImpl),
     RUNTIME_HOOK_ENUM(rtsLaunchKernelWithHostArgs),
@@ -104,7 +130,6 @@ typedef enum
     RUNTIME_HOOK_ENUM(rtStreamGetCaptureInfo),
     RUNTIME_HOOK_ENUM(rtModelGetStreams),
     RUNTIME_HOOK_ENUM(rtStreamGetTasks),
-
     RUNTIME_HOOK_ENUM(rtEventCreate),
     RUNTIME_HOOK_ENUM(aclrtCreateEventImpl),
     RUNTIME_HOOK_ENUM(rtEventCreateWithFlag),
@@ -132,28 +157,19 @@ typedef enum
     RUNTIME_HOOK_ENUM(aclrtCntNotifyRecordImpl),
     RUNTIME_HOOK_ENUM(rtsCntNotifyWaitWithTimeout),
     RUNTIME_HOOK_ENUM(aclrtCntNotifyWaitWithTimeoutImpl),
-
     RUNTIME_HOOK_ENUM(rtStreamSynchronize),
     RUNTIME_HOOK_ENUM(rtStreamDestroy),
     RUNTIME_HOOK_ENUM(aclrtDestroyStream),
-
-    /* rt仓间接口，cann-9.2.0，共8个 */
     RUNTIME_HOOK_ENUM(rtSetDeviceWithFlags),
-
     RUNTIME_HOOK_ENUM(rtDvppMallocWithFlag),
     RUNTIME_HOOK_ENUM(rtMemAlloc),
-
     RUNTIME_HOOK_ENUM(rtCpuKernelLaunchWithFlag),
     RUNTIME_HOOK_ENUM(rtAicpuKernelLaunchExWithArgs),
     RUNTIME_HOOK_ENUM(rtFftsPlusTaskLaunch),
     RUNTIME_HOOK_ENUM(rtFftsPlusTaskLaunchWithFlag),
     RUNTIME_HOOK_ENUM(rtMultipleTaskInfoLaunch),
-
-    /* 废弁rt/rts接口，cann-9.2.0，共31个 */
     RUNTIME_HOOK_ENUM(rtSetDeviceEx),
-
     RUNTIME_HOOK_ENUM(rtDvppMalloc),
-
     RUNTIME_HOOK_ENUM(rtKernelLaunch),
     RUNTIME_HOOK_ENUM(rtKernelLaunchWithHandle),
     RUNTIME_HOOK_ENUM(rtKernelLaunchWithHandleV2),
@@ -171,7 +187,6 @@ typedef enum
     RUNTIME_HOOK_ENUM(rtModelExecuteAsync),
     RUNTIME_HOOK_ENUM(rtModelExecuteSync),
     RUNTIME_HOOK_ENUM(rtsModelExecuteAsync),
-
     RUNTIME_HOOK_ENUM(rtsEventCreate),
     RUNTIME_HOOK_ENUM(rtsEventCreateEx),
     RUNTIME_HOOK_ENUM(rtNotifyRecord),

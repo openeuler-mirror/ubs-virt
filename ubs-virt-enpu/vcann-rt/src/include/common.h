@@ -30,6 +30,7 @@ extern "C" {
 
 #define unlikely(x) __builtin_expect(!!(x), 0)
 #define MAX_LINE_LENGTH 256
+#define MAX_PATH_LEN 256
 
 #define ENPU_SUCCESS 0
 #define ENPU_FAIL 1
