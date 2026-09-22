@@ -4,6 +4,8 @@
 
 `vCANN-RT(virtual CANN Runtime)`是ubs-virt-enpu提供NPU算力软切分的方案。本方案需要依赖Linux系统Preload Hook的能力，通过预加载软切分动态库，拦截部分runtime API的调用，根据算力和显存资源配额信息，进行算力控制或显存控制。
 
+在基础软切分能力之上，vCANN-RT 可与宿主机侧的 enpu-manager 协同，启用显存超分能力：将冷模型的显存换出到宿主机侧 swap buffer，把腾出的显存让给其他容器使用，从而提升整卡显存利用率。显存超分仅在 docker 部署场景下可用，K8s 场景下仍为基础软切分能力。详见[显存超分](#显存超分可选)章节。
+
 ## 环境准备
 
 ### 软件版本
@@ -602,6 +604,50 @@ vCANN-RT支持两种方式启动业务容器：
 | `ENPU_LOG_LEVEL` | 运行 | `3` | 日志级别，FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。 |
 | `ENPU_ENABLE` | 运行 | `True` | vCANN-RT启动成功之后设置的进程级环境变量。 |
 
+## 显存超分（可选）
+
+显存超分是 vCANN-RT 在基础软切分之上引入的能力：通过将冷模型的显存换出到宿主机侧 swap buffer，让出 HBM 给其他容器使用，从而突破"单 die 上各 vNPU `memory-limit` 之和不超过物理 HBM 总量"的限制，提升整卡显存利用率。本能力由 vCANN-RT 与 enpu-manager 协同实现，仅 docker 部署场景可用。
+
+### 启用条件
+
+要启用显存超分，需同时满足以下条件：
+
+1. 宿主机侧已部署 enpu-manager 并配置了 `oversub-ratio`，参见 [enpu-manager 使用说明](../enpu-manager/README.md)。
+2. vNPU 分配时使用 `scheduling-policy = 2`（elastic）或 `3`（best-effort），`scheduling-policy = 1`（fixed-share）不支持显存超分。
+3. npu_info.config 中包含 `memory-limit` 字段且 `memory-request < memory-limit`。
+4. `shm-id` 与 enpu-manager 分配时写入的值保持一致（由 enpu-manager 自动生成，无需手工填写）。
+
+### 配置示例
+
+npu_info.config 由 enpu-manager 管理进程在分配 vNPU 成功后生成，示例：
+
+```bash
+physical-npu-id=0
+virtual-npu-id=0
+aicore-quota=20
+memory-request=10240
+memory-limit=30720
+shm-id=14422CC3-2040D918-27A73226-80B40A0A-BB100003
+scheduling-policy=2
+```
+
+含义：保底预留 10GB HBM，硬上限 30GB。容器内进程首次分配显存时由 vCANN-RT 拦截，按需借用同 die 的空闲 HBM（最多到 `memory-limit`）；HBM 紧张时由 enpu-manager 触发换出，腾出 HBM 给其他容器。
+
+### 行为说明
+
+- 容器内进程首次分配显存时，vCANN-RT 通过 hook 拦截分配请求，按需借用同 die 的空闲 HBM（最多到 `memory-limit`）。
+- 当 HBM 使用率达到 enpu-manager 配置的水位阈值（`swap-pre-watermark`）时，enpu-manager 触发换出，将冷模型数据从 HBM 拷贝到宿主机侧 swap buffer；下次访问时 vCANN-RT 自动换入。
+- 刚换入的 vNPU 短时间内不会被换出，避免换入/换出抖动。
+- 不支持显存超分的 vNPU（`memory-request == memory-limit`）不会被换出，其 HBM 资源是硬预留的。
+
+### 验证显存超分已生效
+
+将 `ENPU_LOG_LEVEL` 设为 `4`（DEBUG）后查看 vCANN-RT 日志，观察是否出现 `swap_in` / `swap_out` 相关记录。一旦出现换入换出动作，直接证明显存超分正在工作。
+
+```bash
+export ENPU_LOG_LEVEL=4
+```
+
 ## 约束
 
 - 由于vCANN-RT解决方案使用了共享内存，因此用户需要确保在可信用户范围内使用。
@@ -615,6 +661,8 @@ vCANN-RT支持两种方式启动业务容器：
   - 若多容器配置的HBM总量超出当前单Device可用内存大小，某一容器内的业务运行时，可能因为实际内存不足，导致报错OOM内存不足。
   - 若单卡上各容器配置的调度策略不相同，各容器无法按照原先设定的资源使用，建议各容器配置的调度策略相同。
 - 当前vCANN-RT方案适配CANN软件版本为商发版本9.1.0，由于版本限制，暂时不支持persistent task的使用。
+- 显存超分仅在 docker 部署场景下可用。
+- `scheduling-policy = 1`（fixed-share）的容器不支持显存超分，必须满足 `memory-request == memory-limit`；需要显存超分请使用 `scheduling-policy = 2`（elastic）或 `3`（best-effort）。
 
 ## FAQ
 
