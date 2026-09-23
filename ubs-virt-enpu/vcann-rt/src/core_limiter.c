@@ -25,6 +25,8 @@ atomic_bool g_sched_locking = false;
 atomic_int hasModelExecuteSync = 0;
 pthread_mutex_t g_sched_mutex = PTHREAD_MUTEX_INITIALIZER;
 atomic_bool g_monitor_init = false;
+static atomic_bool g_aclrt_impl_hook_enable = true;
+static atomic_bool g_vnpu_stats_enable = true;
 
 cache_streams_t g_cache_streams = {.num_streams = 0, .streams = {NULL}};
 
@@ -75,6 +77,26 @@ void ns_sleep(uint64_t ns)
             break;
         }
     }
+}
+
+bool get_aclrt_impl_hook_enable(void)
+{
+    return atomic_load(&g_aclrt_impl_hook_enable);
+}
+
+void set_aclrt_impl_hook_enable(bool enable)
+{
+    atomic_store(&g_aclrt_impl_hook_enable, enable);
+}
+
+bool get_vnpu_stats_enable(void)
+{
+    return atomic_load(&g_vnpu_stats_enable);
+}
+
+void set_vnpu_stats_enable(bool enable)
+{
+    atomic_store(&g_vnpu_stats_enable, enable);
 }
 
 void restore_streams(rtStream_t stream)

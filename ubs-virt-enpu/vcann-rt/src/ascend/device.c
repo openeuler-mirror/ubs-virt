@@ -27,6 +27,13 @@ void load_rt_libraries(void)
     for (i = 0; i < RUNTIME_ENTRY_END; i++) {
         rt_library_entry[i].func_ptr = dlsym(RTLD_NEXT, rt_library_entry[i].name);
         if (rt_library_entry[i].func_ptr == NULL) {
+            // cann-9.2.0新增特有接口，cann-9.2.0开始需要增加aclrtImpl接口拦截，故以此作为aclrt_impl_hook开关标识
+            if (strcmp(rt_library_entry[i].name, "aclrtLaunchSIMTKernelWithHostArgsImpl") == 0) {
+                set_aclrt_impl_hook_enable(false);
+            }
+            if (strcmp(rt_library_entry[i].name, "rtModelGetStreams") == 0) {
+                set_vnpu_stats_enable(false);
+            }
             LOG_WARN("Can not find function %s, because the runtime version you are using is different "
                      "from our preset version.",
                      rt_library_entry[i].name);
@@ -63,6 +70,9 @@ RUNTIME_HOOK_DEFINE(rtSetDevice, int32_t devId)
 
 RUNTIME_HOOK_DEFINE(aclrtSetDeviceImpl, int32_t devId)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtSetDeviceImpl, devId);
+    }
     int res = log_init();
     CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
     pre_rt_init();
@@ -147,6 +157,9 @@ RUNTIME_HOOK_DEFINE(rtSetDeviceWithoutTsd, int32_t devId)
 
 RUNTIME_HOOK_DEFINE(aclrtSetDeviceWithoutTsdVXXImpl, int32_t devId)
 {
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtSetDeviceWithoutTsdVXXImpl, devId);
+    }
     int res = log_init();
     CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
     pre_rt_init();

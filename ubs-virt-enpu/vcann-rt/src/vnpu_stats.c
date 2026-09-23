@@ -77,7 +77,7 @@ int get_random_fd(void)
 
 bool is_random_sampling(void)
 {
-    if (!g_vnpu_stats_inited) {
+    if (!g_vnpu_stats_inited || !get_vnpu_stats_enable()) {
         return false;
     }
 
