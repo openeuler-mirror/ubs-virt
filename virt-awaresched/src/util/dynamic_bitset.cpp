@@ -134,6 +134,11 @@ DynamicBitset Bitset::GenDynamicBitSetByArea(uint16_t totalSize, uint16_t start,
  */
 DynamicBitset Bitset::GenClusterBitSetByCpuSet(const DynamicBitset &bitSet, const std::set<uint16_t> &cpuSet)
 {
+    if (cpuSet.empty() || *cpuSet.rbegin() >= bitSet.size()) {
+        LOG_ERROR("GenClusterBitSetByCpuSet invalid params. cpuSet size=" + std::to_string(cpuSet.size()) +
+                  ", bitSet size=" + std::to_string(bitSet.size()));
+        return {};
+    }
     return {bitSet.begin() + *cpuSet.begin(), bitSet.begin() + *cpuSet.rbegin() + 1};
 }
 
@@ -266,7 +271,8 @@ DynamicBitset Bitset::DynamicBitsetCut(const DynamicBitset &origin, const uint16
 
 void Bitset::DynamicBitsetSetArea(DynamicBitset &bitSet, uint16_t start, uint16_t size, bool val)
 {
-    if (size == 0 || bitSet.size() - static_cast<size_t>(start) < static_cast<size_t>(size)) {
+    if (size == 0 || static_cast<size_t>(start) > bitSet.size() ||
+        bitSet.size() - static_cast<size_t>(start) < static_cast<size_t>(size)) {
         throw std::out_of_range("End value out of range for uint16_t in range: " + std::to_string(bitSet.size()));
     }
     for (size_t index = start; index < start + size; ++index) {

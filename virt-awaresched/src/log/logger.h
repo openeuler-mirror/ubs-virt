@@ -88,6 +88,7 @@ private:
     OutputType outputType_{};
     std::ofstream file_{};
     static std::string LevelToStr(const Level &level);
+    static std::string SanitizeMessage(const std::string &message);
     VasRet RotateCheck(const bool &forceOpen = false);
     VasRet RotateFiles() const;
 };

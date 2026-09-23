@@ -41,6 +41,11 @@ virConnectPtr TestVirConnectOpen(const char *str)
     return reinterpret_cast<virConnectPtr>(new char[1]);
 }
 
+virConnectPtr TestVirConnectOpenError(const char *str)
+{
+    return nullptr;
+}
+
 int TestVirEventRegisterDefaultImplError()
 {
     return VAS_ERROR;
@@ -96,10 +101,18 @@ TEST_F(TestLibvirtHelper, CheckWithReconnectTest)
     EXPECT_EQ(LibvirtHelper::GetInstance().CheckWithReconnect(), VAS_OK);
     MOCKER(&LibvirtHelper::IsConnectAlive).reset();
 
+    // Reconnect holds connMutex_ and calls the *WithoutLock internals directly,
+    // so mock the libvirt C layer instead of the CloseConn/Connect members.
     MOCKER(&LibvirtHelper::IsConnectAlive).stubs().will(returnValue(false));
-    MOCKER(&LibvirtHelper::CloseConn).stubs();
-    MOCKER(&LibvirtHelper::Connect).stubs().will(returnValue(VAS_ERROR));
+    MOCKER(virConnectClose).stubs().will(invoke(TestVirConnectCloseReturnZero));
+    MOCKER(virConnectOpen).stubs().will(invoke(TestVirConnectOpenError));
     EXPECT_EQ(LibvirtHelper::GetInstance().CheckWithReconnect(), VAS_ERROR);
+    MOCKER(virConnectOpen).reset();
+    MOCKER(virConnectClose).reset();
+    // Restore a fake connection for later tests relying on a non-null virConnect.
+    MOCKER(virConnectOpen).stubs().will(invoke(TestVirConnectOpen));
+    EXPECT_EQ(LibvirtHelper::GetInstance().Connect(), VAS_OK);
+    MOCKER(virConnectOpen).reset();
 }
 
 int TestVirConnectListAllDomains(virConnectPtr conn, virDomainPtr **domains, unsigned int flags)
@@ -265,9 +278,13 @@ TEST_F(TestLibvirtHelper, RunEventDefaultImplTest)
         .then(returnValue(VAS_ERROR));
     MOCKER(virEventRunDefaultImpl).stubs().will(invoke(VirEventRunDefaultImplError));
     MOCKER(&LibvirtHelper::IsConnectAlive).stubs().will(returnValue(false));
-    MOCKER(&LibvirtHelper::CloseConn).stubs();
-    MOCKER(&LibvirtHelper::Connect).stubs().will(returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
+    // Reconnect calls the *WithoutLock internals: mock the libvirt C layer
+    // (1st open fails -> retry loop, later opens succeed).
+    MOCKER(virConnectClose).stubs().will(invoke(TestVirConnectCloseReturnZero));
+    MOCKER(virConnectOpen).stubs().will(invoke(TestVirConnectOpenError)).then(invoke(TestVirConnectOpen));
     EXPECT_EQ(LibvirtHelper::GetInstance().RunEventDefaultImpl(func), VAS_ERROR);
+    MOCKER(virConnectClose).reset();
+    MOCKER(virConnectOpen).reset();
 
     MOCKER(&LibvirtHelper::RegisterDomainEvent).reset();
     MOCKER(&LibvirtHelper::RegisterDomainEvent).stubs().will(returnValue(VAS_OK));
@@ -451,6 +468,41 @@ TEST_F(TestLibvirtHelper, GetVmVcpuMapTest)
     MOCKER(LibvirtHelper::GetCpuInNumaRange).stubs().will(returnValue(std::set<uint16_t>({0})));
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmVcpuMap(domain, vmInfo), VAS_OK);
     EXPECT_EQ(LibvirtHelper::GetInstance().GetVmVcpuMap(domain, vmInfo), VAS_OK); // update vmInfo
+}
+
+TEST_F(TestLibvirtHelper, GetVmVcpuInfoInvalidNrVcpuTest)
+{
+    std::map<uint16_t, DynamicBitset> vcpuMaps;
+    virDomainPtr domain = reinterpret_cast<virDomainPtr>(0x1234);
+    // Regression for R4: nrVcpu is external data from libvirt and must be
+    // rejected before it drives the buffer allocations.
+    EXPECT_EQ(LibvirtHelper::GetVmVcpuInfo(domain, 0, vcpuMaps), VAS_ERROR);
+    EXPECT_EQ(LibvirtHelper::GetVmVcpuInfo(domain, -1, vcpuMaps), VAS_ERROR);
+    EXPECT_EQ(LibvirtHelper::GetVmVcpuInfo(domain, LibvirtHelper::MAX_VCPU_NUM + 1, vcpuMaps), VAS_ERROR);
+    EXPECT_TRUE(vcpuMaps.empty());
+
+    // The boundary value itself passes validation (fails later at the mocked
+    // libvirt call, proving MAX_VCPU_NUM is not rejected).
+    MOCKER(virDomainGetVcpus).stubs().will(returnValue(-1));
+    EXPECT_EQ(LibvirtHelper::GetVmVcpuInfo(domain, LibvirtHelper::MAX_VCPU_NUM, vcpuMaps), VAS_ERROR);
+    MOCKER(virDomainGetVcpus).reset();
+    EXPECT_TRUE(vcpuMaps.empty());
+}
+
+TEST_F(TestLibvirtHelper, GetVmVcpuInfoNormalTest)
+{
+    std::map<uint16_t, DynamicBitset> vcpuMaps;
+    virDomainPtr domain = reinterpret_cast<virDomainPtr>(0x1234);
+    MOCKER(virDomainGetVcpus).stubs().will(invoke(TestVirDomainGetVcpus));
+    MOCKER(virDomainGetVcpuPinInfo).stubs().will(invoke(TestVirDomainGetVcpuPinInfo));
+    EXPECT_EQ(LibvirtHelper::GetVmVcpuInfo(domain, 1, vcpuMaps), VAS_OK);
+    MOCKER(virDomainGetVcpus).reset();
+    MOCKER(virDomainGetVcpuPinInfo).reset();
+    EXPECT_EQ(vcpuMaps.size(), 1U);
+    // TestVirDomainGetVcpus reports vcpu number 1; its zero cpumask expands
+    // to a cpuMapLen * 8 bitset (non-empty).
+    EXPECT_NE(vcpuMaps.find(1), vcpuMaps.end());
+    EXPECT_FALSE(vcpuMaps[1].empty());
 }
 
 TEST_F(TestLibvirtHelper, FlushVmsPidInfoTest)

@@ -56,7 +56,7 @@ VasRet Api::SetConfig(std::map<std::string, std::string> &data, std::string &res
             LOG_ERROR(resStr);
             return VAS_ERROR;
         }
-        if (VasdArgParse::schedPolicy == data[SCHED_POLICY]) {
+        if (VasdArgParse::GetSchedPolicy() == data[SCHED_POLICY]) {
             resStr = "SetConfig success.";
             LOG_INFO(resStr);
             return VAS_OK;
@@ -66,12 +66,12 @@ VasRet Api::SetConfig(std::map<std::string, std::string> &data, std::string &res
             resStr = "SetConfig failed, Failed to clear the existing configuration.";
             LOG_ERROR(resStr);
         }
-        std::string originalPolicy = VasdArgParse::schedPolicy;
-        VasdArgParse::schedPolicy = data[SCHED_POLICY];
+        std::string originalPolicy = VasdArgParse::GetSchedPolicy();
+        VasdArgParse::SetSchedPolicy(data[SCHED_POLICY]);
         ret = VasdArgParse::Init();
         if (isVasRetFail(ret)) {
             resStr = "SetConfig failed, Failed to set the new configuration. Rollback to original configuration";
-            VasdArgParse::schedPolicy = originalPolicy;
+            VasdArgParse::SetSchedPolicy(originalPolicy);
             LOG_ERROR(resStr);
             return VAS_ERROR;
         }

@@ -100,8 +100,8 @@ bool SocketClient::SendMessage(const std::string &message)
         return false;
     }
 
-    ssize_t bytesSent = send(clientSocket, message.c_str(), message.length(), 0);
-    if (bytesSent < 0) {
+    if (const ssize_t bytesSent = send(clientSocket, message.c_str(), message.length(), 0);
+        bytesSent != static_cast<ssize_t>(message.length())) {
         std::cerr << "Send failed" << std::endl;
         return false;
     }

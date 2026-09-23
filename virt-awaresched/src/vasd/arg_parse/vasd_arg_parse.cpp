@@ -23,11 +23,72 @@
 
 namespace vas::sched {
 using namespace vas::security;
+std::mutex VasdArgParse::confMutex_{};
 bool VasdArgParse::smt = true;
 std::string VasdArgParse::schedPolicy = "affinity";
 uint16_t VasdArgParse::dynamicAffinityUtilThresh = 85;
 std::string VasdArgParse::skippedCPUSet = "";
 bool VasdArgParse::rangeAffinity = true;
+
+bool VasdArgParse::IsSmt()
+{
+    std::lock_guard lock(confMutex_);
+    return smt;
+}
+
+void VasdArgParse::SetSmt(bool value)
+{
+    std::lock_guard lock(confMutex_);
+    smt = value;
+}
+
+std::string VasdArgParse::GetSchedPolicy()
+{
+    std::lock_guard lock(confMutex_);
+    return schedPolicy;
+}
+
+void VasdArgParse::SetSchedPolicy(const std::string &policy)
+{
+    std::lock_guard lock(confMutex_);
+    schedPolicy = policy;
+}
+
+uint16_t VasdArgParse::GetDynamicAffinityUtilThresh()
+{
+    std::lock_guard lock(confMutex_);
+    return dynamicAffinityUtilThresh;
+}
+
+void VasdArgParse::SetDynamicAffinityUtilThresh(uint16_t value)
+{
+    std::lock_guard lock(confMutex_);
+    dynamicAffinityUtilThresh = value;
+}
+
+std::string VasdArgParse::GetSkippedCPUSet()
+{
+    std::lock_guard lock(confMutex_);
+    return skippedCPUSet;
+}
+
+void VasdArgParse::SetSkippedCPUSet(const std::string &cpuSet)
+{
+    std::lock_guard lock(confMutex_);
+    skippedCPUSet = cpuSet;
+}
+
+bool VasdArgParse::IsRangeAffinity()
+{
+    std::lock_guard lock(confMutex_);
+    return rangeAffinity;
+}
+
+void VasdArgParse::SetRangeAffinity(bool value)
+{
+    std::lock_guard lock(confMutex_);
+    rangeAffinity = value;
+}
 
 /**
  * Init args after SetVasCliSdkCmdFun
@@ -35,21 +96,22 @@ bool VasdArgParse::rangeAffinity = true;
  */
 VasRet VasdArgParse::Init()
 {
-    if (schedPolicy == "dynamicAffinity") {
+    const std::string policy = GetSchedPolicy();
+    if (policy == "dynamicAffinity") {
         if (!IsDynamicAffinityAvailable()) {
-            schedPolicy = "affinity";
+            SetSchedPolicy("affinity");
             LOG_WARN("Dynamic affinity is not available. Please add 'dynamic_affinity=enable' to the cmdline.");
             return VAS_WARN;
         }
 
-        if (const auto ret = WriteDynamicAffinityUtilThresh(dynamicAffinityUtilThresh); ret != VAS_OK) {
+        if (const auto ret = WriteDynamicAffinityUtilThresh(GetDynamicAffinityUtilThresh()); ret != VAS_OK) {
             LOG_WARN("Failed to set dynamic affinity utilization threshold.");
             return VAS_WARN;
         }
         return VAS_OK;
     }
-    if (schedPolicy != "affinity") {
-        LOG_ERROR("Scheduler policy is invalid. current=" + schedPolicy);
+    if (policy != "affinity") {
+        LOG_ERROR("Scheduler policy is invalid. current=" + policy);
         return VAS_ERROR;
     }
     return VAS_OK;
@@ -57,8 +119,9 @@ VasRet VasdArgParse::Init()
 
 VasRet VasdArgParse::DeInit()
 {
-    if (schedPolicy != "affinity" && schedPolicy != "dynamicAffinity") {
-        LOG_ERROR("Scheduler policy is invalid. current=" + schedPolicy);
+    const std::string policy = GetSchedPolicy();
+    if (policy != "affinity" && policy != "dynamicAffinity") {
+        LOG_ERROR("Scheduler policy is invalid. current=" + policy);
         return VAS_ERROR;
     }
     return VAS_OK;
@@ -176,11 +239,11 @@ VasCliSdkResult CliSetServerConfFunc(const std::map<std::string, std::string> &p
     auto rangeAffinityIter = params.find(RANGE_AFFINITY);
 
     if (smtIter != params.end()) {
-        VasdArgParse::smt = (smtIter->second == "true" || smtIter->second == "1") &&
-                            !(smtIter->second == "false" || smtIter->second == "0");
+        VasdArgParse::SetSmt((smtIter->second == "true" || smtIter->second == "1") &&
+                             !(smtIter->second == "false" || smtIter->second == "0"));
     }
     if (schedPolicyIter != params.end()) {
-        VasdArgParse::schedPolicy = schedPolicyIter->second;
+        VasdArgParse::SetSchedPolicy(schedPolicyIter->second);
     }
     if (dynamicAffinityUtilThreshIter != params.end()) {
         try {
@@ -190,7 +253,7 @@ VasCliSdkResult CliSetServerConfFunc(const std::map<std::string, std::string> &p
                           << std::endl;
                 return PromptReply(FAILED_EXECUTE);
             }
-            VasdArgParse::dynamicAffinityUtilThresh = value;
+            VasdArgParse::SetDynamicAffinityUtilThresh(static_cast<uint16_t>(value));
         } catch (const std::invalid_argument &e) {
             std::cerr << "Invalid argument for dynamicAffinityUtilThresh: " << dynamicAffinityUtilThreshIter->second
                       << std::endl;
@@ -202,18 +265,18 @@ VasCliSdkResult CliSetServerConfFunc(const std::map<std::string, std::string> &p
         }
     }
     if (skippedCpuSetIter != params.end()) {
-        VasdArgParse::skippedCPUSet = skippedCpuSetIter->second;
+        VasdArgParse::SetSkippedCPUSet(skippedCpuSetIter->second);
     }
     if (rangeAffinityIter != params.end()) {
-        VasdArgParse::rangeAffinity = (rangeAffinityIter->second == "true" || rangeAffinityIter->second == "1") &&
-                                      !(rangeAffinityIter->second == "false" || rangeAffinityIter->second == "0");
+        VasdArgParse::SetRangeAffinity((rangeAffinityIter->second == "true" || rangeAffinityIter->second == "1") &&
+                                       !(rangeAffinityIter->second == "false" || rangeAffinityIter->second == "0"));
     }
-    std::cout << "SMT: " << std::boolalpha << vas::sched::VasdArgParse::smt << std::endl;
-    std::cout << "Schedule Policy: " << vas::sched::VasdArgParse::schedPolicy << std::endl;
-    std::cout << "Dynamic Affinity Util Threshold: " << vas::sched::VasdArgParse::dynamicAffinityUtilThresh
+    std::cout << "SMT: " << std::boolalpha << vas::sched::VasdArgParse::IsSmt() << std::endl;
+    std::cout << "Schedule Policy: " << vas::sched::VasdArgParse::GetSchedPolicy() << std::endl;
+    std::cout << "Dynamic Affinity Util Threshold: " << vas::sched::VasdArgParse::GetDynamicAffinityUtilThresh()
               << std::endl;
-    std::cout << "Range Affinity: " << vas::sched::VasdArgParse::rangeAffinity << std::endl;
-    std::cout << "Skipped CPU Set: " << vas::sched::VasdArgParse::skippedCPUSet << std::endl;
+    std::cout << "Range Affinity: " << vas::sched::VasdArgParse::IsRangeAffinity() << std::endl;
+    std::cout << "Skipped CPU Set: " << vas::sched::VasdArgParse::GetSkippedCPUSet() << std::endl;
     return PromptReply(SUCCESS_EXECUTE);
 }
 

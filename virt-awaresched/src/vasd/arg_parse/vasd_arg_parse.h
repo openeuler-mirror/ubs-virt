@@ -14,6 +14,7 @@
 #define VAS_CLI_ARG_H
 
 #include <filesystem>
+#include <mutex>
 #include <string>
 
 #include "error.h"
@@ -34,10 +35,26 @@ public:
     static std::string skippedCPUSet;
     static bool rangeAffinity;
 
+    // Thread-safe accessors for the static config: all cross-thread access
+    // must go through them to avoid data races (std::string tearing).
+    static bool IsSmt();
+    static void SetSmt(bool value);
+    static std::string GetSchedPolicy();
+    static void SetSchedPolicy(const std::string &policy);
+    static uint16_t GetDynamicAffinityUtilThresh();
+    static void SetDynamicAffinityUtilThresh(uint16_t value);
+    static std::string GetSkippedCPUSet();
+    static void SetSkippedCPUSet(const std::string &cpuSet);
+    static bool IsRangeAffinity();
+    static void SetRangeAffinity(bool value);
+
     static VasRet Init();
     static VasRet DeInit();
     static VasRet WriteDynamicAffinityUtilThresh(uint16_t value);
     static bool IsDynamicAffinityAvailable();
+
+private:
+    static std::mutex confMutex_;
 };
 } // namespace vas::sched
 

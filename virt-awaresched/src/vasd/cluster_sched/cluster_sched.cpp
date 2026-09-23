@@ -13,6 +13,7 @@
 #include "cluster_sched.h"
 
 #include <chrono>
+#include <limits>
 #include <regex>
 #include <vector>
 
@@ -48,6 +49,7 @@ VasRet ClusterSched::UpdateDomainInfosAndSched()
         if (domain.isReScheded) {
             continue;
         }
+        Free(domain);
         auto ret = Alloc(domain);
         if (isVasRetFail(ret)) {
             LOG_WARN("Alloc failed. uuid=" + domain.uuid);
@@ -70,9 +72,8 @@ VasRet ClusterSched::UpdateDomainInfosAndSched()
 /**
  * Adding a VM
  * @param vmInfo vm information
- * @return VasRet VAS_OK success; others failed
  */
-VasRet ClusterSched::AddDomainInfo(const VmInfo &vmInfo)
+void ClusterSched::AddDomainInfo(const VmInfo &vmInfo)
 {
     std::lock_guard transactionLock(transactionMutex_);
     std::unique_lock dataLock(dataMutex_);
@@ -82,16 +83,16 @@ VasRet ClusterSched::AddDomainInfo(const VmInfo &vmInfo)
     VmDomain vmDomain{};
     auto ret = UpdateDomainInfoWithoutLock(vmInfo, numaUsedCpuMap, vmDomain);
     if (isVasRetFail(ret)) {
-        return VAS_ERROR;
+        LOG_ERROR("Add domain info failed, update domain info failed. uuid=" + vmInfo.uuid);
+        return;
     }
     // In the current allocation policy, VM CPUs are allocated to only the same NUMA node.
     // Data structures of multiple domains are generated during cross-NUMA allocation.
     std::vector vmDomains{vmDomain};
     ret = ReSched(vmDomains);
     if (isVasRetFail(ret)) {
-        return VAS_ERROR;
+        LOG_ERROR("Add domain info failed, resched failed. uuid=" + vmInfo.uuid);
     }
-    return VAS_OK;
 }
 
 /**
@@ -342,7 +343,16 @@ VasRet ClusterSched::UpdateDomainInfoWithoutLock(const VmInfo &vmInfo, NumaUsedC
 uint16_t ClusterSched::GetNumaCpuCount(const uint16_t &numaId)
 {
     uint16_t ret = 0;
-    for (auto &[clusterId, cluster] : numaClusterMap_[numaId]) {
+    const auto numaIt = numaClusterMap_.find(numaId);
+    if (numaIt == numaClusterMap_.end()) {
+        LOG_ERROR("numaId=" + std::to_string(numaId) + " not exist in numaClusterMap.");
+        return ret;
+    }
+    for (const auto &[clusterId, cluster] : numaIt->second) {
+        if (cluster.clusterLayers.empty()) {
+            LOG_ERROR("clusterId=" + std::to_string(clusterId) + " has no cluster layer.");
+            continue;
+        }
         ret += cluster.clusterLayers[0].total; // Every layer cpu count is same.
     }
     return ret;
@@ -354,6 +364,11 @@ NumaUsedCpuMap ClusterSched::GetNumaUsedCpuMap()
                                 const uint16_t &layerId,
                                 std::map<uint16_t, std::map<std::uint16_t, uint16_t>> &ret) -> void {
         for (auto &[clusterId, cluster] : clusterMap) {
+            if (layerId >= cluster.clusterLayers.size()) {
+                LOG_ERROR("layerId=" + std::to_string(layerId) + " exceeds clusterLayers size=" +
+                          std::to_string(cluster.clusterLayers.size()) + ", clusterId=" + std::to_string(clusterId));
+                continue;
+            }
             if (ret[layerId].find(numaId) == ret[layerId].end()) {
                 ret[layerId][numaId] = cluster.clusterLayers[layerId].total - cluster.clusterLayers[layerId].idle;
             } else {
@@ -364,7 +379,7 @@ NumaUsedCpuMap ClusterSched::GetNumaUsedCpuMap()
 
     NumaUsedCpuMap ret{};
     for (auto &[numaId, clusterMap] : numaClusterMap_) {
-        for (size_t layerId = 0; layerId < overProvision_[numaId]; ++layerId) {
+        for (size_t layerId = 0; layerId < GetOverProvision(numaId); ++layerId) {
             accumulateUsedCpu(clusterMap, numaId, layerId, ret);
         }
     }
@@ -375,8 +390,8 @@ VasRet ClusterSched::SelectMinLayer(const std::set<uint16_t> &availableNumas, ui
 {
     size_t minOverProvision = maxOverProvision;
     for (auto &numaId : availableNumas) {
-        if (overProvision_[numaId] < minOverProvision) {
-            minOverProvision = overProvision_[numaId];
+        if (const auto op = GetOverProvision(numaId); op < minOverProvision) {
+            minOverProvision = op;
             selectNumaId = numaId;
         }
     }
@@ -412,7 +427,7 @@ VasRet ClusterSched::SelectVmNuma(const VmInfo &vmInfo, NumaUsedCpuMap &numaUsed
     uint16_t selectLayerId = maxOverProvision;
     size_t layerId = 0;
     for (auto &numaId : availableNumas) {
-        for (layerId = 0; layerId < overProvision_[numaId]; ++layerId) {
+        for (layerId = 0; layerId < GetOverProvision(numaId); ++layerId) {
             uint16_t numaCpuCount = GetNumaCpuCount(numaId);
             LOG_DEBUG("layerId=" + std::to_string(layerId) + ", numaId=" + std::to_string(numaId) +
                       ", usedCpu=" + std::to_string(numaUsedCpuMap[layerId][numaId]) + ", cpus=" +
@@ -530,11 +545,16 @@ VasRet ClusterSched::Alloc(VmDomain &domain)
         LOG_ERROR("Get granularity failed.");
         return VAS_ERROR;
     }
-    uint16_t nr = domain.pidVcpuMap.size() * granularity;
     if (domain.isReScheded) {
         LOG_DEBUG("domain=" + domain.ToStr() + " already allocated.");
         return VAS_OK;
     }
+    const uint32_t totalNr = static_cast<uint32_t>(domain.pidVcpuMap.size()) * granularity;
+    if (totalNr > std::numeric_limits<uint16_t>::max()) {
+        LOG_ERROR("Domain required cpus overflow. need=" + std::to_string(totalNr) + ", uuid=" + domain.uuid);
+        return VAS_ERROR;
+    }
+    uint16_t nr = static_cast<uint16_t>(totalNr);
 
     if (const uint16_t total = GetNumaTotalCpus(domain.numaId); nr > total) {
         LOG_ERROR("domain nr=" + std::to_string(nr) + " over numa cpu. numa=" + std::to_string(domain.numaId) +
@@ -546,6 +566,7 @@ VasRet ClusterSched::Alloc(VmDomain &domain)
         if (const auto allocNum = AllocClusterGroupToDomain(domain, nr); isIntEqZero(allocNum)) {
             LOG_ERROR("Allocate domain=" + domain.ToStr() +
                       " failed, no enough cpu, numa=" + std::to_string(domain.numaId));
+            Free(domain);
             return VAS_ERROR;
         } else {
             nr -= allocNum;
@@ -633,7 +654,7 @@ VasRet ClusterSched::SetVcpuAffinity(VmDomain &domain, const pid_t &pid, const u
         return ret;
     }
 
-    if (VasdArgParse::schedPolicy == "dynamicAffinity") {
+    if (VasdArgParse::GetSchedPolicy() == "dynamicAffinity") {
         auto numaCpusetMap = CpuHelper::GetInstance().GetNuma2CpusetMap();
         const auto numaCpuBitMap =
             Bitset::GenDynamicBitsetByCpuSet(CpuHelper::MAX_CPU_NUM, numaCpusetMap[domain.numaId]);
@@ -694,7 +715,7 @@ VasRet ClusterSched::DeReSched(std::vector<VmDomain> &domains)
  */
 uint16_t ClusterSched::GetGranularity()
 {
-    if (VasdArgParse::smt) {
+    if (VasdArgParse::IsSmt()) {
         return 1;
     }
     return CpuHelper::GetInstance().GetSmtCpuNr();
@@ -805,8 +826,13 @@ uint16_t ClusterSched::GetNumaTotalCpus(const uint16_t &numaId)
 uint16_t ClusterSched::AllocClusterGroupToDomain(VmDomain &domain, const uint16_t &nr)
 {
     uint16_t allocNum = 0;
-    auto &clusterList = numaClusterMap_[domain.numaId];
-    for (auto layerId = 0; layerId < overProvision_[domain.numaId]; ++layerId) {
+    const auto numaIt = numaClusterMap_.find(domain.numaId);
+    if (numaIt == numaClusterMap_.end()) {
+        LOG_ERROR("numaId=" + std::to_string(domain.numaId) + " not exist in numaClusterMap.");
+        return allocNum;
+    }
+    auto &clusterList = numaIt->second;
+    for (auto layerId = 0; layerId < GetOverProvision(domain.numaId); ++layerId) {
         for (auto &[clusterId, cluster] : clusterList) {
             if (cluster.clusterLayers.empty() || layerId >= cluster.clusterLayers.size()) {
                 continue;
@@ -824,8 +850,9 @@ uint16_t ClusterSched::AllocClusterGroupToDomain(VmDomain &domain, const uint16_
         if (allocNum != 0) {
             break;
         }
-        if (layerId == overProvision_[domain.numaId] - 1 && overProvision_[domain.numaId] < maxOverProvision &&
-            VasdArgParse::schedPolicy == SCHED_POLICY_DYNAMIC) {
+        const auto curOp = GetOverProvision(domain.numaId);
+        if (layerId == curOp - 1 && curOp < maxOverProvision &&
+            VasdArgParse::GetSchedPolicy() == SCHED_POLICY_DYNAMIC) {
             OverProvisionUp(domain.numaId);
         } else {
             LOG_WARN("overProvision=" + std::to_string(maxOverProvision) + ", can't raise up again.");
@@ -1148,7 +1175,7 @@ void ClusterSched::CleanDyingPidByGroup(VmDomain &domain)
  */
 void ClusterSched::CompactionCluster(uint16_t numaId, std::map<uint16_t, Cluster> &clusterMap)
 {
-    for (auto layerId = 0; layerId < overProvision_[numaId]; ++layerId) {
+    for (auto layerId = 0; layerId < GetOverProvision(numaId); ++layerId) {
         CompactionClusterOneLayer(clusterMap, layerId);
     }
 }
@@ -1159,6 +1186,11 @@ void ClusterSched::CompactionClusterOneLayer(std::map<uint16_t, Cluster> &cluste
         // clusters that are completely empty or full do not participate in the compression process,
         // they will be merged after the process is completed.
         auto &cluster = clusterIt->second;
+        if (layerId >= cluster.clusterLayers.size()) {
+            LOG_ERROR("layerId=" + std::to_string(layerId) + " exceeds clusterLayers size=" +
+                      std::to_string(cluster.clusterLayers.size()) + ", clusterId=" + std::to_string(cluster.id));
+            continue;
+        }
         // skip full used cluster.
         if (cluster.clusterLayers[layerId].idle == 0) {
             continue;
@@ -1171,7 +1203,8 @@ void ClusterSched::CompactionClusterOneLayer(std::map<uint16_t, Cluster> &cluste
             }
         }
         // compaction from last layer.
-        if (layerId != overProvision_[cluster.numaId] - 1) {
+        const auto op = GetOverProvision(cluster.numaId);
+        if (op == 0 || layerId != op - 1) {
             CompactionGroupFromLastLayer(cluster, layerId);
         }
     }
@@ -1199,7 +1232,7 @@ VasRet ClusterSched::GroupEntityMigrate(VmGroup &group, const int16_t &newStart,
         entityMap_[pid].cpuIdx = newStart + (entityMap_[pid].cpuIdx - group.start);
         const auto cpu = cluster.GetStartCpu() + entityMap_[pid].cpuIdx;
         if (const auto ret = SetVcpuAffinity(domainMap_[group.domainKey], pid, cpu, cluster.id); isVasRetFail(ret)) {
-            // rollback changed cpuIdx
+            entityMap_[pid].cpuIdx = oldCpuIdx;
             for (const auto &[vcpuPid, cpuIdx] : cpuIdxBackup) {
                 entityMap_[vcpuPid].cpuIdx = cpuIdx;
             }
@@ -1218,12 +1251,17 @@ VasRet ClusterSched::GroupEntityMigrate(VmGroup &group, const int16_t &newStart,
 
 void ClusterSched::OverProvisionUp(uint16_t numaId)
 {
-    CpuTopologyMap cpuTopologyMap = CpuHelper::GetInstance().GetCpuTopology();
-    for (auto &[numaId, clusterMap] : numaClusterMap_) {
+    for (auto &[curNumaId, clusterMap] : numaClusterMap_) {
         for (auto &[clusterId, cluster] : clusterMap) {
             if (cluster.clusterLayers.empty()) {
+                LOG_ERROR("Cluster layers is empty, can not over provision up. clusterId=" + std::to_string(clusterId));
                 return;
             }
+        }
+    }
+    CpuTopologyMap cpuTopologyMap = CpuHelper::GetInstance().GetCpuTopology();
+    for (auto &[curNumaId, clusterMap] : numaClusterMap_) {
+        for (auto &[clusterId, cluster] : clusterMap) {
             ClusterInfo &clusterInfo = cpuTopologyMap[clusterId];
             cluster.clusterLayers.emplace_back(ClusterLayer{
                 .idle = static_cast<uint16_t>(std::count(clusterInfo.bitMap.begin(), clusterInfo.bitMap.end(), false)),
@@ -1238,15 +1276,30 @@ void ClusterSched::OverProvisionUp(uint16_t numaId)
 
 void ClusterSched::OverProvisionDown(uint16_t numaId)
 {
-    for (auto &[numaId, clusterMap] : numaClusterMap_) {
+    for (auto &[curNumaId, clusterMap] : numaClusterMap_) {
         for (auto &[clusterId, cluster] : clusterMap) {
             if (cluster.clusterLayers.empty()) {
+                LOG_ERROR("Cluster layers is empty, can not over provision down. clusterId=" +
+                          std::to_string(clusterId));
                 return;
             }
+        }
+    }
+    for (auto &[curNumaId, clusterMap] : numaClusterMap_) {
+        for (auto &[clusterId, cluster] : clusterMap) {
             cluster.clusterLayers.pop_back();
         }
     }
-    --overProvision_[numaId];
+    const auto it = overProvision_.find(numaId);
+    if (it != overProvision_.end() && it->second > 0) {
+        --it->second;
+    }
+}
+
+uint8_t ClusterSched::GetOverProvision(const uint16_t &numaId) const
+{
+    const auto it = overProvision_.find(numaId);
+    return it != overProvision_.end() ? it->second : 0;
 }
 
 /**
@@ -1257,15 +1310,26 @@ void ClusterSched::OverProvisionDown(uint16_t numaId)
  */
 void ClusterSched::CompactionGroupWithinCluster(Cluster &cluster, Cluster &nextCluster, const uint8_t &layerId)
 {
+    if (layerId >= cluster.clusterLayers.size() || layerId >= nextCluster.clusterLayers.size()) {
+        LOG_ERROR("layerId=" + std::to_string(layerId) + " exceeds clusterLayers size, clusterId=" +
+                  std::to_string(cluster.id) + ", nextClusterId=" + std::to_string(nextCluster.id));
+        return;
+    }
     auto &nextClusterLayer = nextCluster.clusterLayers[layerId];
     auto &clusterLayer = cluster.clusterLayers[layerId];
     for (auto groupIt = nextClusterLayer.groups.begin(); groupIt != nextClusterLayer.groups.end();) {
         auto oldGroupId = *groupIt;
         if (groupMap_.find(oldGroupId) == groupMap_.end()) {
             LOG_WARN("GroupId=" + oldGroupId + " not exist in groupMap.");
+            ++groupIt;
             continue;
         }
         auto group = groupMap_[oldGroupId];
+        if (domainMap_.find(group.domainKey) == domainMap_.end()) {
+            LOG_WARN("DomainKey=" + group.domainKey + " not exist in domainMap.");
+            ++groupIt;
+            continue;
+        }
         const auto nextGroupIt = std::next(groupIt);
         auto availableCpuMap = Bitset::DynamicBitsetNot(Bitset::DynamicBitsetCut(
             domainMap_[group.domainKey].commonCpuMap, cluster.GetStartCpu(), cluster.cpuSet.size()));
@@ -1303,18 +1367,41 @@ void ClusterSched::CompactionGroupWithinCluster(Cluster &cluster, Cluster &nextC
  */
 void ClusterSched::CompactionGroupFromLastLayer(Cluster &cluster, const uint8_t &layerId)
 {
+    const auto op = GetOverProvision(cluster.numaId);
+    if (op == 0 || layerId >= cluster.clusterLayers.size()) {
+        LOG_ERROR("Invalid layerId=" + std::to_string(layerId) + " or overProvision=" + std::to_string(op) +
+                  ", clusterId=" + std::to_string(cluster.id));
+        return;
+    }
+    const auto lastLayerId = op - 1;
     uint16_t lastLayerEmptyClusterNum = 0;
     auto &clusterLayer = cluster.clusterLayers[layerId];
     for (auto &[lastClusterId, lastCluster] : numaClusterMap_[cluster.numaId]) {
-        auto &lastClusterLayer = lastCluster.clusterLayers[overProvision_[cluster.numaId] - 1];
+        if (lastLayerId >= lastCluster.clusterLayers.size()) {
+            LOG_ERROR("lastLayerId=" + std::to_string(lastLayerId) +
+                      " exceeds clusterLayers size=" + std::to_string(lastCluster.clusterLayers.size()) +
+                      ", clusterId=" + std::to_string(lastCluster.id));
+            continue;
+        }
+        auto &lastClusterLayer = lastCluster.clusterLayers[lastLayerId];
         if (lastClusterLayer.total == lastClusterLayer.idle) {
             ++lastLayerEmptyClusterNum;
             continue;
         }
         for (auto groupIt = lastClusterLayer.groups.begin(); groupIt != lastClusterLayer.groups.end();) {
             auto oldGroupId = *groupIt;
-            auto group = groupMap_[oldGroupId];
             const auto nextGroupIt = std::next(groupIt);
+            if (groupMap_.find(oldGroupId) == groupMap_.end()) {
+                LOG_WARN("GroupId=" + oldGroupId + " not exist in groupMap.");
+                groupIt = nextGroupIt;
+                continue;
+            }
+            auto group = groupMap_[oldGroupId];
+            if (domainMap_.find(group.domainKey) == domainMap_.end()) {
+                LOG_WARN("DomainKey=" + group.domainKey + " not exist in domainMap.");
+                groupIt = nextGroupIt;
+                continue;
+            }
             auto availableCpuMap = Bitset::DynamicBitsetNot(Bitset::DynamicBitsetCut(
                 domainMap_[group.domainKey].commonCpuMap, cluster.GetStartCpu(), cluster.cpuSet.size()));
             Bitset::DynamicBitsetOr(availableCpuMap, cluster.clusterLayers[layerId].usedBitmap);

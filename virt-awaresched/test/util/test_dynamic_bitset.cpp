@@ -121,6 +121,27 @@ TEST_F(TestDynamicBitset, testGenDynamicBitsetByCpuSet)
     EXPECT_EQ(bitSet, DynamicBitset({true, false, true, false, true}));
 }
 
+TEST_F(TestDynamicBitset, testGenClusterBitSetByCpuSet)
+{
+    const DynamicBitset bitSet({false, true, false, true, true});
+    // Returns the contiguous slice [first cpuId, last cpuId] of the cluster bitmap.
+    EXPECT_EQ(Bitset::GenClusterBitSetByCpuSet(bitSet, {1, 3}), DynamicBitset({true, false, true}));
+    EXPECT_EQ(Bitset::GenClusterBitSetByCpuSet(bitSet, {1}), DynamicBitset({true}));
+}
+
+TEST_F(TestDynamicBitset, testGenClusterBitSetByCpuSetInvalid)
+{
+    const DynamicBitset bitSet({false, true, false, true, true});
+    // Regression for H3: empty cpuSet (end() dereference) and cpuId >=
+    // bitSet.size() (out-of-bounds iterators) must return an empty bitset
+    // instead of undefined behavior.
+    EXPECT_TRUE(Bitset::GenClusterBitSetByCpuSet(bitSet, {}).empty());
+    EXPECT_TRUE(Bitset::GenClusterBitSetByCpuSet(bitSet, {5}).empty()); // cpuId == size: boundary
+    EXPECT_TRUE(Bitset::GenClusterBitSetByCpuSet(bitSet, {1, 9}).empty());
+    EXPECT_TRUE(Bitset::GenClusterBitSetByCpuSet(bitSet, {9}).empty());
+    EXPECT_TRUE(Bitset::GenClusterBitSetByCpuSet({}, {0}).empty()); // empty bitmap
+}
+
 TEST_F(TestDynamicBitset, testCpuMaskToDynamicBitset)
 {
     constexpr unsigned char cpuMask[] = {0b1001};

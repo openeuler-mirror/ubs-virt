@@ -28,13 +28,13 @@ ubs-virt
 %define project_dir %{_builddir}/%{name}/virt-awaresched
 %define debug_package %{nil}
 
-%package virt-awaresched
+%package -n virt-awaresched
 Summary: virt-awaresched
-%description virt-awaresched
+%description -n virt-awaresched
 virt-awaresched build
 
 %prep
-%setup -q -T -b 0 -c -n ubs-virt
+%setup -q -T -a 0 -c -n ubs-virt
 
 %build
 #build virt-awaresched
@@ -106,7 +106,7 @@ if [ -d /var/run/vas ]; then
     rm -rf /var/run/vas
 fi
 
-%files virt-awaresched
+%files -n virt-awaresched
 %attr(0550, root, root) %dir /usr/local/vas
 %attr(0500, root, root) %dir /usr/local/vas/bin
 %attr(0750, root, root) %dir /var/log/vas

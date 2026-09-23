@@ -54,25 +54,29 @@ void VasdLooper::VmEventHandler()
 {
     LOG_INFO("Start to listen vm event queue");
     while (!Conf::exitFlag.load()) {
-        VmEventInfo vmEventInfo{};
-        if (const auto ret = VmEventProcess::Pop(vmEventInfo); isVasRetFail(ret)) {
-            break;
+        try {
+            VmEventInfo vmEventInfo{};
+            if (const auto ret = VmEventProcess::Pop(vmEventInfo); isVasRetFail(ret)) {
+                break;
+            }
+            LOG_INFO("Vm event comming. eventType=" + std::to_string(static_cast<uint32_t>(vmEventInfo.eventType)));
+            switch (vmEventInfo.eventType) {
+                case VmEventType::START: {
+                    ClusterSched::GetInstance().AddDomainInfo(vmEventInfo.vmInfo);
+                    break;
+                }
+                case VmEventType::SHUTDOWN: {
+                    ClusterSched::GetInstance().DelDomainInfo(vmEventInfo.vmInfo.uuid);
+                    break;
+                }
+                default: {
+                    break;
+                }
+            }
+            LOG_INFO("Vm event handler end. Wait next event.");
+        } catch (const std::exception &e) {
+            LOG_ERROR("Vm event handler error: " + std::string(e.what()));
         }
-        LOG_INFO("Vm event comming. eventType=" + std::to_string(static_cast<uint32_t>(vmEventInfo.eventType)));
-        switch (vmEventInfo.eventType) {
-            case VmEventType::START: {
-                ClusterSched::GetInstance().AddDomainInfo(vmEventInfo.vmInfo);
-                break;
-            }
-            case VmEventType::SHUTDOWN: {
-                ClusterSched::GetInstance().DelDomainInfo(vmEventInfo.vmInfo.uuid);
-                break;
-            }
-            default: {
-                break;
-            }
-        }
-        LOG_INFO("Vm event handler end. Wait next event.");
     }
     LOG_INFO("Exit flag is true. vm event handler exit.");
 }
@@ -84,11 +88,17 @@ void VasdLooper::ClusterCompactionTimer()
 {
     LOG_INFO("Start to run cluster compaction looper");
     while (!Conf::exitFlag.load()) {
-        LOG_INFO("Start compaction.");
-        // Collecting Virtual Machine Information
-        ClusterSched::GetInstance().UpdateDomainInfosAndSched();
-        // Compact fragment
-        ClusterSched::GetInstance().ClusterCompaction();
+        try {
+            LOG_INFO("Start compaction.");
+            if (isVasRetFail(ClusterSched::GetInstance().UpdateDomainInfosAndSched())) {
+                LOG_ERROR("Update domain infos and sched failed, skip compaction this round.");
+            } else {
+                // Compact fragment
+                ClusterSched::GetInstance().ClusterCompaction();
+            }
+        } catch (const std::exception &e) {
+            LOG_ERROR("Cluster compaction timer error: " + std::string(e.what()));
+        }
         std::this_thread::sleep_for(std::chrono::milliseconds(COMPACTION_INTERVAL));
     }
     VmInfoMap vmInfoMap{};

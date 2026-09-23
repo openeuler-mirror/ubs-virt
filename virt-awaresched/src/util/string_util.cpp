@@ -126,8 +126,8 @@ std::set<uint16_t> StringUtil::ParseStringRange(const std::string &line)
             if (start > end) {
                 throw std::invalid_argument("Start value is greater than end value in range: " + tmp);
             }
-            for (auto i = start; i <= end; ++i) {
-                cpus.emplace(i);
+            for (uint32_t i = start; i <= static_cast<uint32_t>(end); ++i) {
+                cpus.emplace(static_cast<uint16_t>(i));
             }
         } else {
             uint16_t value;

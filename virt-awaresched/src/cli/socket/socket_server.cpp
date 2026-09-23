@@ -26,7 +26,7 @@ namespace vas::common {
 using namespace vas::security;
 const fs::path SocketServer::SOCKET_DIR = "/var/run/vas";
 
-SocketServer::SocketServer() : serverFd(0), clientSocket(0), addrLen(sizeof(serverAddr))
+SocketServer::SocketServer() : serverFd(-1), clientSocket(-1), addrLen(sizeof(serverAddr))
 {
     // Initialize the buffer.
     std::fill(std::begin(buffer), std::end(buffer), 0);
@@ -78,6 +78,8 @@ bool SocketServer::StartServer()
     // Remove capabilities
     if (VasSecurityManager::ModifyEffectiveCapabilities(caps, VasCapOperateType::CAP_DELETE) != VAS_OK) {
         LOG_ERROR("Delete capabilities failed.");
+        CloseServer();
+        VasSecurityManager::ClearCapabilities(caps);
         return false;
     }
     // Start listening for incoming connections with a backlog of 3
@@ -139,10 +141,9 @@ bool SocketServer::BindSocket()
 }
 
 /**
- * @brief Accepts a client connection and prints the client's IP address.
+ * @brief Accepts a client connection.
  *
  * This function waits for a client to connect to the server and accepts the connection.
- * If the connection is successfully accepted, it prints the client's IP address.
  * If the connection fails, an error message is printed, and the function returns false.
  *
  * @return true if the client connection is successfully accepted.
@@ -151,7 +152,7 @@ bool SocketServer::BindSocket()
 bool SocketServer::AcceptClient()
 {
     // Check and close existing connections
-    if (clientSocket > 0) {
+    if (clientSocket >= 0) {
         shutdown(clientSocket, SHUT_RDWR);
         close(clientSocket);
         clientSocket = -1;
@@ -213,19 +214,19 @@ bool SocketServer::SendMessage(const std::string &message)
 /**
  * @brief Closes the server and all associated client connections.
  *
- * This function closes the client socket and the server socket if they are valid (greater than 0).
+ * This function closes the client socket and the server socket if they are valid (non-negative).
  * It ensures that all resources are properly released and the server is no longer listening for new connections.
  */
 void SocketServer::CloseServer()
 {
-    if (clientSocket > 0) {
+    if (clientSocket >= 0) {
         close(clientSocket);
-        clientSocket = 0;
+        clientSocket = -1;
     }
 
-    if (serverFd > 0) {
+    if (serverFd >= 0) {
         close(serverFd);
-        serverFd = 0;
+        serverFd = -1;
     }
 }
 
