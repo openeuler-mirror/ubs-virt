@@ -82,6 +82,7 @@ int npu_allocator_query_devices(npu_allocator_t *alloc, int32_t phy_id, npu_meta
 int npu_allocator_get_swap_state(npu_allocator_t *alloc, int32_t phy_id, int vnpu_id, bool *swapped, uint64_t *offset,
                                  uint64_t *size);
 int npu_allocator_set_swap_state(npu_allocator_t *alloc, int32_t phy_id, int vnpu_id, uint64_t offset, uint64_t size);
+int npu_allocator_clear_swap(npu_allocator_t *alloc, int32_t phy_id, int vnpu_id);
 int npu_allocator_write_swap_cmd(npu_allocator_t *alloc, int32_t phy_id, const char *pod_uid, int vnpu_id, int action,
                                  uint8_t flag);
 
@@ -108,6 +109,10 @@ uint64_t npu_allocator_get_total_hbm_mb(npu_allocator_t *alloc);
 
 /* per-die HBM 总量, 单位 MB. out_hbm_mb 长度需 ≥ MAX_NPU_PER_NODE */
 int npu_allocator_get_per_die_hbm_mb(npu_allocator_t *alloc, uint64_t *out_hbm_mb, int max_count);
+
+/* per-die 超分比例读写访问器（封装内部 oversub_ratio 成员） */
+int npu_allocator_set_oversub_ratio(npu_allocator_t *alloc, int die_index, double ratio);
+double npu_allocator_get_oversub_ratio(npu_allocator_t *alloc, int die_index);
 
 int npu_allocator_get_last_kernel_time_ns(npu_allocator_t *alloc, int phy_id, int vnpu_id,
                                           uint64_t *last_kernel_time_ns);
