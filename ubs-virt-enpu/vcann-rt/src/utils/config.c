@@ -71,18 +71,23 @@ int check_shm_id(const char *str, const char *option_name)
 
 int check_config()
 {
-    /* memory_request/limit 的单位语义为 MB(与 memory_quota 一致),
-     * 此处仅做旧配置兼容补全, 不做 MB->B 换算; 换算统一由 enpu_config_info_init 执行,
-     * 否则会被乘两次 MB_TO_B 导致配额异常放大 */
-    if (config.memory_request == 0 && config.memory_limit == 0 && config.memory_quota != INVALID_VALUE) {
+    if (config.memory_request == 0 && config.memory_limit == 0) {
+        if (config.memory_quota == INVALID_VALUE) {
+            LOG_ERROR("Neither \"memory_quota\" nor \"memory_request\"/\"memory_limit\" is configured. Please "
+                      "configure \"memory_quota\" alone or both \"memory_request\" and \"memory_limit\".");
+            return 0;
+        }
         config.memory_request = (uint64_t)config.memory_quota;
         config.memory_limit = (uint64_t)config.memory_quota;
+    } else if (config.memory_request == 0 || config.memory_limit == 0) {
+        LOG_ERROR("\"memory_request\" and \"memory_limit\" must be configured together, or use \"memory_quota\" "
+                  "alone. Please check the config.");
+        return 0;
     }
 
     return check_int32(config.phy_npu_id, OPTION_NPU_ID) == ENPU_SUCCESS &&
            check_int32(config.vnpu_id, OPTION_VNPU_ID) == ENPU_SUCCESS &&
            check_int32(config.aicore_quota, OPTION_AICORE_QUOTA) == ENPU_SUCCESS &&
-           check_int32(config.memory_quota, OPTION_MEMORY_QUOTA) == ENPU_SUCCESS &&
            check_int32(config.scheduling_policy, OPTION_SCHEDULING_POLICY) == ENPU_SUCCESS &&
            check_shm_id(config.shm_id, OPTION_SHM_ID) == ENPU_SUCCESS;
 }

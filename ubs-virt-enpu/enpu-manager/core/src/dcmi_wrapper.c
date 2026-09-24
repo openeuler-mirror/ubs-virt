@@ -3,7 +3,8 @@
  * enpu-manager is licensed under Mulan PSL v2.
  */
 
-#include "dcmi_wrapper.h"
+#include <securec.h>
+
 #include <acl/acl.h>
 #include <pthread.h>
 #include <stdarg.h>
@@ -11,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "dcmi_interface_api.h"
+#include "dcmi_wrapper.h"
 #include "log.h"
 
 /* dcmi_get_device_utilization_rate 的input_type取值 */
@@ -175,12 +177,10 @@ int dcmi_get_device_info(int logic_id, dcmi_device_info_t *info)
 
         struct dcmi_chip_info_v2 chip = {0};
         ret = dcmiv2_get_device_chip_info(logic_id, &chip);
-        if (ret == 0) {
-            info->total_aicore = chip.aicore_cnt;
-        } else {
+        if (ret != 0) {
             LOG_DEBUG("[DCMI] dcmiv2_get_device_chip_info failed=%d", ret);
-            info->total_aicore = HUNDRED_CORE;
         }
+        info->total_aicore = HUNDRED_CORE;
 
         ret = snprintf_s(info->uuid, MAX_UUID_LEN, MAX_UUID_LEN - 1, "uuid-%d", logic_id);
         if (ret < 0) {
@@ -207,12 +207,10 @@ int dcmi_get_device_info(int logic_id, dcmi_device_info_t *info)
 
     struct dcmi_chip_info_v2 chip = {0};
     ret = dcmi_get_device_chip_info_v2(info->card_id, info->device_id, &chip);
-    if (ret == 0) {
-        info->total_aicore = chip.aicore_cnt;
-    } else {
+    if (ret != 0) {
         LOG_DEBUG("[DCMI] dcmi_get_device_chip_info_v2 failed=%d", ret);
-        info->total_aicore = HUNDRED_CORE;
     }
+    info->total_aicore = HUNDRED_CORE;
 
     ret = snprintf_s(info->uuid, MAX_UUID_LEN, MAX_UUID_LEN - 1, "uuid-%d-%d", info->card_id, info->device_id);
     if (ret < 0) {

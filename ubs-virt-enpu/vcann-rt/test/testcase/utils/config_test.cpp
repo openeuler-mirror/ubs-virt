@@ -123,3 +123,104 @@ TEST_F(ConfigTest, LoadConfigRejectsInvalidShmId)
     // Restore the global config so later fixtures see a valid one.
     ASSERT_EQ(load_config(MOCK_NPU_CONFIG_PATH), ENPU_SUCCESS);
 }
+
+// memory_request and memory_limit must appear together: one without the other fails the load.
+TEST_F(ConfigTest, LoadConfigRejectsRequestLimitHalfConfigured)
+{
+    const char *reqOnly = "physical-npu-id=0\n"
+                          "virtual-npu-id=0\n"
+                          "aicore-quota=50\n"
+                          "memory-quota=32768\n"
+                          "memory-request=10240\n"
+                          "scheduling-policy=2\n"
+                          "shm-id=14422CC3-2040D918-27A73226-80B40A0A-BB100003\n";
+    const char *limitOnly = "physical-npu-id=0\n"
+                            "virtual-npu-id=0\n"
+                            "aicore-quota=50\n"
+                            "memory-quota=32768\n"
+                            "memory-limit=30720\n"
+                            "scheduling-policy=2\n"
+                            "shm-id=14422CC3-2040D918-27A73226-80B40A0A-BB100003\n";
+    for (const char *content : {reqOnly, limitOnly}) {
+        const char *path = "../__build/half_memory.config";
+        FILE *f = fopen(path, "w");
+        ASSERT_NE(f, nullptr);
+        ASSERT_EQ(fputs(content, f) >= 0, true);
+        ASSERT_EQ(fclose(f), 0);
+        EXPECT_EQ(load_config(path), ENPU_FAIL);
+        remove(path);
+    }
+
+    // Restore the global config so later fixtures see a valid one.
+    ASSERT_EQ(load_config(MOCK_NPU_CONFIG_PATH), ENPU_SUCCESS);
+}
+
+// A quota-only config fills memory_request and memory_limit from memory_quota.
+TEST_F(ConfigTest, LoadConfigQuotaOnlyCompletesRequestLimit)
+{
+    const char *path = "../__build/quota_only.config";
+    const char *content = "physical-npu-id=0\n"
+                          "virtual-npu-id=0\n"
+                          "aicore-quota=50\n"
+                          "memory-quota=32768\n"
+                          "scheduling-policy=1\n"
+                          "shm-id=14422CC3-2040D918-27A73226-80B40A0A-BB100003\n";
+    FILE *f = fopen(path, "w");
+    ASSERT_NE(f, nullptr);
+    ASSERT_EQ(fputs(content, f) >= 0, true);
+    ASSERT_EQ(fclose(f), 0);
+
+    EXPECT_EQ(load_config(path), ENPU_SUCCESS);
+    EXPECT_EQ(config.memory_request, 32768UL);
+    EXPECT_EQ(config.memory_limit, 32768UL);
+    remove(path);
+
+    // Restore the global config so later fixtures see a valid one.
+    ASSERT_EQ(load_config(MOCK_NPU_CONFIG_PATH), ENPU_SUCCESS);
+}
+
+// New-style config: request+limit without quota loads fine (enpu-manager generated form).
+TEST_F(ConfigTest, LoadConfigRequestLimitWithoutQuota)
+{
+    const char *path = "../__build/req_limit_no_quota.config";
+    const char *content = "physical-npu-id=0\n"
+                          "virtual-npu-id=0\n"
+                          "aicore-quota=50\n"
+                          "memory-request=10240\n"
+                          "memory-limit=30720\n"
+                          "scheduling-policy=2\n"
+                          "shm-id=14422CC3-2040D918-27A73226-80B40A0A-BB100003\n";
+    FILE *f = fopen(path, "w");
+    ASSERT_NE(f, nullptr);
+    ASSERT_EQ(fputs(content, f) >= 0, true);
+    ASSERT_EQ(fclose(f), 0);
+
+    EXPECT_EQ(load_config(path), ENPU_SUCCESS);
+    EXPECT_EQ(config.memory_request, 10240UL);
+    EXPECT_EQ(config.memory_limit, 30720UL);
+    remove(path);
+
+    // Restore the global config so later fixtures see a valid one.
+    ASSERT_EQ(load_config(MOCK_NPU_CONFIG_PATH), ENPU_SUCCESS);
+}
+
+// No memory field at all (no quota, no request/limit) fails the load.
+TEST_F(ConfigTest, LoadConfigRejectsNoMemoryConfig)
+{
+    const char *path = "../__build/no_memory.config";
+    const char *content = "physical-npu-id=0\n"
+                          "virtual-npu-id=0\n"
+                          "aicore-quota=50\n"
+                          "scheduling-policy=2\n"
+                          "shm-id=14422CC3-2040D918-27A73226-80B40A0A-BB100003\n";
+    FILE *f = fopen(path, "w");
+    ASSERT_NE(f, nullptr);
+    ASSERT_EQ(fputs(content, f) >= 0, true);
+    ASSERT_EQ(fclose(f), 0);
+
+    EXPECT_EQ(load_config(path), ENPU_FAIL);
+    remove(path);
+
+    // Restore the global config so later fixtures see a valid one.
+    ASSERT_EQ(load_config(MOCK_NPU_CONFIG_PATH), ENPU_SUCCESS);
+}

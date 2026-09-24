@@ -188,6 +188,18 @@ TEST_F(MemoryTest, rtMallocPhysical)
     EXPECT_EQ(error, RT_ERROR_NONE);
 }
 
+// Non-device memory skips the swap path and goes straight to the driver.
+TEST_F(MemoryTest, rtMallocPhysicalNonDeviceSide)
+{
+    rtDrvMemHandle handle = nullptr;
+    rtDrvMemProp_t prop;
+    prop.side = 1; // non-device, skip swap path
+    uint64_t size = 0;
+    uint64_t flags = 1;
+    rtError_t error = rtMallocPhysical(&handle, size, &prop, flags);
+    EXPECT_EQ(error, RT_ERROR_NONE);
+}
+
 TEST_F(MemoryTest, aclrtMallocPhysicalImpl)
 {
     rtDrvMemHandle *handle = nullptr;
