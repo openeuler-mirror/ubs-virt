@@ -32,7 +32,8 @@ LDFLAGS=(-L"${CORE_DIR}/build/output"
     -L"${CANN_PATH}/lib64"
     -L"${DRIVER_PATH}/driver/lib64"
     -L"${DRIVER_PATH}/driver/lib64/driver"
-    -lenpu_manager -lascendcl -ldcmi -lpthread)
+    '-Wl,-rpath,$ORIGIN/../../../core/build/output'
+    -lenpu_manager -lascendcl -ldcmi -lc_sec -lpthread)
 
 if [[ ! -f "${CORE_LIB}" ]]; then
     echo "[ERROR] Core library not found: ${CORE_LIB}"
@@ -58,8 +59,9 @@ fi
 echo "[OK] enpu-manager -> ${OUTPUT_DIR}/enpu-manager"
 
 echo "[INFO] Building enpu-cli..."
-"${CC}" "${CFLAGS[@]}" -I"${SCRIPT_DIR}/cmd" \
+"${CC}" "${CFLAGS[@]}" -I"${SCRIPT_DIR}/cmd" -I"${CANN_PATH}/include" \
     "${SCRIPT_DIR}/cmd/cli.c" \
+    -L"${CANN_PATH}/lib64" -lc_sec \
     -o "${OUTPUT_DIR}/enpu-cli"
 
 if [[ $? -ne 0 ]]; then

@@ -3,12 +3,14 @@
  * enpu-manager is licensed under Mulan PSL v2.
  */
 
-#include "dcmi_stub_adapter.h"
+#include <securec.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "common.h"
 #include "dcmi_adapter.h"
+#include "dcmi_stub_adapter.h"
 #include "dcmi_wrapper.h"
 
 typedef struct dcmi_stub_context {

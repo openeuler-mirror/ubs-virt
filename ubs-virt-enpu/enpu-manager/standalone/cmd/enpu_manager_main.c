@@ -22,7 +22,7 @@
 #include "log.h"
 #include "rest_api.h"
 
-static atomic_bool g_running = ATOMIC_VAR_INIT(true);
+static atomic_bool g_running = true;
 static enpu_manager_t *g_manager = NULL;
 static rest_api_server_t *g_rest_server = NULL;
 static bool g_manager_started = false;
@@ -44,7 +44,7 @@ static int print_usage(const char *prog_name)
     return ENPU_SUCCESS;
 }
 
-static atomic_bool g_reload_requested = ATOMIC_VAR_INIT(false);
+static atomic_bool g_reload_requested = false;
 
 static void reload_handler(int sig)
 {

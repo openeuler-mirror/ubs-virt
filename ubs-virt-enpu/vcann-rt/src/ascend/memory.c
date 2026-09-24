@@ -22,11 +22,21 @@ void load_rt_libraries(void);
 RUNTIME_HOOK_DEFINE(rtMalloc, void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
 {
     LOG_DEBUG("Hook mem rtMalloc size:%" PRIu64 ".", size);
+    swap_hook_t *swap_hook = swap_hook_get_global();
     int ret = guard_memory(size, get_swap_enabled());
     if (ret != ENPU_SUCCESS) {
         return ret;
     }
-    return RUNTIME_HOOK_CALL(rt_library_entry, rtMalloc, devPtr, size, type, moduleId);
+    if (swap_hook == NULL) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, rtMalloc, devPtr, size, type, moduleId);
+    }
+
+    ret = swap_hook_check_and_swap_in(swap_hook);
+    CHECK_RETURN_ERROR_CODE(ret, "Swap hook check and swap in failed when rtMalloc.");
+    ret = swap_hook_malloc_mem(swap_hook, devPtr, size);
+    CHECK_RETURN_ERROR_CODE(ret, "Swap hook malloc failed.");
+
+    return ACL_RT_SUCCESS;
 }
 
 RUNTIME_HOOK_DEFINE(aclrtMallocImpl, void **devPtr, size_t size, aclrtMemMallocPolicy policy)
@@ -135,11 +145,29 @@ RUNTIME_HOOK_DEFINE(aclrtMemAllocManagedImpl, void **ptr, uint64_t size, uint32_
 RUNTIME_HOOK_DEFINE(rtMallocPhysical, rtDrvMemHandle *handle, size_t size, rtDrvMemProp_t *prop, uint64_t flags)
 {
     LOG_DEBUG("Hook mem rtMallocPhysical size:%zd.", size);
+    if (prop == NULL || prop->side != ACL_MEM_LOCATION_TYPE_DEVICE) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, rtMallocPhysical, handle, size, prop, flags);
+    }
+
+    swap_hook_t *swap_hook = swap_hook_get_global();
     int ret = guard_memory(size, get_swap_enabled());
     if (ret != ENPU_SUCCESS) {
         return ret;
     }
-    return RUNTIME_HOOK_CALL(rt_library_entry, rtMallocPhysical, handle, size, prop, flags);
+    if (swap_hook == NULL) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, rtMallocPhysical, handle, size, prop, flags);
+    }
+
+    ret = swap_hook_check_and_swap_in(swap_hook);
+    CHECK_RETURN_ERROR_CODE(ret, "Swap hook check and swap in failed when rtMallocPhysical.");
+    ret = RUNTIME_HOOK_CALL(rt_library_entry, rtMallocPhysical, handle, size, prop, flags);
+    if (ret != ACL_RT_SUCCESS) {
+        return ret;
+    }
+    ret = swap_hook_malloc_physical_mem(swap_hook, *handle, size, prop, flags);
+    CHECK_RETURN_ERROR_CODE(ret, "Swap hook malloc physical failed.");
+
+    return ACL_RT_SUCCESS;
 }
 
 RUNTIME_HOOK_DEFINE(aclrtMallocPhysicalImpl, aclrtDrvMemHandle *handle, size_t size, const aclrtPhysicalMemProp *prop,
@@ -182,7 +210,21 @@ RUNTIME_HOOK_DEFINE(rtMemGetInfoEx, rtMemInfoType_t memInfoType, size_t *freeSiz
         return RT_ERROR_INVALID_VALUE;
     }
     size_t remain = quota - used;
-    *freeSize = remain;
+    if (get_shm_state() == NULL || quota == get_mem_request_quota()) {
+        *freeSize = remain;
+        *totalSize = quota;
+        return RT_ERROR_NONE;
+    }
+
+    size_t dynamic_free = get_mem_dynamic_free();
+    size_t request = get_mem_request_quota();
+    if (request > used) {
+        size_t free_mem_1 = request - used + dynamic_free;
+        size_t free_mem_2 = (free_mem_1 < remain) ? free_mem_1 : remain;
+        *freeSize = (free_mem_2 > request - used) ? free_mem_2 : request - used;
+    } else {
+        *freeSize = (dynamic_free < remain) ? dynamic_free : remain;
+    }
     *totalSize = quota;
     return RT_ERROR_NONE;
 }
