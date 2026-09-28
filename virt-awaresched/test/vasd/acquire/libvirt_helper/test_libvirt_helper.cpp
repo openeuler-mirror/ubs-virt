@@ -97,8 +97,7 @@ TEST_F(TestLibvirtHelper, CheckWithReconnectTest)
     MOCKER(&LibvirtHelper::IsConnectAlive).reset();
 
     MOCKER(&LibvirtHelper::IsConnectAlive).stubs().will(returnValue(false));
-    MOCKER(&LibvirtHelper::CloseConn).stubs();
-    MOCKER(&LibvirtHelper::Connect).stubs().will(returnValue(VAS_ERROR));
+    MOCKER(&LibvirtHelper::Reconnect).stubs().will(returnValue(VAS_ERROR));
     EXPECT_EQ(LibvirtHelper::GetInstance().CheckWithReconnect(), VAS_ERROR);
 }
 
@@ -265,8 +264,7 @@ TEST_F(TestLibvirtHelper, RunEventDefaultImplTest)
         .then(returnValue(VAS_ERROR));
     MOCKER(virEventRunDefaultImpl).stubs().will(invoke(VirEventRunDefaultImplError));
     MOCKER(&LibvirtHelper::IsConnectAlive).stubs().will(returnValue(false));
-    MOCKER(&LibvirtHelper::CloseConn).stubs();
-    MOCKER(&LibvirtHelper::Connect).stubs().will(returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
+    MOCKER(&LibvirtHelper::Reconnect).stubs().will(returnValue(VAS_ERROR)).then(returnValue(VAS_OK));
     EXPECT_EQ(LibvirtHelper::GetInstance().RunEventDefaultImpl(func), VAS_ERROR);
 
     MOCKER(&LibvirtHelper::RegisterDomainEvent).reset();

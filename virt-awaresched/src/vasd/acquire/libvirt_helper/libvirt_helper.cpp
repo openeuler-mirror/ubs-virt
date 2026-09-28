@@ -45,9 +45,7 @@ VasRet LibvirtHelper::Init()
  */
 void LibvirtHelper::DeInit()
 {
-    if (IsConnectAlive()) {
-        CloseConn();
-    }
+    CloseConn();
 }
 
 /**
@@ -106,6 +104,7 @@ VasRet LibvirtHelper::GetVmInfoList(VmInfoMap &vmInfoMap)
  */
 VasRet LibvirtHelper::GetDomainConnByUUID(const std::string &uuid, virDomainPtr &domainConn) const
 {
+    std::lock_guard<std::mutex> lock(virConnectMutex_);
     domainConn = virDomainLookupByUUIDString(virConnect, uuid.c_str());
     if (!domainConn) {
         LOG_ERROR("Get domain connect by uuid failed. uuid=" + uuid);
@@ -183,6 +182,7 @@ VasRet LibvirtHelper::RunEventDefaultImpl(const virConnectDomainEventCallback &E
  */
 VasRet LibvirtHelper::RegisterDomainEvent(const virConnectDomainEventCallback &EventCallback) const
 {
+    std::lock_guard<std::mutex> lock(virConnectMutex_);
     void *opaque = nullptr;
     if (const int virRet = virConnectDomainEventRegister(virConnect, EventCallback, opaque, nullptr);
         isIntInvalid(virRet)) {
@@ -550,6 +550,12 @@ VasRet LibvirtHelper::RegisterEventDefaultImpl()
  */
 VasRet LibvirtHelper::Connect()
 {
+    std::lock_guard<std::mutex> lock(virConnectMutex_);
+    return ConnectLocked();
+}
+
+VasRet LibvirtHelper::ConnectLocked()
+{
     try {
         LOG_INFO("Start to get libvirt connect");
         virConnect = virConnectOpen("qemu:///system");
@@ -570,6 +576,12 @@ VasRet LibvirtHelper::Connect()
  */
 void LibvirtHelper::CloseConn()
 {
+    std::lock_guard<std::mutex> lock(virConnectMutex_);
+    CloseConnLocked();
+}
+
+void LibvirtHelper::CloseConnLocked()
+{
     LOG_INFO("Start to close libvirt connect");
     if (!virConnect) {
         LOG_WARN("Libvirt connect is empty.");
@@ -585,8 +597,9 @@ void LibvirtHelper::CloseConn()
  */
 VasRet LibvirtHelper::Reconnect()
 {
-    CloseConn();
-    return Connect();
+    std::lock_guard<std::mutex> lock(virConnectMutex_);
+    CloseConnLocked();
+    return ConnectLocked();
 }
 
 /**
@@ -595,6 +608,7 @@ VasRet LibvirtHelper::Reconnect()
  */
 bool LibvirtHelper::IsConnectAlive() const
 {
+    std::lock_guard<std::mutex> lock(virConnectMutex_);
     if (virConnect && virConnectIsAlive(virConnect) > 0) {
         return true;
     }
@@ -626,6 +640,7 @@ VasRet LibvirtHelper::CheckWithReconnect()
  */
 VasRet LibvirtHelper::GetDomainList(virDomainPtr *&domains, int &numDomains) const
 {
+    std::lock_guard<std::mutex> lock(virConnectMutex_);
     numDomains =
         virConnectListAllDomains(virConnect, &domains, virConnectListAllDomainsFlags::VIR_CONNECT_LIST_DOMAINS_ACTIVE);
     if (numDomains < 0 || !domains) {
