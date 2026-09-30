@@ -102,8 +102,8 @@ private:
     /** @brief Server address structure for binding */
     sockaddr_un serverAddr{};
 
-    /** @brief Client address structure for incoming connections */
-    sockaddr_in clientAddr{};
+    /** @brief Client address structure for incoming connections (UDS) */
+    sockaddr_un clientAddr{};
 
     /** @brief Length of the client address structure */
     socklen_t addrLen;

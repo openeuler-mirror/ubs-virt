@@ -70,6 +70,35 @@ VasRet Logger::Init(const std::string &logPath, const std::string &logFile, cons
 }
 
 /**
+ * Sanitize message before it is written to the log
+ * @param message raw log message
+ * @return sanitized message with control characters escaped
+ */
+std::string Logger::SanitizeMessage(const std::string &message)
+{
+    static const char *HEX = "0123456789ABCDEF";
+    std::string sanitized;
+    sanitized.reserve(message.size());
+    for (const char c : message) {
+        const auto uc = static_cast<unsigned char>(c);
+        if (uc == '\n') {
+            sanitized += "\\n";
+        } else if (uc == '\r') {
+            sanitized += "\\r";
+        } else if (uc == '\t') {
+            sanitized += "\\t";
+        } else if (uc < 0x20 || uc == 0x7F) {
+            sanitized += "\\x";
+            sanitized += HEX[uc >> 4];
+            sanitized += HEX[uc & 0xF];
+        } else {
+            sanitized += c;
+        }
+    }
+    return sanitized;
+}
+
+/**
  * Print log
  * @param level log level
  * @param message log info
@@ -83,13 +112,14 @@ void Logger::Log(const Level &level, const std::string &message, const char *fil
     if (level < logLevel_) {
         return;
     }
+    const std::string safeMessage = SanitizeMessage(message);
 
     switch (outputType_) {
         case OutputType::NONE: {
             break;
         }
         case OutputType::STDOUT: {
-            std::cout << message << std::endl;
+            std::cout << safeMessage << std::endl;
             break;
         }
         case OutputType::FILE: {
@@ -102,7 +132,7 @@ void Logger::Log(const Level &level, const std::string &message, const char *fil
             ss << "[" << std::put_time(std::localtime(&t), "%Y-%m-%d %H:%M:%S") << "." << std::setfill('0')
                << std::setw(WIDTH) << ms.count() << "][" << LevelToStr(level) << "]["
                << fs::path(file).filename().string() << ":" << line << "][" << std::string(func) << "]["
-               << std::this_thread::get_id() << "]" << message << "\n";
+               << std::this_thread::get_id() << "]" << safeMessage << "\n";
             if (!logFilePath_.empty()) {
                 if (RotateCheck() != VAS_OK) {
                     std::cerr << "Failed to Check if need rotate" << std::endl;

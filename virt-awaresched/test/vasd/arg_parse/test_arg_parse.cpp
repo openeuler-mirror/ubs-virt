@@ -112,4 +112,28 @@ TEST_F(TestArgParse, testCliSetServerConfNormal)
     EXPECT_EQ(VasdArgParse::skippedCPUSet, "0-1");
     EXPECT_FALSE(VasdArgParse::rangeAffinity);
 }
+
+TEST_F(TestArgParse, testConfAccessorsRoundTrip)
+{
+    // Regression for C2: production code reads/writes the static config via
+    // the locked accessors; they must hit the same underlying statics.
+    VasdArgParse::SetSmt(false);
+    VasdArgParse::SetSchedPolicy("dynamicAffinity");
+    VasdArgParse::SetDynamicAffinityUtilThresh(90);
+    VasdArgParse::SetSkippedCPUSet("0-1");
+    VasdArgParse::SetRangeAffinity(false);
+
+    EXPECT_FALSE(VasdArgParse::IsSmt());
+    EXPECT_EQ(VasdArgParse::GetSchedPolicy(), "dynamicAffinity");
+    EXPECT_EQ(VasdArgParse::GetDynamicAffinityUtilThresh(), 90);
+    EXPECT_EQ(VasdArgParse::GetSkippedCPUSet(), "0-1");
+    EXPECT_FALSE(VasdArgParse::IsRangeAffinity());
+
+    // Setters must keep the public statics in sync (tests read them directly).
+    EXPECT_FALSE(VasdArgParse::smt);
+    EXPECT_EQ(VasdArgParse::schedPolicy, "dynamicAffinity");
+    EXPECT_EQ(VasdArgParse::dynamicAffinityUtilThresh, 90);
+    EXPECT_EQ(VasdArgParse::skippedCPUSet, "0-1");
+    EXPECT_FALSE(VasdArgParse::rangeAffinity);
+}
 } // namespace vas::ut::arg

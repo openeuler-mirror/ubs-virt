@@ -86,8 +86,11 @@ public:
 
 private:
     static constexpr uint16_t retryInterval = 5 * MSECS_PER_SEC; // The interval for timed reconnection is 5 seconds.
+    static constexpr uint32_t MAX_VCPU_NUM = 4096;
     static std::mutex dataMutex_;
     static VmInfoMap vmInfoMapCache;
+
+    mutable std::mutex connMutex_{};
 
     static void UpdateCache(const VmInfoMap &vmInfoMap);
     static void GetLastError();
@@ -105,6 +108,8 @@ private:
     VasRet Connect();
     void CloseConn();
     VasRet Reconnect();
+    VasRet ConnectWithoutLock();
+    void CloseConnWithoutLock();
     bool IsConnectAlive() const;
     VasRet CheckWithReconnect();
     VasRet GetDomainList(virDomainPtr *&domains, int &numDomains) const;

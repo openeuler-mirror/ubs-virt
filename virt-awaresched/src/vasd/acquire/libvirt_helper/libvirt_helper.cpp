@@ -106,6 +106,11 @@ VasRet LibvirtHelper::GetVmInfoList(VmInfoMap &vmInfoMap)
  */
 VasRet LibvirtHelper::GetDomainConnByUUID(const std::string &uuid, virDomainPtr &domainConn) const
 {
+    std::lock_guard lock(connMutex_);
+    if (!virConnect) {
+        LOG_ERROR("Libvirt connect is not ready. uuid=" + uuid);
+        return VAS_ERROR;
+    }
     domainConn = virDomainLookupByUUIDString(virConnect, uuid.c_str());
     if (!domainConn) {
         LOG_ERROR("Get domain connect by uuid failed. uuid=" + uuid);
@@ -183,6 +188,11 @@ VasRet LibvirtHelper::RunEventDefaultImpl(const virConnectDomainEventCallback &E
  */
 VasRet LibvirtHelper::RegisterDomainEvent(const virConnectDomainEventCallback &EventCallback) const
 {
+    std::lock_guard lock(connMutex_);
+    if (!virConnect) {
+        LOG_ERROR("Libvirt connect is not ready, domain event registry failed.");
+        return VAS_ERROR;
+    }
     void *opaque = nullptr;
     if (const int virRet = virConnectDomainEventRegister(virConnect, EventCallback, opaque, nullptr);
         isIntInvalid(virRet)) {
@@ -359,7 +369,7 @@ bool LibvirtHelper::IsReschedSkippedDomain(virDomainPtr domain)
             return true;
         }
         // Filter vcpu bind by numa
-        if (!VasdArgParse::rangeAffinity && !IsVcpuPinNuma(locationSet)) {
+        if (!VasdArgParse::IsRangeAffinity() && !IsVcpuPinNuma(locationSet)) {
             LOG_DEBUG("The vCPU range spans NUMA.");
             return true;
         }
@@ -450,9 +460,13 @@ VasRet LibvirtHelper::GetDomainInfo(virDomainPtr domain, virDomainInfo &virDomai
  */
 VasRet LibvirtHelper::GetVmVcpuInfo(virDomainPtr domain, const int &nrVcpu, std::map<uint16_t, DynamicBitset> &vcpuMaps)
 {
+    if (nrVcpu <= 0 || static_cast<uint32_t>(nrVcpu) > MAX_VCPU_NUM) {
+        LOG_WARN("Invalid vcpu number. nrVcpu=" + std::to_string(nrVcpu));
+        return VAS_ERROR;
+    }
     std::vector<virVcpuInfo> virVcpuInfos(nrVcpu);
     uint16_t cpuMapLen = (CpuHelper::MAX_CPU_NUM + 7) / BYTE;
-    std::vector<unsigned char> cpuMaps(nrVcpu * cpuMapLen);
+    std::vector<unsigned char> cpuMaps(static_cast<size_t>(nrVcpu) * cpuMapLen);
 
     // Get vcpu list
     int vcpuCount = virDomainGetVcpus(domain, virVcpuInfos.data(), nrVcpu, cpuMaps.data(), cpuMapLen);
@@ -460,7 +474,7 @@ VasRet LibvirtHelper::GetVmVcpuInfo(virDomainPtr domain, const int &nrVcpu, std:
         LOG_WARN("Get vcpus failed, vcpuCount=" + std::to_string(vcpuCount) + ", nrVcpu=" + std::to_string(nrVcpu));
         return VAS_ERROR;
     }
-    cpuMaps = std::vector<unsigned char>(nrVcpu * cpuMapLen);
+    cpuMaps = std::vector<unsigned char>(static_cast<size_t>(nrVcpu) * cpuMapLen);
     // Get vcpu pin info
     vcpuCount =
         virDomainGetVcpuPinInfo(domain, nrVcpu, cpuMaps.data(), cpuMapLen,
@@ -550,6 +564,12 @@ VasRet LibvirtHelper::RegisterEventDefaultImpl()
  */
 VasRet LibvirtHelper::Connect()
 {
+    std::lock_guard lock(connMutex_);
+    return ConnectWithoutLock();
+}
+
+VasRet LibvirtHelper::ConnectWithoutLock()
+{
     try {
         LOG_INFO("Start to get libvirt connect");
         virConnect = virConnectOpen("qemu:///system");
@@ -570,6 +590,12 @@ VasRet LibvirtHelper::Connect()
  */
 void LibvirtHelper::CloseConn()
 {
+    std::lock_guard lock(connMutex_);
+    CloseConnWithoutLock();
+}
+
+void LibvirtHelper::CloseConnWithoutLock()
+{
     LOG_INFO("Start to close libvirt connect");
     if (!virConnect) {
         LOG_WARN("Libvirt connect is empty.");
@@ -585,8 +611,9 @@ void LibvirtHelper::CloseConn()
  */
 VasRet LibvirtHelper::Reconnect()
 {
-    CloseConn();
-    return Connect();
+    std::lock_guard lock(connMutex_);
+    CloseConnWithoutLock();
+    return ConnectWithoutLock();
 }
 
 /**
@@ -595,6 +622,7 @@ VasRet LibvirtHelper::Reconnect()
  */
 bool LibvirtHelper::IsConnectAlive() const
 {
+    std::lock_guard lock(connMutex_);
     if (virConnect && virConnectIsAlive(virConnect) > 0) {
         return true;
     }
@@ -626,6 +654,11 @@ VasRet LibvirtHelper::CheckWithReconnect()
  */
 VasRet LibvirtHelper::GetDomainList(virDomainPtr *&domains, int &numDomains) const
 {
+    std::lock_guard lock(connMutex_);
+    if (!virConnect) {
+        LOG_ERROR("Libvirt connect is not ready, get vm domain list failed.");
+        return VAS_ERROR;
+    }
     numDomains =
         virConnectListAllDomains(virConnect, &domains, virConnectListAllDomainsFlags::VIR_CONNECT_LIST_DOMAINS_ACTIVE);
     if (numDomains < 0 || !domains) {

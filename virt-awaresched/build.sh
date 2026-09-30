@@ -200,8 +200,19 @@ function clean() {
 
 function build_package() {
     mkdir -p "${PROJECT_ROOT_DIR}"/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
-    cp "${PROJECT_ROOT_DIR}"/package/virt-awaresched.tar.gz  "${PROJECT_ROOT_DIR}"/rpmbuild/SOURCES/
-    sed -i "s|%define project_dir %{name}|%define project_dir $PROJECT_ROOT_DIR|" "${PROJECT_ROOT_DIR}"/virt-awaresched.spec
+
+    # Package the source tree (excluding build artifacts) as Source0. The tarball
+    # contains a top-level virt-awaresched/ directory, matching the spec's
+    # %setup -n ubs-virt and %build "cd virt-awaresched" expectations.
+    tar -czf "${PROJECT_ROOT_DIR}"/rpmbuild/SOURCES/ubs-virt.tar.gz \
+        --exclude=virt-awaresched/build \
+        --exclude=virt-awaresched/rpmbuild \
+        --exclude=virt-awaresched/output \
+        --exclude=virt-awaresched/package \
+        --exclude=virt-awaresched/deps \
+        --exclude=virt-awaresched/.git \
+        -C "${PROJECT_ROOT_DIR}/.." virt-awaresched
+
     rpmbuild -D "_topdir ${PROJECT_ROOT_DIR}/rpmbuild" -bb --clean "${PROJECT_ROOT_DIR}"/virt-awaresched.spec
     mkdir -p "${PROJECT_ROOT_DIR}"/output
     rm -rf "${PROJECT_ROOT_DIR}"/output/*

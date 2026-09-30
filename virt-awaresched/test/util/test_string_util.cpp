@@ -83,6 +83,29 @@ TEST_F(TestStringUtil, testParseStringRangeInvalid)
     EXPECT_THROW(StringUtil::ParseStringRange("100000"), std::out_of_range);
 }
 
+TEST_F(TestStringUtil, testParseStringRangeWraparoundBoundary)
+{
+    // Regression for H2/R1: with a uint16_t loop counter, "0-65535" wrapped
+    // around after 65535 and looped forever (i <= end always true).
+    const auto full = StringUtil::ParseStringRange("0-65535");
+    EXPECT_EQ(full.size(), 65536U);
+    EXPECT_EQ(*full.begin(), 0);
+    EXPECT_EQ(*full.rbegin(), 65535);
+
+    const auto single = StringUtil::ParseStringRange("65535-65535");
+    EXPECT_EQ(single.size(), 1U);
+    EXPECT_EQ(*single.begin(), 65535);
+
+    const auto tail = StringUtil::ParseStringRange("65530-65535");
+    EXPECT_EQ(tail.size(), 6U);
+    EXPECT_EQ(*tail.begin(), 65530);
+    EXPECT_EQ(*tail.rbegin(), 65535);
+
+    // Values beyond uint16_t are still rejected instead of being truncated.
+    EXPECT_THROW(StringUtil::ParseStringRange("65536"), std::out_of_range);
+    EXPECT_THROW(StringUtil::ParseStringRange("0-65536"), std::out_of_range);
+}
+
 TEST_F(TestStringUtil, testObjVecToStrNormal)
 {
     struct TestObj {

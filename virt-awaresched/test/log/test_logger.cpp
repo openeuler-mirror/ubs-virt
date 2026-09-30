@@ -189,4 +189,45 @@ TEST_F(TestLogger, testLoggerLogLevelFilter2)
     EXPECT_EQ(ret, VAS_OK);
     Logger::Instance().outputType_ = OutputType::NONE;
 }
+TEST_F(TestLogger, testSanitizeMessage)
+{
+    // Regression for G1-G5 (CWE-117): control characters from external data
+    // (UDS messages, exception texts, libvirt/sysfs payloads) must be escaped
+    // before reaching the log output.
+    EXPECT_EQ(Logger::SanitizeMessage("plain text"), "plain text");
+    EXPECT_EQ(Logger::SanitizeMessage(""), "");
+    EXPECT_EQ(Logger::SanitizeMessage("line1\nline2"), "line1\\nline2");
+    EXPECT_EQ(Logger::SanitizeMessage("cr\r"), "cr\\r");
+    EXPECT_EQ(Logger::SanitizeMessage("tab\tend"), "tab\\tend");
+    EXPECT_EQ(Logger::SanitizeMessage(std::string("x\x01\x1F\x7Fy")), "x\\x01\\x1F\\x7Fy");
+    // Printable characters pass through untouched, including UTF-8 multibyte
+    // sequences (every byte >= 0x20).
+    EXPECT_EQ(Logger::SanitizeMessage("中文"), "中文");
+}
+
+TEST_F(TestLogger, testLogSinkNeutralizesInjection)
+{
+    VasRet ret = Logger::Instance().Init(logPath_, logFile_, MAX_LOGFILESIZE, MAX_LOGFILE, OutputType::FILE);
+    EXPECT_EQ(ret, VAS_OK);
+    // A payload with embedded newlines must not forge additional log lines
+    // or fake headers (CWE-117).
+    const std::string payload = "cmd=stop\n[2026-09-22 00:00:00][ERROR][forged header] injected";
+    Logger::Instance().Log(Level::ERROR, payload, __FILE__, __LINE__, __func__);
+
+    std::ifstream file(logPath_ + "/" + logFile_);
+    int lineCount = 0;
+    std::string sanitizedLine;
+    std::string line;
+    while (std::getline(file, line)) {
+        ++lineCount;
+        if (line.find("cmd=stop") != std::string::npos) {
+            sanitizedLine = line;
+        }
+    }
+    // The whole payload stays on a single physical line.
+    EXPECT_EQ(lineCount, 1);
+    EXPECT_NE(sanitizedLine.find("cmd=stop\\n[2026-09-22 00:00:00][ERROR][forged header] injected"), std::string::npos);
+    // No raw control characters leaked into the file.
+    EXPECT_EQ(sanitizedLine.find('\n'), std::string::npos);
+}
 } // namespace vas::ut::logger

@@ -163,6 +163,49 @@ TEST_F(TestClusterSched, testUpdateDomainInfo3)
     EXPECT_EQ(ClusterSched::GetInstance().UpdateDomainInfosAndSched(), VAS_OK);
 }
 
+// AI-03: the retry cycle must release residual groups of a previous failed Alloc/Assign
+// before reallocating, so that a failing VM leaves no double reservation behind.
+TEST_F(TestClusterSched, testUpdateDomainInfoRetryIdempotent)
+{
+    ClusterSched scheduler;
+    const std::string domainKey = uuid01 + "_0";
+    const std::string groupId = uuid01 + "_0_0_0";
+    // Simulate the residual state of a previous failed cycle:
+    // the domain holds group g1 which is still recorded in groupMap_ and the cluster layer.
+    VmDomain residual{};
+    residual.uuid = uuid01;
+    residual.name = "vm01";
+    residual.numaId = 0;
+    residual.tgid = 266956;
+    residual.pidVcpuMap = {{266987, 0}, {266988, 1}, {266989, 2}};
+    residual.groups = {groupId};
+    residual.isReScheded = false;
+    scheduler.domainMap_ = {{domainKey, residual}};
+    scheduler.groupMap_ = defaultGroupMap;
+    scheduler.numaClusterMap_ = NumaClusterMap{
+        {0,
+         {{0, Cluster{.id = 0,
+                      .numaId = 0,
+                      .cpuSet = {0, 1, 2, 3, 4, 5, 6, 7},
+                      .clusterLayers = {ClusterLayer{
+                          .idle = 5, .total = 8, .usedBitmap = DynamicBitset(8), .groups = {groupId}}}}}}}};
+    scheduler.overProvision_ = {{0, 1}};
+
+    MOCKER_CPP(&LibvirtHelper::GetVmInfoList, VasRet(LibvirtHelper::*)(VmInfoMap &))
+        .stubs()
+        .will(invoke(GetVmInfoListMockSuccess));
+    MOCKER(&ClusterSched::SelectVmNuma).stubs().will(returnValue(VAS_OK));
+    // Alloc keeps failing: the retry must still have released the residual group first.
+    MOCKER(&ClusterSched::Alloc).stubs().will(returnValue(VAS_ERROR));
+
+    EXPECT_EQ(scheduler.UpdateDomainInfosAndSched(), VAS_OK);
+    // The residual group is fully released, no reservation is left on the cluster layer.
+    EXPECT_TRUE(scheduler.groupMap_.empty());
+    EXPECT_TRUE(scheduler.domainMap_[domainKey].groups.empty());
+    EXPECT_EQ(scheduler.numaClusterMap_[0][0].clusterLayers[0].idle, 8);
+    EXPECT_TRUE(scheduler.numaClusterMap_[0][0].clusterLayers[0].groups.empty());
+}
+
 TEST_F(TestClusterSched, testSelectMinLayer)
 {
     std::set<uint16_t> availableNumas = {0, 1, 3};
@@ -466,6 +509,47 @@ TEST_F(TestClusterSched, testAllocClusterGroupToDomain)
 
     VasRet result = clusterSched.AllocClusterGroupToDomain(vmDomain, 4567);
     EXPECT_EQ(result, VAS_OK);
+}
+
+// AI-03: Alloc must roll back all partial allocations when it fails midway
+// (no enough consecutive cpu for the remaining vCPUs), leaving no residual records.
+TEST_F(TestClusterSched, testAllocRollbackOnPartialFailure)
+{
+    ClusterSched scheduler;
+    VasdArgParse::smt = true; // granularity = 1, so nr = pidVcpuMap.size() = 3
+    VmDomain vmDomain;
+    vmDomain.uuid = uuid01;
+    vmDomain.name = "vm01";
+    vmDomain.numaId = 0;
+    vmDomain.tgid = 266956;
+    vmDomain.pidVcpuMap = {{266987, 0}, {266988, 1}, {266989, 2}};
+    vmDomain.isReScheded = false;
+
+    // numa0 total = 2 + 4 = 6 >= nr(3): the first round allocates the whole cluster0 (2 cpus),
+    // the second round finds no consecutive idle cpu anywhere, triggering the failure path.
+    scheduler.numaClusterMap_ = NumaClusterMap{
+        {0,
+         {{0, Cluster{.id = 0,
+                      .numaId = 0,
+                      .cpuSet = {0, 1},
+                      .clusterLayers = {ClusterLayer{.idle = 2, .total = 2, .usedBitmap = DynamicBitset(2)}}}},
+          {1, Cluster{.id = 1,
+                      .numaId = 0,
+                      .cpuSet = {2, 3, 4, 5},
+                      .clusterLayers = {ClusterLayer{.idle = 4, .total = 4, .usedBitmap = DynamicBitset(4)}}}}}}};
+    scheduler.overProvision_ = {{0, 1}};
+    // 1st call: cluster0 has a whole idle layer, allocation succeeds;
+    // 2nd call: no consecutive idle cpu is found for the remaining 1 vCPU.
+    MOCKER(Bitset::FindFirstIdlePos).stubs().will(returnValue(int16_t(0))).then(returnValue(int16_t(-1)));
+
+    EXPECT_EQ(scheduler.Alloc(vmDomain), VAS_ERROR);
+    // No residual allocation is left after the rollback.
+    EXPECT_TRUE(scheduler.groupMap_.empty());
+    EXPECT_TRUE(vmDomain.groups.empty());
+    EXPECT_EQ(scheduler.numaClusterMap_[0][0].clusterLayers[0].idle, 2);
+    EXPECT_TRUE(scheduler.numaClusterMap_[0][0].clusterLayers[0].groups.empty());
+    EXPECT_EQ(scheduler.numaClusterMap_[0][1].clusterLayers[0].idle, 4);
+    VasdArgParse::smt = false; // restore the global flag for the following test cases
 }
 
 TEST_F(TestClusterSched, testGenEntity)
@@ -908,6 +992,45 @@ TEST_F(TestClusterSched, testCompactionGroupWithinCluster)
     MOCKER(isVasRetFail).stubs().will(returnValue(VAS_ERROR));
     scheduler.CompactionGroupWithinCluster(cluster1, cluster2, layerId);
     EXPECT_FALSE(ClusterSched::GetInstance().groupMap_[uuid01 + "_0_0_0"].entityPids.empty());
+}
+
+// AI-04: a dirty groupId (recorded in layer.groups but missing from groupMap_) must be
+// skipped with the iterator advanced; otherwise the loop never terminates. This case returns
+// normally only when the defensive branch advances the iterator.
+TEST_F(TestClusterSched, testCompactionGroupWithinClusterDirtyGroupId)
+{
+    ClusterSched scheduler;
+    const std::string dirtyGroupId = "ghost_group_not_in_groupmap";
+    Cluster cluster1;
+    cluster1.id = 0;
+    cluster1.numaId = 0;
+    cluster1.cpuSet = {0, 1, 2, 3, 4, 5, 6, 7};
+    cluster1.clusterLayers.resize(1);
+    cluster1.clusterLayers[0].idle = 8;
+    cluster1.clusterLayers[0].total = 8;
+    cluster1.clusterLayers[0].usedBitmap = DynamicBitset(8);
+
+    Cluster cluster2;
+    cluster2.id = 2;
+    cluster2.numaId = 0;
+    cluster2.cpuSet = {8, 9, 10, 11, 12, 13, 14, 15};
+    cluster2.clusterLayers.resize(1);
+    cluster2.clusterLayers[0].idle = 5;
+    cluster2.clusterLayers[0].total = 8;
+    cluster2.clusterLayers[0].usedBitmap = DynamicBitset(8);
+    cluster2.clusterLayers[0].groups = {dirtyGroupId, uuid01 + "_0_0_0"};
+
+    // The dirty id has no group entry; the valid group finds no consecutive idle cpu.
+    scheduler.groupMap_ = defaultGroupMap;
+    scheduler.domainMap_ = defaultDomainMap;
+    uint8_t layerId = 0;
+    MOCKER(Bitset::FindFirstIdlePos).stubs().will(returnValue(int16_t(-1)));
+    // Would hang forever if the defensive branch did not advance the iterator.
+    EXPECT_NO_THROW(scheduler.CompactionGroupWithinCluster(cluster1, cluster2, layerId));
+    // Both the dirty id and the valid group stay in the source layer, nothing is lost.
+    EXPECT_EQ(cluster2.clusterLayers[0].groups.count(dirtyGroupId), 1U);
+    EXPECT_EQ(cluster2.clusterLayers[0].groups.count(uuid01 + "_0_0_0"), 1U);
+    EXPECT_NE(scheduler.groupMap_.find(uuid01 + "_0_0_0"), scheduler.groupMap_.end());
 }
 
 TEST_F(TestClusterSched, testSetVmCpuset)

@@ -153,7 +153,15 @@ void CpuHelper::GetCpuTopologyByCpuInfoList(const CpuInfoList &cpuInfoList, CpuT
     DynamicBitset clusterCpuMask(MAX_CPU_NUM);
     DynamicBitset skipCpuMask(MAX_CPU_NUM);
     bool hasSkipCpuSet = false;
-    const auto skipCpuSet = StringUtil::ParseStringRange(VasdArgParse::skippedCPUSet);
+    const auto skipCpuSet = StringUtil::ParseStringRange(VasdArgParse::GetSkippedCPUSet());
+    for (const auto &cpuId : skipCpuSet) {
+        if (cpuId >= MAX_CPU_NUM) {
+            LOG_ERROR("Invalid skipped cpu id=" + std::to_string(cpuId) +
+                      ", exceeds MAX_CPU_NUM=" + std::to_string(MAX_CPU_NUM));
+            throw std::runtime_error("Skipped cpu id=" + std::to_string(cpuId) +
+                                     " exceeds MAX_CPU_NUM=" + std::to_string(MAX_CPU_NUM));
+        }
+    }
     if (!skipCpuSet.empty()) {
         hasSkipCpuSet = true;
         skipCpuMask = Bitset::GenDynamicBitsetByCpuSet(MAX_CPU_NUM, skipCpuSet);

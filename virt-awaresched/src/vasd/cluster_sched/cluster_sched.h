@@ -40,7 +40,7 @@ public:
     }
 
     VasRet UpdateDomainInfosAndSched();
-    VasRet AddDomainInfo(const VmInfo &vmInfo);
+    void AddDomainInfo(const VmInfo &vmInfo);
     void DelDomainInfo(const std::string &uuid);
     VasRet InitClusterInfo();
     void GetAffinityInfo(const std::string &value, std::unordered_map<std::string, VmAffinity> &ret);
@@ -98,6 +98,7 @@ private:
     VasRet GroupEntityMigrate(VmGroup &group, const int16_t &newStart, const Cluster &cluster, const uint8_t &layerId);
     void OverProvisionUp(uint16_t numaId);
     void OverProvisionDown(uint16_t numaId);
+    uint8_t GetOverProvision(const uint16_t &numaId) const;
 
     static const uint8_t maxOverProvision;
 
