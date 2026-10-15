@@ -188,24 +188,27 @@ class TestBuildAndStartVmTask:
         mock_define.assert_awaited_once_with(VALID_XML)
         assert not context.get(BIND_RESULT_CONTEXT_KEY)
 
+    @patch("ub_device_manager.domain.vm.vm_smbios.VmSmbios.get_type131", return_value=None)
     @patch.object(VmXmlBuilder, "build", return_value="final-xml")
     @patch.object(VMClient, "define_and_start", new_callable=AsyncMock)
-    async def test_builds_final_xml_when_devices_are_bound(self, mock_define, mock_build):
+    async def test_builds_final_xml_when_devices_are_bound(self, mock_define, mock_build, mock_read):
         await run_task(BuildAndStartVmTask(), {VM_XML_CONTEXT_KEY: VALID_XML, BIND_RESULT_CONTEXT_KEY: make_bind_result()})
 
         mock_define.assert_awaited_once_with("final-xml")
 
+    @patch("ub_device_manager.domain.vm.vm_smbios.VmSmbios.get_type131", return_value=None)
     @patch.object(NpuClient, "free_devices", new_callable=AsyncMock)
     @patch.object(VMClient, "define_and_start", new_callable=AsyncMock, side_effect=RuntimeError("start failed"))
-    async def test_rolls_back_devices_when_start_fails(self, mock_define, mock_free):
+    async def test_rolls_back_devices_when_start_fails(self, mock_define, mock_free, mock_read):
         with pytest.raises(RuntimeError, match="start failed"):
             await run_task(BuildAndStartVmTask(), {VM_XML_CONTEXT_KEY: VALID_XML, BIND_RESULT_CONTEXT_KEY: make_bind_result()})
 
         mock_free.assert_awaited_once_with("bus-1", [{"device_id": "1-1", "device_type": "NPU"}])
 
+    @patch("ub_device_manager.domain.vm.vm_smbios.VmSmbios.get_type131", return_value=None)
     @patch.object(NpuClient, "free_devices", new_callable=AsyncMock, side_effect=RuntimeError("rollback failed"))
     @patch.object(VMClient, "define_and_start", new_callable=AsyncMock, side_effect=RuntimeError("start failed"))
-    async def test_rollback_failure_does_not_mask_original_error(self, mock_define, mock_free):
+    async def test_rollback_failure_does_not_mask_original_error(self, mock_define, mock_free, mock_read):
         with pytest.raises(RuntimeError, match="start failed"):
             await run_task(BuildAndStartVmTask(), {VM_XML_CONTEXT_KEY: VALID_XML, BIND_RESULT_CONTEXT_KEY: make_bind_result()})
 
@@ -241,3 +244,33 @@ async def test_get_vms_list_response_wraps_vms():
     response = GetVmsListResp(vms=[VmInfo(name="a", uuid="u", state="running")])
 
     assert response.vms[0].name == "a"
+
+class TestVmSmbiosIntegration:
+    @patch('ub_device_manager.domain.vm.vm_smbios.VmSmbios.get_type131')
+    @patch.object(VMClient, 'define_and_start', new_callable=AsyncMock)
+    async def test_only_npu_vm_queries_smbios(self, mock_define, mock_read):
+        from ub_device_manager.domain.vm.vm_smbios import SmbiosType131
+        mock_read.return_value = SmbiosType131(0, 1, 2, 1, 3, 4)
+        xml = '<domain><os><type>hvm</type></os><devices/></domain>'
+        await run_task(BuildAndStartVmTask(), {VM_XML_CONTEXT_KEY: xml})
+        mock_read.assert_not_called()
+        await run_task(BuildAndStartVmTask(), {
+            VM_XML_CONTEXT_KEY: xml, BIND_RESULT_CONTEXT_KEY: make_bind_result(),
+        })
+        mock_read.assert_called_once()
+        assert 'type131' in mock_define.await_args.args[0]
+
+
+class TestType131FailClosed:
+    @patch('ub_device_manager.domain.vm.vm_smbios.VmSmbios.get_type131',
+           side_effect=VmXmlBuildFailed('cannot read host SMBIOS Type 131'))
+    @patch.object(NpuClient, 'free_devices', new_callable=AsyncMock)
+    @patch.object(VMClient, 'define_and_start', new_callable=AsyncMock)
+    async def test_missing_type131_prevents_vm_start_and_rolls_back(self, mock_define, mock_free, mock_read):
+        with pytest.raises(VmXmlBuildFailed, match='cannot read host SMBIOS Type 131'):
+            await run_task(BuildAndStartVmTask(), {
+                VM_XML_CONTEXT_KEY: VALID_XML,
+                BIND_RESULT_CONTEXT_KEY: make_bind_result(),
+            })
+        mock_define.assert_not_awaited()
+        mock_free.assert_awaited_once_with('bus-1', [{'device_id': '1-1', 'device_type': 'NPU'}])

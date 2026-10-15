@@ -31,7 +31,7 @@ from fastapi.testclient import TestClient
 from ub_device_manager.common.factory import create_app
 from ub_device_manager.domain.npu.npu_client import AffinityDeviceInfo
 
-VM_XML = "<domain><devices/></domain>"
+VM_XML = "<domain><os><type>hvm</type></os><devices/></domain>"
 
 VM_XML_WITH_UB = """
 <domain type='kvm'>
@@ -158,11 +158,14 @@ ALLOC_BODY = {"name": "vol", "ns_size_gb": 1, "ns_num": 1, "lba_format": 512, "s
 # VM create: API -> PrepareVmXml -> BindNpu -> BuildAndStart -> VMClient/libvirt
 # ---------------------------------------------------------------------------
 class TestVmCreateFlow:
+    @patch("ub_device_manager.domain.vm.vm_smbios.VmSmbios.get_type131")
     @patch("ubse.ubs_engine_npu.query_uba_tid_size", return_value=(11, 22, 33))
     @patch("ubse.ubs_engine_npu.alloc_devices", return_value=("bus-1", None))
     @patch("ubse.ubs_engine_npu.get_host_ub_devices")
     @patch("libvirt.open")
-    async def test_create_vm_with_npu_binding(self, mock_open, mock_get, mock_alloc, mock_query, client):
+    async def test_create_vm_with_npu_binding(self, mock_open, mock_get, mock_alloc, mock_query, mock_smbios, client):
+        from ub_device_manager.domain.vm.vm_smbios import SmbiosType131
+        mock_smbios.return_value = SmbiosType131(0, 65535, 255, 1, 16383, 3)
         mock_get.return_value = [FakeUbseDevice("NPU", "0-1", "guid-0-1")]
         conn = FakeConnection(define_domain=FakeDomain())
         mock_open.return_value = conn
@@ -191,11 +194,14 @@ class TestVmCreateFlow:
         assert response.status_code == 200
         assert conn.defined_xml == VM_XML
 
+    @patch("ub_device_manager.domain.vm.vm_smbios.VmSmbios.get_type131")
     @patch("ubse.ubs_engine_npu.query_uba_tid_size", return_value=(11, 22, 33))
     @patch("ubse.ubs_engine_npu.alloc_devices", return_value=("bus-1", None))
     @patch("ubse.ubs_engine_npu.get_host_ub_devices")
     @patch("libvirt.open")
-    async def test_create_vm_with_count_and_nic(self, mock_open, mock_get, mock_alloc, mock_query, client):
+    async def test_create_vm_with_count_and_nic(self, mock_open, mock_get, mock_alloc, mock_query, mock_smbios, client):
+        from ub_device_manager.domain.vm.vm_smbios import SmbiosType131
+        mock_smbios.return_value = SmbiosType131(0, 65535, 255, 1, 16383, 3)
         mock_get.return_value = [
             FakeUbseDevice("NPU", "0-1", "guid-0-1", affinity_devs=[AffinityDeviceInfo(device_id="1-1", device_type="NIC_VFE")]),
             FakeUbseDevice("NIC_VFE", "1-1", "guid-1-1"),
@@ -366,12 +372,15 @@ class TestErrorFlows:
 
         assert response.status_code == 532
 
+    @patch("ub_device_manager.domain.vm.vm_smbios.VmSmbios.get_type131")
     @patch("ubse.ubs_engine_npu.free_devices")
     @patch("ubse.ubs_engine_npu.query_uba_tid_size", return_value=(1, 2, 3))
     @patch("ubse.ubs_engine_npu.alloc_devices", return_value=("bus-1", None))
     @patch("ubse.ubs_engine_npu.get_host_ub_devices")
     @patch("libvirt.open")
-    async def test_vm_start_failure_rolls_back_devices(self, mock_open, mock_get, mock_alloc, mock_query, mock_free, client):
+    async def test_vm_start_failure_rolls_back_devices(self, mock_open, mock_get, mock_alloc, mock_query, mock_free, mock_smbios, client):
+        from ub_device_manager.domain.vm.vm_smbios import SmbiosType131
+        mock_smbios.return_value = SmbiosType131(0, 65535, 255, 1, 16383, 3)
         mock_get.return_value = [FakeUbseDevice("NPU", "0-1", "guid-0-1")]
         mock_open.return_value = FakeConnection(define_domain=FailingCreateDomain())
 

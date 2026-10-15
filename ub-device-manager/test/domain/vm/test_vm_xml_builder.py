@@ -198,3 +198,25 @@ class TestBuild:
     async def test_local_name_strips_namespace(self):
         assert VmXmlBuilder()._local_name("{ns}domain") == "domain"
         assert VmXmlBuilder()._local_name("domain") == "domain"
+
+class TestSmbiosType131:
+    async def test_injects_type131_and_keeps_other_smbios(self):
+        from ub_device_manager.domain.vm.vm_smbios import SmbiosType131
+        original = """<domain><sysinfo type='smbios'><system><entry name='manufacturer'>Vendor</entry></system>
+          <type131><entry flag='1'/></type131></sysinfo><os><type>hvm</type></os><devices/></domain>"""
+        info = SmbiosType131(0, 65535, 255, 1, 16383, 3)
+        xml = VmXmlBuilder().build(original, make_bind_result(), smbios_type131=info)
+        root = parse(xml)
+        assert root.find('os/smbios').get('mode') == 'sysinfo'
+        assert root.find("sysinfo/system/entry").text == 'Vendor'
+        entries = root.findall('sysinfo/type131/entry')
+        assert len(entries) == 1
+        assert entries[0].attrib == {
+            'flag': '0', 'pod_id': '65535', 'slot_id': '255', 'mesh_type': '1',
+            'super_pod_id': '16383', 'served_index': '3', 'type_name': 'UB INFO',
+        }
+
+    async def test_does_not_inject_when_info_absent(self):
+        root = parse(VmXmlBuilder().build("<domain><os><type>hvm</type></os><devices/></domain>", make_bind_result()))
+        assert root.find('sysinfo') is None
+        assert root.find('os/smbios') is None
