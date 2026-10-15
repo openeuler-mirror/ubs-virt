@@ -16,6 +16,7 @@ from xml.etree import ElementTree as ET
 from defusedxml import ElementTree as DefusedET
 
 from ub_device_manager.app.models import BindNpuDeviceResult
+from ub_device_manager.domain.vm.vm_smbios import SmbiosType131
 
 
 QEMU_NS = "http://libvirt.org/schemas/domain/qemu/1.0"
@@ -36,6 +37,7 @@ class VmXmlBuilder:
         self,
         xml: str,
         bind_result: BindNpuDeviceResult,
+        smbios_type131: SmbiosType131 | None = None,
     ) -> str:
         bus_guid = bind_result.bus_guid
         devices = [device.model_dump() for device in bind_result.devices]
@@ -57,9 +59,38 @@ class VmXmlBuilder:
             self._add_ub_hostdev(devices_node, device, index, iommufd_id)
         self._add_iommu(devices_node)
         self._add_qemu_commandline(root, tid, uba, size)
+        if smbios_type131 is not None:
+            self._add_smbios_type131(root, smbios_type131)
 
         ET.indent(root, space="  ")
         return ET.tostring(root, encoding="unicode")
+
+    def _add_smbios_type131(self, root: ET.Element, info: SmbiosType131) -> None:
+        os_node = self._find_direct_child(root, "os")
+        if os_node is None:
+            raise ValueError("VM XML does not contain os element for SMBIOS configuration")
+        smbios = self._find_direct_child(os_node, "smbios")
+        if smbios is None:
+            smbios = ET.SubElement(os_node, "smbios")
+        smbios.set("mode", "sysinfo")
+
+        sysinfo = next((node for node in self._find_direct_children(root, "sysinfo")
+                        if node.get("type") == "smbios"), None)
+        if sysinfo is None:
+            sysinfo = ET.Element("sysinfo", type="smbios")
+            root.insert(list(root).index(os_node), sysinfo)
+        for old in self._find_direct_children(sysinfo, "type131"):
+            sysinfo.remove(old)
+        type131 = ET.SubElement(sysinfo, "type131")
+        ET.SubElement(type131, "entry", **{
+            "flag": str(info.flag),
+            "pod_id": str(info.pod_id),
+            "slot_id": str(info.slot_id),
+            "mesh_type": str(info.mesh_type),
+            "super_pod_id": str(info.super_pod_id),
+            "served_index": str(info.served_index),
+            "type_name": info.type_name,
+        })
 
     def _validate_input_xml(self, root: ET.Element) -> None:
         if self._local_name(root.tag) != "domain":

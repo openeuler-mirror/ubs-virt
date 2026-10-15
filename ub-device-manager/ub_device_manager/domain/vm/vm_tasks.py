@@ -11,6 +11,7 @@
 ##########################################################################################################
 from __future__ import annotations
 import os
+import asyncio
 from typing import List
 
 from defusedxml.ElementTree import ParseError
@@ -32,6 +33,7 @@ from ub_device_manager.constants import (
 )
 from ub_device_manager.domain.vm.vm_client import VMClient, VmInfo
 from ub_device_manager.domain.vm.vm_xml_builder import VmXmlBuilder
+from ub_device_manager.domain.vm.vm_smbios import VmSmbios
 
 
 class GetVmsListResp(BaseModel):
@@ -149,6 +151,7 @@ class BuildAndStartVmTask(AsyncTask):
         self.npu_client = NpuClient()
         self.vm_client = VMClient()
         self.xml_builder = VmXmlBuilder()
+        self.vm_smbios = VmSmbios()
 
     async def execute(self) -> None:
         xml = self.context.get(VM_XML_CONTEXT_KEY)
@@ -165,7 +168,8 @@ class BuildAndStartVmTask(AsyncTask):
             for device in bind_result.devices
         ]
         try:
-            final_xml = self.xml_builder.build(xml, bind_result)
+            smbios_type131 = await asyncio.to_thread(self.vm_smbios.get_type131)
+            final_xml = self.xml_builder.build(xml, bind_result, smbios_type131=smbios_type131)
             await self.vm_client.define_and_start(final_xml)
         except Exception:
             # Preserve the original failure if rollback also fails.

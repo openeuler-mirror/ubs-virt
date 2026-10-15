@@ -29,6 +29,8 @@ License:        Mulan PSL v2
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      aarch64
 Requires:       python3
+Requires:       sudo
+Requires:       dmidecode
 
 %description
 UB Device Manager: creates/deletes UB (NPU passthrough) VMs on the local node, and
@@ -49,6 +51,7 @@ mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}/etc/ub_device_manager
 mkdir -p %{buildroot}/var/log/ub_device_manager
 mkdir -p %{buildroot}/etc/systemd/system
+mkdir -p %{buildroot}/etc/sudoers.d
 mkdir -p %{buildroot}%{site_packages_dir}/ub_device_manager
 
 # Remove cache files on the build machine
@@ -59,12 +62,16 @@ find . -name "*.pyc" -type f -delete
 cp -r ub_device_manager/* %{buildroot}%{site_packages_dir}/ub_device_manager/
 cp requirements.txt %{buildroot}%{site_packages_dir}/ub_device_manager/requirements.txt
 
+install -m 0440 ub_device_manager/ub-device-manager-smbios.sudoers \
+    %{buildroot}/etc/sudoers.d/ub-device-manager-smbios
+
 # Config file: the code prefers /etc/ub_device_manager/ub_device_manager.toml and falls back
 # to the copy bundled in site-packages, so operators only need to edit the /etc one.
 cp ub_device_manager/ub_device_manager.toml %{buildroot}/etc/ub_device_manager/ub_device_manager.toml
 
 # The service template/spec are not installed into site-packages
 rm -f %{buildroot}%{site_packages_dir}/ub_device_manager/ub-device-manager.service
+rm -f %{buildroot}%{site_packages_dir}/ub_device_manager/ub-device-manager-smbios.sudoers
 rm -f %{buildroot}%{site_packages_dir}/ub_device_manager/ub_device_manager.spec
 
 # Render the Python and install path placeholders in the systemd service file
@@ -114,6 +121,7 @@ rm -rf %{buildroot}
 %files
 %attr(0750, %{service_user}, %{service_user}) %{site_packages_dir}/ub_device_manager
 %attr(0644, root, root) /etc/systemd/system/ub-device-manager.service
+%config(noreplace) %attr(0440, root, root) /etc/sudoers.d/ub-device-manager-smbios
 %dir %attr(0750, %{service_user}, %{service_user}) /etc/ub_device_manager
 %config(noreplace) %attr(0640, %{service_user}, %{service_user}) /etc/ub_device_manager/ub_device_manager.toml
 %dir %attr(0750, %{service_user}, %{service_user}) /var/log/ub_device_manager
