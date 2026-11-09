@@ -254,7 +254,7 @@ stages:
 
                       GIT_TERMINAL_PROMPT=0 \
                       git \
-                        -c credential.helper='!f() { echo "username=liangkun_gitcode"; echo "password=${DEPENDENCY_TOKEN}"; }; f' \
+                        -c credential.helper='!f() { echo "username=huangxiaojun"; echo "password=${DEPENDENCY_TOKEN}"; }; f' \
                         clone -b main \
                         https://gitcode.com/BeiMing_Dev/build_dependency.git
 
@@ -430,7 +430,7 @@ stages:
 
                       GIT_TERMINAL_PROMPT=0 \
                       git \
-                        -c credential.helper='!f() { echo "username=liangkun_gitcode"; echo "password=${DEPENDENCY_TOKEN}"; }; f' \
+                        -c credential.helper='!f() { echo "username=huangxiaojun"; echo "password=${DEPENDENCY_TOKEN}"; }; f' \
                         clone -b main \
                         https://gitcode.com/BeiMing_Dev/build_dependency.git
 
