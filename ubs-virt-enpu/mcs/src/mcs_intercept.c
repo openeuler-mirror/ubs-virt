@@ -118,7 +118,7 @@ static int mcs_do_init(int32_t dev_id)
         fprintf(stderr, "[MCS] init failed: cannot query physical aicore count (rtGetAiCoreCount/rtGetDeviceInfo)\n");
         return -1;
     }
-    LOG_INFO("Physical aicube=%ld, aivector=%ld, quota=%d%%", (long)physical_aicube, (long)physical_aivector,
+    LOG_INFO("Physical aicube=%ld, aivector=%ld, aicore-quota=%d%%", (long)physical_aicube, (long)physical_aivector,
              g_mcs_config.aicore_quota);
 
     /* Init device limits */
