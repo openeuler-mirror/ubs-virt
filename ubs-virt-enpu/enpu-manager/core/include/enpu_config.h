@@ -11,6 +11,8 @@
 #include "common.h"
 
 #define ENPU_CONFIG_DEFAULT_PATH "/etc/enpu/enpu-manager.conf"
+#define ENPU_MANAGER_CONFIG_DIR "/etc/enpu"
+#define ENPU_MANAGER_STATE_DIR "/var/lib/enpu-manager"
 
 #define ENPU_CONFIG_DEFAULT_SOCKET_PATH "/run/enpu/enpu-manager.sock"
 
@@ -25,9 +27,6 @@
 
 typedef struct enpu_config {
     char socket_path[MAX_PATH_LEN];
-
-    char config_dir[MAX_PATH_LEN];
-    char state_dir[MAX_PATH_LEN];
 
     char log_level[MAX_NAME_LEN];
     char log_dir[MAX_PATH_LEN];

@@ -245,8 +245,8 @@ static void print_usage(const char *prog)
     printf("  release -a <allocation_id> | -u <pod_uid> -c <container>\n");
     printf("                           Release vNPU\n");
     printf("  status                   Show allocation status\n");
-    printf("  resources [--allocation-id UUID | --phy-id N [--vnpu-id N] | "
-           "[--pod-uid UID] [--container-name NAME]] [--detail]\n");
+    printf("  resources [--allocation-id <allocation_id> | --phy-id <phy_id> [--vnpu-id <vnpu_id>] | "
+           "[--pod-uid <pod_uid>] [--container-name <container>]] [--detail]\n");
     printf("                           Show complete resource JSON\n");
     printf("                           --detail: include stats and calculation diagnostics\n");
     printf("  checkpoint               Trigger checkpoint\n");

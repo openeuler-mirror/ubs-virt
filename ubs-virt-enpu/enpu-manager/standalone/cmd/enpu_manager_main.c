@@ -151,10 +151,10 @@ static void cleanup(void)
 static int build_enpu_manager_config(enpu_config_t *enpu_cfg, enpu_manager_config_t *mgr_cfg)
 {
     int ret = snprintf_s(mgr_cfg->config_base_path, sizeof(mgr_cfg->config_base_path),
-                         sizeof(mgr_cfg->config_base_path) - 1, "%s/vcann-rt", enpu_cfg->config_dir);
+                         sizeof(mgr_cfg->config_base_path) - 1, "%s/vcann-rt", ENPU_MANAGER_CONFIG_DIR);
     CHECK_COND_RETURN_ERROR_CODE(ret < 0, "snprintf_s config_base_path failed.");
     ret = snprintf_s(mgr_cfg->checkpoint_path, sizeof(mgr_cfg->checkpoint_path), sizeof(mgr_cfg->checkpoint_path) - 1,
-                     "%s/checkpoint.json", enpu_cfg->state_dir);
+                     "%s/checkpoint.json", ENPU_MANAGER_STATE_DIR);
     CHECK_COND_RETURN_ERROR_CODE(ret < 0, "snprintf_s checkpoint_path failed.");
     ret = strncpy_s(mgr_cfg->evaluator_name, sizeof(mgr_cfg->evaluator_name), "share", sizeof("share") - 1);
     CHECK_COND_RETURN_ERROR_CODE(ret != 0, "strncpy_s evaluator_name failed.");

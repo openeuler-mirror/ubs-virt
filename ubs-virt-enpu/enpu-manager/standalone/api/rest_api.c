@@ -49,8 +49,6 @@
 #define HTTP_STATUS_CONFLICT 409
 #define HTTP_STATUS_NOT_FOUND 404
 #define HTTP_STATUS_INTERNAL_ERROR 500
-#define PARSE_ALLOC_INVALID_PRIORITY (-2)
-
 #define HTTP_STATUS_METHOD_NOT_ALLOWED 405
 
 typedef struct rest_api_server {
@@ -78,7 +76,7 @@ static char *format_allocations_json(enpu_manager_t *mgr);
 static char *format_alloc_response_json(const alloc_response_t *resp, const char *request_body);
 static char *format_result_json(int result, const char *error_msg);
 static int copy_json_response(char *response, char *json);
-static int parse_json_alloc_request(const char *body, alloc_request_t *req);
+static int parse_json_alloc_request(const char *body, alloc_request_t *req, char *error, size_t error_size);
 
 static int is_decimal_string(const char *s)
 {
@@ -93,20 +91,41 @@ static int is_decimal_string(const char *s)
     return 1;
 }
 
-static int json_optional_string(const cJSON *root, const char *key, char *output, size_t output_size)
+static void set_json_field_error(char *error, size_t error_size, const char *key, const char *reason)
+{
+    if (error == NULL || error_size == 0) {
+        return;
+    }
+    if (snprintf_s(error, error_size, error_size - 1, "%s %s", key, reason) < 0) {
+        error[0] = '\0';
+    }
+}
+
+static int json_optional_string(const cJSON *root, const char *key, char *output, size_t output_size, char *error,
+                                size_t error_size)
 {
     const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, key);
     if (item == NULL) {
         return ENPU_SUCCESS;
     }
-    if (!cJSON_IsString(item) || item->valuestring == NULL || strnlen(item->valuestring, output_size) >= output_size) {
+    if (!cJSON_IsString(item) || item->valuestring == NULL) {
+        set_json_field_error(error, error_size, key, "must be a JSON string");
         return ENPU_INVALID_PARAM;
     }
-    return strncpy_s(output, output_size, item->valuestring, strlen(item->valuestring)) == 0 ? ENPU_SUCCESS :
-                                                                                               ENPU_INVALID_PARAM;
+    if (strnlen(item->valuestring, output_size) >= output_size) {
+        if (snprintf_s(error, error_size, error_size - 1, "%s exceeds maximum length %zu", key, output_size - 1) < 0) {
+            error[0] = '\0';
+        }
+        return ENPU_INVALID_PARAM;
+    }
+    if (strncpy_s(output, output_size, item->valuestring, strlen(item->valuestring)) != 0) {
+        set_json_field_error(error, error_size, key, "could not be copied");
+        return ENPU_INVALID_PARAM;
+    }
+    return ENPU_SUCCESS;
 }
 
-static int json_optional_int(const cJSON *root, const char *key, int *output)
+static int json_optional_int(const cJSON *root, const char *key, int *output, char *error, size_t error_size)
 {
     const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, key);
     if (item == NULL) {
@@ -115,13 +134,15 @@ static int json_optional_int(const cJSON *root, const char *key, int *output)
     double value = item->valuedouble;
     if (!cJSON_IsNumber(item) || !isfinite(value) || value < INT_MIN || value > INT_MAX ||
         (double)(int)value != value) {
+        set_json_field_error(error, error_size, key, "must be a JSON integer");
         return ENPU_INVALID_PARAM;
     }
     *output = (int)value;
     return ENPU_SUCCESS;
 }
 
-static int json_optional_uint64(const cJSON *root, const char *key, uint64_t *output, bool *present)
+static int json_optional_uint64(const cJSON *root, const char *key, uint64_t *output, bool *present, char *error,
+                                size_t error_size)
 {
     const cJSON *item = cJSON_GetObjectItemCaseSensitive(root, key);
     *present = item != NULL;
@@ -132,6 +153,7 @@ static int json_optional_uint64(const cJSON *root, const char *key, uint64_t *ou
     /* JSON numbers above 2^53 cannot be converted to uint64 without losing identity. */
     if (!cJSON_IsNumber(item) || !isfinite(value) || value < 0 || value > 9007199254740991.0 ||
         (double)(uint64_t)value != value) {
+        set_json_field_error(error, error_size, key, "must be a non-negative JSON integer within the supported range");
         return ENPU_INVALID_PARAM;
     }
     *output = (uint64_t)value;
@@ -433,7 +455,8 @@ static int handle_resource_request(rest_api_server_t *server, int client_fd, con
             LOG_ERROR("[REST-RESOURCES] Query failed: stage=%s metrics=%d ret=%d", stage, metrics, ret);
         }
         int status = ret == ENPU_NOT_FOUND ? HTTP_STATUS_NOT_FOUND : HTTP_STATUS_INTERNAL_ERROR;
-        return resource_error_response(client_fd, status, ret, "Resource query failed");
+        return resource_error_response(client_fd, status, ret,
+                                       ret == ENPU_NOT_FOUND ? "Resource not found" : "Resource query failed");
     }
     ret = send_typed_response(client_fd, HTTP_STATUS_OK, output,
                               metrics ? "text/plain; version=0.0.4; charset=utf-8" : "application/json");
@@ -791,14 +814,11 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
     if (strcmp(method, "POST") == 0 && strcmp(path, "/api/v1/allocate") == 0) {
         alloc_request_t req;
         alloc_response_t resp = {0};
-        int parse_result = parse_json_alloc_request(body, &req);
+        char parse_error[128] = {0};
+        int parse_result = parse_json_alloc_request(body, &req, parse_error, sizeof(parse_error));
         if (parse_result != 0) {
-            const char *error = "Invalid request body";
-            if (parse_result == PARSE_ALLOC_INVALID_PRIORITY) {
-                error = "Invalid vnpu_priority: expected JSON integer 0 or 1";
-            }
             ret = snprintf_s(response, REST_RESPONSE_SIZE, REST_RESPONSE_SIZE - 1, "{\"error\":\"%s\",\"result\":%d}",
-                             error, ENPU_INVALID_PARAM);
+                             parse_error[0] == '\0' ? "Invalid request body" : parse_error, ENPU_INVALID_PARAM);
             CHECK_COND_LOG_(ret < 0, "snprintf_s response failed.");
             return HTTP_STATUS_BAD_REQUEST;
         }
@@ -821,7 +841,11 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
         if (!strchr(path + 20, '/')) {
             int result = enpu_manager_release_by_id(mgr, path + 20);
             LOG_DEBUG("[REST-RELEASE] by=allocation_id allocation_id=%s result=%d", path + 20, result);
-            if (copy_json_response(response, format_result_json(result, "")) != ENPU_SUCCESS) {
+            const char *error_msg = result == ENPU_SUCCESS       ? "" :
+                                    result == ENPU_INVALID_PARAM ? "Invalid allocation_id" :
+                                    result == ENPU_NOT_FOUND     ? "Allocation not found" :
+                                                                   "Failed to release allocation";
+            if (copy_json_response(response, format_result_json(result, error_msg)) != ENPU_SUCCESS) {
                 return HTTP_STATUS_INTERNAL_ERROR;
             }
             if (result == ENPU_INVALID_PARAM) {
@@ -847,7 +871,17 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
         }
         int result = enpu_manager_release(mgr, pod_uid, container);
         LOG_DEBUG("[REST-RELEASE] by=metadata pod=%s container=%s result=%d", pod_uid, container, result);
-        if (copy_json_response(response, format_result_json(result, "")) != ENPU_SUCCESS) {
+        const char *error_msg = "Failed to release allocation";
+        if (result == ENPU_SUCCESS) {
+            error_msg = "";
+        } else if (result == ENPU_ALREADY_EXISTS) {
+            error_msg = "Multiple allocations match metadata; use allocation_id";
+        } else if (result == ENPU_NOT_FOUND) {
+            error_msg = "Allocation not found";
+        } else if (result == ENPU_INVALID_PARAM) {
+            error_msg = "Invalid pod_uid or container_name";
+        }
+        if (copy_json_response(response, format_result_json(result, error_msg)) != ENPU_SUCCESS) {
             return HTTP_STATUS_INTERNAL_ERROR;
         }
         if (result == ENPU_ALREADY_EXISTS) {
@@ -1019,11 +1053,12 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
     CHECK_COND_LOG_(ret < 0, "snprintf_s response failed.");
     return HTTP_STATUS_NOT_FOUND;
 }
-static int parse_json_alloc_request(const char *body, alloc_request_t *req)
+static int parse_json_alloc_request(const char *body, alloc_request_t *req, char *error, size_t error_size)
 {
-    if (body == NULL || req == NULL) {
+    if (body == NULL || req == NULL || error == NULL || error_size == 0) {
         return ENPU_INVALID_PARAM;
     }
+    error[0] = '\0';
     int ret = memset_s(req, sizeof(alloc_request_t), 0, sizeof(alloc_request_t));
     CHECK_COND_RETURN_ERROR_CODE_LOG(ret != 0, "memset_s req failed.");
     req->predicate_phy_id = -1;
@@ -1034,54 +1069,64 @@ static int parse_json_alloc_request(const char *body, alloc_request_t *req)
     if (root == NULL || !cJSON_IsObject(root)) {
         cJSON_Delete(root);
         LOG_DEBUG("[REST-ALLOC] Invalid JSON request body near offset=%td", parse_end == NULL ? 0 : parse_end - body);
+        (void)strncpy_s(error, error_size, "Request body must be a valid JSON object",
+                        strlen("Request body must be a valid JSON object"));
         return ENPU_INVALID_PARAM;
     }
 
     bool hbm_request_present = false, hbm_quota_present = false, hbm_limit_present = false;
     uint64_t hbm_request = 0, hbm_quota = 0;
-    ret = json_optional_string(root, "allocation_id", req->allocation_id, sizeof(req->allocation_id));
+    ret =
+        json_optional_string(root, "allocation_id", req->allocation_id, sizeof(req->allocation_id), error, error_size);
     if (ret == ENPU_SUCCESS && cJSON_HasObjectItem(root, "allocation_id") &&
         !allocation_id_is_valid(req->allocation_id)) {
+        set_json_field_error(error, error_size, "allocation_id", "must be a valid UUID");
         ret = ENPU_INVALID_PARAM;
     }
     if (ret == ENPU_SUCCESS) {
-        ret = json_optional_string(root, "pod_uid", req->pod_uid, sizeof(req->pod_uid));
+        ret = json_optional_string(root, "pod_uid", req->pod_uid, sizeof(req->pod_uid), error, error_size);
     }
     if (ret == ENPU_SUCCESS) {
-        ret = json_optional_string(root, "container_name", req->container_name, sizeof(req->container_name));
+        ret = json_optional_string(root, "container_name", req->container_name, sizeof(req->container_name), error,
+                                   error_size);
     }
     if (ret == ENPU_SUCCESS) {
-        ret = json_optional_int(root, "aicore_quota", &req->aicore_quota);
+        ret = json_optional_int(root, "aicore_quota", &req->aicore_quota, error, error_size);
     }
     if (ret == ENPU_SUCCESS) {
-        ret = json_optional_uint64(root, "hbm_request", &hbm_request, &hbm_request_present);
+        ret = json_optional_uint64(root, "hbm_request", &hbm_request, &hbm_request_present, error, error_size);
     }
     if (ret == ENPU_SUCCESS) {
-        ret = json_optional_uint64(root, "hbm_quota", &hbm_quota, &hbm_quota_present);
+        ret = json_optional_uint64(root, "hbm_quota", &hbm_quota, &hbm_quota_present, error, error_size);
     }
     if (ret == ENPU_SUCCESS) {
-        ret = json_optional_uint64(root, "hbm_limit", &req->hbm_limit, &hbm_limit_present);
+        ret = json_optional_uint64(root, "hbm_limit", &req->hbm_limit, &hbm_limit_present, error, error_size);
     }
     if (ret == ENPU_SUCCESS) {
-        ret = json_optional_int(root, "sched_policy", &req->sched_policy);
+        ret = json_optional_int(root, "sched_policy", &req->sched_policy, error, error_size);
     }
     if (ret == ENPU_SUCCESS) {
-        ret = json_optional_int(root, "vnpu_priority", &req->vnpu_priority);
-        if (ret != ENPU_SUCCESS ||
-            (req->vnpu_priority != VNPU_PRIORITY_NORMAL && req->vnpu_priority != VNPU_PRIORITY_HIGH)) {
-            cJSON_Delete(root);
-            return PARSE_ALLOC_INVALID_PRIORITY;
+        ret = json_optional_int(root, "vnpu_priority", &req->vnpu_priority, error, error_size);
+        if (ret == ENPU_SUCCESS && req->vnpu_priority != VNPU_PRIORITY_NORMAL &&
+            req->vnpu_priority != VNPU_PRIORITY_HIGH) {
+            set_json_field_error(error, error_size, "vnpu_priority", "must be 0 or 1");
+            ret = ENPU_INVALID_PARAM;
         }
     }
     if (ret == ENPU_SUCCESS) {
-        ret = json_optional_int(root, "swap_order", &req->swap_order);
+        ret = json_optional_int(root, "swap_order", &req->swap_order, error, error_size);
     }
     if (ret == ENPU_SUCCESS && (req->swap_order < SWAP_ORDER_MIN || req->swap_order > SWAP_ORDER_MAX)) {
         LOG_DEBUG("[REST-ALLOC] Invalid swap_order=%d; expected 0, 1 or 2", req->swap_order);
+        set_json_field_error(error, error_size, "swap_order", "must be 0, 1 or 2");
         ret = ENPU_INVALID_PARAM;
     }
     if (ret == ENPU_SUCCESS) {
-        ret = json_optional_int(root, "phy_id", &req->predicate_phy_id);
+        ret = json_optional_int(root, "phy_id", &req->predicate_phy_id, error, error_size);
+    }
+    if (ret == ENPU_SUCCESS && req->predicate_phy_id < -1) {
+        set_json_field_error(error, error_size, "phy_id", "must be -1 or a non-negative integer");
+        ret = ENPU_INVALID_PARAM;
     }
     if (ret == ENPU_SUCCESS) {
         req->hbm_quota = hbm_request_present ? hbm_request : hbm_quota_present ? hbm_quota : 0;

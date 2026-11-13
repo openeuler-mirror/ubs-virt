@@ -28,9 +28,6 @@ static void init_defaults(enpu_config_t *config)
 {
     copy_config_str(config->socket_path, MAX_PATH_LEN, ENPU_CONFIG_DEFAULT_SOCKET_PATH);
 
-    copy_config_str(config->config_dir, MAX_PATH_LEN, "/etc/enpu");
-    copy_config_str(config->state_dir, MAX_PATH_LEN, "/var/lib/enpu-manager");
-
     copy_config_str(config->log_level, MAX_NAME_LEN, "info");
     copy_config_str(config->log_dir, MAX_PATH_LEN, "/var/log/enpu-manager");
     config->log_max_size = ENPU_CONFIG_DEFAULT_LOG_MAX_SIZE;
@@ -98,14 +95,10 @@ static void parse_oversub_ratio_csv(const char *val, enpu_config_t *config)
     }
 }
 
-static void parse_key_value(const char *key, const char *val, enpu_config_t *config)
+static bool parse_key_value(const char *key, const char *val, enpu_config_t *config)
 {
     if (strcmp(key, "socket_path") == 0) {
         copy_config_str(config->socket_path, MAX_PATH_LEN, val);
-    } else if (strcmp(key, "config_dir") == 0) {
-        copy_config_str(config->config_dir, MAX_PATH_LEN, val);
-    } else if (strcmp(key, "state_dir") == 0) {
-        copy_config_str(config->state_dir, MAX_PATH_LEN, val);
     } else if (strcmp(key, "log_level") == 0) {
         copy_config_str(config->log_level, MAX_NAME_LEN, val);
     } else if (strcmp(key, "log_dir") == 0) {
@@ -124,7 +117,10 @@ static void parse_key_value(const char *key, const char *val, enpu_config_t *con
         config->swap_pre_watermark = atoi(val);
     } else if (strcmp(key, "share-strategy") == 0) {
         copy_config_str(config->share_strategy, MAX_NAME_LEN, val);
+    } else {
+        return false;
     }
+    return true;
 }
 
 /* 去除字符串首尾空白（空格、制表符、换行符） */
@@ -150,7 +146,7 @@ static void trim_whitespace(char *str, size_t buf_size)
     }
 }
 
-static void load_from_file(const char *path, enpu_config_t *config)
+static bool load_from_file(const char *path, enpu_config_t *config)
 {
     if (path == NULL) {
         path = ENPU_CONFIG_DEFAULT_PATH;
@@ -158,11 +154,18 @@ static void load_from_file(const char *path, enpu_config_t *config)
 
     FILE *fp = fopen(path, "r");
     if (fp == NULL) {
-        return;
+        return true;
     }
 
     char line[256];
+    size_t line_number = 0;
+    bool success = true;
     while (fgets(line, sizeof(line), fp) != NULL) {
+        line_number++;
+        trim_whitespace(line, sizeof(line));
+        if (line[0] == '\0' || line[0] == '#') {
+            continue;
+        }
         char *eq = strchr(line, '=');
         if (eq == NULL) {
             continue;
@@ -180,16 +183,22 @@ static void load_from_file(const char *path, enpu_config_t *config)
         trim_whitespace(line, sizeof(line));
         trim_whitespace(val, sizeof(line) - (size_t)(val - line));
 
-        parse_key_value(line, val, config);
+        if (!parse_key_value(line, val, config)) {
+            (void)fprintf(stderr, "[ERROR] Unknown config key '%s' at %s:%zu\n", line, path, line_number);
+            success = false;
+            break;
+        }
     }
 
     if (ferror(fp) != 0) {
         LOG_ERROR("[CONFIG] Failed to read config file: %s", path);
+        success = false;
     }
 
     if (fclose(fp) != 0) {
         LOG_ERROR("[CONFIG] Failed to close config file: %s", path);
     }
+    return success;
 }
 
 static void load_from_env(enpu_config_t *config)
@@ -197,16 +206,6 @@ static void load_from_env(enpu_config_t *config)
     char *val = getenv("ENPU_SOCKET_PATH");
     if (val) {
         copy_config_str(config->socket_path, MAX_PATH_LEN, val);
-    }
-
-    val = getenv("ENPU_CONFIG_DIR");
-    if (val) {
-        copy_config_str(config->config_dir, MAX_PATH_LEN, val);
-    }
-
-    val = getenv("ENPU_STATE_DIR");
-    if (val) {
-        copy_config_str(config->state_dir, MAX_PATH_LEN, val);
     }
 
     val = getenv("ENPU_LOG_LEVEL");
@@ -263,7 +262,10 @@ enpu_config_t *enpu_config_load(const char *config_path)
     }
 
     init_defaults(config);
-    load_from_file(config_path, config);
+    if (!load_from_file(config_path, config)) {
+        free(config);
+        return NULL;
+    }
     load_from_env(config);
 
     return config;

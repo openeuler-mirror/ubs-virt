@@ -152,7 +152,7 @@ sudo systemctl daemon-reload
 | `log_level`                | string   | info         | 是        | 日志级别：`debug(4)` / `info(3)` / `warn(2)` / `error(1)` / `fatal(0)`。                                                                                    |
 | `log_dir`                  | string   | /var/log/enpu-manager | 是 | 日志文件输出目录。                                                                                                                                         |
 
-vCANN-RT 配置根目录固定为 `/etc/enpu`，状态持久化目录固定为 `/var/lib/enpu-manager`，不接受配置文件或环境变量覆盖。生成的配置和 checkpoint 分别位于 `/etc/enpu/vcann-rt/allocations/<allocation_id>/npu_info.config` 和 `/var/lib/enpu-manager/checkpoint.json`。
+vCANN-RT 配置根目录固定为 `/etc/enpu`，状态持久化目录固定为 `/var/lib/enpu-manager`，不接受配置文件或环境变量覆盖。生成的配置和 checkpoint 分别位于 `/etc/enpu/vcann-rt/allocations/<allocation_id>/npu_info.config` 和 `/var/lib/enpu-manager/checkpoint.json`。配置文件包含未知字段时，enpu-manager 会报告字段名和行号并拒绝启动。
 
 **节点级 swap buffer 大小**自动计算为 `Σ (1 + oversub_ratio[phy_id]) × die_hbm_total[phy_id]`。启动时若该值超过宿主机 `/proc/meminfo` 的 `MemFree` 字段，enpu-manager 会拒绝启动并在日志中提示 `configured oversub-ratio too large`，需调小 `oversub-ratio` 后重试。
 
@@ -320,7 +320,7 @@ vNPU Allocated:
   HBM Limit:    10240
   Policy:       1
   SHM ID:       14422CC3-...
-  Minor:        davinci0
+  Minor:        Ascend0
 ```
 
 字段含义和服务端校验规则见下方[分配 vNPU](#分配-vnpu-1)。
@@ -537,7 +537,7 @@ curl --unix-socket /run/enpu/enpu-manager.sock -X POST http://localhost/api/v1/a
   "hbm_limit": 32768,
   "sched_policy": 2,
   "vnpu_priority": 0,
-  "minor_name": "Ascend910-0",
+  "minor_name": "Ascend0",
   "result": 0,
   "error_msg": ""
 }
@@ -650,7 +650,7 @@ curl --unix-socket /run/enpu/enpu-manager.sock http://localhost/api/v1/devices
   "devices": [
     {
       "phy_id": 0,
-      "minor_name": "Ascend910-0",
+      "minor_name": "Ascend0",
       "uuid": "14422CC3-...",
       "aicore_available": 80,
       "hbm_available": 32768,
@@ -700,7 +700,7 @@ curl --unix-socket /run/enpu/enpu-manager.sock http://localhost/api/v1/devices/0
 
 `GET /api/v1/allocations`
 
-返回当前分配清单，供下游建立 allocation 与设备、业务标签的映射。`config_path` 为该分配在宿主机上的配置文件路径，与创建响应一致，支持自定义配置目录。
+返回当前分配清单，供下游建立 allocation 与设备、业务标签的映射。`config_path` 为该分配在宿主机上的配置文件路径，与创建响应一致。
 
 ```bash
 curl --unix-socket /run/enpu/enpu-manager.sock http://localhost/api/v1/allocations
