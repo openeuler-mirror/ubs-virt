@@ -202,7 +202,7 @@ int swap_hook_check_and_swap_in(swap_hook_t *hook)
         }
         shm_set_process_swapped(state, get_vnpu_id(), my_slot, false);
 
-        LOG_INFO("swap_hook: swap_in completed for vnpu %d, vcann_rt_id %d", get_vnpu_id(), my_slot);
+        LOG_INFO("swap_hook: swap_in completed for vnpu %d, slot %d", get_vnpu_id(), my_slot);
     }
     pthread_mutex_unlock(&state->swap_in_mutex);
     pthread_mutex_unlock(&hook->tracker->lock);
