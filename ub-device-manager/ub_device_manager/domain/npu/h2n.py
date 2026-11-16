@@ -78,6 +78,10 @@ async def wait_h2n_healthy(pfe_guids: list[str], config: dict | None = None) -> 
             healthy, detail = False, "H2N probe timed out"
         except Exception as exc:
             healthy, detail = False, f"H2N probe failed: {exc}"
+        logger.debug(
+            "H2N probe result: attempt={}, healthy={}, pfe_guids={}, detail={}.",
+            attempts, healthy, pfe_guids, detail.rstrip("."),
+        )
         now = time.monotonic()
         if healthy:
             if healthy_since is None and now <= deadline:
