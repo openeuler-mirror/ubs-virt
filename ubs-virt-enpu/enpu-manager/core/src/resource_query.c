@@ -120,7 +120,36 @@ static int validate_resource_query(const enpu_resource_query_t *query)
 static bool query_requires_match(const enpu_resource_query_t *query)
 {
     return query != NULL &&
-           (query->type == ENPU_RESOURCE_QUERY_BY_RESOURCE || query->type == ENPU_RESOURCE_QUERY_BY_ALLOCATION);
+           (query->type == ENPU_RESOURCE_QUERY_BY_RESOURCE || query->type == ENPU_RESOURCE_QUERY_BY_ALLOCATION ||
+            query->type == ENPU_RESOURCE_QUERY_BY_METADATA);
+}
+
+static int validate_query_device(enpu_manager_t *mgr, const enpu_resource_query_t *query)
+{
+    if (query == NULL) {
+        return ENPU_SUCCESS;
+    }
+    int32_t phy_id = -1;
+    if (query->type == ENPU_RESOURCE_QUERY_BY_PHY) {
+        phy_id = query->selector.phy_id;
+    } else if (query->type == ENPU_RESOURCE_QUERY_BY_RESOURCE) {
+        phy_id = query->selector.resource.phy_id;
+    } else {
+        return ENPU_SUCCESS;
+    }
+
+    device_query_t device_query = {.phy_id = phy_id};
+    int count = 0;
+    int ret = enpu_manager_query_devices(mgr, &device_query, NULL, &count);
+    if (ret != ENPU_SUCCESS) {
+        LOG_ERROR("[RESOURCES] Failed to query physical device: phy=%d ret=%d", phy_id, ret);
+        return ret;
+    }
+    if (count == 0) {
+        LOG_DEBUG("[RESOURCES] Physical device not found: phy=%d", phy_id);
+        return ENPU_NOT_FOUND;
+    }
+    return ENPU_SUCCESS;
 }
 
 static bool matches_query(const allocation_t *allocation, const enpu_resource_query_t *query)
@@ -507,6 +536,10 @@ int enpu_query_resources(enpu_manager_t *mgr, const enpu_resource_query_t *query
     int ret = validate_resource_query(query);
     if (ret != ENPU_SUCCESS) {
         LOG_WARN("[RESOURCES] Invalid query: type=%d phy=%d vnpu=%d", query_type, phy_id, vnpu_id);
+        return ret;
+    }
+    ret = validate_query_device(mgr, query);
+    if (ret != ENPU_SUCCESS) {
         return ret;
     }
     const char *allocation_filter = query_type == ENPU_RESOURCE_QUERY_BY_ALLOCATION ? query->selector.allocation_id :

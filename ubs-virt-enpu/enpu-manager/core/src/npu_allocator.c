@@ -857,7 +857,7 @@ int npu_allocator_allocate(npu_allocator_t *a, alloc_request_t *req, alloc_respo
     resp->sched_policy = registry_alloc.sched_policy;
     resp->vnpu_priority = registry_alloc.vnpu_priority;
     alloc_copy_str(resp->shm_id, SHM_ID_LEN, registry_alloc.shm_id);
-    alloc_copy_str(resp->minor_name, MAX_NAME_LEN, npu_node_get_uuid(node));
+    alloc_copy_str(resp->minor_name, MAX_NAME_LEN, npu_node_get_minor_name(node));
     resp->result = ENPU_SUCCESS;
 
     ret = allocation_registry_register(a->registry, &registry_alloc);
