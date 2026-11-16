@@ -1,6 +1,7 @@
 """H2N sysfs probe and wait tests."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -39,3 +40,25 @@ async def test_wait_times_out_when_link_unhealthy(tmp_path):
             "probe_timeout": 0.02, "poll_interval": 0.01,
             "healthy_stable_duration": 0,
         })
+
+
+@pytest.mark.parametrize("first_result, first_detail", [
+    ((False, "PFE guid-a state is FAULT"), "PFE guid-a state is FAULT"),
+    (RuntimeError("mock probe failure"), "H2N probe failed: mock probe failure"),
+])
+async def test_wait_logs_each_probe_result_and_recovers_after_one_failure(
+        tmp_path, first_result, first_detail):
+    config = {
+        "sysfs_root": str(tmp_path), "wait_timeout": 1,
+        "probe_timeout": 0.2, "poll_interval": 0.01,
+        "healthy_stable_duration": 0,
+    }
+    with patch("ub_device_manager.domain.npu.h2n._probe", side_effect=[
+        first_result, (True, "All PFE links are healthy"),
+    ]) as mock_probe, patch("ub_device_manager.domain.npu.h2n.logger.debug") as mock_debug:
+        await wait_h2n_healthy(["guid-a"], config)
+
+    assert mock_probe.call_count == 2
+    assert mock_debug.call_count == 2
+    assert mock_debug.call_args_list[0].args[1:] == (1, False, ["guid-a"], first_detail)
+    assert mock_debug.call_args_list[1].args[1:] == (2, True, ["guid-a"], "All PFE links are healthy")
