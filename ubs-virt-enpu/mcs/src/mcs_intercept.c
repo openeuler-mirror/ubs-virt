@@ -118,7 +118,7 @@ static int mcs_do_init(int32_t dev_id)
         fprintf(stderr, "[MCS] init failed: cannot query physical aicore count (rtGetAiCoreCount/rtGetDeviceInfo)\n");
         return -1;
     }
-    LOG_INFO("Physical aicube=%ld, aivector=%ld, quota=%d%%", (long)physical_aicube, (long)physical_aivector,
+    LOG_INFO("Physical aicube=%ld, aivector=%ld, aicore-quota=%d%%", (long)physical_aicube, (long)physical_aivector,
              g_mcs_config.aicore_quota);
 
     /* Init device limits */
@@ -139,7 +139,7 @@ static int mcs_do_init(int32_t dev_id)
 
     LOG_INFO("Memory quota=%d MB", g_mcs_config.memory_quota);
 
-    LOG_INFO("Initialized vNPU %d, priority=%d, limited aicube=%d", g_vnpu_id, g_mcs_config.vnpu_priority,
+    LOG_INFO("Initialized vNPU %d, vnpu_priority=%d, limited aicube=%d", g_vnpu_id, g_mcs_config.vnpu_priority,
              mcs_get_limited_aicube());
 
     g_mcs_initialized = 1;
@@ -277,10 +277,10 @@ __attribute__((visibility("default"))) rtError_t rtGetAiCoreCount(uint32_t *aiCo
 }
 
 /* Helper: handle priority scheduling before kernel launch.
- * High priority increments the anti-starvation burst counter; normal
- * priority waits while a high-priority vNPU is active AND the burst counter
- * is below the limit (5ms idle rule unchanged), then consumes the
- * entitlement and resets the counter. See mcs_before_launch. */
+ * High priority advances the bounded anti-starvation counter. Each completed
+ * burst grants one independent pending launch to every normal-priority vNPU.
+ * When all high-priority vNPUs become idle, the count and pending grants are
+ * invalidated so resumed high-priority work starts a new scheduling cycle. */
 static inline void mcs_before_kernel_launch(void)
 {
     if (!g_mcs_initialized || g_mcs_state == NULL) {
