@@ -75,6 +75,7 @@ typedef enum
     RUNTIME_HOOK_ENUM(rtMemGetAllocationGranularity),
     RUNTIME_HOOK_ENUM(rtFree),
     RUNTIME_HOOK_ENUM(rtsCheckMemType),
+    RUNTIME_HOOK_ENUM(aclrtCheckMemTypeImpl),
     RUNTIME_HOOK_ENUM(rtMemcpyAsyncEx),
     RUNTIME_HOOK_ENUM(rtsMemcpyBatch),
     RUNTIME_HOOK_ENUM(rtsMemcpyBatchAsync),

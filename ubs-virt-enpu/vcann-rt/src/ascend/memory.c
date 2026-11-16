@@ -432,9 +432,47 @@ RUNTIME_HOOK_DEFINE(rtsCheckMemType, void **addrs, uint32_t size, uint32_t memTy
         swap_hook_t *swap_hook = swap_hook_get_global();
         int ret = swap_hook_check_and_swap_in(swap_hook);
         CHECK_RETURN_ERROR_CODE(ret, "Swap hook check failed when rtsCheckMemType.");
+        if (swap_hook != NULL && swap_hook->tracker != NULL && addrs != NULL) {
+            for (uint32_t i = 0; i < size; i++) {
+                if (addrs[i] != NULL && memory_tracker_find(swap_hook->tracker, addrs[i]) != NULL) {
+                    memType |= RT_MEM_MASK_RSVD_TYPE;
+                    break;
+                }
+            }
+        }
     }
 
     return RUNTIME_HOOK_CALL(rt_library_entry, rtsCheckMemType, addrs, size, memType, checkResult, reserve);
+}
+
+RUNTIME_HOOK_DEFINE(aclrtCheckMemTypeImpl, void **addrs, uint32_t size, uint32_t memType, uint32_t *checkResult,
+                    uint32_t reserve)
+{
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtCheckMemTypeImpl, addrs, size, memType, checkResult, reserve);
+    }
+
+    int res = log_init();
+    CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
+    pre_rt_init();
+    enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+                       "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
+
+    if (get_shm_state() != NULL) {
+        swap_hook_t *swap_hook = swap_hook_get_global();
+        int ret = swap_hook_check_and_swap_in(swap_hook);
+        CHECK_RETURN_ERROR_CODE(ret, "Swap hook check failed when aclrtCheckMemTypeImpl.");
+        if (swap_hook != NULL && swap_hook->tracker != NULL && addrs != NULL) {
+            for (uint32_t i = 0; i < size; i++) {
+                if (addrs[i] != NULL && memory_tracker_find(swap_hook->tracker, addrs[i]) != NULL) {
+                    memType |= RT_MEM_MASK_RSVD_TYPE;
+                    break;
+                }
+            }
+        }
+    }
+    return RUNTIME_HOOK_CALL(rt_library_entry, aclrtCheckMemTypeImpl, addrs, size, memType, checkResult, reserve);
 }
 
 RUNTIME_HOOK_DEFINE(rtMemcpyAsyncEx, void *dst, uint64_t destMax, const void *src, uint64_t cnt, rtMemcpyKind_t kind,

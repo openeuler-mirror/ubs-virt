@@ -42,6 +42,7 @@ rt_entry_t rt_library_entry[] = {
     {.name = "rtMemGetAllocationGranularity"}, // mem-swap 扩展符号
     {.name = "rtFree"},                        // mem-swap 扩展符号
     {.name = "rtsCheckMemType"},               // mem-swap 扩展符号
+    {.name = "aclrtCheckMemTypeImpl"},         // mem-swap 扩展符号
     {.name = "rtMemcpyAsyncEx"},               // mem-swap 扩展符号
     {.name = "rtsMemcpyBatch"},                // mem-swap 扩展符号
     {.name = "rtsMemcpyBatchAsync"},           // mem-swap 扩展符号
