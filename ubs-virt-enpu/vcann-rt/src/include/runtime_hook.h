@@ -71,6 +71,8 @@ typedef enum
     RUNTIME_HOOK_ENUM(rtUnmapMem),
     RUNTIME_HOOK_ENUM(rtMemcpy),
     RUNTIME_HOOK_ENUM(rtsPointerGetAttributes),
+    RUNTIME_HOOK_ENUM(rtPointerGetAttributes),
+    RUNTIME_HOOK_ENUM(aclrtPointerGetAttributesImpl),
     RUNTIME_HOOK_ENUM(rtMemcpyAsync),
     RUNTIME_HOOK_ENUM(rtMemGetAllocationGranularity),
     RUNTIME_HOOK_ENUM(rtFree),

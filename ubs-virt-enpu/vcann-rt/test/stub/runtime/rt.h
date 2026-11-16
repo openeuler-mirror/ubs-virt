@@ -431,6 +431,22 @@ typedef struct {
     uint32_t rsv[4];
 } rtPtrAttributes_t;
 
+typedef enum
+{
+    RT_MEMORY_TYPE_HOST = 1,
+    RT_MEMORY_TYPE_DEVICE = 2,
+    RT_MEMORY_TYPE_SVM = 3,
+    RT_MEMORY_TYPE_DVPP = 4,
+    RT_MEMORY_TYPE_USER = 5
+} rtMemoryType_t;
+
+typedef struct tagRtPointerAttributes {
+    rtMemoryType_t memoryType;
+    rtMemLocationType locationType;
+    uint32_t deviceID;
+    uint32_t pageSize;
+} rtPointerAttributes_t;
+
 typedef struct {
     rtMemLocation dstLoc;
     rtMemLocation srcLoc;
