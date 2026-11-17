@@ -17,21 +17,27 @@
 | CANN | 9.1.0 |
 | HDK  | 与CANN配套的驱动版本 |
 
-
 ### 主机侧环境配置
 
 主机侧通过`npu-smi`工具开启容器共享模式，可支持多个容器挂载同一设备。若设备未开启容器共享模式，则只能挂载到单个容器。若配合MindCluster使用，要求整节点开启容器共享模式。
 
-```bash
-# Atlas A2 推理系列产品：设置容器共享模式
-npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
+1. Atlas A2 推理系列产品：设置容器共享模式。
 
-# Atlas 950 SuperPoD 产品：设置容器共享模式
-npu-smi set -t device-share -i ${id} -d ${value}
+    ```shell
+    npu-smi set -t device-share -i ${id} -c ${chip_id} -d ${value}
+    ```
 
-# 查询设备容器共享模式
-npu-smi info -t device-share -i ${id}
-```
+2. Atlas 950 SuperPoD 产品：设置容器共享模式
+
+    ```shell
+    npu-smi set -t device-share -i ${id} -d ${value}
+    ```
+
+3. 查询设备容器共享模式
+
+    ```shell
+    npu-smi info -t device-share -i ${id}
+    ```
 
 **表 2 参数说明**
 
@@ -42,6 +48,7 @@ npu-smi info -t device-share -i ${id}
 |value|<ul>默认值：禁用<li>禁用(0)</li><li>使能(1)</li></ul>|容器共享模式使能状态。|
 
 示例：
+
 开启设备0所有芯片的容器共享模式，查询设备0容器共享模式。
 
   ```bash
@@ -123,7 +130,8 @@ vnpu_priority=0
 | shm-id | 是 | 共享内存标识                                           | 同一物理NPU上所有vNPU必须配置相同的shm-id，否则优先级调度不生效。                  |
 | vnpu_priority | 否 | <ul>默认0<li>0: 普通优先级</li><li>1: 高优先级</li></ul>    | 本vNPU的调度优先级；配置为其他值将导致MCS拒绝启动。 |
 
-此外，需要设置配置文件具有合适的权限，建议为644。
+> [!NOTE] 说明
+> 需要设置配置文件具有合适的权限，建议为644。
 
 ### 启动业务容器（docker方式部署）
 
@@ -160,13 +168,14 @@ docker run -it --name=${container_name} \
     ```bash
     export ENPU_LOG_LEVEL=3
     ```
-    日志级别由高到低分别是FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。默认日志级别为INFO，设置日志级别为DEBUG后，可在日志文件（日志文件路径：`/var/log/enpu/mcs/`）中查看DEBUG日志，屏显仅打印INFO及以上级别日志。
+    
+- 日志级别由高到低分别是FATAL(0)、ERROR(1)、WARN(2)、INFO(3)、DEBUG(4)。默认日志级别为INFO，设置日志级别为DEBUG后，可在日志文件（日志文件路径：`/var/log/enpu/mcs/`）中查看DEBUG日志，屏显仅打印INFO及以上级别日志。
 
-  - 在容器内可查询配置文件获取vNPU资源配额等信息：
+    在容器内可查询配置文件获取vNPU资源配额等信息：
 
-    ```bash
-    cat /etc/enpu/mcs/mcs_config.config
-    ```
+        ```bash
+        cat /etc/enpu/mcs/mcs_config.config
+        ```
 
 ## 环境变量汇总
 

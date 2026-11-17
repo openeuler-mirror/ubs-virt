@@ -58,7 +58,7 @@ Coverage threshold: **80% line coverage** (enforced by `coverage.sh`).
 
 ## Architecture
 
-```
+```text
 src/
 ├── ascend/      # LD_PRELOAD hooks (device, event, memory, kernel, task, graph)
 ├── tools/       # enpu-monitor tool

@@ -30,7 +30,7 @@ ub-device-manager 是 ubs-virt 项目中的 UB 设备管理组件，面向 NPU �
 | [配置文件说明](./docs/configuration.md) | 配置文件位置、默认配置、配置项含义和生效方法。 |
 | [普通虚拟机创建指导](./docs/vm_basics.md) | 基础 XML、镜像、网络、普通虚拟机创建，以及大页和 NUMA 配置。 |
 | [NPU 直通虚拟机 XML 配置指南](./docs/npu_passthrough_xml.md) | UB 直通设备与 SMBIOS Type 131 的 XML 配置，以及手动创建、验证和清理步骤。 |
-| [CLI 使用指导](docs/cli_userguide.md) | `ubdmctl` 命令、参数和使用示例。 |
+| [CLI 使用指导](./docs/cli_userguide.md) | `ubdmctl` 命令、参数和使用示例。 |
 | [HTTP API 使用指导](./docs/http_userguide.md) | HTTP 接口的调用方式、参数和示例。 |
 | [Python SDK 使用指导](./docs/sdk_userguide.md) | Python SDK 的使用方法和调用示例。 |
 | [设计说明](./docs/design.md) | 整体架构、HTTP/SDK/CLI 实现、UBSE 调用、XML 转换及创建与删除流程。 |

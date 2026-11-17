@@ -1,8 +1,8 @@
 # ub-device-manager 设计说明
 
-本文说明 ub-device-manager 的整体架构、框架选型、对外接口实现、UBS Engine（UBSE）调用，以及设备返回值到虚拟机 XML 的转换流程，供开发和维护人员理解当前实现。
+本文旨在阐述 ub-device-manager 的整体架构、框架选型、对外接口实现、UBS Engine（UBSE）调用，以及设备返回值到虚拟机 XML 的转换流程，以便开发和维护人员理解当前实现。
 
-本文以当前源码中的 NPU 与配套 Hi1825 网卡直通流程为主。服务同时注册了 SSU 应用，但SSU相关功能还在开发阶段，本文不展开讨论。NPU直通的操作步骤见[快速开始](./quick_start.md)，手动填写 XML 的方法见[NPU 直通虚拟机 XML 配置指南](./npu_passthrough_xml.md)。
+本文以当前源码中的 NPU 及其配套 Hi1825 网卡直通流程为主。虽然服务已注册 SSU 应用，但鉴于 SSU 相关功能还在开发阶段，本文暂不展开讨论。有关 NPU 直通的操作步骤参见[快速开始](./quick_start.md)，手动填写 XML 的方法可参见[NPU 直通虚拟机 XML 配置指南](./npu_passthrough_xml.md)。
 
 ## 1. 设计目标
 
@@ -32,7 +32,8 @@
 | Loguru、ContextVar | 输出日志，并在异步请求中传递请求标识和任务上下文。 |
 | systemd、TOML | 管理服务进程和运行参数。 |
 
-`AsyncTaskChain` 在当前 HTTP 请求内执行，接口等待任务完成后返回结果。它不是后台任务队列，不产生可供后续轮询的任务 ID，也没有持久化任务状态。
+> [!NOTE] 说明
+> `AsyncTaskChain` 在当前 HTTP 请求内执行，接口等待任务完成后返回结果。它并非后台任务队列，因此不产生可供后续轮询的任务 ID，也没有持久化任务状态的能力。
 
 ### 2.2 模块分工
 
@@ -51,7 +52,7 @@
 
 ### 3.1 HTTP 服务
 
-`run.py` 将 `common.factory:final_app` 交给 Uvicorn，监听 `/var/run/ub_device_manager/ub_device_manager.sock`。当前服务入口不配置 TCP 监听；HTTP 客户端中的主机名只是逻辑地址，实际通过 UDS 建立连接。
+`run.py` 将 `common.factory:final_app` 挂载到 Uvicorn，并监听 `/var/run/ub_device_manager/ub_device_manager.sock`。当前服务入口不配置 TCP 监听；HTTP 客户端中的主机名只是逻辑地址，实际通过 UDS 建立连接。
 
 `factory.py` 使用 `new_app.router.routes.extend(...)` 合并各业务应用的路由。NPU 和 VM 的主要接口如下：
 
@@ -63,9 +64,9 @@
 | `POST /vm/create` | XML 准备、设备绑定、XML 构建与启动任务链。 | 创建完成消息。 |
 | `DELETE /vm/{name}` | 虚拟机删除、设备解绑任务链。 | 删除完成消息。 |
 
-FastAPI 使用服务端 `app/models.py` 校验请求。任务层进一步校验 XML 输入二选一、设备 ID/数量互斥、重复 ID、允许数量以及设备是否空闲。当前 NPU 数量支持 1、2、4、8，UPI 范围为 `0x0001`～`0x0fff`。
+FastAPI 使用服务端 `app/models.py` 校验请求。任务层进一步校验 XML 输入二选一、设备 ID/数量互斥、重复 ID、允许数量以及设备是否空闲。当前 NPU 数量支持 1、2、4、8，UPI 范围为 `0x0001` ～ `0x0fff`。
 
-响应模型决定成功结果的 JSON 结构。异常处理器将 Pydantic 校验错误转换为 422，将业务 `HTTPException` 转换为对应状态码，将其他未处理异常转换为 500。当前异常响应体为 JSON 字符串，不统一包装成 `{code, msg}` 对象。响应头包含 `X-Request-ID` 和 `X-Process-Time`，用于关联日志和处理耗时。
+响应模型决定成功响应的 JSON 结构。异常处理器将 Pydantic 校验错误转换为 422，业务 `HTTPException` 转换为对应状态码，其他未处理异常转换为 500。当前异常响应体为 JSON 字符串，不统一包装成 `{code, msg}` 对象。响应头包含 `X-Request-ID` 和 `X-Process-Time`，用于关联日志和处理耗时。
 
 ### 3.2 Python SDK
 
@@ -96,9 +97,9 @@ CLI 读取程序目录内的 `openapi.yaml`，使用 YAML SafeLoader 解析，�
 
 `build_executor()` 使用 `inspect.Signature` 生成 Typer 可识别的函数签名。原始选项先作为字符串接收，再按契约转换为整数、布尔值、列表或对象；路径值填入 URL，查询值放入查询参数，请求体字段组成 JSON。未识别的额外参数会被拒绝。
 
-CLI 直接通过 HTTPX 访问服务，没有调用 Python SDK 函数。当前超时为 1200 秒。成功响应按数据形态展示为 Rich 表格或树；失败时显示 HTTP 状态和错误内容，并以非零退出码结束。`--verbose` 展示请求参数和更详细的错误信息。
+CLI 直接通过 HTTPX 访问服务，没有调用 Python SDK 函数。当前超时为 20 分钟。响应逻辑如下：成功响应依据数据形态展示为 Rich 表格或树；失败时显示 HTTP 状态和错误内容，并以非零退出码结束。`--verbose` 展示请求参数和更详细的错误信息。
 
-CLI 使用随包提供的静态 OpenAPI 文件，不会在启动时自动向服务端获取契约。新增接口或修改字段时，应同步维护服务端模型、`openapi.yaml`、SDK 和对应测试，避免客户端与服务端不一致。
+CLI 使用随包提供的静态 OpenAPI 文件，不会在启动时自动向服务端获取契约。因此，新增接口或修改字段时，应同步维护服务端模型、`openapi.yaml`、SDK 和对应测试，避免客户端与服务端不一致。
 
 ## 4. UBSE 接口与绑定结果的形成
 
@@ -135,19 +136,41 @@ CLI 使用随包提供的静态 OpenAPI 文件，不会在启动时自动向服�
 
 #### 内存与 NPU 亲和选择
 
-`POST /vm/create` 的 `affinity_policy` 只用于 `npu_count` 自动选卡。与 `npu_ids` 同传或未提供 `npu_count` 时，在读取 XML 和查询设备前返回 400；省略或传 `null` 时保持原有选卡行为。`POST /npu/bind` 不接收该参数。
+**接口参数**
 
-启用策略时，`VmMemoryAffinityParser` 要求基础内存全部使用大页，并明确绑定宿主 NUMA；`placement`、`mode` 分别按 `static`、`strict` 校验，省略属性时也按这两个值解析。`<devices><memory>` 附加内存设备不在当前解析范围内，启用策略时返回 400。
+- `POST /vm/create` 的 `affinity_policy` 只用于 `npu_count` 自动选卡。
+- 与 `npu_ids` 同传或未提供 `npu_count` 时，在读取 XML 和查询设备前返回 400。
+- 省略或传 `null` 时保持原有选卡行为。`POST /npu/bind` 不接收该参数。
 
-对每个虚拟机 NUMA 节点，优先采用其 `numatune/memnode`，否则采用通用的 `numatune/memory`；将实际采用的宿主 NUMA 编号去重，得到集合 **`N`**。每个内存单元可以绑定多个宿主 NUMA，允许跨 Socket；
+**内存配置校验**
+
+- 启用策略时，`VmMemoryAffinityParser` 要求基础内存全部使用大页，并明确绑定宿主 NUMA。
+- `placement`、`mode` 分别按 `static`、`strict` 校验，省略属性时也按这两个值解析。
+- `<devices><memory>` 附加内存设备不在当前解析范围内，启用策略时返回 400。
+
+**虚拟机 NUMA 内存绑定策略**
+
+对每个虚拟机 NUMA 节点，优先采用其 `numatune/memnode`，否则采用通用的 `numatune/memory`；将实际采用的宿主 NUMA 编号去重，得到集合 **`N`**。每个内存单元可以绑定多个宿主 NUMA，允许跨 Socket。
+
+**HostTopologyProvider 拓扑发现机制**
 
 `HostTopologyProvider` 从本次 UBSE 库存的每张 NPU 的 `affinity_devs` 中取得 `P_IDEV.device_id`（UB FE ID），读取 `/sys/bus/ub/devices/{FE ID}/numa`，将 `0x03` 等十六进制值转成宿主 NUMA 编号。再根据 `/sys/devices/system/cpu/cpu*/node*` 和 `topology/physical_package_id` 确定 NUMA 所属 Socket。
 
+**FE ID 标识与直通设备处理规则**
+
 FE ID 保留原字符串，不从 NPU ID 或 GUID 推算。直通 VFE 继承 FE 亲和关系，生成 XML 时仍使用待直通设备的 GUID。服务账户须能读取上述 sysfs 文件并遍历其目录。
 
-当前实现检查库存中的全部 NPU，包括已绑定设备：每张必须恰有一个 `P_IDEV`，其 NUMA 必须可读取并对应有效宿主节点；否则在分配前返回 503。Socket 无法确定时记为未知，`socket` 策略遇到内存节点 Socket 未知会选择失败。拓扑来自实时 UBSE 查询和 sysfs，无需 `npu-smi`、固定拓扑文件或数据库。
+**库存校验**
+
+当前实现检查库存中的全部 NPU，包括已绑定设备：
+
+- 每张必须恰有一个 `P_IDEV`，其 NUMA 必须可读取并对应有效宿主节点；否则在分配前返回 503。
+- Socket 无法确定时记为未知，`socket` 策略遇到内存节点 Socket 未知会选择失败。
+- 拓扑来自实时 UBSE 查询和 sysfs，无需 `npu-smi`、固定拓扑文件或数据库。
 
 将 `N` 中各宿主 NUMA 所属的已知 Socket 编号去重，得到集合 **`S`**。每张候选 NPU 的亲和 NUMA 来自其 FE，亲和 Socket 来自该 NUMA。选择前排除已绑定 NPU；`need_nic=True` 时还需排除没有空闲配套 NIC_VFE 的 NPU。
+
+**策略选择规则**
 
 | 策略 | 选择规则 |
 | --- | --- |
@@ -155,7 +178,14 @@ FE ID 保留原字符串，不从 NPU ID 或 GUID 推算。直通 VFE 继承 FE 
 | `socket` | 仅选亲和 Socket 属于 `S` 的 NPU。 |
 | `preferred` | 先选亲和 Socket 属于 `S` 的 NPU，不足时从其他空闲 NPU 补足；不额外优先亲和 NUMA 属于 `N` 的 NPU。 |
 
-各优先级内按设备 ID **字符串升序**选取；符合条件的设备不足返回 545，不保证各 NUMA 或 Socket 的 NPU 数量均衡。XML 内存绑定引用的宿主 NUMA 是否存在，也在选卡阶段校验；不存在时当前返回 545，应修正 XML 中的宿主 NUMA 编号。指定 `npu_ids` 时不接受亲和策略，仍按原流程检查设备与配套网卡。
+**排序与异常处理**
+
+- 各优先级内按设备 ID **字符串升序**选取。
+- 若符合条件的设备不足，返回 545，不保证各 NUMA 或 Socket 的 NPU 数量均衡。
+- XML 内存绑定引用的宿主 NUMA 是否存在，也在选卡阶段校验；不存在时当前返回 545，应修正 XML 中的宿主 NUMA 编号。
+- 当指定 `npu_ids` 时不接受亲和策略，仍按原流程检查设备与配套网卡。
+
+**配置示例**
 
 XML 配置示例见 [CLI 使用指导](./cli_userguide.md#可选内存亲和策略)。
 
@@ -205,11 +235,11 @@ IOMMUFD 标识 `1` 与 UBSE 返回的 `tid` 属于不同配置，不能互相替
 | 偏移 | 宿主字段 | XML 属性 |
 | --- | --- | --- |
 | `04h` | Flag | `flag` |
-| `05h`～`06h` | PodId | `pod_id` |
+| `05h` ～ `06h` | PodId | `pod_id` |
 | `07h` | SlotId | `slot_id` |
 | `08h` | Mesh_Type | `mesh_type` |
-| `09h`～`0Ch` | SuperPodId | `super_pod_id` |
-| `0Dh`～`0Eh` | ServedIndex | `served_index` |
+| `09h` ～ `0Ch` | SuperPodId | `super_pod_id` |
+| `0Dh` ～ `0Eh` | ServedIndex | `served_index` |
 
 `type_name` 固定为 `UB INFO`。`VmXmlBuilder` 将这些属性写入 `sysinfo/type131/entry`，并将 `os/smbios/@mode` 设为 `sysinfo`；已有 SMBIOS `sysinfo` 时保留其他条目，只更新 Type 131。客体内仍需读取 Type 131 核对结果。
 

@@ -2,7 +2,7 @@
 
 ## 1. 环境要求
 
-本文命令默认使用 root 用户执行，适用于使用 Python 3.11 构建的 RPM 软件包。
+本文命令默认使用 root 用户执行，适用于使用 Python 3.11 构建的 RPM。
 
 | 项目                | 要求                                                                           |
 |-------------------|------------------------------------------------------------------------------|
@@ -11,11 +11,11 @@
 | 架构                | aarch64                                                                      |
 | Python            | Python 3.11                                                                  |
 | 软件包               | `ub-device-manager-*.aarch64.rpm`                                            |
-| 依赖软件              | `libvirt虚拟化组件`, `qemu虚拟化组件`, `python3-libvirt`, `edk2-aarch64`, `ubs-engine` |
+| 依赖软件              | `libvirt虚拟化组件`, `QEMU虚拟化组件`, `python3-libvirt`, `edk2-aarch64`, `ubs-engine` |
 
-使用前，需要安装可用的 UBS Engine、支持 UB 直通的配套虚拟化组件 Qemu，Libvirt等。
+使用前，需安装可用的 UBS Engine、支持 UB 直通的配套虚拟化组件 QEMU、libvirt等。
 
-请确保上述环境满足要求。本文介绍 ub-device-manager 及其依赖的安装，产品配套驱动和操作系统的安装请参阅相应文档。
+请确保上述环境满足要求。本文主要介绍 ub-device-manager 及其依赖的安装，关于产品配套驱动和操作系统的具体安装步骤，请参阅相关文档。
 
 ## 2. 检查并安装依赖
 
@@ -28,8 +28,10 @@
 ```bash
 rpm -q qemu libvirt python3-libvirt libvirt-client libvirt-devel
 ```
+
 回显示例：
-```text
+
+```output
 qemu-8.2.0-93.oe2403sp3.aarch64
 libvirt-9.10.0-45.oe2403sp4.aarch64
 python3-libvirt-9.10.0-2.oe2403sp4.aarch64
@@ -44,8 +46,10 @@ libvirt-devel-9.10.0-45.oe2403sp4.aarch64
 ```bash
 rpm -q ubs-engine ubs-engine-client-libs python3-ubs-engine ipmitool
 ```
+
 回显示例：
-```text
+
+```output
 ubs-engine-1.0.1-1.aarch64
 ubs-engine-client-libs-1.0.1-1.aarch64
 python3-ubs-engine-1.0.1-1.noarch
@@ -53,192 +57,220 @@ ipmitool-1.8.18-24.oe2403sp4.aarch64
 ```
 
 #### 2.1.3 检查基础工具
+
 检查必要的基础工具是否安装，执行以下命令：
+
 ```bash
 rpm -q sudo dmidecode
 ```
 
 回显示例：
-```text
+
+```output
 sudo-1.9.15p5-8.oe2403sp4.aarch64
 dmidecode-3.5-4.oe2403sp4.aarch64
 ```
 
 #### 2.1.4 检查 Python 依赖
-执行以下命令，检查ub-device-manager的python依赖是否安装：
-```bash
-python3.11 -c \
-"import fastapi, uvicorn, pydantic, loguru, httpx, typer, rich, yaml, defusedxml; print('Python dependencies available')"
-```
-回显中打印'Python dependencies available'，则说明python依赖已安装
 
-说明：如果2.1.1-2.1.4的检查完成后，均满足要求，则跳过2.2章节，否则，执行2.2章节操作，补齐依赖。
+1. 执行以下命令，检查ub-device-manager的Python依赖是否安装：
+
+    ```bash
+    python3.11 -c \
+    "import fastapi, uvicorn, pydantic, loguru, httpx, typer, rich, yaml, defusedxml; print('Python dependencies available')"
+    ```
+
+2. 回显中打印'Python dependencies available'，则说明Python依赖已安装。
+
+> [!NOTE] 说明
+> 如果2.1.1 ~ 2.1.4的检查完成后，均满足要求，则跳过2.2章节，否则，执行2.2章节操作，补齐依赖。
 
 ### 2.2 安装依赖
 
 #### 2.2.1 配置 openEuler 软件源
 
-编辑软件源配置文件：
+1. 编辑软件源配置文件：
 
-```bash
-vi /etc/yum.repos.d/openEuler.repo
-```
+    ```bash
+    vi /etc/yum.repos.d/openEuler.repo
+    ```
 
-写入以下内容：
+2. 写入以下内容：
 
-```ini
-[openEuler-everything]
-name=openEuler-everything
-baseurl=http://repo.openeuler.org/openEuler-24.03-LTS-SP4/everything/aarch64/
-enabled=1
-gpgcheck=0
+    ```ini
+    [openEuler-everything]
+    name=openEuler-everything
+    baseurl=http://repo.openeuler.org/openEuler-24.03-LTS-SP4/everything/aarch64/
+    enabled=1
+    gpgcheck=0
 
-[openEuler-EPOL]
-name=openEuler-epol
-baseurl=http://repo.openeuler.org/openEuler-24.03-LTS-SP4/EPOL/main/aarch64/
-enabled=1
-gpgcheck=0
+    [openEuler-EPOL]
+    name=openEuler-epol
+    baseurl=http://repo.openeuler.org/openEuler-24.03-LTS-SP4/EPOL/main/aarch64/
+    enabled=1
+    gpgcheck=0
 
-[openEuler-update]
-name=openEuler-update
-baseurl=http://repo.openeuler.org/openEuler-24.03-LTS-SP4/update/aarch64/
-enabled=1
-gpgcheck=0
-```
+    [openEuler-update]
+    name=openEuler-update
+    baseurl=http://repo.openeuler.org/openEuler-24.03-LTS-SP4/update/aarch64/
+    enabled=1
+    gpgcheck=0
+    ```
 
-编辑完成并保存后，执行以下命令，重新建立软件源缓存：
-```bash
-dnf clean all
-dnf makecache
-```
+3. 编辑完成并保存后，执行以下命令，重新建立软件源缓存：
+
+    ```bash
+    dnf clean all
+    dnf makecache
+    ```
 
 #### 2.2.2 安装虚拟化组件
-执行以下命令，进行虚拟化libvirt，qemu，python3-libvirt，edk2-aarch64的安装
-```bash
-dnf install -y  qemu* libvirt* python3-libvirt edk2-aarch64
-```
 
-编辑 libvirt 配置文件：
+1. 执行以下命令，进行虚拟化libvirt、QEMU、python3-libvirt、edk2-aarch64的安装：
 
-```bash
-vi /etc/libvirt/libvirtd.conf
-```
+    ```bash
+    dnf install -y  qemu* libvirt* python3-libvirt edk2-aarch64
+    ```
 
-将 `auth_unix_rw` 设置为 `"none"`。若已有该配置项，修改原配置并取消注释，避免重复添加：
+2. 编辑 libvirt 配置文件：
 
-```ini
-auth_unix_rw = "none"
-```
+    ```bash
+    vi /etc/libvirt/libvirtd.conf
+    ```
 
-该配置关闭本地 Unix 读写 Socket 的连接认证；
-保存后重启 libvirtd 使配置生效；
+3. 将 `auth_unix_rw` 设置为 `"none"`。若已有该配置项，修改原配置并取消注释，避免重复添加。该配置用于关闭本地 Unix 读写 Socket 的连接认证。
 
-```bash
-systemctl restart libvirtd
-```
-验证基本功能，执行以下virsh命令：
-```bash
-virsh list --all
-```
-检查Libvirtd服务状态：
-```bash
-systemctl status libvirtd
-```
-服务状态为active (running)时，说明Libvirtd正常启动完成
+    ```ini
+    auth_unix_rw = "none"
+    ```
+
+4. 保存后重启 libvirtd 使配置生效；
+
+    ```bash
+    systemctl restart libvirtd
+    ```
+
+5. 验证基本功能，执行以下virsh命令：
+
+    ```bash
+    virsh list --all
+    ```
+
+6. 检查libvirtd服务状态，服务状态为active (running)时，说明libvirtd正常启动完成。
+
+    ```bash
+    systemctl status libvirtd
+    ```
 
 #### 2.2.3 安装 UBS Engine
 
-安装 UBS Engine 及相关依赖,执行以下命令：
+安装 UBS Engine 及相关依赖，执行以下命令：
 
 ```bash
 export ENABLE_AI=true
 env ENABLE_AI=true dnf install -y ubs-engine
 dnf install -y ubs-engine-client-libs python3-ubs-engine ipmitool
 ```
-UBS Engine 的访问授权在安装 ub-device-manager RPM、创建服务账户后配置，见第 3.3 节。
+
+UBS Engine 的访问授权在安装 ub-device-manager RPM、创建服务账户后配置，参见[配置 UBS Engine 访问权限](#33-配置-ubs-engine-访问权限)。
 
 #### 2.2.4 安装基础工具
-执行以下命令，下载dmidecode相关工具：
-```bash
-dnf install -y sudo dmidecode
-```
-执行以下命令，验证基本功能：
-```bash
-sudo dmidecode -t 131
-```
-确保命令有回显，且且回显字段的Header and Data内容中，第5个字节为00,而非FF;
-回显示例：
-```text
-# sudo dmidecode -t 131
-# dmidecode 3.5
-Getting SMBIOS data from sysfs.
-SMBIOS 3.6.0 present.
-# SMBIOS implementations newer than version 3.5.0 are not
-# fully supported by this version of dmidecode.
 
-Handle 0x0032, DMI type 131, 77 bytes
-OEM-specific Type
-	Header and Data:
-		83 4D 32 00 00 FF FF FF 08 02 00 00 00 FF FF 01
-		00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-		00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-		00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
-		00 00 00 00 00 00 00 00 00 00 00 00 00
-	Strings:
-		UB INFO
-```
-回显示例中，Header and Data内容中，第5个字节为00，说明
-说明：smbios中的Header and Data，第5个字节为Flag字段，表示BMC获取情况，00表示获取成功，FF表示获取失败，需保证BMC获取成功，否则会影响后续NPU直通虚拟机流程；
+1. 执行以下命令，安装dmidecode相关工具：
+
+    ```bash
+    dnf install -y sudo dmidecode
+    ```
+
+2. 执行以下命令，验证基本功能：
+
+    ```bash
+    sudo dmidecode -t 131
+    ```
+
+3. 确保命令有回显，且回显字段的Header and Data内容中，第5个字节为00，而非FF。
+
+    回显示例：
+
+    ```output
+    # sudo dmidecode -t 131
+    # dmidecode 3.5
+    Getting SMBIOS data from sysfs.
+    SMBIOS 3.6.0 present.
+    # SMBIOS implementations newer than version 3.5.0 are not
+    # fully supported by this version of dmidecode.
+
+    Handle 0x0032, DMI type 131, 77 bytes
+    OEM-specific Type
+        Header and Data:
+        83 4D 32 00 00 FF FF FF 08 02 00 00 00 FF FF 01
+        00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+        00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+        00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+        00 00 00 00 00 00 00 00 00 00 00 00 00
+        Strings:
+        UB INFO
+    ```
+
+    > [!NOTE] 说明
+    >
+    > - 回显示例中，Header and Data内容中，第5个字节为00。
+    > - smbios中的Header and Data，第5个字节为Flag字段，表示BMC获取情况，00表示获取成功，FF表示获取失败，需保证BMC获取成功，否则会影响后续NPU直通虚拟机流程。
 
 #### 2.2.5 安装 Python 依赖
-执行以下命令，下载ub-device-manager运行所需要的python依赖
-```bash
-python3.11 -m pip install -i https://pypi.org/simple \
-  'fastapi>=0.115,<1' \
-  'uvicorn>=0.30,<1' \
-  'pydantic>=2.7,<3' \
-  'loguru>=0.7,<1' \
-  'httpx>=0.27,<1' \
-  'typer>=0.12,<1' \
-  'rich>=13,<15' \
-  'PyYAML>=6,<7' \
-  'defusedxml>=0.7,<1'
-```
-执行以下命令：
-```bash
-python3.11 -c \
-"import fastapi, uvicorn, pydantic, loguru, httpx, typer, rich, yaml, defusedxml; print('Python dependencies available')"
-```
-若回显有'Python dependencies available'，说明python依赖安装完成
+
+1. 执行以下命令，下载ub-device-manager运行所需要的Python依赖：
+
+    ```bash
+    python3.11 -m pip install -i https://pypi.org/simple \
+      'fastapi>=0.115,<1' \
+      'uvicorn>=0.30,<1' \
+      'pydantic>=2.7,<3' \
+      'loguru>=0.7,<1' \
+      'httpx>=0.27,<1' \
+      'typer>=0.12,<1' \
+      'rich>=13,<15' \
+      'PyYAML>=6,<7' \
+      'defusedxml>=0.7,<1'
+    ```
+
+2. 安装完成后，执行以下命令验证依赖是否安装成功：
+
+    ```bash
+    python3.11 -c \
+    "import fastapi, uvicorn, pydantic, loguru, httpx, typer, rich, yaml, defusedxml; print('Python dependencies available')"
+    ```
+
+3. 若回显有'Python dependencies available'，说明Python依赖安装完成。
 
 ## 3. 安装软件包
 
 ### 3.1 安装 RPM
 
-进入 ub-device-manager RPM 软件包所在目录，查看待安装的软件包：
+1. 进入 ub-device-manager RPM 软件包所在目录，查看待安装的软件包：
 
-```bash
-ls -lh ub-device-manager-*.aarch64.rpm
-```
+    ```bash
+    ls -lh ub-device-manager-*.aarch64.rpm
+    ```
 
-确保匹配到的文件为本次需要安装的目标版本，然后执行：
+2. 确保匹配到的文件为本次需要安装的目标版本，然后执行该操作：
 
-```bash
-rpm -ivh ub-device-manager-*.aarch64.rpm
-```
+    ```bash
+    rpm -ivh ub-device-manager-*.aarch64.rpm
+    ```
 
-检查安装结果：
+3. 检查安装结果：
 
-```bash
-rpm -q ub-device-manager
-```
+    ```bash
+    rpm -q ub-device-manager
+    ```
 
-安装过程会完成以下操作：
+4. 安装过程会完成以下操作：
 
-- 创建服务账户和用户组 `ub-device-manager`。
-- 安装服务端、CLI 和 Python SDK。
-- 安装配置文件、systemd 服务文件和 SMBIOS 读取授权文件。
-- 设置服务开机自启动，但不立即启动服务。
+   - 创建服务账户和用户组 `ub-device-manager`。
+   - 安装服务端、CLI 和 Python SDK。
+   - 安装配置文件、systemd 服务文件和 SMBIOS 读取授权文件。
+   - 设置服务开机自启动，但不立即启动服务。
 
 ### 3.2 安装路径
 
@@ -255,35 +287,35 @@ rpm -q ub-device-manager
 
 ### 3.3 配置 UBS Engine 访问权限
 
-以下步骤在安装 ub-device-manager RPM 后执行。即使依赖已经安装、跳过了第 2.2 节，也需要检查本节授权配置。
+以下步骤在安装 ub-device-manager RPM 后执行。即使依赖已经安装、跳过了[安装依赖](#22-安装依赖)，也需要检查本节授权配置。
 
-将 `ub-device-manager` 服务账户加入 `ubse` 组：
+1. 将 `ub-device-manager` 服务账户加入 `ubse` 组：
 
-```bash
-usermod -aG ubse ub-device-manager
-id ub-device-manager
-```
+    ```bash
+    usermod -aG ubse ub-device-manager
+    id ub-device-manager
+    ```
 
-编辑 UBS Engine 权限配置文件：
+2. 编辑 UBS Engine 权限配置文件：
 
-```bash
-vi /etc/ubse/ubse_auth_default.conf
-```
+    ```bash
+    vi /etc/ubse/ubse_auth_default.conf
+    ```
 
-在已有的 `[auth.user.default]` 配置段中添加以下内容；如果已存在该用户，应检查并修改原配置，避免重复添加：
+3. 在已有的 `[auth.user.default]` 配置段中添加以下内容；如果已存在该用户，应检查并修改原配置，避免重复添加：
 
-```ini
-ub-device-manager = default_op
-```
+    ```ini
+    ub-device-manager = default_op
+    ```
 
-保留其他用户的原有配置。等待正在执行的 UBS Engine 业务操作结束后，重启服务使授权生效：
+4. 保留其他用户的原有配置。等待正在执行的 UBS Engine 业务操作结束后，重启服务使授权生效：
 
-```bash
-systemctl restart ubse
-systemctl status ubse --no-pager
-```
+    ```bash
+    systemctl restart ubse
+    systemctl status ubse --no-pager
+    ```
 
-确认状态为 `active (running)`，再启动或重启 ub-device-manager，使服务进程使用更新后的用户组权限。
+5. 确认状态为 `active (running)`，再启动或重启 ub-device-manager，使服务进程使用更新后的用户组权限。
 
 ## 4. 启动并验证
 
@@ -302,7 +334,8 @@ systemctl restart ub-device-manager
 systemctl status ub-device-manager --no-pager
 ```
 
-若状态为 `active (running)`，说明服务进程正在运行。
+> [!NOTE] 说明
+> 若状态为 `active (running)`，说明服务进程正在运行。
 
 ### 4.3 验证 NPU 查询功能
 
@@ -334,7 +367,7 @@ ubdmctl npu list
 
 本文采用先卸载旧版本、再安装新版本的方式进行升级。
 
-升级前，等待正在执行的虚拟机创建、删除和设备操作结束，并按需备份配置和日志。
+升级前，请确保正在执行的虚拟机创建、删除和设备操作已完成，并按需备份配置和日志。
 
 ### 5.1 卸载旧版本
 
@@ -378,7 +411,7 @@ ubdmctl npu list
 
 卸载前，等待正在执行的操作结束，并按需备份配置和日志。
 
-卸载软件包不会自动删除虚拟机、虚拟机磁盘或释放已绑定的 UB 设备。如果不再使用这些业务资源，应在卸载前通过 ub-device-manager 完成删除和解绑，避免资源长期占用。
+软件包卸载不会自动删除虚拟机、虚拟机磁盘或释放已绑定的 UB 设备。如果不再使用这些业务资源，应在卸载前通过 ub-device-manager 完成删除和解绑，避免资源长期占用。
 
 仅通过 `virsh` 取消 NPU 直通虚拟机的定义，不会调用 UBSE 释放其设备绑定。需要通过 ub-device-manager 的虚拟机删除流程完成虚拟机删除和相关设备解绑；如果已通过其他方式取消定义，则需要另行执行设备解绑。
 
@@ -394,4 +427,5 @@ rpm -e ub-device-manager
 rpm -q ub-device-manager
 ```
 
-卸载成功后，会提示该软件包未安装。
+> [!NOTE] 说明
+> 卸载成功后，会提示该软件包未安装。

@@ -10,7 +10,8 @@ ubs-virt-enpu提供NPU分时/分核算力切分、vNPU资源管理和显存超�
 2. MCS (Multi-container Sharing)：以so形式加载到业务进程，负责算力分核共享，控制各容器可使用的AI Core核数不超过其配额，实现多容器分核共享一张物理NPU；同时根据显存资源配额信息进行显存控制。
 3. eNPU Manager：独立进程，提供vNPU资源管理和显存超分服务，配合vCANN-RT实现冷模型换出/换入，提升显存利用率。
 
-> 说明：vCANN-RT和MCS为两种不同的算力切分方案，部署时只能二选一；当前eNPU Manager仅支持配合vCANN-RT使用，暂不支持MCS模式。
+> [!NOTE] 说明
+> vCANN-RT和MCS为两种不同的算力切分方案，部署时只能二选一；当前eNPU Manager仅支持配合vCANN-RT使用，暂不支持MCS模式。
 
 ## 使用说明
 
