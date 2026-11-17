@@ -136,6 +136,30 @@ int get_mem_used(size_t *used)
     return ENPU_SUCCESS;
 }
 
+uint64_t get_vnpu_swapped_size(void)
+{
+    shm_state_t *state = get_shm_state();
+    if (state == NULL) {
+        return 0;
+    }
+    vnpu_shm_entry_t *entry = shm_get_entry(state, get_vnpu_id());
+    if (entry == NULL) {
+        return 0;
+    }
+
+    /* 汇总本 vNPU 当前已换出到主机内存的字节数. 仅统计 swapped==true 的活跃槽位:
+     * swap_size 在换入完成后仍保留(作为 swap buffer 已分配标记), 不能计入 */
+    uint64_t total = 0;
+    for (int i = 0; i < MAX_PROCESSES_PER_VNPU; i++) {
+        process_entry_t *pe = &entry->processes[i];
+        if (!atomic_load(&pe->active) || !atomic_load(&pe->swapped)) {
+            continue;
+        }
+        total += pe->swap_size;
+    }
+    return total;
+}
+
 int enpu_config_info_init()
 {
     CHECK_RETURN_RANGE_INT(config.phy_npu_id, 0, MAX_NPU_ID);
