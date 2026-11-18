@@ -12,6 +12,7 @@
 
 #include "rest_api.h"
 #include <cjson/cJSON.h>
+#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
@@ -69,6 +70,7 @@ static int send_response(int client_fd, int status, const char *body);
 static int send_typed_response(int client_fd, int status, const char *body, const char *content_type);
 static int route_request(rest_api_server_t *server, const char *method, const char *path, const char *body,
                          char *response);
+static int update_config_route(enpu_manager_t *mgr, const char *path, const char *body, char *response);
 
 static char *format_devices_json(enpu_manager_t *mgr);
 static char *format_device_json(enpu_manager_t *mgr, int phy_id);
@@ -760,6 +762,90 @@ static int parse_release_query(const char *query, char *pod, size_t pod_size, ch
     return pod[0] && container[0] ? 0 : -1;
 }
 
+static int config_error_response(char *response, int status, const char *message)
+{
+    (void)snprintf_s(response, REST_RESPONSE_SIZE, REST_RESPONSE_SIZE - 1,
+                     "{\"error\":\"%s\",\"result\":%d}", message, ENPU_FAIL);
+    return status;
+}
+
+static int update_config_route(enpu_manager_t *mgr, const char *path, const char *body, char *response)
+{
+    const char *key = NULL;
+    if (strcmp(path, "/api/v1/config/watermark") == 0) {
+        key = "swap-pre-watermark";
+    } else if (strcmp(path, "/api/v1/config/share-strategy") == 0) {
+        key = "share-strategy";
+    } else if (strcmp(path, "/api/v1/config/log-level") == 0) {
+        key = "log_level";
+    } else {
+        return config_error_response(response, HTTP_STATUS_NOT_FOUND, "Unknown config endpoint");
+    }
+
+    if (body == NULL) {
+        return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Invalid JSON body");
+    }
+    const char *end = NULL;
+    cJSON *root = cJSON_ParseWithLengthOpts(body, strlen(body), &end, 0);
+    if (root == NULL) {
+        return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Invalid JSON body");
+    }
+    while (end != NULL && isspace((unsigned char)*end)) {
+        end++;
+    }
+    if (end == NULL || *end != '\0' || !cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Invalid JSON body");
+    }
+
+    cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "value");
+    char value[MAX_NAME_LEN] = {0};
+    bool immediate = strcmp(key, "log_level") != 0;
+    if (strcmp(key, "swap-pre-watermark") == 0) {
+        if (!cJSON_IsNumber(item) || !isfinite(item->valuedouble) || item->valuedouble < 1 ||
+            item->valuedouble > 100 || item->valuedouble != (double)item->valueint) {
+            cJSON_Delete(root);
+            return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Watermark must be an integer from 1 to 100");
+        }
+        (void)snprintf_s(value, sizeof(value), sizeof(value) - 1, "%d", item->valueint);
+    } else {
+        if (!cJSON_IsString(item) || item->valuestring == NULL || strlen(item->valuestring) >= sizeof(value)) {
+            cJSON_Delete(root);
+            return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "value must be a supported string");
+        }
+        if (strcmp(key, "share-strategy") == 0 && strcmp(item->valuestring, "compact") != 0 &&
+            strcmp(item->valuestring, "anti-fragment") != 0) {
+            cJSON_Delete(root);
+            return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Unsupported share strategy");
+        }
+        if (strcmp(key, "log_level") == 0 && strcmp(item->valuestring, "debug") != 0 &&
+            strcmp(item->valuestring, "info") != 0 && strcmp(item->valuestring, "warn") != 0 &&
+            strcmp(item->valuestring, "error") != 0 && strcmp(item->valuestring, "fatal") != 0) {
+            cJSON_Delete(root);
+            return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Unsupported log level");
+        }
+        (void)strncpy_s(value, sizeof(value), item->valuestring, strlen(item->valuestring));
+    }
+    cJSON_Delete(root);
+
+    if (enpu_config_update_value(ENPU_CONFIG_DEFAULT_PATH, key, value) != ENPU_SUCCESS) {
+        return config_error_response(response, HTTP_STATUS_INTERNAL_ERROR, "Unable to update config file");
+    }
+    int result = ENPU_SUCCESS;
+    if (strcmp(key, "swap-pre-watermark") == 0) {
+        result = enpu_manager_set_swap_pre_watermark(mgr, atoi(value));
+    } else if (strcmp(key, "share-strategy") == 0) {
+        result = enpu_manager_set_share_strategy(mgr, value);
+    }
+    if (result != ENPU_SUCCESS) {
+        return config_error_response(response, HTTP_STATUS_INTERNAL_ERROR,
+                                     "Config saved but runtime update failed; restart required");
+    }
+    (void)snprintf_s(response, REST_RESPONSE_SIZE, REST_RESPONSE_SIZE - 1,
+                     "{\"result\":0,\"restart_required\":%s}", immediate ? "false" : "true");
+    return HTTP_STATUS_OK;
+}
+
 static int route_request(rest_api_server_t *server, const char *method, const char *path, const char *body,
                          char *response)
 {
@@ -774,6 +860,13 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
                          "{\"error\":\"Manager not initialized\",\"result\":%d}", ENPU_FAIL);
         CHECK_COND_LOG_(ret < 0, "snprintf_s response failed.");
         return HTTP_STATUS_INTERNAL_ERROR;
+    }
+
+    if (strncmp(path, "/api/v1/config/", strlen("/api/v1/config/")) == 0) {
+        if (strcmp(method, "PUT") != 0) {
+            return config_error_response(response, HTTP_STATUS_METHOD_NOT_ALLOWED, "PUT required");
+        }
+        return update_config_route(mgr, path, body, response);
     }
 
     if (strcmp(method, "GET") == 0 && strcmp(path, "/api/v1/devices") == 0) {

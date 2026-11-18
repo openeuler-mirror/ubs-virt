@@ -213,6 +213,19 @@ static int share_strategy_from_str(const char *s)
     return 0;
 }
 
+int npu_allocator_set_share_strategy(npu_allocator_t *a, const char *strategy)
+{
+    if (a == NULL || strategy == NULL ||
+        (strcmp(strategy, "compact") != 0 && strcmp(strategy, "anti-fragment") != 0)) {
+        return ENPU_INVALID_PARAM;
+    }
+    pthread_mutex_lock(&a->lock);
+    evaluator_share_set_strategy(share_strategy_from_str(strategy));
+    alloc_copy_str(a->share_strategy, sizeof(a->share_strategy), strategy);
+    pthread_mutex_unlock(&a->lock);
+    return ENPU_SUCCESS;
+}
+
 int npu_allocator_init(npu_allocator_t *a)
 {
     CHECK(a, ENPU_INVALID_PARAM);

@@ -472,6 +472,24 @@ enpu-manager 通过 HTTP over Unix Domain Socket 接收请求，默认 socket �
 | `/api/v1/swap/force-out` | POST | 强制换出指定 Pod。 |
 | `/api/v1/swap/force-in` | POST | 强制换入指定 Pod。 |
 | `/api/v1/clean`                       | DELETE | 清理当前所有 vNPU 分配。                    |
+| `/api/v1/config/watermark`            | PUT    | 更新 `swap-pre-watermark`，立即生效。       |
+| `/api/v1/config/share-strategy`       | PUT    | 更新 `share-strategy`，立即影响后续分配。   |
+| `/api/v1/config/log-level`            | PUT    | 更新 `log_level`，重启服务后生效。          |
+
+### 更新服务配置
+
+三个接口都使用 JSON 正文 `{"value":...}`，修改 `/etc/enpu/enpu-manager.conf` 中对应的字段，并保留文件中的其他配置与注释。仅允许连接 manager Unix socket 的用户调用。
+
+```bash
+curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/config/watermark \
+  -H 'Content-Type: application/json' -d '{"value":85}'
+curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/config/share-strategy \
+  -H 'Content-Type: application/json' -d '{"value":"anti-fragment"}'
+curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/config/log-level \
+  -H 'Content-Type: application/json' -d '{"value":"debug"}'
+```
+
+水线只接受 1～100 的整数；分配策略只接受 `compact` 或 `anti-fragment`；日志级别只接受 `debug`、`info`、`warn`、`error` 或 `fatal`。成功响应包含 `result=0` 和 `restart_required`：水线及分配策略为 `false`，日志级别为 `true`。修改日志级别后需重启服务。其他配置项继续通过配置文件及服务重启修改。
 
 ### 分配 vNPU
 

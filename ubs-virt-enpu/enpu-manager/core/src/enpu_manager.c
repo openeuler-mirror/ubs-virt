@@ -528,6 +528,24 @@ char *enpu_manager_get_config_path(enpu_manager_t *mgr, const char *allocation_i
     return config_manager_get_config_path(mgr->allocator->config_mgr, allocation_id, path, path_size);
 }
 
+int enpu_manager_set_swap_pre_watermark(enpu_manager_t *mgr, int percent)
+{
+    if (mgr == NULL || percent < 1 || percent > 100) {
+        return ENPU_INVALID_PARAM;
+    }
+    /* A node with swap disabled has no resolver; the saved value applies if swap is enabled later. */
+    return mgr->swap_resolver == NULL ? ENPU_SUCCESS :
+                                       swap_resolver_set_pre_swap_watermark(mgr->swap_resolver, percent);
+}
+
+int enpu_manager_set_share_strategy(enpu_manager_t *mgr, const char *strategy)
+{
+    if (mgr == NULL || mgr->allocator == NULL) {
+        return ENPU_FAIL;
+    }
+    return npu_allocator_set_share_strategy(mgr->allocator, strategy);
+}
+
 int enpu_manager_swap_control(enpu_manager_t *mgr, const char *pod_uid, swap_action_t action)
 {
     CHECK_NULL_RET(mgr, ENPU_INVALID_PARAM);
