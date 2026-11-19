@@ -215,8 +215,10 @@ static int share_strategy_from_str(const char *s)
 
 int npu_allocator_set_share_strategy(npu_allocator_t *a, const char *strategy)
 {
-    if (a == NULL || strategy == NULL ||
-        (strcmp(strategy, "compact") != 0 && strcmp(strategy, "anti-fragment") != 0)) {
+    if (a == NULL || strategy == NULL) {
+        return ENPU_INVALID_PARAM;
+    }
+    if (strcmp(strategy, "compact") != 0 && strcmp(strategy, "anti-fragment") != 0) {
         return ENPU_INVALID_PARAM;
     }
     pthread_mutex_lock(&a->lock);

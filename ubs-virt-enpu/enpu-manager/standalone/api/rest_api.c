@@ -764,8 +764,8 @@ static int parse_release_query(const char *query, char *pod, size_t pod_size, ch
 
 static int config_error_response(char *response, int status, const char *message)
 {
-    (void)snprintf_s(response, REST_RESPONSE_SIZE, REST_RESPONSE_SIZE - 1,
-                     "{\"error\":\"%s\",\"result\":%d}", message, ENPU_FAIL);
+    const char *format = "{\"error\":\"%s\",\"result\":%d}";
+    (void)snprintf_s(response, REST_RESPONSE_SIZE, REST_RESPONSE_SIZE - 1, format, message, ENPU_FAIL);
     return status;
 }
 
@@ -809,10 +809,13 @@ static int update_config_route(enpu_manager_t *mgr, const char *body, char *resp
     char value[MAX_NAME_LEN] = {0};
     bool immediate = strcmp(key, "log_level") != 0;
     if (strcmp(key, "swap-pre-watermark") == 0) {
-        if (!cJSON_IsNumber(item) || !isfinite(item->valuedouble) || item->valuedouble < 1 ||
-            item->valuedouble > 100 || item->valuedouble != (double)item->valueint) {
+        bool invalid_number = !cJSON_IsNumber(item) || !isfinite(item->valuedouble);
+        bool invalid_range = !invalid_number && (item->valuedouble < 1 || item->valuedouble > 100);
+        bool invalid_integer = !invalid_number && item->valuedouble != (double)item->valueint;
+        if (invalid_number || invalid_range || invalid_integer) {
             cJSON_Delete(root);
-            return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Watermark must be an integer from 1 to 100");
+            const char *error = "Watermark must be an integer from 1 to 100";
+            return config_error_response(response, HTTP_STATUS_BAD_REQUEST, error);
         }
         (void)snprintf_s(value, sizeof(value), sizeof(value) - 1, "%d", item->valueint);
     } else {
@@ -848,8 +851,8 @@ static int update_config_route(enpu_manager_t *mgr, const char *body, char *resp
         return config_error_response(response, HTTP_STATUS_INTERNAL_ERROR,
                                      "Config saved but runtime update failed; restart required");
     }
-    (void)snprintf_s(response, REST_RESPONSE_SIZE, REST_RESPONSE_SIZE - 1,
-                     "{\"result\":0,\"restart_required\":%s}", immediate ? "false" : "true");
+    const char *format = "{\"result\":0,\"restart_required\":%s}";
+    (void)snprintf_s(response, REST_RESPONSE_SIZE, REST_RESPONSE_SIZE - 1, format, immediate ? "false" : "true");
     return HTTP_STATUS_OK;
 }
 

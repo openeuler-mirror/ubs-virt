@@ -797,23 +797,23 @@ static int cmd_config(int argc, char *argv[], const char *socket_path)
             fprintf(stderr, "Error: swap-pre-watermark must be an integer from 1 to 100\n");
             return 1;
         }
-        n = snprintf_s(body, sizeof(body), sizeof(body) - 1,
-                       "{\"key\":\"swap-pre-watermark\",\"value\":%ld}", watermark);
+        const char *format = "{\"key\":\"swap-pre-watermark\",\"value\":%ld}";
+        n = snprintf_s(body, sizeof(body), sizeof(body) - 1, format, watermark);
     } else if (strcmp(key, "share-strategy") == 0) {
         if (strcmp(value, "compact") != 0 && strcmp(value, "anti-fragment") != 0) {
             fprintf(stderr, "Error: share-strategy must be compact or anti-fragment\n");
             return 1;
         }
-        n = snprintf_s(body, sizeof(body), sizeof(body) - 1,
-                       "{\"key\":\"share-strategy\",\"value\":\"%s\"}", value);
+        const char *format = "{\"key\":\"share-strategy\",\"value\":\"%s\"}";
+        n = snprintf_s(body, sizeof(body), sizeof(body) - 1, format, value);
     } else if (strcmp(key, "log_level") == 0) {
         if (strcmp(value, "debug") != 0 && strcmp(value, "info") != 0 && strcmp(value, "warn") != 0 &&
             strcmp(value, "error") != 0 && strcmp(value, "fatal") != 0) {
             fprintf(stderr, "Error: log_level must be debug, info, warn, error, or fatal\n");
             return 1;
         }
-        n = snprintf_s(body, sizeof(body), sizeof(body) - 1,
-                       "{\"key\":\"log_level\",\"value\":\"%s\"}", value);
+        const char *format = "{\"key\":\"log_level\",\"value\":\"%s\"}";
+        n = snprintf_s(body, sizeof(body), sizeof(body) - 1, format, value);
     } else {
         fprintf(stderr, "Error: Unsupported config key: %s\n", key);
         return 1;
