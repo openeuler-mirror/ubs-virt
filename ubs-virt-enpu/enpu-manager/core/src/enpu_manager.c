@@ -534,8 +534,10 @@ int enpu_manager_set_swap_pre_watermark(enpu_manager_t *mgr, int percent)
         return ENPU_INVALID_PARAM;
     }
     /* A node with swap disabled has no resolver; the saved value applies if swap is enabled later. */
-    return mgr->swap_resolver == NULL ? ENPU_SUCCESS :
-                                       swap_resolver_set_pre_swap_watermark(mgr->swap_resolver, percent);
+    if (mgr->swap_resolver == NULL) {
+        return ENPU_SUCCESS;
+    }
+    return swap_resolver_set_pre_swap_watermark(mgr->swap_resolver, percent);
 }
 
 int enpu_manager_set_share_strategy(enpu_manager_t *mgr, const char *strategy)
