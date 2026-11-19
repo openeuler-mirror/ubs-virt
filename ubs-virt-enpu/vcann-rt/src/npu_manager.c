@@ -505,11 +505,29 @@ int update_shm_used(size_t used)
 int check_and_swap_out(size_t requested, uint8_t flag)
 {
     for (int retry = 0; retry < SWAP_OUT_MAX_RETRY; retry++) {
-        size_t freeSize = 0;
-        size_t totalSize = 0;
-        int ret = RUNTIME_HOOK_CALL(rt_library_entry, rtMemGetInfoEx, RT_MEMORYINFO_HBM, &freeSize, &totalSize);
-        LOG_DEBUG("Call rtMemGetInfoEx return:%d, free HBM size:%zu, total HBM size:%zu.", ret, freeSize, totalSize);
-        CHECK_COND_RETURN_ERROR_CODE((ret != RT_ERROR_NONE), "Get avaliable HBM size failed! ret:%d.", ret);
+        /* 腾挪判断使用物理口径(不扣 swapped): 本 vNPU 换出/换入自身数据时 used+swapped
+         * 保持不变, 若复用 rtMemGetInfoEx 扣减 swapped 后的 freeSize, 全量换出后
+         * freeSize 恒为 0, 任何换出动作都无法使其回升, 换入路径将永久失败.
+         * 分配限流(memory_check/rtMemGetInfoEx)仍保持扣减 swapped 的逻辑口径, 此处
+         * 仅评估物理可用空间, 公式形状与 rtMemGetInfoEx 同构 */
+        size_t quota = get_mem_limit_quota();
+        size_t used;
+        int ret = get_mem_used(&used);
+        CHECK_COND_RETURN_ERROR_CODE((ret != ENPU_SUCCESS), "Get mem used failed! ret:%d.", ret);
+
+        size_t dynamic_free = get_mem_dynamic_free();
+        size_t request = get_mem_request_quota();
+        size_t remain = (used >= quota) ? 0 : quota - used;
+        size_t freeSize;
+        if (request > used) {
+            size_t headroom = request - used;
+            size_t free_mem_1 = (headroom > SIZE_MAX - dynamic_free) ? SIZE_MAX : headroom + dynamic_free;
+            freeSize = (free_mem_1 < remain) ? free_mem_1 : remain;
+        } else {
+            freeSize = (dynamic_free < remain) ? dynamic_free : remain;
+        }
+        LOG_DEBUG("Physical free HBM for swap: %zu, requested:%zu, used:%zu, dynamic_free:%zu.", freeSize, requested,
+                  used, dynamic_free);
 
         if (requested <= freeSize) {
             return ENPU_SUCCESS;
