@@ -70,7 +70,7 @@ static int send_response(int client_fd, int status, const char *body);
 static int send_typed_response(int client_fd, int status, const char *body, const char *content_type);
 static int route_request(rest_api_server_t *server, const char *method, const char *path, const char *body,
                          char *response);
-static int update_config_route(enpu_manager_t *mgr, const char *path, const char *body, char *response);
+static int update_config_route(enpu_manager_t *mgr, const char *body, char *response);
 
 static char *format_devices_json(enpu_manager_t *mgr);
 static char *format_device_json(enpu_manager_t *mgr, int phy_id);
@@ -769,19 +769,8 @@ static int config_error_response(char *response, int status, const char *message
     return status;
 }
 
-static int update_config_route(enpu_manager_t *mgr, const char *path, const char *body, char *response)
+static int update_config_route(enpu_manager_t *mgr, const char *body, char *response)
 {
-    const char *key = NULL;
-    if (strcmp(path, "/api/v1/config/watermark") == 0) {
-        key = "swap-pre-watermark";
-    } else if (strcmp(path, "/api/v1/config/share-strategy") == 0) {
-        key = "share-strategy";
-    } else if (strcmp(path, "/api/v1/config/log-level") == 0) {
-        key = "log_level";
-    } else {
-        return config_error_response(response, HTTP_STATUS_NOT_FOUND, "Unknown config endpoint");
-    }
-
     if (body == NULL) {
         return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Invalid JSON body");
     }
@@ -796,6 +785,24 @@ static int update_config_route(enpu_manager_t *mgr, const char *path, const char
     if (end == NULL || *end != '\0' || !cJSON_IsObject(root)) {
         cJSON_Delete(root);
         return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Invalid JSON body");
+    }
+
+    cJSON *key_item = cJSON_GetObjectItemCaseSensitive(root, "key");
+    if (!cJSON_IsString(key_item) || key_item->valuestring == NULL) {
+        cJSON_Delete(root);
+        return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "key must be a supported config name");
+    }
+    const char *requested_key = key_item->valuestring;
+    const char *key = NULL;
+    if (strcmp(requested_key, "swap-pre-watermark") == 0) {
+        key = "swap-pre-watermark";
+    } else if (strcmp(requested_key, "share-strategy") == 0) {
+        key = "share-strategy";
+    } else if (strcmp(requested_key, "log_level") == 0) {
+        key = "log_level";
+    } else {
+        cJSON_Delete(root);
+        return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Unsupported config key");
     }
 
     cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "value");
@@ -862,11 +869,11 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
         return HTTP_STATUS_INTERNAL_ERROR;
     }
 
-    if (strncmp(path, "/api/v1/config/", strlen("/api/v1/config/")) == 0) {
+    if (strcmp(path, "/api/v1/config") == 0) {
         if (strcmp(method, "PUT") != 0) {
             return config_error_response(response, HTTP_STATUS_METHOD_NOT_ALLOWED, "PUT required");
         }
-        return update_config_route(mgr, path, body, response);
+        return update_config_route(mgr, body, response);
     }
 
     if (strcmp(method, "GET") == 0 && strcmp(path, "/api/v1/devices") == 0) {

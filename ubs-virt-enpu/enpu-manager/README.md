@@ -260,6 +260,7 @@ enpu-cli [--socket <socket_path>] <command> [options]
 | `enpu-cli status` | 查询当前 allocation 列表。 |
 | `enpu-cli resources ...` | 查询配额、HBM 用量以及物理 NPU/vNPU 利用率。 |
 | `enpu-cli release ...` | 按 allocation ID 或标签释放 vNPU。 |
+| `enpu-cli config set <key> <value>` | 更新支持的 Manager 配置项。 |
 | `enpu-cli swap status` | 查询 swap buffer 状态。 |
 | `enpu-cli swap clean/out/in <pod_uid>` | 清理、强制换出或强制换入指定 Pod 的 swap 数据。 |
 
@@ -409,6 +410,16 @@ vNPU Released successfully
 
 allocation 不存在、标签无法唯一匹配或释放失败时，命令输出 HTTP 状态和服务端 JSON 错误信息，并返回退出码 `1`。
 
+### 更新配置
+
+```bash
+enpu-cli config set swap-pre-watermark 85
+enpu-cli config set share-strategy anti-fragment
+enpu-cli config set log_level debug
+```
+
+命令调用 `PUT /api/v1/config`，输出包含 `result` 和 `restart_required` 的服务端 JSON。水线仅支持 1～100 的整数；分配策略支持 `compact`、`anti-fragment`；日志级别支持 `debug`、`info`、`warn`、`error`、`fatal`。`restart_required=true` 时重启 Manager 后生效。参数错误、连接失败或 HTTP 错误返回退出码 `1`。
+
 ### 管理 swap
 
 ```text
@@ -472,24 +483,22 @@ enpu-manager 通过 HTTP over Unix Domain Socket 接收请求，默认 socket �
 | `/api/v1/swap/force-out` | POST | 强制换出指定 Pod。 |
 | `/api/v1/swap/force-in` | POST | 强制换入指定 Pod。 |
 | `/api/v1/clean`                       | DELETE | 清理当前所有 vNPU 分配。                    |
-| `/api/v1/config/watermark`            | PUT    | 更新 `swap-pre-watermark`，立即生效。       |
-| `/api/v1/config/share-strategy`       | PUT    | 更新 `share-strategy`，立即影响后续分配。   |
-| `/api/v1/config/log-level`            | PUT    | 更新 `log_level`，重启服务后生效。          |
+| `/api/v1/config`                       | PUT    | 按 `key` 更新配置项；水线和分配策略立即生效，日志级别重启后生效。 |
 
 ### 更新服务配置
 
-三个接口都使用 JSON 正文 `{"value":...}`，修改 `/etc/enpu/enpu-manager.conf` 中对应的字段，并保留文件中的其他配置与注释。仅允许连接 manager Unix socket 的用户调用。
+使用 JSON 正文 `{"key":"配置项名","value":...}`，修改 `/etc/enpu/enpu-manager.conf` 中对应的字段，并保留文件中的其他配置与注释。仅允许连接 manager Unix socket 的用户调用。
 
 ```bash
-curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/config/watermark \
-  -H 'Content-Type: application/json' -d '{"value":85}'
-curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/config/share-strategy \
-  -H 'Content-Type: application/json' -d '{"value":"anti-fragment"}'
-curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/config/log-level \
-  -H 'Content-Type: application/json' -d '{"value":"debug"}'
+curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/config \
+  -H 'Content-Type: application/json' -d '{"key":"swap-pre-watermark","value":85}'
+curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/config \
+  -H 'Content-Type: application/json' -d '{"key":"share-strategy","value":"anti-fragment"}'
+curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/config \
+  -H 'Content-Type: application/json' -d '{"key":"log_level","value":"debug"}'
 ```
 
-水线只接受 1～100 的整数；分配策略只接受 `compact` 或 `anti-fragment`；日志级别只接受 `debug`、`info`、`warn`、`error` 或 `fatal`。成功响应包含 `result=0` 和 `restart_required`：水线及分配策略为 `false`，日志级别为 `true`。修改日志级别后需重启服务。其他配置项继续通过配置文件及服务重启修改。
+`key` 只接受 `swap-pre-watermark`、`share-strategy` 或 `log_level`，不支持的键返回 HTTP 400。水线值只接受 1～100 的整数；分配策略只接受 `compact` 或 `anti-fragment`；日志级别只接受 `debug`、`info`、`warn`、`error` 或 `fatal`。成功响应包含 `result=0` 和 `restart_required`：水线及分配策略为 `false`，日志级别为 `true`。修改日志级别后需重启服务。其他配置项继续通过配置文件及服务重启修改。原有三个 `/api/v1/config/...` 路径不再提供。
 
 ### 分配 vNPU
 

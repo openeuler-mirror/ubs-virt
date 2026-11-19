@@ -249,6 +249,7 @@ static void print_usage(const char *prog)
            "[--pod-uid <pod_uid>] [--container-name <container>]] [--detail]\n");
     printf("                           Show complete resource JSON\n");
     printf("                           --detail: include stats and calculation diagnostics\n");
+    printf("  config set <key> <value> Set swap-pre-watermark, share-strategy, or log_level\n");
     printf("  checkpoint               Trigger checkpoint\n");
     printf("  recover                  Trigger recovery\n");
     printf("  swap status              Show swap buffer status\n");
@@ -777,6 +778,64 @@ static int cmd_status(int argc, char *argv[], const char *socket_path)
     return 0;
 }
 
+static int cmd_config(int argc, char *argv[], const char *socket_path)
+{
+    if (argc != 5 || strcmp(argv[2], "set") != 0) {
+        fprintf(stderr, "Usage: enpu-cli config set <swap-pre-watermark|share-strategy|log_level> <value>\n");
+        return 1;
+    }
+
+    const char *key = argv[3];
+    const char *value = argv[4];
+    char body[REQ_BUF_SIZE];
+    int n;
+    if (strcmp(key, "swap-pre-watermark") == 0) {
+        char *end = NULL;
+        errno = 0;
+        long watermark = strtol(value, &end, 10);
+        if (value[0] == '\0' || *end != '\0' || errno != 0 || watermark < 1 || watermark > 100) {
+            fprintf(stderr, "Error: swap-pre-watermark must be an integer from 1 to 100\n");
+            return 1;
+        }
+        n = snprintf_s(body, sizeof(body), sizeof(body) - 1,
+                       "{\"key\":\"swap-pre-watermark\",\"value\":%ld}", watermark);
+    } else if (strcmp(key, "share-strategy") == 0) {
+        if (strcmp(value, "compact") != 0 && strcmp(value, "anti-fragment") != 0) {
+            fprintf(stderr, "Error: share-strategy must be compact or anti-fragment\n");
+            return 1;
+        }
+        n = snprintf_s(body, sizeof(body), sizeof(body) - 1,
+                       "{\"key\":\"share-strategy\",\"value\":\"%s\"}", value);
+    } else if (strcmp(key, "log_level") == 0) {
+        if (strcmp(value, "debug") != 0 && strcmp(value, "info") != 0 && strcmp(value, "warn") != 0 &&
+            strcmp(value, "error") != 0 && strcmp(value, "fatal") != 0) {
+            fprintf(stderr, "Error: log_level must be debug, info, warn, error, or fatal\n");
+            return 1;
+        }
+        n = snprintf_s(body, sizeof(body), sizeof(body) - 1,
+                       "{\"key\":\"log_level\",\"value\":\"%s\"}", value);
+    } else {
+        fprintf(stderr, "Error: Unsupported config key: %s\n", key);
+        return 1;
+    }
+    if (n < 0 || n >= (int)sizeof(body)) {
+        fprintf(stderr, "Error: Failed to build config request\n");
+        return 1;
+    }
+
+    char response[RECV_BUF_SIZE];
+    if (http_request(socket_path, "PUT", "/api/v1/config", body, response, sizeof(response)) < 0) {
+        return 1;
+    }
+    int status = get_status_code(response);
+    if (status != 200) {
+        fprintf(stderr, "Error: HTTP %d - %s\n", status, get_body(response));
+        return 1;
+    }
+    printf("%s\n", get_body(response));
+    return 0;
+}
+
 static int cmd_checkpoint(int argc, char *argv[], const char *socket_path)
 {
     char response[RECV_BUF_SIZE];
@@ -1000,6 +1059,8 @@ int cli_main(int argc, char *argv[])
         return cmd_release(argc, argv, socket_path);
     } else if (strcmp(cmd, "status") == 0) {
         return cmd_status(argc, argv, socket_path);
+    } else if (strcmp(cmd, "config") == 0) {
+        return cmd_config(argc, argv, socket_path);
     } else if (strcmp(cmd, "checkpoint") == 0) {
         return cmd_checkpoint(argc, argv, socket_path);
     } else if (strcmp(cmd, "recover") == 0) {
