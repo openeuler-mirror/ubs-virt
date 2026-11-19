@@ -785,8 +785,7 @@ static char *trim_config_value(char *value)
 static bool config_integer_key(const char *key)
 {
     return strcmp(key, "swap-pre-watermark") == 0 || strcmp(key, "log_max_size") == 0 ||
-           strcmp(key, "log_max_backups") == 0 || strcmp(key, "log_max_age") == 0 ||
-           strcmp(key, "log_console") == 0;
+           strcmp(key, "log_max_backups") == 0 || strcmp(key, "log_max_age") == 0 || strcmp(key, "log_console") == 0;
 }
 
 static int get_config_route(char *response)
