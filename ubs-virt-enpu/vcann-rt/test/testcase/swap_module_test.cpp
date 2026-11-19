@@ -298,8 +298,22 @@ protected:
         }
     }
 
-    void SetUp() {}
-    void TearDown() {}
+    void SetUp()
+    {
+        /* check_and_swap_out 腾挪判断直调 get_mem_used(DCMI 查询), 本套件无真实设备,
+         * 统一注册回调并打桩底层 dcmi 查询(返回 3072B), 否则 DCMI 桩返回 -90 导致
+         * 腾挪路径全部失败; 需要自定义行为的用例可在用例内重新 MOCKER 覆盖 */
+        ASSERT_EQ(register_callback(SOC_VERSION_ASCEND_950), ENPU_SUCCESS);
+        ASSERT_EQ(register_callback(SOC_VERSION_ASCEND_310), ENPU_SUCCESS);
+        ASSERT_EQ(register_callback(SOC_VERSION_ASCEND_910), ENPU_SUCCESS);
+        MOCKER(dcmi_get_device_resource_info).stubs().will(invoke(stub_dcmi_threaded_memory));
+    }
+
+    void TearDown()
+    {
+        GlobalMockObject::verify();
+        GlobalMockObject::reset();
+    }
 
     static shm_state_t *state_shm_;
     static shm_state_t *attached_;
