@@ -82,7 +82,7 @@ static void *swap_resolver_thread_func(void *arg)
             LOG_INFO("swap_resolver_thread: swap_cmd OUT written for vnpu_id=%d", selected.vnpu_id);
         }
 
-poll_done:
+    poll_done:
         pthread_mutex_unlock(&thread->activity_lock);
         usleep(thread->poll_interval_ms * 1000);
     }
@@ -91,7 +91,7 @@ poll_done:
     return NULL;
 }
 
-swap_resolver_thread_t* swap_resolver_thread_create(void *resolver, int phy_id, uint64_t poll_interval_ms)
+swap_resolver_thread_t *swap_resolver_thread_create(void *resolver, int phy_id, uint64_t poll_interval_ms)
 {
     if (resolver == NULL) {
         LOG_ERROR("swap_resolver_thread_create failed: resolver is NULL");
@@ -99,11 +99,12 @@ swap_resolver_thread_t* swap_resolver_thread_create(void *resolver, int phy_id, 
     }
 
     if (phy_id < 0 || poll_interval_ms == 0) {
-        LOG_ERROR("swap_resolver_thread_create failed: invalid phy_id=%d or poll_interval_ms=%lu", phy_id, poll_interval_ms);
+        LOG_ERROR("swap_resolver_thread_create failed: invalid phy_id=%d or poll_interval_ms=%lu", phy_id,
+                  poll_interval_ms);
         return NULL;
     }
 
-    swap_resolver_thread_t *thread = (swap_resolver_thread_t*)calloc(1, sizeof(swap_resolver_thread_t));
+    swap_resolver_thread_t *thread = (swap_resolver_thread_t *)calloc(1, sizeof(swap_resolver_thread_t));
     if (thread == NULL) {
         LOG_ERROR("swap_resolver_thread_create failed: calloc returned NULL");
         return NULL;
@@ -113,7 +114,7 @@ swap_resolver_thread_t* swap_resolver_thread_create(void *resolver, int phy_id, 
         free(thread);
         return NULL;
     }
-    thread->resolver = (swap_resolver_t*)resolver;
+    thread->resolver = (swap_resolver_t *)resolver;
     thread->phy_id = phy_id;
     thread->poll_interval_ms = poll_interval_ms;
     atomic_store(&thread->running, false);
@@ -163,7 +164,7 @@ int swap_resolver_thread_stop(swap_resolver_thread_t *thread)
 
     atomic_store(&thread->running, false);
     if (!atomic_exchange(&thread->started, false)) {
-        return ENPU_SUCCESS;   /* 未启动或已 join 过 */
+        return ENPU_SUCCESS; /* 未启动或已 join 过 */
     }
     pthread_join(thread->thread, NULL);
 
@@ -176,5 +177,6 @@ int swap_resolver_thread_pause(swap_resolver_thread_t *thread)
 }
 void swap_resolver_thread_resume(swap_resolver_thread_t *thread)
 {
-    if (thread != NULL) pthread_mutex_unlock(&thread->activity_lock);
+    if (thread != NULL)
+        pthread_mutex_unlock(&thread->activity_lock);
 }

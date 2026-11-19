@@ -1415,7 +1415,6 @@ double npu_allocator_get_oversub_ratio(npu_allocator_t *a, int die_index)
     return ratio;
 }
 
-
 int npu_allocator_get_die_id(npu_allocator_t *a, int phy_id, char *die_id, int die_id_len)
 {
     if (a == NULL || a->tree == NULL || die_id == NULL || die_id_len <= 0) {
@@ -1438,9 +1437,7 @@ int npu_allocator_get_die_id(npu_allocator_t *a, int phy_id, char *die_id, int d
     return (did != NULL && did[0] != '\0') ? ENPU_SUCCESS : ENPU_NOT_FOUND;
 }
 
-
-static void die_reconfig_check_locked(npu_allocator_t *a, int phy_id,
-                                      bool *ready, char *reason, int reason_len)
+static void die_reconfig_check_locked(npu_allocator_t *a, int phy_id, bool *ready, char *reason, int reason_len)
 {
     *ready = false;
 
@@ -1455,7 +1452,8 @@ static void die_reconfig_check_locked(npu_allocator_t *a, int phy_id,
         return;
     }
     if (count > 0) {
-        if (reason != NULL && reason_len > 0) snprintf_s(reason, reason_len, (reason_len) - 1, "die %d has %d active allocation(s)", phy_id, count);
+        if (reason != NULL && reason_len > 0)
+            snprintf_s(reason, reason_len, (reason_len)-1, "die %d has %d active allocation(s)", phy_id, count);
         return;
     }
 
@@ -1465,7 +1463,7 @@ static void die_reconfig_check_locked(npu_allocator_t *a, int phy_id,
         /* External/K8s allocations may not be present in the local registry. */
         if (atomic_load(&state->vnpu_bitmap[0]) != 0 || atomic_load(&state->vnpu_bitmap[1]) != 0) {
             if (reason != NULL && reason_len > 0) {
-                snprintf_s(reason, reason_len, (reason_len) - 1, "die %d has registered vNPU entries", phy_id);
+                snprintf_s(reason, reason_len, (reason_len)-1, "die %d has registered vNPU entries", phy_id);
             }
             return;
         }
@@ -1475,19 +1473,21 @@ static void die_reconfig_check_locked(npu_allocator_t *a, int phy_id,
                 process_entry_t *entry = &state->entries[v].processes[slot];
                 if (atomic_load(&entry->active) || atomic_load(&entry->swapped) || entry->swap_size != 0) {
                     if (reason != NULL && reason_len > 0) {
-                        snprintf_s(reason, reason_len, reason_len - 1,
-                                   "die %d vnpu %d slot %d still uses swap state", phy_id, v, slot);
+                        snprintf_s(reason, reason_len, reason_len - 1, "die %d vnpu %d slot %d still uses swap state",
+                                   phy_id, v, slot);
                     }
                     return;
                 }
             }
         }
         if (!atomic_load(&state->swap_cmd.completed)) {
-            if (reason != NULL && reason_len > 0) snprintf_s(reason, reason_len, (reason_len) - 1, "die %d swap_cmd in flight", phy_id);
+            if (reason != NULL && reason_len > 0)
+                snprintf_s(reason, reason_len, (reason_len)-1, "die %d swap_cmd in flight", phy_id);
             return;
         }
         if (!atomic_load(&state->swap_out_cmd.completed)) {
-            if (reason != NULL && reason_len > 0) snprintf_s(reason, reason_len, (reason_len) - 1, "die %d swap_out_cmd in flight", phy_id);
+            if (reason != NULL && reason_len > 0)
+                snprintf_s(reason, reason_len, (reason_len)-1, "die %d swap_out_cmd in flight", phy_id);
             return;
         }
     }
@@ -1495,9 +1495,7 @@ static void die_reconfig_check_locked(npu_allocator_t *a, int phy_id,
     *ready = true;
 }
 
-
-int npu_allocator_reconfig_begin(npu_allocator_t *a, int phy_id,
-                                 bool *ready, char *reason, int reason_len)
+int npu_allocator_reconfig_begin(npu_allocator_t *a, int phy_id, bool *ready, char *reason, int reason_len)
 {
     if (a == NULL || ready == NULL) {
         return ENPU_INVALID_PARAM;
@@ -1516,15 +1514,12 @@ int npu_allocator_reconfig_begin(npu_allocator_t *a, int phy_id,
     return ENPU_SUCCESS;
 }
 
-
 void npu_allocator_reconfig_end(npu_allocator_t *a)
 {
     if (a != NULL) {
         pthread_mutex_unlock(&a->lock);
     }
 }
-
-
 
 int npu_allocator_get_oversub_ratios(npu_allocator_t *a, double out_ratio[MAX_NPU_PER_NODE])
 {

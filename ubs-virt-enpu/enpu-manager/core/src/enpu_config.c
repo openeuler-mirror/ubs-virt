@@ -4,10 +4,10 @@
  */
 
 #include "enpu_config.h"
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include "log.h"
 #include "securec.h"
@@ -291,16 +291,16 @@ static void fsync_parent_dir(const char *path)
         return;
     }
     if (slash == dir) {
-        slash[1] = '\0';            /* 根目录 "/" */
+        slash[1] = '\0'; /* 根目录 "/" */
     } else {
         *slash = '\0';
     }
 
     int dir_fd = open(dir, O_RDONLY
 #ifdef O_DIRECTORY
-                      | O_DIRECTORY
+                               | O_DIRECTORY
 #endif
-                      );
+    );
     if (dir_fd < 0) {
         return;
     }
@@ -308,18 +308,15 @@ static void fsync_parent_dir(const char *path)
     close(dir_fd);
 }
 
-
 static void format_ratio(char *buf, size_t len, double v)
 {
-    snprintf_s(buf, len, (len) - 1, "%.6g", v);
+    snprintf_s(buf, len, (len)-1, "%.6g", v);
     if (strtod(buf, NULL) != v) {
-        snprintf_s(buf, len, (len) - 1, "%.17g", v);
+        snprintf_s(buf, len, (len)-1, "%.17g", v);
     }
 }
 
-
-int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio[MAX_NPU_PER_NODE],
-                                   int phy_id_span)
+int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio[MAX_NPU_PER_NODE], int phy_id_span)
 {
     if (path == NULL || per_die_ratio == NULL || phy_id_span <= 0 || phy_id_span > MAX_NPU_PER_NODE) {
         return ENPU_INVALID_PARAM;
@@ -344,7 +341,8 @@ int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio
         for (int i = 0; i < write_span && off < (int)sizeof(value) - 32; i++) {
             char item[32];
             format_ratio(item, sizeof(item), (i < phy_id_span) ? per_die_ratio[i] : 0.0);
-            off += snprintf_s(value + off, sizeof(value) - off, (sizeof(value) - off) - 1, "%s%s", (i > 0) ? "," : "", item);
+            off += snprintf_s(value + off, sizeof(value) - off, (sizeof(value) - off) - 1, "%s%s", (i > 0) ? "," : "",
+                              item);
         }
     }
 
@@ -358,7 +356,8 @@ int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio
 
     FILE *tmp = fopen(tmp_path, "w");
     if (tmp == NULL) {
-        if (fp != NULL) fclose(fp);
+        if (fp != NULL)
+            fclose(fp);
         return ENPU_FAIL;
     }
 
@@ -368,7 +367,8 @@ int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio
         char line[512];
         while (fgets(line, sizeof(line), fp)) {
             char *s = line;
-            while (*s == ' ' || *s == '\t') s++;
+            while (*s == ' ' || *s == '\t')
+                s++;
             if (strncmp(s, "oversub-ratio", 13) == 0 &&
                 (s[13] == '=' || s[13] == ' ' || s[13] == '\t' || s[13] == '\n' || s[13] == '\r' || s[13] == '\0')) {
                 fprintf(tmp, "oversub-ratio=%s\n", value);
@@ -383,7 +383,8 @@ int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio
     }
 
     if (!replaced) {
-        if (needs_newline) fputc('\n', tmp);
+        if (needs_newline)
+            fputc('\n', tmp);
         fprintf(tmp, "oversub-ratio=%s\n", value);
     }
 
@@ -408,11 +409,15 @@ int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio
                     break;
                 }
             }
-            if (ferror(src)) backup_ok = false;
-            if (fflush(dst) != 0 || fsync(fileno(dst)) != 0) backup_ok = false;
+            if (ferror(src))
+                backup_ok = false;
+            if (fflush(dst) != 0 || fsync(fileno(dst)) != 0)
+                backup_ok = false;
         }
-        if (src != NULL && fclose(src) != 0) backup_ok = false;
-        if (dst != NULL && fclose(dst) != 0) backup_ok = false;
+        if (src != NULL && fclose(src) != 0)
+            backup_ok = false;
+        if (dst != NULL && fclose(dst) != 0)
+            backup_ok = false;
         if (!backup_ok) {
             unlink(tmp_path);
             return ENPU_FAIL;
