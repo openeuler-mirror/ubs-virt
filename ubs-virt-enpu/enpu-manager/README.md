@@ -502,7 +502,7 @@ curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/co
   -H 'Content-Type: application/json' -d '{"key":"log_level","value":"debug"}'
 ```
 
-`key` 只接受 `swap-pre-watermark`、`share-strategy` 或 `log_level`，不支持的键返回 HTTP 400。水线值只接受 1～100 的整数；分配策略只接受 `compact` 或 `anti-fragment`；日志级别只接受 `debug`、`info`、`warn`、`error` 或 `fatal`。成功响应包含 `result=0` 和 `restart_required`：水线及分配策略为 `false`，日志级别为 `true`。修改日志级别后需重启服务。其他配置项继续通过配置文件及服务重启修改。原有三个 `/api/v1/config/...` 路径不再提供。
+`key` 只接受 `swap-pre-watermark`、`share-strategy` 或 `log_level`，不支持的键返回 HTTP 400。水线值只接受 1～100 的整数；分配策略只接受 `compact` 或 `anti-fragment`；日志级别只接受 `debug`、`info`、`warn`、`error` 或 `fatal`。成功响应包含 `result=0` 和 `restart_required`：水线及分配策略为 `false`，日志级别为 `true`。修改日志级别后需重启服务。其他配置项继续通过配置文件及服务重启修改。
 
 `GET /api/v1/config` 返回 `{"result":0,"config":{...}}`。`config` 包含配置文件中所有未注释的键值；`swap-pre-watermark`、`log_max_size`、`log_max_backups`、`log_max_age`、`log_console` 返回 JSON 整数，其他值按配置文件中的字符串返回（包括 `oversub-ratio` 的 CSV 原值）。查询直接读取文件，不叠加环境变量，也不表示尚需重启的配置已经在运行时生效。文件无法读取或内容无法解析时返回 HTTP 500。
 

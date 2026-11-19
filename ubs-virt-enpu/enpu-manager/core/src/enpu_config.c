@@ -4,6 +4,7 @@
  */
 
 #include "enpu_config.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -291,11 +292,17 @@ int enpu_config_update_value(const char *path, const char *key, const char *valu
     }
 
     struct stat original;
-    if (lstat(path, &original) != 0 || !S_ISREG(original.st_mode)) {
+    if (lstat(path, &original) != 0) {
+        LOG_ERROR("[CONFIG] lstat failed: path=%s, errno=%d", path, errno);
+        return ENPU_FAIL;
+    }
+    if (!S_ISREG(original.st_mode)) {
+        LOG_ERROR("[CONFIG] Config path is not a regular file: path=%s", path);
         return ENPU_FAIL;
     }
     FILE *input = fopen(path, "r");
     if (input == NULL) {
+        LOG_ERROR("[CONFIG] fopen failed: path=%s, errno=%d", path, errno);
         return ENPU_FAIL;
     }
 
@@ -307,14 +314,18 @@ int enpu_config_update_value(const char *path, const char *key, const char *valu
     }
     int fd = mkstemp(temporary);
     if (fd < 0) {
+        int error_number = errno;
         fclose(input);
+        LOG_ERROR("[CONFIG] mkstemp failed: path=%s, errno=%d", path, error_number);
         return ENPU_FAIL;
     }
     FILE *output = fdopen(fd, "w");
     if (output == NULL) {
+        int error_number = errno;
         close(fd);
         fclose(input);
         unlink(temporary);
+        LOG_ERROR("[CONFIG] fdopen failed: path=%s, errno=%d", path, error_number);
         return ENPU_FAIL;
     }
 
@@ -350,24 +361,45 @@ int enpu_config_update_value(const char *path, const char *key, const char *valu
             break;
         }
     }
-    if (ferror(input)) {
+    if (ok && ferror(input)) {
         ok = false;
     }
     if (ok && !found && fprintf(output, "%s%s=%s\n", last_char == '\n' ? "" : "\n", key, value) < 0) {
         ok = false;
     }
+    if (!ok) {
+        LOG_ERROR("[CONFIG] Read or write failed: path=%s, errno=%d", path, errno);
+    }
     free(line);
     if (fclose(input) != 0) {
+        if (ok) {
+            LOG_ERROR("[CONFIG] fclose input failed: path=%s, errno=%d", path, errno);
+        }
         ok = false;
     }
-    if (fchmod(fd, original.st_mode & 07777) != 0 || fflush(output) != 0 || fsync(fd) != 0) {
+    if (ok && fchmod(fd, original.st_mode & 07777) != 0) {
+        LOG_ERROR("[CONFIG] fchmod failed: path=%s, errno=%d", path, errno);
+        ok = false;
+    }
+    if (ok && fflush(output) != 0) {
+        LOG_ERROR("[CONFIG] fflush failed: path=%s, errno=%d", path, errno);
+        ok = false;
+    }
+    if (ok && fsync(fd) != 0) {
+        LOG_ERROR("[CONFIG] fsync failed: path=%s, errno=%d", path, errno);
         ok = false;
     }
     if (fclose(output) != 0) {
+        if (ok) {
+            LOG_ERROR("[CONFIG] fclose output failed: path=%s, errno=%d", path, errno);
+        }
         ok = false;
     }
-    if (ok && rename(temporary, path) == 0) {
-        return ENPU_SUCCESS;
+    if (ok) {
+        if (rename(temporary, path) == 0) {
+            return ENPU_SUCCESS;
+        }
+        LOG_ERROR("[CONFIG] rename failed: path=%s, errno=%d", path, errno);
     }
     unlink(temporary);
     return ENPU_FAIL;
