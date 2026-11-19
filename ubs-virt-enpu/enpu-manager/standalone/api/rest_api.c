@@ -71,6 +71,7 @@ static int send_typed_response(int client_fd, int status, const char *body, cons
 static int route_request(rest_api_server_t *server, const char *method, const char *path, const char *body,
                          char *response);
 static int update_config_route(enpu_manager_t *mgr, const char *body, char *response);
+static int get_config_route(char *response);
 
 static char *format_devices_json(enpu_manager_t *mgr);
 static char *format_device_json(enpu_manager_t *mgr, int phy_id);
@@ -769,6 +770,101 @@ static int config_error_response(char *response, int status, const char *message
     return status;
 }
 
+static char *trim_config_value(char *value)
+{
+    while (isspace((unsigned char)*value)) {
+        value++;
+    }
+    char *end = value + strlen(value);
+    while (end > value && isspace((unsigned char)end[-1])) {
+        *--end = '\0';
+    }
+    return value;
+}
+
+static bool config_integer_key(const char *key)
+{
+    return strcmp(key, "swap-pre-watermark") == 0 || strcmp(key, "log_max_size") == 0 ||
+           strcmp(key, "log_max_backups") == 0 || strcmp(key, "log_max_age") == 0 ||
+           strcmp(key, "log_console") == 0;
+}
+
+static int get_config_route(char *response)
+{
+    struct stat file_stat;
+    if (lstat(ENPU_CONFIG_DEFAULT_PATH, &file_stat) != 0 || !S_ISREG(file_stat.st_mode)) {
+        return config_error_response(response, HTTP_STATUS_INTERNAL_ERROR, "Unable to read config file");
+    }
+    FILE *file = fopen(ENPU_CONFIG_DEFAULT_PATH, "r");
+    if (file == NULL) {
+        return config_error_response(response, HTTP_STATUS_INTERNAL_ERROR, "Unable to read config file");
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON *config = cJSON_CreateObject();
+    bool ok = root != NULL && config != NULL && cJSON_AddNumberToObject(root, "result", 0) != NULL;
+    if (ok) {
+        ok = cJSON_AddItemToObject(root, "config", config);
+        if (ok) {
+            config = NULL;
+        }
+    }
+
+    char *line = NULL;
+    size_t capacity = 0;
+    while (ok && getline(&line, &capacity, file) >= 0) {
+        char *key = trim_config_value(line);
+        if (*key == '\0' || *key == '#') {
+            continue;
+        }
+        char *separator = strchr(key, '=');
+        if (separator == NULL) {
+            ok = false;
+            break;
+        }
+        *separator = '\0';
+        key = trim_config_value(key);
+        char *value = separator + 1;
+        char *comment = strchr(value, '#');
+        if (comment != NULL) {
+            *comment = '\0';
+        }
+        value = trim_config_value(value);
+        if (*key == '\0') {
+            ok = false;
+            break;
+        }
+
+        cJSON *settings = cJSON_GetObjectItemCaseSensitive(root, "config");
+        cJSON_DeleteItemFromObjectCaseSensitive(settings, key);
+        if (config_integer_key(key)) {
+            char *end = NULL;
+            errno = 0;
+            long number = strtol(value, &end, 10);
+            if (errno != 0 || end == value || *end != '\0' || number < INT_MIN || number > INT_MAX) {
+                ok = false;
+                break;
+            }
+            ok = cJSON_AddNumberToObject(settings, key, (double)number) != NULL;
+        } else {
+            ok = cJSON_AddStringToObject(settings, key, value) != NULL;
+        }
+    }
+    bool read_failed = ferror(file) != 0;
+    if (fclose(file) != 0 || read_failed) {
+        ok = false;
+    }
+    free(line);
+
+    char *json = ok ? cJSON_PrintUnformatted(root) : NULL;
+    cJSON_Delete(config);
+    cJSON_Delete(root);
+    if (copy_json_response(response, json) != ENPU_SUCCESS) {
+        return config_error_response(response, HTTP_STATUS_INTERNAL_ERROR, "Unable to read config file");
+    }
+    return HTTP_STATUS_OK;
+}
+
 static int update_config_route(enpu_manager_t *mgr, const char *body, char *response)
 {
     if (body == NULL) {
@@ -873,8 +969,11 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
     }
 
     if (strcmp(path, "/api/v1/config") == 0) {
+        if (strcmp(method, "GET") == 0) {
+            return get_config_route(response);
+        }
         if (strcmp(method, "PUT") != 0) {
-            return config_error_response(response, HTTP_STATUS_METHOD_NOT_ALLOWED, "PUT required");
+            return config_error_response(response, HTTP_STATUS_METHOD_NOT_ALLOWED, "GET or PUT required");
         }
         return update_config_route(mgr, body, response);
     }

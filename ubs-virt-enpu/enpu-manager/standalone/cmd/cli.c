@@ -249,6 +249,7 @@ static void print_usage(const char *prog)
            "[--pod-uid <pod_uid>] [--container-name <container>]] [--detail]\n");
     printf("                           Show complete resource JSON\n");
     printf("                           --detail: include stats and calculation diagnostics\n");
+    printf("  config get               Show all settings from the Manager config file\n");
     printf("  config set <key> <value> Set swap-pre-watermark, share-strategy, or log_level\n");
     printf("  checkpoint               Trigger checkpoint\n");
     printf("  recover                  Trigger recovery\n");
@@ -780,8 +781,22 @@ static int cmd_status(int argc, char *argv[], const char *socket_path)
 
 static int cmd_config(int argc, char *argv[], const char *socket_path)
 {
+    if (argc == 3 && strcmp(argv[2], "get") == 0) {
+        char response[RECV_BUF_SIZE];
+        if (http_request(socket_path, "GET", "/api/v1/config", NULL, response, sizeof(response)) < 0) {
+            return 1;
+        }
+        int status = get_status_code(response);
+        if (status != 200) {
+            fprintf(stderr, "Error: HTTP %d - %s\n", status, get_body(response));
+            return 1;
+        }
+        printf("%s\n", get_body(response));
+        return 0;
+    }
     if (argc != 5 || strcmp(argv[2], "set") != 0) {
-        fprintf(stderr, "Usage: enpu-cli config set <swap-pre-watermark|share-strategy|log_level> <value>\n");
+        fprintf(stderr, "Usage: enpu-cli config get\n"
+                        "       enpu-cli config set <swap-pre-watermark|share-strategy|log_level> <value>\n");
         return 1;
     }
 

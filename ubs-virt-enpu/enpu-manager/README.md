@@ -260,6 +260,7 @@ enpu-cli [--socket <socket_path>] <command> [options]
 | `enpu-cli status` | 查询当前 allocation 列表。 |
 | `enpu-cli resources ...` | 查询配额、HBM 用量以及物理 NPU/vNPU 利用率。 |
 | `enpu-cli release ...` | 按 allocation ID 或标签释放 vNPU。 |
+| `enpu-cli config get` | 查询 Manager 配置文件中的全部配置项。 |
 | `enpu-cli config set <key> <value>` | 更新支持的 Manager 配置项。 |
 | `enpu-cli swap status` | 查询 swap buffer 状态。 |
 | `enpu-cli swap clean/out/in <pod_uid>` | 清理、强制换出或强制换入指定 Pod 的 swap 数据。 |
@@ -410,15 +411,16 @@ vNPU Released successfully
 
 allocation 不存在、标签无法唯一匹配或释放失败时，命令输出 HTTP 状态和服务端 JSON 错误信息，并返回退出码 `1`。
 
-### 更新配置
+### 查询与更新配置
 
 ```bash
+enpu-cli config get
 enpu-cli config set swap-pre-watermark 85
 enpu-cli config set share-strategy anti-fragment
 enpu-cli config set log_level debug
 ```
 
-命令调用 `PUT /api/v1/config`，输出包含 `result` 和 `restart_required` 的服务端 JSON。水线仅支持 1～100 的整数；分配策略支持 `compact`、`anti-fragment`；日志级别支持 `debug`、`info`、`warn`、`error`、`fatal`。`restart_required=true` 时重启 Manager 后生效。参数错误、连接失败或 HTTP 错误返回退出码 `1`。
+`config get` 调用 `GET /api/v1/config`，原样输出包含 `result` 和全部落盘配置项 `config` 的 JSON，不接受键名参数。`config set` 调用 `PUT /api/v1/config`，输出包含 `result` 和 `restart_required` 的服务端 JSON。水线仅支持 1～100 的整数；分配策略支持 `compact`、`anti-fragment`；日志级别支持 `debug`、`info`、`warn`、`error`、`fatal`。`restart_required=true` 时重启 Manager 后生效。参数错误、连接失败或 HTTP 错误返回退出码 `1`。
 
 ### 管理 swap
 
@@ -483,6 +485,7 @@ enpu-manager 通过 HTTP over Unix Domain Socket 接收请求，默认 socket �
 | `/api/v1/swap/force-out` | POST | 强制换出指定 Pod。 |
 | `/api/v1/swap/force-in` | POST | 强制换入指定 Pod。 |
 | `/api/v1/clean`                       | DELETE | 清理当前所有 vNPU 分配。                    |
+| `/api/v1/config`                       | GET    | 查询 `/etc/enpu/enpu-manager.conf` 中的全部配置项。 |
 | `/api/v1/config`                       | PUT    | 按 `key` 更新配置项；水线和分配策略立即生效，日志级别重启后生效。 |
 
 ### 更新服务配置
@@ -490,6 +493,7 @@ enpu-manager 通过 HTTP over Unix Domain Socket 接收请求，默认 socket �
 使用 JSON 正文 `{"key":"配置项名","value":...}`，修改 `/etc/enpu/enpu-manager.conf` 中对应的字段，并保留文件中的其他配置与注释。仅允许连接 manager Unix socket 的用户调用。
 
 ```bash
+curl --unix-socket /run/enpu/enpu-manager.sock http://localhost/api/v1/config
 curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/config \
   -H 'Content-Type: application/json' -d '{"key":"swap-pre-watermark","value":85}'
 curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/config \
@@ -499,6 +503,8 @@ curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/co
 ```
 
 `key` 只接受 `swap-pre-watermark`、`share-strategy` 或 `log_level`，不支持的键返回 HTTP 400。水线值只接受 1～100 的整数；分配策略只接受 `compact` 或 `anti-fragment`；日志级别只接受 `debug`、`info`、`warn`、`error` 或 `fatal`。成功响应包含 `result=0` 和 `restart_required`：水线及分配策略为 `false`，日志级别为 `true`。修改日志级别后需重启服务。其他配置项继续通过配置文件及服务重启修改。原有三个 `/api/v1/config/...` 路径不再提供。
+
+`GET /api/v1/config` 返回 `{"result":0,"config":{...}}`。`config` 包含配置文件中所有未注释的键值；`swap-pre-watermark`、`log_max_size`、`log_max_backups`、`log_max_age`、`log_console` 返回 JSON 整数，其他值按配置文件中的字符串返回（包括 `oversub-ratio` 的 CSV 原值）。查询直接读取文件，不叠加环境变量，也不表示尚需重启的配置已经在运行时生效。文件无法读取或内容无法解析时返回 HTTP 500。
 
 ### 分配 vNPU
 
