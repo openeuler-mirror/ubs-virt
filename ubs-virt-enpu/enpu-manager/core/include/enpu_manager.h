@@ -115,7 +115,7 @@ typedef struct enpu_manager enpu_manager_t;
 typedef struct swapped_model_info {
     char pod_uid[MAX_UUID_LEN];
     int vnpu_id;
-    int die_id;
+    char die_id[DIE_ID_LEN];
     uint64_t swap_size;
 } swapped_model_info_t;
 

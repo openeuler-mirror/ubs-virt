@@ -50,17 +50,42 @@ struct enpu_manager {
 
 typedef struct {
     swap_status_response_t *resp;
+    const device_info_t *devices;
+    int device_count;
+    int error;
 } swapped_vnpu_collector_ctx_t;
 
 static void collect_swapped_vnpu_for_status(int phy_id, int vnpu_id, uint64_t swap_size, void *user_data)
 {
     swapped_vnpu_collector_ctx_t *ctx = (swapped_vnpu_collector_ctx_t *)user_data;
-    if (ctx->resp->swapped_count < MAX_VNPU_PER_DIE * MAX_NPU_PER_NODE) {
-        swapped_model_info_t *info = &ctx->resp->swapped_models[ctx->resp->swapped_count++];
-        info->vnpu_id = vnpu_id;
-        info->die_id = phy_id;
-        info->swap_size = swap_size;
+    if (ctx->resp->swapped_count >= MAX_VNPU_PER_DIE * MAX_NPU_PER_NODE) {
+        return;
     }
+
+    const char *die_id = NULL;
+    for (int i = 0; i < ctx->device_count; i++) {
+        if (ctx->devices[i].phy_id == phy_id) {
+            die_id = ctx->devices[i].meta.die_id;
+            break;
+        }
+    }
+    if (die_id == NULL || die_id[0] == '\0') {
+        LOG_ERROR("[ENPU-MGR] Failed to find DIE UUID for swapped vNPU: phy_id=%d, vnpu_id=%d", phy_id, vnpu_id);
+        ctx->error = ENPU_NOT_FOUND;
+        return;
+    }
+
+    swapped_model_info_t *info = &ctx->resp->swapped_models[ctx->resp->swapped_count];
+    int ret = snprintf_s(info->die_id, sizeof(info->die_id), sizeof(info->die_id) - 1, "%s", die_id);
+    if (ret < 0) {
+        LOG_ERROR("[ENPU-MGR] Failed to copy DIE UUID for swapped vNPU: phy_id=%d, vnpu_id=%d", phy_id, vnpu_id);
+        ctx->error = ENPU_FAIL;
+        return;
+    }
+
+    info->vnpu_id = vnpu_id;
+    info->swap_size = swap_size;
+    ctx->resp->swapped_count++;
 }
 
 static void *watchdog_thread_func(void *arg)
@@ -614,11 +639,27 @@ int enpu_manager_swap_status(enpu_manager_t *mgr, swap_status_response_t *resp)
         return ret;
     }
 
-    swapped_vnpu_collector_ctx_t ctx = {.resp = resp};
+    device_info_t devices[MAX_NPU_PER_NODE] = {0};
+    int device_count = 0;
+    ret = enpu_manager_query_devices(mgr, NULL, devices, &device_count);
+    if (ret != ENPU_SUCCESS) {
+        LOG_ERROR("[ENPU-MGR] Failed to query devices for swap status: %d", ret);
+        return ret;
+    }
+
+    swapped_vnpu_collector_ctx_t ctx = {
+        .resp = resp,
+        .devices = devices,
+        .device_count = device_count,
+        .error = ENPU_SUCCESS,
+    };
     ret = npu_allocator_foreach_swapped_vnpu(mgr->allocator, collect_swapped_vnpu_for_status, &ctx);
     if (ret != ENPU_SUCCESS) {
         LOG_ERROR("[ENPU-MGR] Failed to foreach swapped vnpu: %d", ret);
         return ret;
+    }
+    if (ctx.error != ENPU_SUCCESS) {
+        return ctx.error;
     }
 
     return ENPU_SUCCESS;
