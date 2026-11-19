@@ -51,7 +51,7 @@ typedef struct process_entry {
     uint64_t swap_offset;                   /* 该进程在 swap buffer 中的偏移 */
     /* swap_size 会被宿主机 manager(shm_free_per_process/watchdog 回收)与本进程 swap_monitor
      * 并发写, 且被跨进程无锁读(准入记账), 必须保持原子访问 */
-    atomic_uint_fast64_t swap_size;         /* 该进程换出的数据大小 */
+    atomic_uint_fast64_t swap_size; /* 该进程换出的数据大小 */
     /* 换出 ack 欠账标记: 0=本槽位不欠 ack, ==swap_cmd.cmd_seq=欠当前 epoch 一次 ack.
      * 写命令时由 enpu-manager 置位, 只有真正 ack(进程自己或 watchdog 代 ack) 才清零.
      * 完成判定 = 目标 vNPU 上没有任何槽位的 ack_pending_seq 等于当前 cmd_seq. */

@@ -150,8 +150,7 @@ static void *swap_monitor_thread_func(void *arg)
                      * 同时也不置 swapped, 避免进程被永久视为已换出而无法再换入 */
                     LOG_WARN("swap_monitor_thread: swap_out copied nothing, vnpu_id=%d slot=%d, "
                              "keep allocated swap_size=%lu",
-                             mon_thread->vnpu_id, my_slot,
-                             (unsigned long)atomic_load(&my_entry->swap_size));
+                             mon_thread->vnpu_id, my_slot, (unsigned long)atomic_load(&my_entry->swap_size));
                 }
 
                 pthread_mutex_unlock(&mon_thread->tracker->lock);
