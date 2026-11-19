@@ -155,7 +155,7 @@ uint64_t get_vnpu_swapped_size(void)
         if (!atomic_load(&pe->active) || !atomic_load(&pe->swapped)) {
             continue;
         }
-        total += pe->swap_size;
+        total += atomic_load(&pe->swap_size);
     }
     return total;
 }
@@ -318,7 +318,7 @@ int register_to_shm_state(shm_state_t *state, int vnpu_id)
     atomic_store(&entry->last_heartbeat_ns, ns_now());
     atomic_store(&entry->hbm_used, 0);
     entry->swap_offset = 0;
-    entry->swap_size = 0;
+    atomic_store(&entry->swap_size, 0);
     atomic_store(&entry->ack_pending_seq, 0); /* 新注册进程不参与注册前已下发的换出命令 */
 
     g_npu_info.vcann_rt_id = vcann_rt_id;

@@ -129,7 +129,7 @@ static void *swap_monitor_thread_func(void *arg)
 
                 if (act_swapped > 0) {
                     /* 记录本进程真实的换出量（enpu-manager 依此记账） */
-                    my_entry->swap_size = act_swapped;
+                    atomic_store(&my_entry->swap_size, act_swapped);
 
                     /* clamp 扣减进程级与 vNPU 级 hbm_used, 防下溢到巨大值 */
                     uint64_t my_used = atomic_load(&my_entry->hbm_used);
@@ -150,7 +150,8 @@ static void *swap_monitor_thread_func(void *arg)
                      * 同时也不置 swapped, 避免进程被永久视为已换出而无法再换入 */
                     LOG_WARN("swap_monitor_thread: swap_out copied nothing, vnpu_id=%d slot=%d, "
                              "keep allocated swap_size=%lu",
-                             mon_thread->vnpu_id, my_slot, my_entry->swap_size);
+                             mon_thread->vnpu_id, my_slot,
+                             (unsigned long)atomic_load(&my_entry->swap_size));
                 }
 
                 pthread_mutex_unlock(&mon_thread->tracker->lock);
