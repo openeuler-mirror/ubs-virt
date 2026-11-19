@@ -21,6 +21,8 @@ int swap_resolver_thread_destroy(swap_resolver_thread_t *thread);
 
 int swap_resolver_thread_start(swap_resolver_thread_t *thread);
 int swap_resolver_thread_stop(swap_resolver_thread_t *thread);
+int swap_resolver_thread_pause(swap_resolver_thread_t *thread);
+void swap_resolver_thread_resume(swap_resolver_thread_t *thread);
 
 #if defined(__cplusplus)
 }

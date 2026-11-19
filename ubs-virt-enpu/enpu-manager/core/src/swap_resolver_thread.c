@@ -19,6 +19,8 @@ struct swap_resolver_thread {
     uint64_t poll_interval_ms;
     pthread_t thread;
     atomic_bool running;
+    atomic_bool started;
+    pthread_mutex_t activity_lock;
 };
 
 static void *swap_resolver_thread_func(void *arg)
@@ -26,11 +28,14 @@ static void *swap_resolver_thread_func(void *arg)
     swap_resolver_thread_t *thread = (swap_resolver_thread_t *)arg;
 
     LOG_INFO("swap_resolver_thread started for phy_id=%d", thread->phy_id);
-    atomic_store(&thread->running, true);
     while (atomic_load(&thread->running)) {
+        pthread_mutex_lock(&thread->activity_lock);
+        if (!atomic_load(&thread->running)) {
+            pthread_mutex_unlock(&thread->activity_lock);
+            break;
+        }
         if (swap_resolver_is_swap_pending(thread->resolver, thread->phy_id)) {
-            usleep(thread->poll_interval_ms * 1000);
-            continue;
+            goto poll_done;
         }
 
         int ret = swap_resolver_check_and_swap_in(thread->resolver, thread->phy_id);
@@ -57,29 +62,28 @@ static void *swap_resolver_thread_func(void *arg)
                 LOG_ERROR("swap_resolver_thread: get_idle_models failed or no idle models, "
                           "ret=%d, count=%d",
                           ret, actual_count);
-                usleep(thread->poll_interval_ms * 1000);
-                continue;
+                goto poll_done;
             }
 
             swap_candidate_t selected;
             ret = swap_resolver_select_candidate_from_list(thread->resolver, candidates, actual_count, &selected);
             if (ret != ENPU_SUCCESS) {
                 LOG_ERROR("swap_resolver_thread: select_candidate failed, ret=%d", ret);
-                usleep(thread->poll_interval_ms * 1000);
-                continue;
+                goto poll_done;
             }
 
             ret = swap_resolver_write_swap_command(thread->resolver, thread->phy_id, "pod-idle", selected.vnpu_id,
                                                    SWAP_ACTION_OUT, to_swap_out);
             if (ret != ENPU_SUCCESS) {
                 LOG_ERROR("swap_resolver_thread: write_swap_command failed, ret=%d", ret);
-                usleep(thread->poll_interval_ms * 1000);
-                continue;
+                goto poll_done;
             }
 
             LOG_INFO("swap_resolver_thread: swap_cmd OUT written for vnpu_id=%d", selected.vnpu_id);
         }
 
+poll_done:
+        pthread_mutex_unlock(&thread->activity_lock);
         usleep(thread->poll_interval_ms * 1000);
     }
 
@@ -87,7 +91,7 @@ static void *swap_resolver_thread_func(void *arg)
     return NULL;
 }
 
-swap_resolver_thread_t *swap_resolver_thread_create(void *resolver, int phy_id, uint64_t poll_interval_ms)
+swap_resolver_thread_t* swap_resolver_thread_create(void *resolver, int phy_id, uint64_t poll_interval_ms)
 {
     if (resolver == NULL) {
         LOG_ERROR("swap_resolver_thread_create failed: resolver is NULL");
@@ -95,22 +99,25 @@ swap_resolver_thread_t *swap_resolver_thread_create(void *resolver, int phy_id, 
     }
 
     if (phy_id < 0 || poll_interval_ms == 0) {
-        LOG_ERROR("swap_resolver_thread_create failed: invalid phy_id=%d or poll_interval_ms=%lu", phy_id,
-                  poll_interval_ms);
+        LOG_ERROR("swap_resolver_thread_create failed: invalid phy_id=%d or poll_interval_ms=%lu", phy_id, poll_interval_ms);
         return NULL;
     }
 
-    swap_resolver_thread_t *thread = (swap_resolver_thread_t *)calloc(1, sizeof(swap_resolver_thread_t));
+    swap_resolver_thread_t *thread = (swap_resolver_thread_t*)calloc(1, sizeof(swap_resolver_thread_t));
     if (thread == NULL) {
         LOG_ERROR("swap_resolver_thread_create failed: calloc returned NULL");
         return NULL;
     }
 
-    thread->resolver = (swap_resolver_t *)resolver;
+    if (pthread_mutex_init(&thread->activity_lock, NULL) != 0) {
+        free(thread);
+        return NULL;
+    }
+    thread->resolver = (swap_resolver_t*)resolver;
     thread->phy_id = phy_id;
     thread->poll_interval_ms = poll_interval_ms;
     atomic_store(&thread->running, false);
-
+    atomic_init(&thread->started, false);
     return thread;
 }
 
@@ -120,6 +127,7 @@ int swap_resolver_thread_destroy(swap_resolver_thread_t *thread)
         return ENPU_FAIL;
     }
 
+    pthread_mutex_destroy(&thread->activity_lock);
     free(thread);
     return ENPU_SUCCESS;
 }
@@ -131,6 +139,9 @@ int swap_resolver_thread_start(swap_resolver_thread_t *thread)
         return ENPU_FAIL;
     }
 
+    if (atomic_load(&thread->started)) {
+        return ENPU_SUCCESS;
+    }
     atomic_store(&thread->running, true);
 
     int ret = pthread_create(&thread->thread, NULL, swap_resolver_thread_func, thread);
@@ -139,6 +150,7 @@ int swap_resolver_thread_start(swap_resolver_thread_t *thread)
         atomic_store(&thread->running, false);
         return ENPU_FAIL;
     }
+    atomic_store(&thread->started, true);
 
     return ENPU_SUCCESS;
 }
@@ -150,7 +162,19 @@ int swap_resolver_thread_stop(swap_resolver_thread_t *thread)
     }
 
     atomic_store(&thread->running, false);
+    if (!atomic_exchange(&thread->started, false)) {
+        return ENPU_SUCCESS;   /* 未启动或已 join 过 */
+    }
     pthread_join(thread->thread, NULL);
 
     return ENPU_SUCCESS;
+}
+/* pause must precede taking the allocator lock; resume before stop/join. */
+int swap_resolver_thread_pause(swap_resolver_thread_t *thread)
+{
+    return thread != NULL && pthread_mutex_lock(&thread->activity_lock) == 0 ? ENPU_SUCCESS : ENPU_FAIL;
+}
+void swap_resolver_thread_resume(swap_resolver_thread_t *thread)
+{
+    if (thread != NULL) pthread_mutex_unlock(&thread->activity_lock);
 }

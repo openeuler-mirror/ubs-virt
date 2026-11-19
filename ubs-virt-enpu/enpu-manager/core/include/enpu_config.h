@@ -48,6 +48,8 @@ extern "C" {
 enpu_config_t *enpu_config_load(const char *config_path);
 int enpu_config_destroy(enpu_config_t *config);
 
+int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio[MAX_NPU_PER_NODE], int phy_id_span);
+
 #if defined(__cplusplus)
 }
 #endif

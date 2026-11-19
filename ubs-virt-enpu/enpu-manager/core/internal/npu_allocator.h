@@ -120,6 +120,12 @@ int npu_allocator_get_last_kernel_time_ns(npu_allocator_t *alloc, int phy_id, in
 
 int parse_hbm_request_limit(alloc_request_t *req, uint64_t *hbm_request, uint64_t *hbm_limit, char *error_msg);
 
+int npu_allocator_get_die_id(npu_allocator_t *alloc, int phy_id, char *die_id, int die_id_len);
+int npu_allocator_get_oversub_ratios(npu_allocator_t *alloc, double out_ratio[MAX_NPU_PER_NODE]);
+/* begin returns with the allocator lock held on success; always pair with end. */
+int npu_allocator_reconfig_begin(npu_allocator_t *alloc, int phy_id, bool *ready, char *reason, int reason_len);
+void npu_allocator_reconfig_end(npu_allocator_t *alloc);
+
 #if defined(__cplusplus)
 }
 #endif

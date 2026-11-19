@@ -29,7 +29,7 @@ struct swap_resolver {
 swap_resolver_t *swap_resolver_create(npu_allocator_t *allocator, swap_buffer_manager_t *swap_buf_mgr,
                                       double pre_swap_threshold, uint64_t idle_threshold_ns)
 {
-    if (allocator == NULL || swap_buf_mgr == NULL) {
+    if (allocator == NULL) {
         return NULL;
     }
 

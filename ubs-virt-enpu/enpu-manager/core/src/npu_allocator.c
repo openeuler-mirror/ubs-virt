@@ -12,6 +12,7 @@
 
 #include "../internal/npu_allocator.h"
 #include <limits.h>
+#include <math.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdatomic.h>
@@ -471,15 +472,15 @@ static int shm_apply_vnpu_locked(npu_allocator_t *a, int32_t phy_id, const char 
     return ENPU_SUCCESS;
 }
 
-/* shm release 共用核心：幂等. 
+/* shm release 共用核心：幂等.
  *   - bitmap 不存在 → 直接 SUCCESS
  *   - swapped → shm_free 释放 swap buffer
  *   - remove_entry（清 bitmap + vnpu_id=-1）
  *   - 清 sched 的 last_alive_time_ns / last_kernel_time_ns（避免 pod_watchdog 误判）
  *
  * 修复点（相对原 Docker release）：
- *   原 Docker npu_allocator_release 只调 shm_manager_remove_entry, 
- *   若 vnpu 处于 swapped 状态会泄漏 swap buffer. 本 helper 统一做完整清理. 
+ *   原 Docker npu_allocator_release 只调 shm_manager_remove_entry,
+ *   若 vnpu 处于 swapped 状态会泄漏 swap buffer. 本 helper 统一做完整清理.
  */
 static int shm_release_vnpu_locked(npu_allocator_t *a, int32_t phy_id, int32_t vnpu_id)
 {
@@ -960,8 +961,8 @@ int npu_allocator_release_by_vnpu(npu_allocator_t *a, int phy_id, int vnpu_id)
 }
 
 /* ==========================================================================
- * K8s 场景：外部组件（mindcluster）写 npu_info.config 后, 
- * enpu-manager 只需根据解析出的信息建立/更新 shm. 
+ * K8s 场景：外部组件（mindcluster）写 npu_info.config 后,
+ * enpu-manager 只需根据解析出的信息建立/更新 shm.
  * ========================================================================== */
 
 int npu_allocator_release_external_vnpu(npu_allocator_t *a, int32_t phy_id, int32_t vnpu_id)
@@ -1393,6 +1394,9 @@ int npu_allocator_set_oversub_ratio(npu_allocator_t *a, int die_index, double ra
         return ENPU_INVALID_PARAM;
     }
 
+    if (!(isfinite(ratio) && (ratio) >= 0.0)) {
+        return ENPU_INVALID_PARAM;
+    }
     pthread_mutex_lock(&a->lock);
     a->oversub_ratio[die_index] = ratio;
     pthread_mutex_unlock(&a->lock);
@@ -1409,4 +1413,126 @@ double npu_allocator_get_oversub_ratio(npu_allocator_t *a, int die_index)
     double ratio = a->oversub_ratio[die_index];
     pthread_mutex_unlock(&a->lock);
     return ratio;
+}
+
+
+int npu_allocator_get_die_id(npu_allocator_t *a, int phy_id, char *die_id, int die_id_len)
+{
+    if (a == NULL || a->tree == NULL || die_id == NULL || die_id_len <= 0) {
+        return ENPU_INVALID_PARAM;
+    }
+    if (phy_id < 0 || phy_id >= MAX_NPU_PER_NODE) {
+        return ENPU_INVALID_PARAM;
+    }
+
+    pthread_mutex_lock(&a->lock);
+    npu_node_t *node = npu_tree_get_leaf(a->tree, phy_id);
+    const char *did = (node != NULL) ? npu_node_get_die_id(node) : NULL;
+    if (did != NULL && did[0] != '\0') {
+        strncpy_s(die_id, (die_id_len - 1) + 1, did, die_id_len - 1);
+        die_id[die_id_len - 1] = '\0';
+    } else {
+        die_id[0] = '\0';
+    }
+    pthread_mutex_unlock(&a->lock);
+    return (did != NULL && did[0] != '\0') ? ENPU_SUCCESS : ENPU_NOT_FOUND;
+}
+
+
+static void die_reconfig_check_locked(npu_allocator_t *a, int phy_id,
+                                      bool *ready, char *reason, int reason_len)
+{
+    *ready = false;
+
+    /* 1) 无活跃 allocation */
+    allocation_t allocs[MAX_ALLOC_COUNT];
+    int count = 0;
+    int ret = allocation_registry_list_by_phy_id(a->registry, phy_id, allocs, &count);
+    if (ret != ENPU_SUCCESS) {
+        if (reason != NULL && reason_len > 0) {
+            snprintf_s(reason, reason_len, reason_len - 1, "die %d allocation query failed", phy_id);
+        }
+        return;
+    }
+    if (count > 0) {
+        if (reason != NULL && reason_len > 0) snprintf_s(reason, reason_len, (reason_len) - 1, "die %d has %d active allocation(s)", phy_id, count);
+        return;
+    }
+
+    /* 2) 无换出数据 + 3) 无在途 swap 命令 */
+    shm_state_t *state = shm_manager_get_state(a->shm_mgr, phy_id);
+    if (state != NULL) {
+        /* External/K8s allocations may not be present in the local registry. */
+        if (atomic_load(&state->vnpu_bitmap[0]) != 0 || atomic_load(&state->vnpu_bitmap[1]) != 0) {
+            if (reason != NULL && reason_len > 0) {
+                snprintf_s(reason, reason_len, (reason_len) - 1, "die %d has registered vNPU entries", phy_id);
+            }
+            return;
+        }
+        /* 检查所有进程槽位，防止位图与进程状态不一致时释放仍在使用的池。 */
+        for (int v = 0; v < MAX_VNPU_PER_DIE; v++) {
+            for (int slot = 0; slot < MAX_PROCESSES_PER_VNPU; slot++) {
+                process_entry_t *entry = &state->entries[v].processes[slot];
+                if (atomic_load(&entry->active) || atomic_load(&entry->swapped) || entry->swap_size != 0) {
+                    if (reason != NULL && reason_len > 0) {
+                        snprintf_s(reason, reason_len, reason_len - 1,
+                                   "die %d vnpu %d slot %d still uses swap state", phy_id, v, slot);
+                    }
+                    return;
+                }
+            }
+        }
+        if (!atomic_load(&state->swap_cmd.completed)) {
+            if (reason != NULL && reason_len > 0) snprintf_s(reason, reason_len, (reason_len) - 1, "die %d swap_cmd in flight", phy_id);
+            return;
+        }
+        if (!atomic_load(&state->swap_out_cmd.completed)) {
+            if (reason != NULL && reason_len > 0) snprintf_s(reason, reason_len, (reason_len) - 1, "die %d swap_out_cmd in flight", phy_id);
+            return;
+        }
+    }
+
+    *ready = true;
+}
+
+
+int npu_allocator_reconfig_begin(npu_allocator_t *a, int phy_id,
+                                 bool *ready, char *reason, int reason_len)
+{
+    if (a == NULL || ready == NULL) {
+        return ENPU_INVALID_PARAM;
+    }
+    if (phy_id < 0 || phy_id >= MAX_NPU_PER_NODE) {
+        return ENPU_INVALID_PARAM;
+    }
+
+    if (reason != NULL && reason_len > 0) {
+        reason[0] = '\0';
+    }
+
+    /* 成功返回时 lock 仍持有，调用方必须以 reconfig_end 配对释放 */
+    pthread_mutex_lock(&a->lock);
+    die_reconfig_check_locked(a, phy_id, ready, reason, reason_len);
+    return ENPU_SUCCESS;
+}
+
+
+void npu_allocator_reconfig_end(npu_allocator_t *a)
+{
+    if (a != NULL) {
+        pthread_mutex_unlock(&a->lock);
+    }
+}
+
+
+
+int npu_allocator_get_oversub_ratios(npu_allocator_t *a, double out_ratio[MAX_NPU_PER_NODE])
+{
+    if (a == NULL || out_ratio == NULL) {
+        return ENPU_INVALID_PARAM;
+    }
+    pthread_mutex_lock(&a->lock);
+    memcpy_s(out_ratio, sizeof(a->oversub_ratio), a->oversub_ratio, sizeof(a->oversub_ratio));
+    pthread_mutex_unlock(&a->lock);
+    return ENPU_SUCCESS;
 }

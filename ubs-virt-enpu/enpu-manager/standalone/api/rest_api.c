@@ -11,6 +11,8 @@
  */
 
 #include "rest_api.h"
+#include "ratio_request.h"
+#include <arpa/inet.h>
 #include <cjson/cJSON.h>
 #include <errno.h>
 #include <limits.h>
@@ -810,6 +812,105 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
         CHECK_COND_LOG_(ret < 0, "snprintf_s response failed.");
         return HTTP_STATUS_NOT_FOUND;
     }
+
+    if (strcmp(method, "POST") == 0 && strcmp(path, "/api/v1/config/oversub-ratio") == 0) {
+        static pthread_mutex_t ratio_config_lock = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_lock(&ratio_config_lock);
+        /* body: {"phy_id":3,"ratio":2.0} */
+        int phy_id = -1;
+        double ratio = -1.0;
+        if (parse_ratio_request(body, MAX_NPU_PER_NODE, &phy_id, &ratio) != 0) {
+            snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE) - 1, "{\"error\":\"Invalid phy_id or ratio\",\"result\":%d}", ENPU_INVALID_PARAM);
+            pthread_mutex_unlock(&ratio_config_lock);
+            return HTTP_STATUS_BAD_REQUEST;
+        }
+
+        /* CSV 按 phy_id 索引，仅写到实际最大 phy_id；稀疏编号保留占位。 */
+        device_info_t devices[MAX_NPU_PER_NODE];
+        int device_count = MAX_NPU_PER_NODE;
+        if (enpu_manager_query_devices(mgr, NULL, devices, &device_count) != ENPU_SUCCESS ||
+            device_count <= 0 || device_count > MAX_NPU_PER_NODE) {
+            snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE) - 1, "{\"error\":\"Failed to read physical devices\",\"result\":%d}", ENPU_FAIL);
+            pthread_mutex_unlock(&ratio_config_lock);
+            return HTTP_STATUS_INTERNAL_ERROR;
+        }
+        int phy_id_span = 0;
+        bool phy_exists = false;
+        for (int i = 0; i < device_count; i++) {
+            int id = devices[i].phy_id;
+            if (id < 0 || id >= MAX_NPU_PER_NODE) {
+                snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE) - 1, "{\"error\":\"Invalid physical device topology\",\"result\":%d}", ENPU_FAIL);
+                pthread_mutex_unlock(&ratio_config_lock);
+                return HTTP_STATUS_INTERNAL_ERROR;
+            }
+            if (id + 1 > phy_id_span) phy_id_span = id + 1;
+            if (id == phy_id) phy_exists = true;
+        }
+        if (!phy_exists) {
+            snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE) - 1, "{\"error\":\"Invalid phy_id or ratio\",\"result\":%d}", ENPU_INVALID_PARAM);
+            pthread_mutex_unlock(&ratio_config_lock);
+            return HTTP_STATUS_BAD_REQUEST;
+        }
+
+        /* 读当前全量 ratio 数组，组新数组 new[phy_id]=ratio。
+         * 必须判返回值：失败时 ratios 全 0，直接落盘会把整节点 ratio 清零。 */
+        double ratios[MAX_NPU_PER_NODE] = {0};
+        if (enpu_manager_get_oversub_ratio(mgr, ratios) != ENPU_SUCCESS) {
+            snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE) - 1, "{\"error\":\"Failed to read current oversub ratios\",\"result\":%d}", ENPU_FAIL);
+            pthread_mutex_unlock(&ratio_config_lock);
+            return HTTP_STATUS_INTERNAL_ERROR;
+        }
+        ratios[phy_id] = ratio;
+
+        bool cfg_existed = (access(ENPU_CONFIG_DEFAULT_PATH, F_OK) == 0);
+
+        /* 先落盘，再内存重建 */
+        int wret = enpu_config_write_oversub_ratio(ENPU_CONFIG_DEFAULT_PATH, ratios, phy_id_span);
+        if (wret != ENPU_SUCCESS) {
+            snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE) - 1, "{\"error\":\"Failed to write config\",\"result\":%d}", wret);
+            pthread_mutex_unlock(&ratio_config_lock);
+            return HTTP_STATUS_INTERNAL_ERROR;
+        }
+
+        int result = enpu_manager_set_oversub_ratio(mgr, phy_id, ratio);
+        if (result != ENPU_SUCCESS) {
+            /* 内存重建失败：还原文件（原文件不存在时直接删掉新建的） */
+            char bak[MAX_PATH_LEN];
+            snprintf_s(bak, sizeof(bak), (sizeof(bak)) - 1, "%s.bak", ENPU_CONFIG_DEFAULT_PATH);
+            if (cfg_existed) {
+                if (rename(bak, ENPU_CONFIG_DEFAULT_PATH) != 0) {
+                    LOG_ERROR("[REST] failed to restore config from %s", bak);
+                }
+            } else {
+                unlink(ENPU_CONFIG_DEFAULT_PATH);
+            }
+            /* 区分失败类别，避免任何失败都显示同一句 "Failed to apply ratio"；
+             * 具体原因（活跃分配数/哪个 vnpu 仍换出/哪条命令在途）见日志 set_oversub_ratio busy */
+            const char *err;
+            switch (result) {
+            case ENPU_BUSY:
+                err = "Die busy: active allocation, swapped data, or in-flight swap command";
+                break;
+            case ENPU_INVALID_PARAM:
+                err = "Invalid phy_id or ratio";
+                break;
+            case ENPU_NO_RESOURCE:
+                err = "Node swap buffer exceeds host MemFree";
+                break;
+            default:
+                err = "Failed to rebuild swap pool; see enpu-manager log";
+                break;
+            }
+            snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE) - 1, "{\"error\":\"%s\",\"result\":%d}", err, result);
+            pthread_mutex_unlock(&ratio_config_lock);
+            return (result == ENPU_BUSY || result == ENPU_INVALID_PARAM) ? HTTP_STATUS_BAD_REQUEST : HTTP_STATUS_INTERNAL_ERROR;
+        }
+
+        snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE) - 1, "{\"result\":0}");
+        pthread_mutex_unlock(&ratio_config_lock);
+        return HTTP_STATUS_OK;
+    }
+
 
     if (strcmp(method, "POST") == 0 && strcmp(path, "/api/v1/allocate") == 0) {
         alloc_request_t req;

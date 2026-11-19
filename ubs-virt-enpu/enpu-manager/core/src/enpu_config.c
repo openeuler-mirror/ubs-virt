@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include "log.h"
 #include "securec.h"
@@ -278,5 +279,151 @@ int enpu_config_destroy(enpu_config_t *config)
     }
 
     free(config);
+    return ENPU_SUCCESS;
+}
+
+static void fsync_parent_dir(const char *path)
+{
+    char dir[MAX_PATH_LEN];
+    snprintf_s(dir, sizeof(dir), (sizeof(dir)) - 1, "%s", path);
+    char *slash = strrchr(dir, '/');
+    if (slash == NULL) {
+        return;
+    }
+    if (slash == dir) {
+        slash[1] = '\0';            /* 根目录 "/" */
+    } else {
+        *slash = '\0';
+    }
+
+    int dir_fd = open(dir, O_RDONLY
+#ifdef O_DIRECTORY
+                      | O_DIRECTORY
+#endif
+                      );
+    if (dir_fd < 0) {
+        return;
+    }
+    (void)fsync(dir_fd);
+    close(dir_fd);
+}
+
+
+static void format_ratio(char *buf, size_t len, double v)
+{
+    snprintf_s(buf, len, (len) - 1, "%.6g", v);
+    if (strtod(buf, NULL) != v) {
+        snprintf_s(buf, len, (len) - 1, "%.17g", v);
+    }
+}
+
+
+int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio[MAX_NPU_PER_NODE],
+                                   int phy_id_span)
+{
+    if (path == NULL || per_die_ratio == NULL || phy_id_span <= 0 || phy_id_span > MAX_NPU_PER_NODE) {
+        return ENPU_INVALID_PARAM;
+    }
+
+    /* 单值会广播到全部 MAX_NPU_PER_NODE 项。少于容量上限时必须写 CSV，
+     * 即使比例相同，也不能在重启时为不存在的设备启用超分。
+     * 仅有 phy0 时补一个零占位，避免单项 CSV 被解析为广播。 */
+    char value[512];
+    int write_span = (phy_id_span == 1) ? 2 : phy_id_span;
+    bool all_equal = true;
+    for (int i = 1; i < phy_id_span; i++) {
+        if (per_die_ratio[i] != per_die_ratio[0]) {
+            all_equal = false;
+            break;
+        }
+    }
+    if (all_equal && phy_id_span == MAX_NPU_PER_NODE) {
+        format_ratio(value, sizeof(value), per_die_ratio[0]);
+    } else {
+        int off = 0;
+        for (int i = 0; i < write_span && off < (int)sizeof(value) - 32; i++) {
+            char item[32];
+            format_ratio(item, sizeof(item), (i < phy_id_span) ? per_die_ratio[i] : 0.0);
+            off += snprintf_s(value + off, sizeof(value) - off, (sizeof(value) - off) - 1, "%s%s", (i > 0) ? "," : "", item);
+        }
+    }
+
+    char tmp_path[MAX_PATH_LEN];
+    char bak_path[MAX_PATH_LEN];
+    snprintf_s(tmp_path, sizeof(tmp_path), (sizeof(tmp_path)) - 1, "%s.tmp", path);
+    snprintf_s(bak_path, sizeof(bak_path), (sizeof(bak_path)) - 1, "%s.bak", path);
+
+    FILE *fp = fopen(path, "r");
+    bool orig_exists = (fp != NULL);
+
+    FILE *tmp = fopen(tmp_path, "w");
+    if (tmp == NULL) {
+        if (fp != NULL) fclose(fp);
+        return ENPU_FAIL;
+    }
+
+    bool replaced = false;
+    bool needs_newline = false;
+    if (fp != NULL) {
+        char line[512];
+        while (fgets(line, sizeof(line), fp)) {
+            char *s = line;
+            while (*s == ' ' || *s == '\t') s++;
+            if (strncmp(s, "oversub-ratio", 13) == 0 &&
+                (s[13] == '=' || s[13] == ' ' || s[13] == '\t' || s[13] == '\n' || s[13] == '\r' || s[13] == '\0')) {
+                fprintf(tmp, "oversub-ratio=%s\n", value);
+                replaced = true;
+            } else {
+                fputs(line, tmp);
+                size_t len = strlen(line);
+                needs_newline = len > 0 && line[len - 1] != '\n';
+            }
+        }
+        fclose(fp);
+    }
+
+    if (!replaced) {
+        if (needs_newline) fputc('\n', tmp);
+        fprintf(tmp, "oversub-ratio=%s\n", value);
+    }
+
+    if (fflush(tmp) != 0 || fsync(fileno(tmp)) != 0) {
+        fclose(tmp);
+        unlink(tmp_path);
+        return ENPU_FAIL;
+    }
+    fclose(tmp);
+
+    /* 写前备份 .bak */
+    if (orig_exists) {
+        FILE *src = fopen(path, "r");
+        FILE *dst = fopen(bak_path, "w");
+        bool backup_ok = (src != NULL && dst != NULL);
+        if (src != NULL && dst != NULL) {
+            char buf[4096];
+            size_t n;
+            while ((n = fread(buf, 1, sizeof(buf), src)) > 0) {
+                if (fwrite(buf, 1, n, dst) != n) {
+                    backup_ok = false;
+                    break;
+                }
+            }
+            if (ferror(src)) backup_ok = false;
+            if (fflush(dst) != 0 || fsync(fileno(dst)) != 0) backup_ok = false;
+        }
+        if (src != NULL && fclose(src) != 0) backup_ok = false;
+        if (dst != NULL && fclose(dst) != 0) backup_ok = false;
+        if (!backup_ok) {
+            unlink(tmp_path);
+            return ENPU_FAIL;
+        }
+    }
+
+    if (rename(tmp_path, path) != 0) {
+        unlink(tmp_path);
+        return ENPU_FAIL;
+    }
+    fsync_parent_dir(path);
+
     return ENPU_SUCCESS;
 }

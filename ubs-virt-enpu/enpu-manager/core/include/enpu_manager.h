@@ -302,6 +302,9 @@ int enpu_manager_swap_control(enpu_manager_t *mgr, const char *pod_uid, swap_act
 
 int enpu_manager_control(enpu_manager_t *mgr, control_op_t op);
 
+int enpu_manager_set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio);
+int enpu_manager_get_oversub_ratio(enpu_manager_t *mgr, double out_ratio[MAX_NPU_PER_NODE]);
+
 #if defined(__cplusplus)
 }
 #endif

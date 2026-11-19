@@ -30,7 +30,7 @@
 #define SWAP_OUT_FROM_BORROWED 1
 #define SWAP_OUT_FROM_ALL 2
 
-#define SHM_STATE_VERSION 4 /* bump: 新增 ack_pending_seq（换出 ack 欠账标记），结构布局变化 */
+#define SHM_STATE_VERSION 5 /* 多进程换出协议增加按卡池名和代次 */
 
 #define MAX_PROCESSES_PER_VNPU 64                       /* 每个 vNPU 最多注册的 vcann-rt 进程数 */
 #define PROCESS_ALIVE_TIMEOUT_NS (5ULL * 1000000000ULL) /* 进程心跳超时阈值: 5 秒 */
@@ -92,6 +92,8 @@ typedef struct shm_state {
     pthread_mutex_t swap_in_mutex;
     atomic_int next_vcann_rt_id; /* vcann_rt_id 自增计数器（0 表示未分配） */
     uint8_t reserved[64];
+    char swap_pool_name[DIE_ID_LEN];
+    atomic_uint_fast32_t swap_pool_generation;
 } shm_state_t;
 
 typedef struct shm_manager {
@@ -194,6 +196,16 @@ int shm_free_per_process(shm_state_t *state, int vnpu_id, int slot);
 /* 聚合查询: 该 vNPU 是否"存在活跃进程且全部已换出"（空 vNPU 返回 false） */
 int shm_manager_get_vnpu_all_swapped(shm_manager_t *mgr, int phy_id, int vnpu_id, bool *swapped);
 void shm_print_free_block_info(void);
+
+#define SHM_SWAP_BUFFER_NAME_PREFIX "/swap_buffer_"
+int shm_swap_buffer_pool_init(shm_state_t *state, int phy_id, uint64_t size);
+int shm_swap_buffer_pool_deinit(shm_state_t *state, int phy_id);
+int shm_swap_buffer_pool_replace(shm_state_t *state, int phy_id, uint64_t size);
+bool shm_swap_buffer_pool_is_inited(int phy_id);
+bool shm_swap_buffer_any_inited(void);
+int shm_swap_buffer_pool_get_status(int phy_id, swap_buffer_status_t *status);
+int shm_swap_buffer_get_status_aggregate(swap_buffer_status_t *status);
+void shm_print_free_block_info_for_die(int phy_id);
 
 #if defined(__cplusplus)
 }
