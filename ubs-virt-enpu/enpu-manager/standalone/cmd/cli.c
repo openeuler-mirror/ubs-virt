@@ -232,8 +232,8 @@ static void print_usage(const char *prog)
     printf("Usage: %s <command> [options]\n\n", prog);
     printf("Commands:\n");
     printf("  list                     List all NPU devices\n");
-    printf("  alloc [--allocation-id <allocation_id>] -n <aicore> [-r <request>] [-l <limit>] | -m <hbm> -p <policy> "
-           "[-d <phy_id>] [--swap-order 0|1|2] [-u <pod_uid>] [-c <container>]\n");
+    printf("  alloc [--allocation-id <allocation_id>] [-n <aicore>] [-r <request>] [-l <limit>] | -m <hbm> "
+           "[-p <policy>] [--vnpu-priority 0|1] [-d <phy_id>] [--swap-order 0|1|2] [-u <pod_uid>] [-c <container>]\n");
     printf("                           Allocate vNPU\n");
     printf("                           -r/--request: hbm request (保底预留)\n");
     printf("                           -l/--limit:   hbm limit (硬边界上限)\n");
@@ -242,6 +242,8 @@ static void print_usage(const char *prog)
     printf("                           -u:           pod_uid (optional metadata)\n");
     printf("                           -c:           container_name (optional metadata)\n");
     printf("                           --swap-order: 0 first, 1 default, 2 last\n");
+    printf("                           --vnpu-priority: 0 normal (default), 1 high\n");
+    printf("                           Normal priority requires -n and -p; high priority uses AI Core 0 and policy 3\n");
     printf("  release -a <allocation_id> | -u <pod_uid> -c <container>\n");
     printf("                           Release vNPU\n");
     printf("  status                   Show allocation status\n");
@@ -473,6 +475,7 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
     int policy = 0;
     int phy_id = -1;
     int swap_order = 1;
+    int vnpu_priority = 0;
     char allocation_id[ALLOCATION_ID_LEN] = "";
     char pod_uid[128] = "";
     char container[64] = "";
@@ -511,6 +514,12 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
             }
         } else if (strcmp(argv[i], "-d") == 0 && has_val) {
             phy_id = atoi(val);
+        } else if (strcmp(argv[i], "--vnpu-priority") == 0) {
+            if (!has_val || strlen(val) != 1 || (val[0] != '0' && val[0] != '1')) {
+                fprintf(stderr, "Error: --vnpu-priority requires 0 or 1\n");
+                return 1;
+            }
+            vnpu_priority = val[0] - '0';
         } else if (strcmp(argv[i], "--swap-order") == 0) {
             if (!has_val || strlen(val) != 1 || val[0] < '0' || val[0] > '2') {
                 fprintf(stderr, "Error: --swap-order requires 0, 1 or 2\n");
@@ -534,7 +543,13 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
         i += has_val ? 2 : 1;
     }
 
-    if (aicore < 0 || policy == 0) {
+    if (vnpu_priority == 1) {
+        if ((aicore != -1 && aicore != 0) || (policy != 0 && policy != 3)) {
+            fprintf(stderr, "Warning: high priority ignores -n and -p; effective AI Core is 0 and policy is 3\n");
+        }
+        aicore = 0;
+        policy = 3;
+    } else if (aicore < 0 || policy == 0) {
         fprintf(stderr, "Error: -n <aicore> and -p <policy> are required\n");
         return 1;
     }
@@ -554,9 +569,9 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
         int body_len = snprintf_s(body, sizeof(body), sizeof(body) - 1,
                                   "{%s\"aicore_quota\":%d,\"hbm_request\":%lu,\"hbm_limit\":%lu,"
                                   "\"sched_policy\":%d,\"phy_id\":%d,\"pod_uid\":\"%s\","
-                                  "\"container_name\":\"%s\",\"swap_order\":%d}",
+                                  "\"container_name\":\"%s\",\"swap_order\":%d,\"vnpu_priority\":%d}",
                                   allocation_field, aicore, hbm_request, hbm_limit, policy, phy_id, pod_uid, container,
-                                  swap_order);
+                                  swap_order, vnpu_priority);
         if (body_len < 0 || body_len >= (int)sizeof(body)) {
             fprintf(stderr, "Error: Failed to build request body\n");
             return 1;
@@ -576,7 +591,7 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
             return 1;
         }
 
-        int resp_phy_id = 0, resp_vnpu_id = 0, resp_aicore = 0, resp_sched_policy = 0;
+        int resp_phy_id = 0, resp_vnpu_id = 0, resp_aicore = 0, resp_sched_policy = 0, resp_priority = 0;
         uint64_t resp_hbm_request = 0, resp_hbm_limit = 0;
         char allocation_id[64] = "", config_path[512] = "";
         char shm_id[128] = "", minor_name[64] = "";
@@ -593,6 +608,7 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
         parse_string(resp_body, "shm_id", shm_id, sizeof(shm_id));
         parse_int(resp_body, "aicore_quota", &resp_aicore);
         parse_int(resp_body, "sched_policy", &resp_sched_policy);
+        parse_int(resp_body, "vnpu_priority", &resp_priority);
         parse_uint64(resp_body, "hbm_quota", &resp_hbm_request);
         parse_uint64(resp_body, "hbm_limit", &resp_hbm_limit);
         parse_string(resp_body, "minor_name", minor_name, sizeof(minor_name));
@@ -609,6 +625,7 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
         printf("  HBM Request:  %lu\n", resp_hbm_request);
         printf("  HBM Limit:    %lu\n", resp_hbm_limit);
         printf("  Policy:       %d\n", resp_sched_policy);
+        printf("  Priority:     %d\n", resp_priority);
         printf("  SHM ID:       %s\n", shm_id);
         printf("  Minor:        %s\n", minor_name);
         return 0;
@@ -622,8 +639,10 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
     char body[512];
     int body_len = snprintf_s(body, sizeof(body), sizeof(body) - 1,
                               "{%s\"aicore_quota\":%d,\"hbm_quota\":%lu,\"sched_policy\":%d,"
-                              "\"phy_id\":%d,\"pod_uid\":\"%s\",\"container_name\":\"%s\",\"swap_order\":%d}",
-                              allocation_field, aicore, hbm_request, policy, phy_id, pod_uid, container, swap_order);
+                              "\"phy_id\":%d,\"pod_uid\":\"%s\",\"container_name\":\"%s\",\"swap_order\":%d,"
+                              "\"vnpu_priority\":%d}",
+                              allocation_field, aicore, hbm_request, policy, phy_id, pod_uid, container, swap_order,
+                              vnpu_priority);
     if (body_len < 0 || body_len >= (int)sizeof(body)) {
         fprintf(stderr, "Error: Failed to build request body\n");
         return 1;
@@ -643,7 +662,7 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
         return 1;
     }
 
-    int phy_id_resp = 0, vnpu_id = 0, aicore_quota = 0, sched_policy = 0;
+    int phy_id_resp = 0, vnpu_id = 0, aicore_quota = 0, sched_policy = 0, resp_priority = 0;
     char config_path[512] = "";
     char shm_id[128] = "", minor_name[64] = "";
     char resp_pod_uid[128] = "", resp_container[128] = "";
@@ -659,6 +678,7 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
     parse_string(resp_body, "shm_id", shm_id, sizeof(shm_id));
     parse_int(resp_body, "aicore_quota", &aicore_quota);
     parse_int(resp_body, "sched_policy", &sched_policy);
+    parse_int(resp_body, "vnpu_priority", &resp_priority);
     parse_string(resp_body, "minor_name", minor_name, sizeof(minor_name));
 
     printf("vNPU Allocated:\n");
@@ -671,6 +691,7 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
     printf("  Die ID:       %s\n", die_id);
     printf("  AI Core:      %d\n", aicore_quota);
     printf("  Policy:       %d\n", sched_policy);
+    printf("  Priority:     %d\n", resp_priority);
     printf("  SHM ID:       %s\n", shm_id);
     printf("  Minor:        %s\n", minor_name);
     return 0;

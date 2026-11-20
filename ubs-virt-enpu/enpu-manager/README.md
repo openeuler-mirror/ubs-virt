@@ -282,20 +282,21 @@ enpu-cli list
 ### 分配 vNPU
 
 ```text
-enpu-cli alloc [--allocation-id <UUID>] -n <aicore_percent>
+enpu-cli alloc [--allocation-id <UUID>] [-n <aicore_percent>]
   (-r <hbm_request> -l <hbm_limit> | -m <hbm_quota>)
-  -p <policy> [-d <phy_id>] [--swap-order 0|1|2]
+  [-p <policy>] [--vnpu-priority 0|1] [-d <phy_id>] [--swap-order 0|1|2]
   [-u <pod_uid>] [-c <container_name>]
 ```
 
 | 参数 | 必填 | 说明 |
 |:---|:---|:---|
 | `--allocation-id <UUID>` | 否 | 指定 allocation ID；省略时由 manager 生成。重复使用已有 ID 返回冲突。 |
-| `-n <aicore_percent>` | 是 | AI Core 配额百分比，具体约束由服务端按调度策略校验。 |
+| `-n <aicore_percent>` | 普通优先级必填 | AI Core 配额百分比，具体约束由服务端按调度策略校验。高优先级实际使用 `0`。 |
 | `-r/--request <MiB>` | 与 `-l` 成对使用 | HBM Request，单位 MiB。 |
 | `-l/--limit <MiB>` | 与 `-r` 成对使用 | HBM Limit，单位 MiB。 |
 | `-m <MiB>` | 与 `-r/-l` 二选一 | 同时将 HBM Request 和 Limit 设置为相同值。 |
-| `-p <policy>` | 是 | `fixed-share`、`elastic`、`best-effort`，也可使用 `1/2/3`。 |
+| `-p <policy>` | 普通优先级必填 | `fixed-share`、`elastic`、`best-effort`，也可使用 `1/2/3`。高优先级实际使用 `3`。 |
+| `--vnpu-priority 0|1` | 否 | `0` 普通优先级（默认），`1` 高优先级；仅接受单个字符 `0` 或 `1`。 |
 | `-d <phy_id>` | 否 | 指定物理卡；省略或传 `-1` 时由 manager 自动选择。 |
 | `--swap-order 0|1|2` | 否 | 换出顺序：`0` 最先、`1` 默认、`2` 最后换出。 |
 | `-u <pod_uid>` | 否 | Pod UID 元数据。 |
@@ -309,6 +310,14 @@ enpu-cli alloc \
   -n 20 -r 10240 -l 10240 -p fixed-share -d 0 \
   --swap-order 1 -u pod-abc -c container-1
 ```
+
+高优先级可省略 `-n` 和 `-p`，例如在卡 2 上分配：
+
+```bash
+enpu-cli alloc --vnpu-priority 1 -r 8192 -l 8192 -d 2 -u pod-high -c container-high
+```
+
+高优先级仍需填写 HBM 配额，并通过服务端资源校验。若显式填写的 `-n` 非 `0` 或 `-p` 非 `3`，CLI 输出警告，并按 `aicore_quota=0`、`sched_policy=3` 发送请求。两个显存参数分支均携带 `vnpu_priority`，成功输出中的 `Priority` 显示服务端返回的生效优先级。
 
 成功输出示例：
 
@@ -325,6 +334,7 @@ vNPU Allocated:
   HBM Request:  10240
   HBM Limit:    10240
   Policy:       1
+  Priority:     0
   SHM ID:       14422CC3-...
   Minor:        Ascend0
 ```
