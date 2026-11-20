@@ -81,6 +81,7 @@ extern void set_mem_limit_quota(size_t mem);
 extern void set_mem_request_quota(size_t mem);
 extern char *get_vnpu_shm_id(void);
 extern int get_mem_used(size_t *used);
+extern uint64_t get_vnpu_swapped_size(void);
 extern int get_device_id(void);
 extern uint8_t get_vnpu_id(void);
 extern uint8_t get_vnpu_priority(void);

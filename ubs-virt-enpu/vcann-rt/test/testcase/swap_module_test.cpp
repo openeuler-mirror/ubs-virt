@@ -298,8 +298,22 @@ protected:
         }
     }
 
-    void SetUp() {}
-    void TearDown() {}
+    void SetUp()
+    {
+        /* check_and_swap_out 腾挪判断直调 get_mem_used(DCMI 查询), 本套件无真实设备,
+         * 统一注册回调并打桩底层 dcmi 查询(返回 3072B), 否则 DCMI 桩返回 -90 导致
+         * 腾挪路径全部失败; 需要自定义行为的用例可在用例内重新 MOCKER 覆盖 */
+        ASSERT_EQ(register_callback(SOC_VERSION_ASCEND_950), ENPU_SUCCESS);
+        ASSERT_EQ(register_callback(SOC_VERSION_ASCEND_310), ENPU_SUCCESS);
+        ASSERT_EQ(register_callback(SOC_VERSION_ASCEND_910), ENPU_SUCCESS);
+        MOCKER(dcmi_get_device_resource_info).stubs().will(invoke(stub_dcmi_threaded_memory));
+    }
+
+    void TearDown()
+    {
+        GlobalMockObject::verify();
+        GlobalMockObject::reset();
+    }
 
     static shm_state_t *state_shm_;
     static shm_state_t *attached_;
@@ -498,6 +512,51 @@ TEST_F(SwapModuleTest, ShmStateApi)
     /* npu_manager 包装接口: 已挂载状态下走 shm 更新 */
     EXPECT_EQ(update_shm_hbm_request(0), ENPU_SUCCESS);
     EXPECT_EQ(update_shm_used(0), ENPU_SUCCESS);
+}
+
+/* ---------------- get_vnpu_swapped_size: 多槽位 swapped 汇总 ---------------- */
+
+TEST_F(SwapModuleTest, VnpuSwappedSizeMultiSlotAggregation)
+{
+    shm_state_t *state = get_shm_state();
+    ASSERT_NE(state, nullptr);
+    int slot = get_registry_slot();
+    ASSERT_GE(slot, 0);
+    vnpu_shm_entry_t *entry = &state->entries[kVnpuId];
+    process_entry_t *myEntry = &entry->processes[slot];
+    /* 借两个空闲槽位模拟同 vNPU 下的其他进程 */
+    int slotA = (slot + 1) % MAX_PROCESSES_PER_VNPU;
+    int slotB = (slot + 2) % MAX_PROCESSES_PER_VNPU;
+    process_entry_t *peA = &entry->processes[slotA];
+    process_entry_t *peB = &entry->processes[slotB];
+    ASSERT_FALSE(peA->active.load());
+    ASSERT_FALSE(peB->active.load());
+    uint64_t before = get_vnpu_swapped_size();
+
+    /* 本进程槽位 + 槽位A 均为活跃且已换出: 汇总两者 swap_size */
+    myEntry->swap_size = 2UL * MB_TO_B;
+    shm_set_process_swapped(state, kVnpuId, slot, true);
+    peA->active = true;
+    peA->swap_size = 4UL * MB_TO_B;
+    shm_set_process_swapped(state, kVnpuId, slotA, true);
+    EXPECT_EQ(get_vnpu_swapped_size(), before + 6UL * MB_TO_B);
+
+    /* 槽位B 活跃但 swapped=false, swap_size 残留(换入完成后作为 buffer 分配标记保留): 不计入 */
+    peB->active = true;
+    peB->swap_size = 8UL * MB_TO_B;
+    EXPECT_EQ(get_vnpu_swapped_size(), before + 6UL * MB_TO_B);
+
+    /* 槽位A 置非活跃(模拟死进程槽位待回收): 不计入 */
+    peA->active = false;
+    EXPECT_EQ(get_vnpu_swapped_size(), before + 2UL * MB_TO_B);
+
+    /* 复位现场, 隔离后续用例 */
+    shm_set_process_swapped(state, kVnpuId, slot, false);
+    myEntry->swap_size = 0;
+    peA->swap_size = 0;
+    peB->active = false;
+    peB->swap_size = 0;
+    EXPECT_EQ(get_vnpu_swapped_size(), before);
 }
 
 /* ---------------- swap_buffer_shm: attach/detach ---------------- */

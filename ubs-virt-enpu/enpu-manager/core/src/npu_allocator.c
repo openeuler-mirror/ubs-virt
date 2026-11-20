@@ -1312,7 +1312,7 @@ int npu_allocator_foreach_swapped_vnpu(npu_allocator_t *a, swapped_vnpu_callback
                         all_swapped = false;
                         break;
                     }
-                    total_swap_size += pe->swap_size;
+                    total_swap_size += atomic_load(&pe->swap_size);
                 }
                 if (all_swapped && total_swap_size > 0) {
                     callback(phy_id, entry->vnpu_id, total_swap_size, user_data);
@@ -1471,7 +1471,8 @@ static void die_reconfig_check_locked(npu_allocator_t *a, int phy_id, bool *read
         for (int v = 0; v < MAX_VNPU_PER_DIE; v++) {
             for (int slot = 0; slot < MAX_PROCESSES_PER_VNPU; slot++) {
                 process_entry_t *entry = &state->entries[v].processes[slot];
-                if (atomic_load(&entry->active) || atomic_load(&entry->swapped) || entry->swap_size != 0) {
+                if (atomic_load(&entry->active) || atomic_load(&entry->swapped) ||
+                    atomic_load(&entry->swap_size) != 0) {
                     if (reason != NULL && reason_len > 0) {
                         snprintf_s(reason, reason_len, reason_len - 1, "die %d vnpu %d slot %d still uses swap state",
                                    phy_id, v, slot);
