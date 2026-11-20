@@ -156,13 +156,18 @@ int swap_resolver_thread_start(swap_resolver_thread_t *thread)
     return ENPU_SUCCESS;
 }
 
+void swap_resolver_thread_request_stop(swap_resolver_thread_t *thread)
+{
+    atomic_store(&thread->running, false);
+}
+
 int swap_resolver_thread_stop(swap_resolver_thread_t *thread)
 {
     if (thread == NULL) {
         return ENPU_FAIL;
     }
 
-    atomic_store(&thread->running, false);
+    swap_resolver_thread_request_stop(thread);
     if (!atomic_exchange(&thread->started, false)) {
         return ENPU_SUCCESS; /* 未启动或已 join 过 */
     }
@@ -170,7 +175,7 @@ int swap_resolver_thread_stop(swap_resolver_thread_t *thread)
 
     return ENPU_SUCCESS;
 }
-/* pause must precede taking the allocator lock; resume before stop/join. */
+/* 已运行的线程应在获取 allocator 锁前暂停，等待退出前应先释放 activity_lock。 */
 int swap_resolver_thread_pause(swap_resolver_thread_t *thread)
 {
     return thread != NULL && pthread_mutex_lock(&thread->activity_lock) == 0 ? ENPU_SUCCESS : ENPU_FAIL;

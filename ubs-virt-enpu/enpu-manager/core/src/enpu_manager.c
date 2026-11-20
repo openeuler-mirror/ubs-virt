@@ -175,6 +175,39 @@ static bool swap_pool_size(uint64_t hbm_mb, double ratio, uint64_t *size)
     return true;
 }
 
+static int recover_unused_swap_pools(npu_allocator_t *allocator, const bool phy_present[MAX_NPU_PER_NODE])
+{
+    for (int phy_id = 0; phy_id < MAX_NPU_PER_NODE; phy_id++) {
+        if (!phy_present[phy_id])
+            continue;
+        bool found = false;
+        int result = shm_swap_buffer_has_pool_files(phy_id, &found);
+        if (result != ENPU_SUCCESS)
+            return result;
+        if (!found)
+            continue;
+        char die_id[DIE_ID_LEN];
+        if (npu_allocator_get_die_id(allocator, phy_id, die_id, sizeof(die_id)) != ENPU_SUCCESS)
+            return ENPU_FAIL;
+        shm_manager_t *shm_mgr = npu_allocator_get_shm_manager(allocator);
+        if (shm_manager_get_or_create_shm(shm_mgr, phy_id, die_id, NULL, 0) != ENPU_SUCCESS)
+            return ENPU_FAIL;
+        shm_state_t *state = shm_manager_get_state(shm_mgr, phy_id);
+        bool idle = false;
+        char reason[128] = {0};
+        result = npu_allocator_reconfig_begin(allocator, phy_id, &idle, reason, sizeof(reason));
+        if (result == ENPU_SUCCESS) {
+            result = shm_swap_buffer_recover_orphans(state, phy_id, idle);
+            npu_allocator_reconfig_end(allocator);
+        }
+        if (result != ENPU_SUCCESS) {
+            LOG_ERROR("[ENPU-MGR] Cannot reclaim swap pools for phy=%d, ret=%d, reason=%s", phy_id, result, reason);
+            return result;
+        }
+    }
+    return ENPU_SUCCESS;
+}
+
 enpu_manager_t *enpu_manager_create(const enpu_manager_config_t *config)
 {
     enpu_manager_t *mgr = (enpu_manager_t *)calloc(1, sizeof(enpu_manager_t));
@@ -270,6 +303,13 @@ enpu_manager_t *enpu_manager_create(const enpu_manager_config_t *config)
         }
     }
 
+    /* 在内存检查和建池前回收无使用者的残留段，覆盖 SIGKILL/OOM 后的启动。 */
+    if (recover_unused_swap_pools(mgr->allocator, phy_present) != ENPU_SUCCESS) {
+        npu_allocator_destroy(mgr->allocator);
+        free(mgr);
+        return NULL;
+    }
+
     /* MemFree 校验：swap_buf_size 不能超过节点空闲内存 */
     if (any_swap_enabled) {
         uint64_t mem_free_bytes = 0;
@@ -325,7 +365,7 @@ enpu_manager_t *enpu_manager_create(const enpu_manager_config_t *config)
     }
 
     /* 启动时就带 swap 的 die：逐 die 建池并起 resolver 线程。
-     * 运行期首次开启走 set_oversub_ratio 的同一套路径（建池 + start_die_resolver_thread）。 */
+     * 运行期首次开启由 set_oversub_ratio 准备新池和线程。 */
     if (any_swap_enabled) {
         /* per-die 建池：先 get_or_create 该 die 的 shm_state（写 swap_pool_name），再建池。
          * 建池失败必须硬失败——否则会留下"ratio>0 但无池"的 die，其换出永远失败。 */
@@ -872,22 +912,32 @@ static void destroy_all_swap_pools(npu_allocator_t *allocator)
     }
 }
 
-static uint64_t read_host_memfree_bytes(void)
+static bool read_host_available_bytes(uint64_t *available)
 {
-    uint64_t mem_free_bytes = 0;
     FILE *fp = fopen("/proc/meminfo", "r");
-    if (fp != NULL) {
-        char line[256];
-        while (fgets(line, sizeof(line), fp)) {
-            unsigned long mem_free_kb = 0;
-            if (sscanf_s(line, "MemFree: %lu kB", &mem_free_kb) == 1) {
-                mem_free_bytes = (uint64_t)mem_free_kb * 1024ULL;
-                break;
-            }
+    if (fp == NULL)
+        return false;
+
+    unsigned long long mem_free_kb = 0;
+    unsigned long long mem_available_kb = 0;
+    bool found_free = false;
+    bool found_available = false;
+    char line[256];
+    while (fgets(line, sizeof(line), fp)) {
+        if (sscanf_s(line, "MemAvailable: %llu kB", &mem_available_kb) == 1) {
+            found_available = true;
+            break;
         }
-        fclose(fp);
+        if (sscanf_s(line, "MemFree: %llu kB", &mem_free_kb) == 1)
+            found_free = true;
     }
-    return mem_free_bytes;
+    bool read_ok = !ferror(fp);
+    fclose(fp);
+    unsigned long long kb = found_available ? mem_available_kb : mem_free_kb;
+    if (!read_ok || (!found_available && !found_free) || kb > UINT64_MAX / 1024ULL)
+        return false;
+    *available = (uint64_t)kb * 1024ULL;
+    return true;
 }
 
 static void stop_die_resolver_thread(enpu_manager_t *mgr, int phy_id)
@@ -900,23 +950,23 @@ static void stop_die_resolver_thread(enpu_manager_t *mgr, int phy_id)
     mgr->swap_resolver_threads[phy_id] = NULL;
 }
 
-static int start_die_resolver_thread(enpu_manager_t *mgr, int phy_id)
+static int start_die_resolver_paused(enpu_manager_t *mgr, int phy_id)
 {
-    if (mgr->swap_resolver == NULL) {
-        return ENPU_FAIL;
-    }
-    if (mgr->swap_resolver_threads[phy_id] != NULL) {
-        return ENPU_SUCCESS;
-    }
     swap_resolver_thread_t *srt =
         swap_resolver_thread_create(mgr->swap_resolver, phy_id, SWAP_RESOLVER_POLL_INTERVAL_MS);
     if (srt == NULL) {
         LOG_ERROR("[ENPU-MGR] failed to recreate swap_resolver_thread for phy_id=%d", phy_id);
         return ENPU_FAIL;
     }
-    int ret = atomic_load(&mgr->running) ? swap_resolver_thread_start(srt) : ENPU_SUCCESS;
+    int ret = swap_resolver_thread_pause(srt);
+    if (ret != ENPU_SUCCESS) {
+        swap_resolver_thread_destroy(srt);
+        return ret;
+    }
+    ret = atomic_load(&mgr->running) ? swap_resolver_thread_start(srt) : ENPU_SUCCESS;
     if (ret != ENPU_SUCCESS) {
         LOG_ERROR("[ENPU-MGR] failed to start swap_resolver_thread for phy_id=%d: %d", phy_id, ret);
+        swap_resolver_thread_resume(srt);
         swap_resolver_thread_destroy(srt);
         return ret;
     }
@@ -925,6 +975,7 @@ static int start_die_resolver_thread(enpu_manager_t *mgr, int phy_id)
 }
 
 typedef struct oversub_ratio_save {
+    enpu_manager_t *mgr;
     const char *path;
     double *ratios;
     int phy_id;
@@ -942,6 +993,18 @@ static int save_oversub_ratio(void *context)
     int result = enpu_config_write_oversub_ratio(save->path, save->ratios, save->phy_id_span);
     *save->failed = result != ENPU_SUCCESS;
     return result;
+}
+
+static int prepare_resolver_and_save(void *context)
+{
+    oversub_ratio_save_t *save = context;
+    if (save->ratio > 0 && save->mgr->swap_resolver_threads[save->phy_id] == NULL) {
+        /* 池已准备好，先确认线程可创建，再持久化配置。线程在发布后才开始轮询。 */
+        int ret = start_die_resolver_paused(save->mgr, save->phy_id);
+        if (ret != ENPU_SUCCESS)
+            return ret;
+    }
+    return save_oversub_ratio(save);
 }
 
 static int set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio, const char *config_path, bool *save_failed)
@@ -986,7 +1049,7 @@ static int set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio, cons
 
     pthread_mutex_lock(&mgr->reconfig_lock);
 
-    /* 事务全程持 reconfig_lock：MemFree 校验也纳入串行区，避免并发改 ratio 各自通过校验 */
+    /* 串行校验扩容量并提交本次调整。 */
     double cur_ratio[MAX_NPU_PER_NODE] = {0};
     if (npu_allocator_get_oversub_ratios(mgr->allocator, cur_ratio) != ENPU_SUCCESS) {
         pthread_mutex_unlock(&mgr->reconfig_lock);
@@ -998,6 +1061,7 @@ static int set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio, cons
             phy_id_span = i + 1;
     }
     oversub_ratio_save_t save = {
+        .mgr = mgr,
         .path = config_path,
         .ratios = cur_ratio,
         .phy_id = phy_id,
@@ -1007,11 +1071,12 @@ static int set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio, cons
     };
 
     bool old_inited = shm_swap_buffer_pool_is_inited(phy_id);
-    uint64_t old_size = 0;
-    if (!swap_pool_size(die_hbm_mb[phy_id], cur_ratio[phy_id], &old_size)) {
+    swap_buffer_status_t old_pool = {0};
+    if (old_inited && shm_swap_buffer_pool_get_status(phy_id, &old_pool) != ENPU_SUCCESS) {
         pthread_mutex_unlock(&mgr->reconfig_lock);
         return ENPU_FAIL;
     }
+    uint64_t old_size = old_pool.total;
 
     /* 幂等：ratio 未变且池状态与期望一致时直接返回。
      * 否则运行中重复下发同一 ratio 会因"有容器"被判 busy，且白白触发一次删池/建池+rt 重挂。 */
@@ -1025,25 +1090,14 @@ static int set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio, cons
         return result;
     }
 
-    /* MemFree 增量校验：按全节点所有 die 的池 size 之和 */
-    if (new_size > 0) {
-        uint64_t total = 0;
-        for (int i = 0; i < MAX_NPU_PER_NODE; i++) {
-            double r = (i == phy_id) ? ratio : cur_ratio[i];
-            if (r > 0.0 && die_hbm_mb[i] > 0) {
-                uint64_t per_size = 0;
-                if (!swap_pool_size(die_hbm_mb[i], r, &per_size) || per_size > UINT64_MAX - total) {
-                    pthread_mutex_unlock(&mgr->reconfig_lock);
-                    return ENPU_NO_RESOURCE;
-                }
-                total += per_size;
-            }
-        }
-        uint64_t mem_free = read_host_memfree_bytes();
-        if (mem_free > 0 && total > mem_free) {
+    /* 新池的数据页在写入时分配。这里只校验目标卡逻辑容量的净增量。 */
+    if (new_size > old_size) {
+        uint64_t growth = new_size - old_size;
+        uint64_t available;
+        if (read_host_available_bytes(&available) && growth > available) {
             pthread_mutex_unlock(&mgr->reconfig_lock);
-            LOG_ERROR("[ENPU-MGR] set_oversub_ratio: total swap %lu > host MemFree %lu", (unsigned long)total,
-                      (unsigned long)mem_free);
+            LOG_ERROR("[ENPU-MGR] swap pool growth %llu exceeds available host memory %llu for phy_id=%d",
+                      (unsigned long long)growth, (unsigned long long)available, phy_id);
             return ENPU_NO_RESOURCE;
         }
     }
@@ -1072,16 +1126,8 @@ static int set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio, cons
                                (uint64_t)((double)die_hbm_mb[phy_id] * MB_TO_BYTES));
     }
 
-    /* Pause the existing object instead of destroying a working service. */
-    bool created_thread = mgr->swap_resolver_threads[phy_id] == NULL;
-    if (new_size > 0 && start_die_resolver_thread(mgr, phy_id) != ENPU_SUCCESS) {
-        pthread_mutex_unlock(&mgr->reconfig_lock);
-        return ENPU_FAIL;
-    }
-    swap_resolver_thread_t *thread = mgr->swap_resolver_threads[phy_id];
-    if (thread != NULL && swap_resolver_thread_pause(thread) != ENPU_SUCCESS) {
-        if (created_thread)
-            stop_die_resolver_thread(mgr, phy_id);
+    swap_resolver_thread_t *old_thread = mgr->swap_resolver_threads[phy_id];
+    if (old_thread != NULL && swap_resolver_thread_pause(old_thread) != ENPU_SUCCESS) {
         pthread_mutex_unlock(&mgr->reconfig_lock);
         return ENPU_FAIL;
     }
@@ -1093,17 +1139,21 @@ static int set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio, cons
         if (!ready) {
             ret = ENPU_BUSY;
         } else {
-            ret = shm_swap_buffer_pool_update(state, phy_id, new_size, save_oversub_ratio, &save);
+            ret = shm_swap_buffer_pool_update(state, phy_id, new_size, prepare_resolver_and_save, &save);
         }
         if (ret == ENPU_SUCCESS)
             mgr->allocator->oversub_ratio[phy_id] = ratio;
         npu_allocator_reconfig_end(mgr->allocator);
     }
-    /* Resume before join, and never join while holding the allocator lock. */
-    if (thread != NULL)
+    swap_resolver_thread_t *thread = mgr->swap_resolver_threads[phy_id];
+    if (thread != NULL) {
+        bool stop_thread = (ret != ENPU_SUCCESS && old_thread == NULL) || (ret == ENPU_SUCCESS && new_size == 0);
+        /* 解锁前标记退出，避免线程再轮询一次。等待退出时 allocator 锁已释放。 */
+        if (stop_thread)
+            swap_resolver_thread_request_stop(thread);
         swap_resolver_thread_resume(thread);
-    if ((ret != ENPU_SUCCESS && created_thread) || (ret == ENPU_SUCCESS && new_size == 0)) {
-        stop_die_resolver_thread(mgr, phy_id);
+        if (stop_thread)
+            stop_die_resolver_thread(mgr, phy_id);
     }
     if (ret != ENPU_SUCCESS) {
         LOG_WARN("[ENPU-MGR] ratio update rejected for phy=%d, ret=%d, reason=%s", phy_id, ret, reason);

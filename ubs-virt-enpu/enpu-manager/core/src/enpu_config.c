@@ -288,7 +288,10 @@ int enpu_config_destroy(enpu_config_t *config)
 static void fsync_parent_dir(const char *path)
 {
     char dir[MAX_PATH_LEN];
-    snprintf_s(dir, sizeof(dir), (sizeof(dir)) - 1, "%s", path);
+    if (snprintf_s(dir, sizeof(dir), sizeof(dir) - 1, "%s", path) < 0) {
+        LOG_WARN("[CONFIG] Config directory path is too long");
+        return;
+    }
     char *slash = strrchr(dir, '/');
     if (slash == NULL) {
         return;
@@ -311,17 +314,39 @@ static void fsync_parent_dir(const char *path)
     close(dir_fd);
 }
 
-static void format_ratio(char *buf, size_t len, double v)
+static int format_ratio(char *buf, size_t len, double v)
 {
-    snprintf_s(buf, len, (len)-1, "%.6g", v);
+    if (snprintf_s(buf, len, len - 1, "%.6g", v) < 0)
+        return ENPU_FAIL;
     if (strtod(buf, NULL) != v) {
-        snprintf_s(buf, len, (len)-1, "%.17g", v);
+        if (snprintf_s(buf, len, len - 1, "%.17g", v) < 0)
+            return ENPU_FAIL;
     }
+    return ENPU_SUCCESS;
+}
+
+static FILE *open_private_config_temp(char *path)
+{
+    int fd = mkstemp(path);
+    if (fd < 0)
+        return NULL;
+    if (fchmod(fd, S_IRUSR) != 0) {
+        close(fd);
+        unlink(path);
+        return NULL;
+    }
+    FILE *file = fdopen(fd, "w");
+    if (file == NULL) {
+        close(fd);
+        unlink(path);
+    }
+    return file;
 }
 
 int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio[MAX_NPU_PER_NODE], int phy_id_span)
 {
-    if (path == NULL || per_die_ratio == NULL || phy_id_span <= 0 || phy_id_span > MAX_NPU_PER_NODE) {
+    if (path == NULL || strnlen(path, MAX_PATH_LEN) >= MAX_PATH_LEN || per_die_ratio == NULL || phy_id_span <= 0 ||
+        phy_id_span > MAX_NPU_PER_NODE) {
         return ENPU_INVALID_PARAM;
     }
 
@@ -338,28 +363,39 @@ int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio
         }
     }
     if (all_equal && phy_id_span == MAX_NPU_PER_NODE) {
-        format_ratio(value, sizeof(value), per_die_ratio[0]);
+        if (format_ratio(value, sizeof(value), per_die_ratio[0]) != ENPU_SUCCESS)
+            return ENPU_FAIL;
     } else {
         int off = 0;
-        for (int i = 0; i < write_span && off < (int)sizeof(value) - 32; i++) {
+        for (int i = 0; i < write_span; i++) {
             char item[32];
-            format_ratio(item, sizeof(item), (i < phy_id_span) ? per_die_ratio[i] : 0.0);
-            off += snprintf_s(value + off, sizeof(value) - off, (sizeof(value) - off) - 1, "%s%s", (i > 0) ? "," : "",
-                              item);
+            if (format_ratio(item, sizeof(item), (i < phy_id_span) ? per_die_ratio[i] : 0.0) != ENPU_SUCCESS)
+                return ENPU_FAIL;
+            int written =
+                snprintf_s(value + off, sizeof(value) - off, sizeof(value) - off - 1, "%s%s", i > 0 ? "," : "", item);
+            if (written < 0)
+                return ENPU_FAIL;
+            off += written;
         }
     }
 
-    char tmp_path[MAX_PATH_LEN];
-    char bak_path[MAX_PATH_LEN];
-    snprintf_s(tmp_path, sizeof(tmp_path), (sizeof(tmp_path)) - 1, "%s.tmp", path);
-    snprintf_s(bak_path, sizeof(bak_path), (sizeof(bak_path)) - 1, "%s.bak", path);
+    char tmp_path[MAX_PATH_LEN + 16];
+    char bak_path[MAX_PATH_LEN + 5];
+    if (snprintf_s(tmp_path, sizeof(tmp_path), sizeof(tmp_path) - 1, "%s.tmp.XXXXXX", path) < 0 ||
+        snprintf_s(bak_path, sizeof(bak_path), sizeof(bak_path) - 1, "%s.bak", path) < 0)
+        return ENPU_FAIL;
+
+    struct stat original;
+    int stat_result = lstat(path, &original);
+    if ((stat_result == 0 && !S_ISREG(original.st_mode)) || (stat_result != 0 && errno != ENOENT))
+        return ENPU_FAIL;
 
     FILE *fp = fopen(path, "r");
     if (fp == NULL && errno != ENOENT)
         return ENPU_FAIL;
     bool orig_exists = (fp != NULL);
 
-    FILE *tmp = fopen(tmp_path, "w");
+    FILE *tmp = open_private_config_temp(tmp_path);
     if (tmp == NULL) {
         if (fp != NULL)
             fclose(fp);
@@ -422,9 +458,15 @@ int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio
 
     /* 写前备份 .bak */
     if (orig_exists) {
+        char bak_tmp_path[MAX_PATH_LEN + 16];
+        if (snprintf_s(bak_tmp_path, sizeof(bak_tmp_path), sizeof(bak_tmp_path) - 1, "%s.bak.XXXXXX", path) < 0) {
+            unlink(tmp_path);
+            return ENPU_FAIL;
+        }
         FILE *src = fopen(path, "r");
-        FILE *dst = fopen(bak_path, "w");
-        bool backup_ok = (src != NULL && dst != NULL);
+        FILE *dst = src != NULL ? open_private_config_temp(bak_tmp_path) : NULL;
+        bool backup_created = dst != NULL;
+        bool backup_ok = src != NULL && backup_created;
         if (src != NULL && dst != NULL) {
             char buf[4096];
             size_t n;
@@ -443,7 +485,11 @@ int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio
             backup_ok = false;
         if (dst != NULL && fclose(dst) != 0)
             backup_ok = false;
+        if (backup_ok && rename(bak_tmp_path, bak_path) != 0)
+            backup_ok = false;
         if (!backup_ok) {
+            if (backup_created)
+                unlink(bak_tmp_path);
             unlink(tmp_path);
             return ENPU_FAIL;
         }

@@ -203,8 +203,11 @@ void shm_print_free_block_info(void);
 int shm_swap_buffer_pool_init(shm_state_t *state, int phy_id, uint64_t size);
 int shm_swap_buffer_pool_deinit(shm_state_t *state, int phy_id);
 int shm_swap_buffer_pool_replace(shm_state_t *state, int phy_id, uint64_t size);
+/* 启动恢复仅回收本用户所属、空闲卡上未被锁定且无活跃映射的残留池。 */
+int shm_swap_buffer_has_pool_files(int phy_id, bool *found);
+int shm_swap_buffer_recover_orphans(shm_state_t *state, int phy_id, bool idle);
 /* 完成建池和加锁后调用 before_publish，成功后发布池；回调失败保留旧池。
- * 回调在映射锁和池写锁内执行，仅执行持久化操作。 */
+ * 回调在映射锁和池写锁内执行，不得重入池接口或等待工作线程。 */
 int shm_swap_buffer_pool_update(shm_state_t *state, int phy_id, uint64_t size, int (*before_publish)(void *context),
                                 void *context);
 bool shm_swap_buffer_pool_is_inited(int phy_id);
