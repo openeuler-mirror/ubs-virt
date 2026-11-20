@@ -304,6 +304,12 @@ int enpu_manager_swap_control(enpu_manager_t *mgr, const char *pod_uid, swap_act
 
 int enpu_manager_control(enpu_manager_t *mgr, control_op_t op);
 
+int enpu_manager_set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio);
+/* 校验和准备成功后保存配置，再发布池；save_failed 标识配置保存失败。 */
+int enpu_manager_set_oversub_ratio_and_save(enpu_manager_t *mgr, int phy_id, double ratio, const char *config_path,
+                                            bool *save_failed);
+int enpu_manager_get_oversub_ratio(enpu_manager_t *mgr, double out_ratio[MAX_NPU_PER_NODE]);
+
 #if defined(__cplusplus)
 }
 #endif

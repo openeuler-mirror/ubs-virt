@@ -28,7 +28,7 @@ static uint64_t wd_now_ns(void)
 
 pod_watchdog_t *pod_watchdog_create(void *shm_mgr, void *swap_buf_mgr, void *allocator)
 {
-    if (shm_mgr == NULL || swap_buf_mgr == NULL) {
+    if (shm_mgr == NULL) {
         return NULL;
     }
 

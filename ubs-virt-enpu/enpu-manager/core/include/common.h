@@ -26,6 +26,7 @@
 #define ENPU_NO_RESOURCE (-3)
 #define ENPU_ALREADY_EXISTS (-4)
 #define ENPU_NOT_FOUND (-5)
+#define ENPU_BUSY (-6)
 
 #define MAX_NPU_PER_NODE 16
 #define MAX_VNPU_PER_DIE 128

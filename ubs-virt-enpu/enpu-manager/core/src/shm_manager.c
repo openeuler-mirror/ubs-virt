@@ -11,6 +11,8 @@
  */
 
 #include "shm_manager.h"
+#include <ctype.h>
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -19,8 +21,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/file.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
@@ -983,6 +987,8 @@ shm_state_t *shm_state_posix_shm_create(int phy_id, const char *die_id)
         return NULL;
     }
     state->hbm_total = 0;
+    atomic_store(&state->swap_cmd.completed, true);
+    atomic_store(&state->swap_out_cmd.completed, true);
     atomic_store(&state->vnpu_bitmap[0], 0);
     atomic_store(&state->vnpu_bitmap[1], 0);
     state->sched_policy = -1;
@@ -1101,7 +1107,35 @@ typedef struct {
     uint64_t total_used;
 } TLSFManager;
 
-static TLSFManager g_tlsf_mgr;
+static TLSFManager g_legacy_tlsf_mgr;
+
+static pthread_rwlock_t g_swap_pool_lock = PTHREAD_RWLOCK_INITIALIZER;
+static int shm_swap_buffer_pool_init_locked(shm_state_t *state, int phy_id, uint64_t size);
+static int shm_swap_buffer_pool_deinit_locked(shm_state_t *state, int phy_id);
+static bool shm_swap_buffer_pool_is_inited_locked(int phy_id);
+static bool shm_swap_buffer_any_inited_locked(void);
+static uint64_t shm_swap_buffer_alloc_offset_locked(shm_state_t *state, uint64_t size);
+static void shm_swap_buffer_free_offset_locked(shm_state_t *state, uint64_t offset, uint64_t size);
+static int shm_swap_buffer_pool_get_status_locked(int phy_id, swap_buffer_status_t *status);
+static int shm_swap_buffer_get_status_aggregate_locked(swap_buffer_status_t *status);
+static void shm_print_free_block_info_for_die_locked(int phy_id);
+
+/* per-die swap pool：一卡一段、一段一 TLSFManager 实例 */
+typedef struct swap_pool {
+    bool inited; /* 该 die 超售是否开启 */
+    int phy_id;
+    int fd;                /* 持有文件锁，进程异常退出时由内核释放 */
+    char name[DIE_ID_LEN]; /* "/swap_buffer_<i>" */
+    TLSFManager mgr;       /* 内嵌实例（含 tlsf_lock） */
+} swap_pool_t;
+
+static swap_pool_t g_swap_pool_storage[MAX_NPU_PER_NODE];
+static swap_pool_t *g_swap_pools[MAX_NPU_PER_NODE] = {
+    &g_swap_pool_storage[0],  &g_swap_pool_storage[1],  &g_swap_pool_storage[2],  &g_swap_pool_storage[3],
+    &g_swap_pool_storage[4],  &g_swap_pool_storage[5],  &g_swap_pool_storage[6],  &g_swap_pool_storage[7],
+    &g_swap_pool_storage[8],  &g_swap_pool_storage[9],  &g_swap_pool_storage[10], &g_swap_pool_storage[11],
+    &g_swap_pool_storage[12], &g_swap_pool_storage[13], &g_swap_pool_storage[14], &g_swap_pool_storage[15],
+};
 
 static inline size_t block_get_size(TLSFBlockHeader *block)
 {
@@ -1275,16 +1309,12 @@ static TLSFBlockHeader *tlsf_split_block(TLSFManager *mgr, TLSFBlockHeader *blk,
     return blk;
 }
 
-static int tlsf_pool_init(uint64_t shm_base, size_t shm_size)
+static int tlsf_pool_init(TLSFManager *mgr, uint64_t shm_base, size_t shm_size)
 {
-    TLSFManager *mgr = &g_tlsf_mgr;
     if (mgr->initialized) {
         return 0;
     }
 
-    /* Only enpu-manager allocates/frees; TLSF metadata remains process-local.
-     * Other processes only read/write the shared payload. This mutex protects allocator threads;
-     * PTHREAD_PROCESS_SHARED does not enable allocation from other processes. */
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
@@ -1292,10 +1322,13 @@ static int tlsf_pool_init(uint64_t shm_base, size_t shm_size)
     pthread_mutexattr_destroy(&attr);
 
     int rc = pthread_mutex_lock(&mgr->tlsf_lock);
-    if (rc != 0)
+    if (rc != 0) {
+        pthread_mutex_destroy(&mgr->tlsf_lock);
+        memset_s(mgr, sizeof(TLSFManager), 0, sizeof(TLSFManager));
         return -1;
+    }
 
-    (void)memset_s(mgr->free_list, sizeof(mgr->free_list), 0, sizeof(mgr->free_list));
+    memset_s(mgr->free_list, sizeof(mgr->free_list), 0, sizeof(mgr->free_list));
     mgr->used_list = NULL;
     mgr->shm_base = shm_base;
     mgr->shm_total_size = shm_size;
@@ -1304,6 +1337,8 @@ static int tlsf_pool_init(uint64_t shm_base, size_t shm_size)
     TLSFBlockHeader *start_blk = (TLSFBlockHeader *)malloc(sizeof(TLSFBlockHeader));
     if (!start_blk) {
         pthread_mutex_unlock(&mgr->tlsf_lock);
+        pthread_mutex_destroy(&mgr->tlsf_lock);
+        memset_s(mgr, sizeof(TLSFManager), 0, sizeof(TLSFManager));
         return -1;
     }
     block_set_size(start_blk, shm_size);
@@ -1320,9 +1355,8 @@ static int tlsf_pool_init(uint64_t shm_base, size_t shm_size)
     return 0;
 }
 
-static uint64_t tlsf_alloc(size_t size)
+static uint64_t tlsf_alloc(TLSFManager *mgr, size_t size)
 {
-    TLSFManager *mgr = &g_tlsf_mgr;
     if (!mgr->initialized || size == 0) {
         return (uint64_t)-1;
     }
@@ -1349,9 +1383,8 @@ static uint64_t tlsf_alloc(size_t size)
     return ret_off;
 }
 
-static void tlsf_free(uint64_t offset)
+static void tlsf_free(TLSFManager *mgr, uint64_t offset)
 {
-    TLSFManager *mgr = &g_tlsf_mgr;
     if (!mgr->initialized || offset >= mgr->shm_total_size) {
         return;
     }
@@ -1402,6 +1435,564 @@ static void tlsf_free(uint64_t offset)
 
     tlsf_insert_free_block(mgr, blk);
     pthread_mutex_unlock(&mgr->tlsf_lock);
+}
+
+static int prepare_swap_pool(swap_pool_t *pool, int phy_id, uint64_t size, const char *name)
+{
+    if (phy_id < 0 || phy_id >= MAX_NPU_PER_NODE) {
+        return ENPU_INVALID_PARAM;
+    }
+    if (size == 0) {
+        return ENPU_INVALID_PARAM;
+    }
+    if (pool->inited) {
+        return ENPU_ALREADY_EXISTS;
+    }
+
+    int fd = shm_open(name, O_CREAT | O_EXCL | O_RDWR | O_CLOEXEC, 0644);
+    if (fd < 0) {
+        return errno == EEXIST ? ENPU_ALREADY_EXISTS : ENPU_FAIL;
+    }
+
+    if (flock(fd, LOCK_EX | LOCK_NB) != 0 || ftruncate(fd, (off_t)size) < 0) {
+        close(fd);
+        shm_unlink(name);
+        return ENPU_FAIL;
+    }
+
+    void *base = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (base == MAP_FAILED) {
+        close(fd);
+        shm_unlink(name);
+        return ENPU_FAIL;
+    }
+
+    if (tlsf_pool_init(&pool->mgr, (uint64_t)base, size) != 0) {
+        munmap(base, size);
+        close(fd);
+        shm_unlink(name);
+        return ENPU_FAIL;
+    }
+
+    pool->inited = true;
+    pool->phy_id = phy_id;
+    pool->fd = fd;
+    strncpy_s(pool->name, (DIE_ID_LEN - 1) + 1, name, DIE_ID_LEN - 1);
+
+    return ENPU_SUCCESS;
+}
+
+static bool swap_pool_name_matches(const char *name, const char *prefix)
+{
+    size_t length = strlen(prefix);
+    if (strlen(name) >= DIE_ID_LEN - 1 || strncmp(name, prefix, length) != 0)
+        return false;
+    const char *suffix = name + length;
+    if (*suffix == '\0')
+        return true;
+    if (*suffix++ != '_' || *suffix < '1' || *suffix > '9')
+        return false;
+    suffix += strspn(suffix, "0123456789");
+    if (*suffix++ != '_' || !isdigit((unsigned char)*suffix))
+        return false;
+    suffix += strspn(suffix, "0123456789");
+    return *suffix == '\0';
+}
+
+int shm_swap_buffer_has_pool_files(int phy_id, bool *found)
+{
+    if (found == NULL || phy_id < 0 || phy_id >= MAX_NPU_PER_NODE)
+        return ENPU_INVALID_PARAM;
+    *found = false;
+    char prefix[DIE_ID_LEN];
+    if (snprintf_s(prefix, sizeof(prefix), sizeof(prefix) - 1, "swap_buffer_%d", phy_id) < 0)
+        return ENPU_FAIL;
+    DIR *directory = opendir("/dev/shm");
+    if (directory == NULL)
+        return ENPU_FAIL;
+    int result = ENPU_SUCCESS;
+    for (;;) {
+        errno = 0;
+        struct dirent *entry = readdir(directory);
+        if (entry == NULL) {
+            if (errno != 0)
+                result = ENPU_FAIL;
+            break;
+        }
+        if (swap_pool_name_matches(entry->d_name, prefix)) {
+            *found = true;
+            break;
+        }
+    }
+    closedir(directory);
+    return result;
+}
+
+static int swap_pool_check_mappings(const struct stat *pool)
+{
+    DIR *processes = opendir("/proc");
+    if (processes == NULL)
+        return ENPU_FAIL;
+    int result = ENPU_SUCCESS;
+    struct dirent *entry;
+    for (;;) {
+        errno = 0;
+        entry = readdir(processes);
+        if (entry == NULL) {
+            if (errno != 0)
+                result = ENPU_FAIL;
+            break;
+        }
+        if (!isdigit((unsigned char)entry->d_name[0]) || strspn(entry->d_name, "0123456789") != strlen(entry->d_name) ||
+            strtol(entry->d_name, NULL, 10) == (long)getpid())
+            continue;
+        char path[64];
+        if (snprintf_s(path, sizeof(path), sizeof(path) - 1, "/proc/%s/maps", entry->d_name) < 0) {
+            result = ENPU_FAIL;
+            break;
+        }
+        FILE *maps = fopen(path, "r");
+        if (maps == NULL) {
+            if (errno == ENOENT || errno == ESRCH)
+                continue;
+            LOG_WARN("[SHM-MANAGER] Cannot inspect %s: errno=%d", path, errno);
+            result = ENPU_FAIL;
+            break;
+        }
+        char *line = NULL;
+        size_t capacity = 0;
+        while (getline(&line, &capacity, maps) >= 0) {
+            unsigned int device_major, device_minor;
+            unsigned long long inode;
+            if (sscanf_s(line, "%*s %*s %*s %x:%x %llu", &device_major, &device_minor, &inode) != 3) {
+                result = ENPU_FAIL;
+                break;
+            }
+            if (device_major == major(pool->st_dev) && device_minor == minor(pool->st_dev) &&
+                inode == (unsigned long long)pool->st_ino) {
+                LOG_WARN("[SHM-MANAGER] Swap pool is still mapped by pid %s", entry->d_name);
+                result = ENPU_BUSY;
+                break;
+            }
+        }
+        if (result == ENPU_SUCCESS && (ferror(maps) || !feof(maps)))
+            result = ENPU_FAIL;
+        free(line);
+        if (fclose(maps) != 0 && result == ENPU_SUCCESS)
+            result = ENPU_FAIL;
+        if (result != ENPU_SUCCESS)
+            break;
+    }
+    closedir(processes);
+    return result;
+}
+
+static int recover_swap_pool_file(const char *name)
+{
+    int fd = shm_open(name, O_RDWR | O_CLOEXEC, 0);
+    if (fd < 0)
+        return errno == ENOENT ? ENPU_SUCCESS : ENPU_FAIL;
+    struct stat st;
+    int result = ENPU_FAIL;
+    if (fstat(fd, &st) == 0 && S_ISREG(st.st_mode) && st.st_uid == geteuid()) {
+        if (flock(fd, LOCK_EX | LOCK_NB) != 0) {
+            result = errno == EWOULDBLOCK || errno == EAGAIN ? ENPU_BUSY : ENPU_FAIL;
+        } else {
+            result = swap_pool_check_mappings(&st);
+            if (result == ENPU_SUCCESS) {
+                if (shm_unlink(name) != 0 && errno != ENOENT)
+                    result = ENPU_FAIL;
+                else
+                    LOG_INFO("[SHM-MANAGER] reclaimed unused swap pool %s", name);
+            }
+        }
+    }
+    close(fd);
+    if (result != ENPU_SUCCESS)
+        LOG_WARN("[SHM-MANAGER] Preserved swap pool %s: ret=%d", name, result);
+    return result;
+}
+
+int shm_swap_buffer_recover_orphans(shm_state_t *state, int phy_id, bool idle)
+{
+    if (state == NULL || phy_id < 0 || phy_id >= MAX_NPU_PER_NODE)
+        return ENPU_INVALID_PARAM;
+    char prefix[DIE_ID_LEN];
+    if (snprintf_s(prefix, sizeof(prefix), sizeof(prefix) - 1, "swap_buffer_%d", phy_id) < 0)
+        return ENPU_FAIL;
+    int rc = pthread_mutex_trylock(&state->swap_in_mutex);
+    if (rc == EOWNERDEAD) {
+        rc = pthread_mutex_consistent(&state->swap_in_mutex);
+        if (rc != 0)
+            pthread_mutex_unlock(&state->swap_in_mutex);
+    }
+    if (rc != 0)
+        return rc == EBUSY ? ENPU_BUSY : ENPU_FAIL;
+    if (pthread_rwlock_wrlock(&g_swap_pool_lock) != 0) {
+        pthread_mutex_unlock(&state->swap_in_mutex);
+        return ENPU_FAIL;
+    }
+    DIR *directory = opendir("/dev/shm");
+    int result = directory != NULL ? ENPU_SUCCESS : ENPU_FAIL;
+    bool recovered = false;
+    while (directory != NULL && result == ENPU_SUCCESS) {
+        errno = 0;
+        struct dirent *entry = readdir(directory);
+        if (entry == NULL) {
+            if (errno != 0)
+                result = ENPU_FAIL;
+            break;
+        }
+        if (!swap_pool_name_matches(entry->d_name, prefix))
+            continue;
+        if (!idle || g_swap_pools[phy_id]->inited) {
+            result = ENPU_BUSY;
+            break;
+        }
+        char name[DIE_ID_LEN];
+        if (snprintf_s(name, sizeof(name), sizeof(name) - 1, "/%s", entry->d_name) < 0) {
+            result = ENPU_FAIL;
+            break;
+        }
+        result = recover_swap_pool_file(name);
+        recovered = result == ENPU_SUCCESS;
+    }
+    if (directory != NULL)
+        closedir(directory);
+    if (result == ENPU_SUCCESS && recovered) {
+        state->swap_pool_name[0] = '\0';
+        atomic_fetch_add(&state->swap_pool_generation, 1);
+    }
+    pthread_rwlock_unlock(&g_swap_pool_lock);
+    pthread_mutex_unlock(&state->swap_in_mutex);
+    return result;
+}
+
+static int shm_swap_buffer_pool_init_locked(shm_state_t *state, int phy_id, uint64_t size)
+{
+    if (state == NULL || phy_id < 0 || phy_id >= MAX_NPU_PER_NODE || size == 0)
+        return ENPU_INVALID_PARAM;
+    if (g_swap_pools[phy_id]->inited)
+        return ENPU_ALREADY_EXISTS;
+    char name[DIE_ID_LEN];
+    if (snprintf_s(name, sizeof(name), sizeof(name) - 1, SHM_SWAP_BUFFER_NAME_PREFIX "%d", phy_id) < 0) {
+        return ENPU_FAIL;
+    }
+    /* 已存在的共享内存可能仍被其他 manager 或运行时进程映射。
+     * 仅允许清理由本进程通过 O_EXCL 成功创建的对象。 */
+    int ret = prepare_swap_pool(g_swap_pools[phy_id], phy_id, size, name);
+    if (ret != ENPU_SUCCESS)
+        return ret;
+    (void)strcpy_s(state->swap_pool_name, sizeof(state->swap_pool_name), name);
+    atomic_fetch_add(&state->swap_pool_generation, 1);
+    shm_print_free_block_info_for_die_locked(phy_id);
+    return ENPU_SUCCESS;
+}
+
+static void destroy_swap_pool(swap_pool_t *pool)
+{
+    TLSFManager *mgr = &pool->mgr;
+
+    pthread_mutex_lock(&mgr->tlsf_lock);
+
+    // 释放 TLSF 已使用块头
+    TLSFBlockHeader *cur = mgr->used_list;
+    while (cur) {
+        TLSFBlockHeader *tmp = cur;
+        cur = cur->next_free;
+        free(tmp);
+    }
+
+    // 释放 TLSF 空闲块头
+    for (size_t i = 0; i < TLSF_MAX_FL; i++) {
+        for (size_t j = 0; j < TLSF_MAX_SL; j++) {
+            cur = mgr->free_list[i][j];
+            while (cur) {
+                TLSFBlockHeader *tmp = cur;
+                cur = cur->next_free;
+                free(tmp);
+            }
+        }
+    }
+
+    uint64_t shm_base = mgr->shm_base;
+    size_t shm_size = mgr->shm_total_size;
+    pthread_mutex_unlock(&mgr->tlsf_lock);
+
+    // 解除共享内存映射
+    if (shm_base != 0) {
+        munmap((void *)shm_base, shm_size);
+    }
+
+    // 删除共享内存文件
+    shm_unlink(pool->name);
+    close(pool->fd);
+    pool->fd = -1;
+
+    // 销毁锁、重置 TLSF 管理器
+    pthread_mutex_destroy(&mgr->tlsf_lock);
+    memset_s(mgr, sizeof(TLSFManager), 0, sizeof(TLSFManager));
+
+    pool->inited = false;
+    pool->name[0] = '\0';
+}
+
+static int shm_swap_buffer_pool_deinit_locked(shm_state_t *state, int phy_id)
+{
+    if (phy_id < 0 || phy_id >= MAX_NPU_PER_NODE) {
+        return ENPU_INVALID_PARAM;
+    }
+    if (!g_swap_pools[phy_id]->inited) {
+        return ENPU_NOT_FOUND;
+    }
+
+    swap_pool_t *pool = g_swap_pools[phy_id];
+    destroy_swap_pool(pool);
+    if (pool != &g_swap_pool_storage[phy_id]) {
+        g_swap_pools[phy_id] = &g_swap_pool_storage[phy_id];
+        free(pool);
+    }
+
+    if (state != NULL) {
+        state->swap_pool_name[0] = '\0'; /* 空串=该 die 无池(ratio=0) */
+        atomic_fetch_add(&state->swap_pool_generation, 1);
+    }
+
+    return ENPU_SUCCESS;
+}
+
+static bool shm_swap_buffer_pool_is_inited_locked(int phy_id)
+{
+    if (phy_id < 0 || phy_id >= MAX_NPU_PER_NODE) {
+        return false;
+    }
+    return g_swap_pools[phy_id]->inited;
+}
+
+/* 节点上是否至少有一个 die 建了池。"swap 是否在生效"必须用它做动态判定：
+ * 启动时全 0、运行期在线开启的节点用启动快照判断不出来。 */
+static bool shm_swap_buffer_any_inited_locked(void)
+{
+    for (int phy_id = 0; phy_id < MAX_NPU_PER_NODE; phy_id++) {
+        if (g_swap_pools[phy_id]->inited) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static uint64_t shm_swap_buffer_alloc_offset_locked(shm_state_t *state, uint64_t size)
+{
+    if (g_legacy_tlsf_mgr.initialized && (state == NULL || state->phy_id < 0 || state->phy_id >= MAX_NPU_PER_NODE ||
+                                          !g_swap_pools[state->phy_id]->inited))
+        return tlsf_alloc(&g_legacy_tlsf_mgr, size);
+    if (state == NULL || state->phy_id < 0 || state->phy_id >= MAX_NPU_PER_NODE) {
+        return (uint64_t)-1;
+    }
+    if (!g_swap_pools[state->phy_id]->inited) {
+        return (uint64_t)-1;
+    }
+    return tlsf_alloc(&g_swap_pools[state->phy_id]->mgr, size);
+}
+
+static void shm_swap_buffer_free_offset_locked(shm_state_t *state, uint64_t offset, uint64_t size)
+{
+    (void)size;
+    if (g_legacy_tlsf_mgr.initialized && (state == NULL || state->phy_id < 0 || state->phy_id >= MAX_NPU_PER_NODE ||
+                                          !g_swap_pools[state->phy_id]->inited)) {
+        tlsf_free(&g_legacy_tlsf_mgr, offset);
+        return;
+    }
+    if (state == NULL || state->phy_id < 0 || state->phy_id >= MAX_NPU_PER_NODE) {
+        return;
+    }
+    if (!g_swap_pools[state->phy_id]->inited) {
+        return;
+    }
+    tlsf_free(&g_swap_pools[state->phy_id]->mgr, offset);
+}
+
+static int shm_swap_buffer_pool_get_status_locked(int phy_id, swap_buffer_status_t *status)
+{
+    if (status == NULL || phy_id < 0 || phy_id >= MAX_NPU_PER_NODE) {
+        return ENPU_INVALID_PARAM;
+    }
+    TLSFManager *mgr = &g_swap_pools[phy_id]->mgr;
+    if (!mgr->initialized) {
+        return ENPU_FAIL;
+    }
+    pthread_mutex_lock(&mgr->tlsf_lock);
+    status->total = (uint64_t)mgr->shm_total_size;
+    status->used = mgr->total_used;
+    status->free = (status->total > status->used) ? (status->total - status->used) : 0;
+    pthread_mutex_unlock(&mgr->tlsf_lock);
+    return ENPU_SUCCESS;
+}
+
+static int shm_swap_buffer_get_status_aggregate_locked(swap_buffer_status_t *status)
+{
+    if (status == NULL) {
+        return ENPU_INVALID_PARAM;
+    }
+    memset_s(status, sizeof(*status), 0, sizeof(*status));
+    for (int phy_id = 0; phy_id < MAX_NPU_PER_NODE; phy_id++) {
+        swap_buffer_status_t s;
+        if (shm_swap_buffer_pool_get_status_locked(phy_id, &s) == ENPU_SUCCESS) {
+            status->total += s.total;
+            status->used += s.used;
+            status->free += s.free;
+        }
+    }
+    return ENPU_SUCCESS;
+}
+
+static void shm_print_free_block_info_for_die_locked(int phy_id)
+{
+    if (phy_id < 0 || phy_id >= MAX_NPU_PER_NODE) {
+        return;
+    }
+    TLSFManager *mgr = &g_swap_pools[phy_id]->mgr;
+    if (!mgr->initialized) {
+        return;
+    }
+    pthread_mutex_lock(&mgr->tlsf_lock);
+
+    LOG_INFO("==================== Current Free Block List (die %d) ====================", phy_id);
+
+    uint32_t count = 0;
+    for (size_t i = 0; i < TLSF_MAX_FL; i++) {
+        for (size_t j = 0; j < TLSF_MAX_SL; j++) {
+            TLSFBlockHeader *blk = mgr->free_list[i][j];
+            while (blk != NULL) {
+                count++;
+                size_t blk_size = block_get_size(blk);
+                double mb_size = (double)blk_size / (1024 * 1024);
+                LOG_INFO("[Free Block %u] offset: 0x%lx  size: %lu bytes  (%.2f MB)", count,
+                         (unsigned long)blk->data_offset, blk_size, mb_size);
+                blk = blk->next_free;
+            }
+        }
+    }
+
+    if (count == 0) {
+        LOG_INFO("No free blocks available");
+    }
+    LOG_INFO("====================================================================");
+
+    pthread_mutex_unlock(&mgr->tlsf_lock);
+}
+int shm_swap_buffer_pool_init(shm_state_t *state, int phy_id, uint64_t size)
+{
+    if (state != NULL) {
+        int rc = pthread_mutex_lock(&state->swap_in_mutex);
+        if (rc == EOWNERDEAD) {
+            pthread_mutex_consistent(&state->swap_in_mutex);
+        } else if (rc != 0) {
+            return ENPU_FAIL;
+        }
+    }
+    pthread_rwlock_wrlock(&g_swap_pool_lock);
+    int result = shm_swap_buffer_pool_init_locked(state, phy_id, size);
+    pthread_rwlock_unlock(&g_swap_pool_lock);
+    if (state != NULL) {
+        pthread_mutex_unlock(&state->swap_in_mutex);
+    }
+    return result;
+}
+
+int shm_swap_buffer_pool_deinit(shm_state_t *state, int phy_id)
+{
+    if (state != NULL) {
+        int rc = pthread_mutex_lock(&state->swap_in_mutex);
+        if (rc == EOWNERDEAD) {
+            pthread_mutex_consistent(&state->swap_in_mutex);
+        } else if (rc != 0) {
+            return ENPU_FAIL;
+        }
+    }
+    pthread_rwlock_wrlock(&g_swap_pool_lock);
+    int result = shm_swap_buffer_pool_deinit_locked(state, phy_id);
+    pthread_rwlock_unlock(&g_swap_pool_lock);
+    if (state != NULL) {
+        pthread_mutex_unlock(&state->swap_in_mutex);
+    }
+    return result;
+}
+
+bool shm_swap_buffer_pool_is_inited(int phy_id)
+{
+    pthread_rwlock_rdlock(&g_swap_pool_lock);
+    bool result = shm_swap_buffer_pool_is_inited_locked(phy_id);
+    pthread_rwlock_unlock(&g_swap_pool_lock);
+    return result;
+}
+
+bool shm_swap_buffer_any_inited(void)
+{
+    pthread_rwlock_rdlock(&g_swap_pool_lock);
+    bool result = shm_swap_buffer_any_inited_locked();
+    pthread_rwlock_unlock(&g_swap_pool_lock);
+    return result;
+}
+
+uint64_t shm_swap_buffer_alloc_offset(shm_state_t *state, uint64_t size)
+{
+    pthread_rwlock_rdlock(&g_swap_pool_lock);
+    uint64_t result = shm_swap_buffer_alloc_offset_locked(state, size);
+    pthread_rwlock_unlock(&g_swap_pool_lock);
+    return result;
+}
+
+void shm_swap_buffer_free_offset(shm_state_t *state, uint64_t offset, uint64_t size)
+{
+    pthread_rwlock_rdlock(&g_swap_pool_lock);
+    shm_swap_buffer_free_offset_locked(state, offset, size);
+    pthread_rwlock_unlock(&g_swap_pool_lock);
+}
+
+int shm_swap_buffer_pool_get_status(int phy_id, swap_buffer_status_t *status)
+{
+    pthread_rwlock_rdlock(&g_swap_pool_lock);
+    int result = shm_swap_buffer_pool_get_status_locked(phy_id, status);
+    pthread_rwlock_unlock(&g_swap_pool_lock);
+    return result;
+}
+
+int shm_swap_buffer_get_status_aggregate(swap_buffer_status_t *status)
+{
+    pthread_rwlock_rdlock(&g_swap_pool_lock);
+    int result = shm_swap_buffer_get_status_aggregate_locked(status);
+    pthread_rwlock_unlock(&g_swap_pool_lock);
+    return result;
+}
+
+void shm_print_free_block_info_for_die(int phy_id)
+{
+    pthread_rwlock_rdlock(&g_swap_pool_lock);
+    shm_print_free_block_info_for_die_locked(phy_id);
+    pthread_rwlock_unlock(&g_swap_pool_lock);
+}
+
+int shm_swap_buffer_get_status(swap_buffer_status_t *status)
+{
+    if (g_legacy_tlsf_mgr.initialized) {
+        if (status == NULL)
+            return ENPU_INVALID_PARAM;
+        pthread_mutex_lock(&g_legacy_tlsf_mgr.tlsf_lock);
+        status->total = g_legacy_tlsf_mgr.shm_total_size;
+        status->used = g_legacy_tlsf_mgr.total_used;
+        status->free = status->total - status->used;
+        pthread_mutex_unlock(&g_legacy_tlsf_mgr.tlsf_lock);
+        return ENPU_SUCCESS;
+    }
+    return shm_swap_buffer_get_status_aggregate(status);
+}
+
+void shm_print_free_block_info(void)
+{
+    for (int i = 0; i < MAX_NPU_PER_NODE; i++) {
+        shm_print_free_block_info_for_die(i);
+    }
 }
 
 swap_buffer_manager_t *shm_swap_buffer_init(uint64_t buffer_size)
@@ -1476,7 +2067,7 @@ swap_buffer_manager_t *shm_swap_buffer_init(uint64_t buffer_size)
     mgr->swap_buffer_base = base;
 
     // 初始化 TLSF
-    if (tlsf_pool_init((uint64_t)base, buffer_size) != 0) {
+    if (tlsf_pool_init(&g_legacy_tlsf_mgr, (uint64_t)base, buffer_size) != 0) {
         munmap(base, buffer_size);
         shm_unlink(shm_name);
         pthread_mutex_destroy(&mgr->lock);
@@ -1500,7 +2091,7 @@ int shm_swap_buffer_deinit(swap_buffer_manager_t *mgr)
     free(mgr);
 
     // 共享内存 + TLSF 释放逻辑
-    TLSFManager *tls_mgr = &g_tlsf_mgr;
+    TLSFManager *tls_mgr = &g_legacy_tlsf_mgr;
     if (tls_mgr->initialized) {
         pthread_mutex_lock(&tls_mgr->tlsf_lock);
 
@@ -1550,34 +2141,79 @@ int shm_swap_buffer_deinit(swap_buffer_manager_t *mgr)
     return ENPU_SUCCESS;
 }
 
-uint64_t shm_swap_buffer_alloc_offset(shm_state_t *state, uint64_t size)
+int shm_swap_buffer_pool_update(shm_state_t *state, int phy_id, uint64_t size, int (*before_publish)(void *context),
+                                void *context)
 {
-    (void)state;
-    return tlsf_alloc(size);
-}
-
-void shm_swap_buffer_free_offset(shm_state_t *state, uint64_t offset, uint64_t size)
-{
-    (void)state;
-    (void)size;
-    tlsf_free(offset);
-}
-
-int shm_swap_buffer_get_status(swap_buffer_status_t *status)
-{
-    if (status == NULL) {
+    if ((state == NULL && size > 0) || phy_id < 0 || phy_id >= MAX_NPU_PER_NODE)
         return ENPU_INVALID_PARAM;
+    swap_pool_t *candidate = NULL;
+    if (size > 0) {
+        candidate = calloc(1, sizeof(*candidate));
+        if (candidate == NULL)
+            return ENPU_FAIL;
+        static atomic_uint_fast64_t sequence = 0;
+        char name[DIE_ID_LEN];
+        int printed = snprintf_s(name, sizeof(name), sizeof(name) - 1, "/swap_buffer_%d_%ld_%llu", phy_id,
+                                 (long)getpid(), (unsigned long long)atomic_fetch_add(&sequence, 1));
+        if (printed < 0 || prepare_swap_pool(candidate, phy_id, size, name) != ENPU_SUCCESS) {
+            free(candidate);
+            return ENPU_FAIL;
+        }
     }
-    TLSFManager *mgr = &g_tlsf_mgr;
-    if (!mgr->initialized) {
+    int rc = 0;
+    if (state != NULL) {
+        rc = pthread_mutex_lock(&state->swap_in_mutex);
+        if (rc == EOWNERDEAD) {
+            rc = pthread_mutex_consistent(&state->swap_in_mutex);
+            if (rc != 0)
+                pthread_mutex_unlock(&state->swap_in_mutex);
+        }
+    }
+    if (rc != 0) {
+        if (candidate != NULL) {
+            destroy_swap_pool(candidate);
+            free(candidate);
+        }
         return ENPU_FAIL;
     }
-    pthread_mutex_lock(&mgr->tlsf_lock);
-    status->total = (uint64_t)mgr->shm_total_size;
-    status->used = mgr->total_used;
-    status->free = (status->total > status->used) ? (status->total - status->used) : 0;
-    pthread_mutex_unlock(&mgr->tlsf_lock);
-    return ENPU_SUCCESS;
+    int result = ENPU_FAIL;
+    if (pthread_rwlock_wrlock(&g_swap_pool_lock) == 0) {
+        /* 持锁完成持久化，之后只发布已准备好的池，避免失败请求提前生效。 */
+        result = before_publish != NULL ? before_publish(context) : ENPU_SUCCESS;
+        if (result == ENPU_SUCCESS) {
+            if (candidate != NULL) {
+                swap_pool_t *old = g_swap_pools[phy_id];
+                g_swap_pools[phy_id] = candidate;
+                (void)memcpy_s(state->swap_pool_name, sizeof(state->swap_pool_name), candidate->name,
+                               sizeof(candidate->name));
+                atomic_fetch_add(&state->swap_pool_generation, 1);
+                if (old->inited)
+                    destroy_swap_pool(old);
+                if (old != &g_swap_pool_storage[phy_id])
+                    free(old);
+                candidate = NULL;
+            } else if (g_swap_pools[phy_id]->inited) {
+                (void)shm_swap_buffer_pool_deinit_locked(state, phy_id);
+            }
+        }
+        pthread_rwlock_unlock(&g_swap_pool_lock);
+    }
+    if (state != NULL)
+        pthread_mutex_unlock(&state->swap_in_mutex);
+    if (candidate != NULL) {
+        destroy_swap_pool(candidate);
+        free(candidate);
+    }
+    return result;
+}
+
+int shm_swap_buffer_pool_replace(shm_state_t *state, int phy_id, uint64_t size)
+{
+    if (state == NULL || phy_id < 0 || phy_id >= MAX_NPU_PER_NODE)
+        return ENPU_INVALID_PARAM;
+    if (size == 0)
+        return shm_swap_buffer_pool_deinit(state, phy_id);
+    return shm_swap_buffer_pool_update(state, phy_id, size, NULL, NULL);
 }
 
 int shm_alloc_per_process(shm_state_t *state, int vnpu_id, int slot, uint64_t size)
@@ -1596,7 +2232,7 @@ int shm_alloc_per_process(shm_state_t *state, int vnpu_id, int slot, uint64_t si
 
     pe->swap_offset = off;
     atomic_store(&pe->swap_size, size);
-    shm_print_free_block_info();
+    shm_print_free_block_info_for_die(state->phy_id);
     return 0;
 }
 
@@ -1614,7 +2250,7 @@ int shm_free_per_process(shm_state_t *state, int vnpu_id, int slot)
     shm_swap_buffer_free_offset(state, pe->swap_offset, sz);
     pe->swap_offset = 0;
     atomic_store(&pe->swap_size, 0);
-    shm_print_free_block_info();
+    shm_print_free_block_info_for_die(state->phy_id);
     return 0;
 }
 
@@ -1641,34 +2277,4 @@ int shm_free(shm_state_t *state, int vnpu_id)
         (void)shm_free_per_process(state, vnpu_id, slot);
     }
     return 0;
-}
-
-void shm_print_free_block_info(void)
-{
-    TLSFManager *mgr = &g_tlsf_mgr;
-    pthread_mutex_lock(&mgr->tlsf_lock);
-
-    LOG_INFO("==================== Current Free Block List ====================");
-
-    uint32_t count = 0;
-    for (size_t i = 0; i < TLSF_MAX_FL; i++) {
-        for (size_t j = 0; j < TLSF_MAX_SL; j++) {
-            TLSFBlockHeader *blk = mgr->free_list[i][j];
-            while (blk != NULL) {
-                count++;
-                size_t blk_size = block_get_size(blk);
-                double mb_size = (double)blk_size / (1024 * 1024);
-                LOG_INFO("[Free Block %u] offset: 0x%lx  size: %lu bytes  (%.2f MB)", count,
-                         (unsigned long)blk->data_offset, blk_size, mb_size);
-                blk = blk->next_free;
-            }
-        }
-    }
-
-    if (count == 0) {
-        LOG_INFO("No free blocks available");
-    }
-    LOG_INFO("====================================================================");
-
-    pthread_mutex_unlock(&mgr->tlsf_lock);
 }
