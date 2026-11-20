@@ -69,7 +69,7 @@ static inline int parse_ratio_request(const char *p, int max_cards, int *phy_id,
         char *end;
         errno = 0;
         double value = strtod(start, &end);
-        if (end != p || errno == ERANGE || !isfinite(value) || value < 0)
+        if (end != p || errno == ERANGE || !isfinite(value) || value < 0 || signbit(value))
             return -1;
         if (bit == 1) {
             if (value >= max_cards || value != (int)value)

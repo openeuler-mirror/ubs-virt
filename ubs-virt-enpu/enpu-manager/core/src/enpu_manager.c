@@ -924,14 +924,36 @@ static int start_die_resolver_thread(enpu_manager_t *mgr, int phy_id)
     return ENPU_SUCCESS;
 }
 
-int enpu_manager_set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio)
+typedef struct oversub_ratio_save {
+    const char *path;
+    double *ratios;
+    int phy_id;
+    int phy_id_span;
+    double ratio;
+    bool *failed;
+} oversub_ratio_save_t;
+
+static int save_oversub_ratio(void *context)
 {
+    oversub_ratio_save_t *save = context;
+    if (save->path == NULL)
+        return ENPU_SUCCESS;
+    save->ratios[save->phy_id] = save->ratio;
+    int result = enpu_config_write_oversub_ratio(save->path, save->ratios, save->phy_id_span);
+    *save->failed = result != ENPU_SUCCESS;
+    return result;
+}
+
+static int set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio, const char *config_path, bool *save_failed)
+{
+    if (save_failed != NULL)
+        *save_failed = false;
     CHECK_NULL_RET(mgr, ENPU_INVALID_PARAM);
     if (phy_id < 0 || phy_id >= MAX_NPU_PER_NODE) {
         return ENPU_INVALID_PARAM;
     }
-    /* 比例必须是有限的非负数。 */
-    if (!(isfinite(ratio) && (ratio) >= 0.0)) {
+    /* 比例必须是有限的非负数，负零也拒绝。 */
+    if (!(isfinite(ratio) && (ratio) >= 0.0) || signbit(ratio)) {
         return ENPU_INVALID_PARAM;
     }
     if (mgr->allocator == NULL) {
@@ -966,7 +988,23 @@ int enpu_manager_set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio
 
     /* 事务全程持 reconfig_lock：MemFree 校验也纳入串行区，避免并发改 ratio 各自通过校验 */
     double cur_ratio[MAX_NPU_PER_NODE] = {0};
-    npu_allocator_get_oversub_ratios(mgr->allocator, cur_ratio);
+    if (npu_allocator_get_oversub_ratios(mgr->allocator, cur_ratio) != ENPU_SUCCESS) {
+        pthread_mutex_unlock(&mgr->reconfig_lock);
+        return ENPU_FAIL;
+    }
+    int phy_id_span = 0;
+    for (int i = 0; i < MAX_NPU_PER_NODE; i++) {
+        if (die_hbm_mb[i] > 0)
+            phy_id_span = i + 1;
+    }
+    oversub_ratio_save_t save = {
+        .path = config_path,
+        .ratios = cur_ratio,
+        .phy_id = phy_id,
+        .phy_id_span = phy_id_span,
+        .ratio = ratio,
+        .failed = save_failed,
+    };
 
     bool old_inited = shm_swap_buffer_pool_is_inited(phy_id);
     uint64_t old_size = 0;
@@ -981,9 +1019,10 @@ int enpu_manager_set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio
                             !old_inited :
                             (old_inited && old_size == new_size && mgr->swap_resolver_threads[phy_id] != NULL);
     if (ratio == cur_ratio[phy_id] && pool_matches) {
+        int result = save_oversub_ratio(&save);
         pthread_mutex_unlock(&mgr->reconfig_lock);
         LOG_INFO("[ENPU-MGR] set_oversub_ratio: phy_id=%d ratio=%.2f unchanged, no-op", phy_id, ratio);
-        return ENPU_SUCCESS;
+        return result;
     }
 
     /* MemFree 增量校验：按全节点所有 die 的池 size 之和 */
@@ -1053,10 +1092,8 @@ int enpu_manager_set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio
     if (ret == ENPU_SUCCESS) {
         if (!ready) {
             ret = ENPU_BUSY;
-        } else if (new_size > 0) {
-            ret = shm_swap_buffer_pool_replace(state, phy_id, new_size);
-        } else if (old_inited) {
-            ret = shm_swap_buffer_pool_deinit(state, phy_id);
+        } else {
+            ret = shm_swap_buffer_pool_update(state, phy_id, new_size, save_oversub_ratio, &save);
         }
         if (ret == ENPU_SUCCESS)
             mgr->allocator->oversub_ratio[phy_id] = ratio;
@@ -1077,6 +1114,21 @@ int enpu_manager_set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio
     pthread_mutex_unlock(&mgr->reconfig_lock);
     LOG_INFO("[ENPU-MGR] set_oversub_ratio: phy_id=%d ratio=%.2f done", phy_id, ratio);
     return ENPU_SUCCESS;
+}
+
+int enpu_manager_set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio)
+{
+    return set_oversub_ratio(mgr, phy_id, ratio, NULL, NULL);
+}
+
+int enpu_manager_set_oversub_ratio_and_save(enpu_manager_t *mgr, int phy_id, double ratio, const char *config_path,
+                                            bool *save_failed)
+{
+    if (save_failed != NULL)
+        *save_failed = false;
+    if (config_path == NULL || save_failed == NULL)
+        return ENPU_INVALID_PARAM;
+    return set_oversub_ratio(mgr, phy_id, ratio, config_path, save_failed);
 }
 
 int enpu_manager_get_oversub_ratio(enpu_manager_t *mgr, double out_ratio[MAX_NPU_PER_NODE])

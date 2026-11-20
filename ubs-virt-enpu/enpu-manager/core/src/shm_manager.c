@@ -1946,48 +1946,79 @@ int shm_swap_buffer_deinit(swap_buffer_manager_t *mgr)
     return ENPU_SUCCESS;
 }
 
-/* Prepare first: allocation/open/truncate/mmap failures leave the published pool intact. */
+int shm_swap_buffer_pool_update(shm_state_t *state, int phy_id, uint64_t size, int (*before_publish)(void *context),
+                                void *context)
+{
+    if ((state == NULL && size > 0) || phy_id < 0 || phy_id >= MAX_NPU_PER_NODE)
+        return ENPU_INVALID_PARAM;
+    swap_pool_t *candidate = NULL;
+    if (size > 0) {
+        candidate = calloc(1, sizeof(*candidate));
+        if (candidate == NULL)
+            return ENPU_FAIL;
+        static atomic_uint_fast64_t sequence = 0;
+        char name[DIE_ID_LEN];
+        int printed = snprintf_s(name, sizeof(name), sizeof(name) - 1, "/swap_buffer_%d_%ld_%llu", phy_id,
+                                 (long)getpid(), (unsigned long long)atomic_fetch_add(&sequence, 1));
+        if (printed < 0 || prepare_swap_pool(candidate, phy_id, size, name) != ENPU_SUCCESS) {
+            free(candidate);
+            return ENPU_FAIL;
+        }
+    }
+    int rc = 0;
+    if (state != NULL) {
+        rc = pthread_mutex_lock(&state->swap_in_mutex);
+        if (rc == EOWNERDEAD) {
+            rc = pthread_mutex_consistent(&state->swap_in_mutex);
+            if (rc != 0)
+                pthread_mutex_unlock(&state->swap_in_mutex);
+        }
+    }
+    if (rc != 0) {
+        if (candidate != NULL) {
+            destroy_swap_pool(candidate);
+            free(candidate);
+        }
+        return ENPU_FAIL;
+    }
+    int result = ENPU_FAIL;
+    if (pthread_rwlock_wrlock(&g_swap_pool_lock) == 0) {
+        /* 持锁完成持久化，之后只发布已准备好的池，避免失败请求提前生效。 */
+        result = before_publish != NULL ? before_publish(context) : ENPU_SUCCESS;
+        if (result == ENPU_SUCCESS) {
+            if (candidate != NULL) {
+                swap_pool_t *old = g_swap_pools[phy_id];
+                g_swap_pools[phy_id] = candidate;
+                (void)memcpy_s(state->swap_pool_name, sizeof(state->swap_pool_name), candidate->name,
+                               sizeof(candidate->name));
+                atomic_fetch_add(&state->swap_pool_generation, 1);
+                if (old->inited)
+                    destroy_swap_pool(old);
+                if (old != &g_swap_pool_storage[phy_id])
+                    free(old);
+                candidate = NULL;
+            } else if (g_swap_pools[phy_id]->inited) {
+                (void)shm_swap_buffer_pool_deinit_locked(state, phy_id);
+            }
+        }
+        pthread_rwlock_unlock(&g_swap_pool_lock);
+    }
+    if (state != NULL)
+        pthread_mutex_unlock(&state->swap_in_mutex);
+    if (candidate != NULL) {
+        destroy_swap_pool(candidate);
+        free(candidate);
+    }
+    return result;
+}
+
 int shm_swap_buffer_pool_replace(shm_state_t *state, int phy_id, uint64_t size)
 {
     if (state == NULL || phy_id < 0 || phy_id >= MAX_NPU_PER_NODE)
         return ENPU_INVALID_PARAM;
     if (size == 0)
         return shm_swap_buffer_pool_deinit(state, phy_id);
-    swap_pool_t *candidate = calloc(1, sizeof(*candidate));
-    if (candidate == NULL)
-        return ENPU_FAIL;
-    static atomic_uint_fast64_t sequence = 0;
-    char name[DIE_ID_LEN];
-    int printed = snprintf_s(name, sizeof(name), sizeof(name) - 1, "/swap_buffer_%d_%ld_%llu", phy_id, (long)getpid(),
-                             (unsigned long long)atomic_fetch_add(&sequence, 1));
-    if (printed < 0 || prepare_swap_pool(candidate, phy_id, size, name) != ENPU_SUCCESS) {
-        free(candidate);
-        return ENPU_FAIL;
-    }
-    int rc = pthread_mutex_lock(&state->swap_in_mutex);
-    if (rc == EOWNERDEAD) {
-        rc = pthread_mutex_consistent(&state->swap_in_mutex);
-        if (rc != 0)
-            pthread_mutex_unlock(&state->swap_in_mutex);
-    }
-    if (rc != 0) {
-        destroy_swap_pool(candidate);
-        free(candidate);
-        return ENPU_FAIL;
-    }
-    pthread_rwlock_wrlock(&g_swap_pool_lock);
-    swap_pool_t *old = g_swap_pools[phy_id];
-    g_swap_pools[phy_id] = candidate;
-    /* name fits by construction; publish while holding the runtime mapping lock. */
-    (void)memcpy_s(state->swap_pool_name, sizeof(state->swap_pool_name), name, (size_t)printed + 1);
-    atomic_fetch_add(&state->swap_pool_generation, 1);
-    if (old->inited)
-        destroy_swap_pool(old);
-    if (old != &g_swap_pool_storage[phy_id])
-        free(old);
-    pthread_rwlock_unlock(&g_swap_pool_lock);
-    pthread_mutex_unlock(&state->swap_in_mutex);
-    return ENPU_SUCCESS;
+    return shm_swap_buffer_pool_update(state, phy_id, size, NULL, NULL);
 }
 
 int shm_alloc_per_process(shm_state_t *state, int vnpu_id, int slot, uint64_t size)

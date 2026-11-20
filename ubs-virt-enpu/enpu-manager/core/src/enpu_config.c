@@ -139,13 +139,12 @@ static void trim_whitespace(char *str, size_t buf_size)
         end--;
     }
 
+    *end = '\0';
     if (start != str) {
         size_t copy_len = (size_t)(end - start) + 1;
         if (memmove_s(str, buf_size, start, copy_len) != 0) {
             LOG_ERROR("[CONFIG] trim_whitespace: memmove_s failed");
         }
-    } else {
-        *end = '\0';
     }
 }
 
@@ -160,12 +159,13 @@ static bool load_from_file(const char *path, enpu_config_t *config)
         return true;
     }
 
-    char line[256];
+    char *line = NULL;
+    size_t capacity = 0;
     size_t line_number = 0;
     bool success = true;
-    while (fgets(line, sizeof(line), fp) != NULL) {
+    while (getline(&line, &capacity, fp) >= 0) {
         line_number++;
-        trim_whitespace(line, sizeof(line));
+        trim_whitespace(line, capacity);
         if (line[0] == '\0' || line[0] == '#') {
             continue;
         }
@@ -183,8 +183,8 @@ static bool load_from_file(const char *path, enpu_config_t *config)
             *comment = '\0';
         }
 
-        trim_whitespace(line, sizeof(line));
-        trim_whitespace(val, sizeof(line) - (size_t)(val - line));
+        trim_whitespace(line, capacity);
+        trim_whitespace(val, capacity - (size_t)(val - line));
 
         if (!parse_key_value(line, val, config)) {
             (void)fprintf(stderr, "[ERROR] Unknown config key '%s' at %s:%zu\n", line, path, line_number);
@@ -193,7 +193,8 @@ static bool load_from_file(const char *path, enpu_config_t *config)
         }
     }
 
-    if (ferror(fp) != 0) {
+    free(line);
+    if (ferror(fp) != 0 || (success && !feof(fp))) {
         LOG_ERROR("[CONFIG] Failed to read config file: %s", path);
         success = false;
     }
@@ -354,6 +355,8 @@ int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio
     snprintf_s(bak_path, sizeof(bak_path), (sizeof(bak_path)) - 1, "%s.bak", path);
 
     FILE *fp = fopen(path, "r");
+    if (fp == NULL && errno != ENOENT)
+        return ENPU_FAIL;
     bool orig_exists = (fp != NULL);
 
     FILE *tmp = fopen(tmp_path, "w");
@@ -365,23 +368,40 @@ int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio
 
     bool replaced = false;
     bool needs_newline = false;
+    bool copied = true;
     if (fp != NULL) {
-        char line[512];
-        while (fgets(line, sizeof(line), fp)) {
+        char *line = NULL;
+        size_t capacity = 0;
+        while (getline(&line, &capacity, fp) >= 0) {
             char *s = line;
             while (*s == ' ' || *s == '\t')
                 s++;
             if (strncmp(s, "oversub-ratio", 13) == 0 &&
                 (s[13] == '=' || s[13] == ' ' || s[13] == '\t' || s[13] == '\n' || s[13] == '\r' || s[13] == '\0')) {
-                fprintf(tmp, "oversub-ratio=%s\n", value);
+                if (fprintf(tmp, "oversub-ratio=%s\n", value) < 0) {
+                    copied = false;
+                    break;
+                }
                 replaced = true;
             } else {
-                fputs(line, tmp);
+                if (fputs(line, tmp) == EOF) {
+                    copied = false;
+                    break;
+                }
                 size_t len = strlen(line);
                 needs_newline = len > 0 && line[len - 1] != '\n';
             }
         }
-        fclose(fp);
+        if (ferror(fp) || !feof(fp))
+            copied = false;
+        free(line);
+        if (fclose(fp) != 0)
+            copied = false;
+    }
+    if (!copied) {
+        fclose(tmp);
+        unlink(tmp_path);
+        return ENPU_FAIL;
     }
 
     if (!replaced) {
@@ -390,12 +410,15 @@ int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio
         fprintf(tmp, "oversub-ratio=%s\n", value);
     }
 
-    if (fflush(tmp) != 0 || fsync(fileno(tmp)) != 0) {
+    if (ferror(tmp) || fflush(tmp) != 0 || fsync(fileno(tmp)) != 0) {
         fclose(tmp);
         unlink(tmp_path);
         return ENPU_FAIL;
     }
-    fclose(tmp);
+    if (fclose(tmp) != 0) {
+        unlink(tmp_path);
+        return ENPU_FAIL;
+    }
 
     /* 写前备份 .bak */
     if (orig_exists) {
@@ -431,6 +454,9 @@ int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio
         return ENPU_FAIL;
     }
     fsync_parent_dir(path);
+    if (unlink(bak_path) != 0 && errno != ENOENT) {
+        LOG_WARN("[CONFIG] Failed to remove config backup: path=%s, errno=%d", bak_path, errno);
+    }
 
     return ENPU_SUCCESS;
 }

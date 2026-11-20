@@ -1031,7 +1031,7 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
             return HTTP_STATUS_BAD_REQUEST;
         }
 
-        /* CSV 按 phy_id 索引，仅写到实际最大 phy_id；稀疏编号保留占位。 */
+        /* 校验目标卡存在，配置保存由 manager 在持锁完成检查和建池后执行。 */
         device_info_t devices[MAX_NPU_PER_NODE];
         int device_count = MAX_NPU_PER_NODE;
         if (enpu_manager_query_devices(mgr, NULL, devices, &device_count) != ENPU_SUCCESS || device_count <= 0 ||
@@ -1041,7 +1041,6 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
             pthread_mutex_unlock(&config_update_lock);
             return HTTP_STATUS_INTERNAL_ERROR;
         }
-        int phy_id_span = 0;
         bool phy_exists = false;
         for (int i = 0; i < device_count; i++) {
             int id = devices[i].phy_id;
@@ -1051,8 +1050,6 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
                 pthread_mutex_unlock(&config_update_lock);
                 return HTTP_STATUS_INTERNAL_ERROR;
             }
-            if (id + 1 > phy_id_span)
-                phy_id_span = id + 1;
             if (id == phy_id)
                 phy_exists = true;
         }
@@ -1063,40 +1060,17 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
             return HTTP_STATUS_BAD_REQUEST;
         }
 
-        /* 读当前全量 ratio 数组，组新数组 new[phy_id]=ratio。
-         * 必须判返回值：失败时 ratios 全 0，直接落盘会把整节点 ratio 清零。 */
-        double ratios[MAX_NPU_PER_NODE] = {0};
-        if (enpu_manager_get_oversub_ratio(mgr, ratios) != ENPU_SUCCESS) {
+        bool save_failed = false;
+        int result =
+            enpu_manager_set_oversub_ratio_and_save(mgr, phy_id, ratio, ENPU_CONFIG_DEFAULT_PATH, &save_failed);
+        if (save_failed) {
             snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE)-1,
-                       "{\"error\":\"Failed to read current oversub ratios\",\"result\":%d}", ENPU_FAIL);
-            pthread_mutex_unlock(&config_update_lock);
-            return HTTP_STATUS_INTERNAL_ERROR;
-        }
-        ratios[phy_id] = ratio;
-
-        bool cfg_existed = (access(ENPU_CONFIG_DEFAULT_PATH, F_OK) == 0);
-
-        /* 先落盘，再内存重建 */
-        int wret = enpu_config_write_oversub_ratio(ENPU_CONFIG_DEFAULT_PATH, ratios, phy_id_span);
-        if (wret != ENPU_SUCCESS) {
-            snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE)-1,
-                       "{\"error\":\"Failed to write config\",\"result\":%d}", wret);
+                       "{\"error\":\"Failed to write config\",\"result\":%d}", result);
             pthread_mutex_unlock(&config_update_lock);
             return HTTP_STATUS_INTERNAL_ERROR;
         }
 
-        int result = enpu_manager_set_oversub_ratio(mgr, phy_id, ratio);
         if (result != ENPU_SUCCESS) {
-            /* 内存重建失败：还原文件（原文件不存在时直接删掉新建的） */
-            char bak[MAX_PATH_LEN];
-            snprintf_s(bak, sizeof(bak), (sizeof(bak)) - 1, "%s.bak", ENPU_CONFIG_DEFAULT_PATH);
-            if (cfg_existed) {
-                if (rename(bak, ENPU_CONFIG_DEFAULT_PATH) != 0) {
-                    LOG_ERROR("[REST] failed to restore config from %s", bak);
-                }
-            } else {
-                unlink(ENPU_CONFIG_DEFAULT_PATH);
-            }
             /* 区分失败类别，避免任何失败都显示同一句 "Failed to apply ratio"；
              * 具体原因（活跃分配数/哪个 vnpu 仍换出/哪条命令在途）见日志 set_oversub_ratio busy */
             const char *err;
