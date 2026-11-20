@@ -13,6 +13,7 @@
 #include "rest_api.h"
 #include <arpa/inet.h>
 #include <cjson/cJSON.h>
+#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
@@ -71,6 +72,8 @@ static int send_response(int client_fd, int status, const char *body);
 static int send_typed_response(int client_fd, int status, const char *body, const char *content_type);
 static int route_request(rest_api_server_t *server, const char *method, const char *path, const char *body,
                          char *response);
+static int update_config_route(enpu_manager_t *mgr, const char *body, char *response);
+static int get_config_route(char *response);
 
 static char *format_devices_json(enpu_manager_t *mgr);
 static char *format_device_json(enpu_manager_t *mgr, int phy_id);
@@ -762,9 +765,199 @@ static int parse_release_query(const char *query, char *pod, size_t pod_size, ch
     return pod[0] && container[0] ? 0 : -1;
 }
 
+static int config_error_response(char *response, int status, const char *message)
+{
+    const char *format = "{\"error\":\"%s\",\"result\":%d}";
+    (void)snprintf_s(response, REST_RESPONSE_SIZE, REST_RESPONSE_SIZE - 1, format, message, ENPU_FAIL);
+    return status;
+}
+
+static char *trim_config_value(char *value)
+{
+    while (isspace((unsigned char)*value)) {
+        value++;
+    }
+    char *end = value + strlen(value);
+    while (end > value && isspace((unsigned char)end[-1])) {
+        *--end = '\0';
+    }
+    return value;
+}
+
+static bool config_integer_key(const char *key)
+{
+    return strcmp(key, "swap-pre-watermark") == 0 || strcmp(key, "log_max_size") == 0 ||
+           strcmp(key, "log_max_backups") == 0 || strcmp(key, "log_max_age") == 0 || strcmp(key, "log_console") == 0;
+}
+
+static int get_config_route(char *response)
+{
+    struct stat file_stat;
+    if (lstat(ENPU_CONFIG_DEFAULT_PATH, &file_stat) != 0 || !S_ISREG(file_stat.st_mode)) {
+        return config_error_response(response, HTTP_STATUS_INTERNAL_ERROR, "Unable to read config file");
+    }
+    FILE *file = fopen(ENPU_CONFIG_DEFAULT_PATH, "r");
+    if (file == NULL) {
+        return config_error_response(response, HTTP_STATUS_INTERNAL_ERROR, "Unable to read config file");
+    }
+
+    cJSON *root = cJSON_CreateObject();
+    cJSON *config = cJSON_CreateObject();
+    bool ok = root != NULL && config != NULL && cJSON_AddNumberToObject(root, "result", 0) != NULL;
+    if (ok) {
+        ok = cJSON_AddItemToObject(root, "config", config);
+        if (ok) {
+            config = NULL;
+        }
+    }
+
+    char *line = NULL;
+    size_t capacity = 0;
+    while (ok && getline(&line, &capacity, file) >= 0) {
+        char *key = trim_config_value(line);
+        if (*key == '\0' || *key == '#') {
+            continue;
+        }
+        char *separator = strchr(key, '=');
+        if (separator == NULL) {
+            ok = false;
+            break;
+        }
+        *separator = '\0';
+        key = trim_config_value(key);
+        char *value = separator + 1;
+        char *comment = strchr(value, '#');
+        if (comment != NULL) {
+            *comment = '\0';
+        }
+        value = trim_config_value(value);
+        if (*key == '\0') {
+            ok = false;
+            break;
+        }
+
+        cJSON *settings = cJSON_GetObjectItemCaseSensitive(root, "config");
+        cJSON_DeleteItemFromObjectCaseSensitive(settings, key);
+        if (config_integer_key(key)) {
+            char *end = NULL;
+            errno = 0;
+            long number = strtol(value, &end, 10);
+            if (errno != 0 || end == value || *end != '\0' || number < INT_MIN || number > INT_MAX) {
+                ok = false;
+                break;
+            }
+            ok = cJSON_AddNumberToObject(settings, key, (double)number) != NULL;
+        } else {
+            ok = cJSON_AddStringToObject(settings, key, value) != NULL;
+        }
+    }
+    bool read_failed = ferror(file) != 0;
+    if (fclose(file) != 0 || read_failed) {
+        ok = false;
+    }
+    free(line);
+
+    char *json = ok ? cJSON_PrintUnformatted(root) : NULL;
+    cJSON_Delete(config);
+    cJSON_Delete(root);
+    if (copy_json_response(response, json) != ENPU_SUCCESS) {
+        return config_error_response(response, HTTP_STATUS_INTERNAL_ERROR, "Unable to read config file");
+    }
+    return HTTP_STATUS_OK;
+}
+
+static int update_config_route(enpu_manager_t *mgr, const char *body, char *response)
+{
+    if (body == NULL) {
+        return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Invalid JSON body");
+    }
+    const char *end = NULL;
+    cJSON *root = cJSON_ParseWithLengthOpts(body, strlen(body), &end, 0);
+    if (root == NULL) {
+        return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Invalid JSON body");
+    }
+    while (end != NULL && isspace((unsigned char)*end)) {
+        end++;
+    }
+    if (end == NULL || *end != '\0' || !cJSON_IsObject(root)) {
+        cJSON_Delete(root);
+        return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Invalid JSON body");
+    }
+
+    cJSON *key_item = cJSON_GetObjectItemCaseSensitive(root, "key");
+    if (!cJSON_IsString(key_item) || key_item->valuestring == NULL) {
+        cJSON_Delete(root);
+        return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "key must be a supported config name");
+    }
+    const char *requested_key = key_item->valuestring;
+    const char *key = NULL;
+    if (strcmp(requested_key, "swap-pre-watermark") == 0) {
+        key = "swap-pre-watermark";
+    } else if (strcmp(requested_key, "share-strategy") == 0) {
+        key = "share-strategy";
+    } else if (strcmp(requested_key, "log_level") == 0) {
+        key = "log_level";
+    } else {
+        cJSON_Delete(root);
+        return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Unsupported config key");
+    }
+
+    cJSON *item = cJSON_GetObjectItemCaseSensitive(root, "value");
+    char value[MAX_NAME_LEN] = {0};
+    bool immediate = strcmp(key, "log_level") != 0;
+    if (strcmp(key, "swap-pre-watermark") == 0) {
+        bool invalid_number = !cJSON_IsNumber(item) || !isfinite(item->valuedouble);
+        bool invalid_range = !invalid_number && (item->valuedouble < 1 || item->valuedouble > 100);
+        bool invalid_integer = !invalid_number && item->valuedouble != (double)item->valueint;
+        if (invalid_number || invalid_range || invalid_integer) {
+            cJSON_Delete(root);
+            const char *error = "Watermark must be an integer from 1 to 100";
+            return config_error_response(response, HTTP_STATUS_BAD_REQUEST, error);
+        }
+        (void)snprintf_s(value, sizeof(value), sizeof(value) - 1, "%d", item->valueint);
+    } else {
+        if (!cJSON_IsString(item) || item->valuestring == NULL || strlen(item->valuestring) >= sizeof(value)) {
+            cJSON_Delete(root);
+            return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "value must be a supported string");
+        }
+        if (strcmp(key, "share-strategy") == 0 && strcmp(item->valuestring, "compact") != 0 &&
+            strcmp(item->valuestring, "anti-fragment") != 0) {
+            cJSON_Delete(root);
+            return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Unsupported share strategy");
+        }
+        if (strcmp(key, "log_level") == 0 && strcmp(item->valuestring, "debug") != 0 &&
+            strcmp(item->valuestring, "info") != 0 && strcmp(item->valuestring, "warn") != 0 &&
+            strcmp(item->valuestring, "error") != 0 && strcmp(item->valuestring, "fatal") != 0) {
+            cJSON_Delete(root);
+            return config_error_response(response, HTTP_STATUS_BAD_REQUEST, "Unsupported log level");
+        }
+        (void)strncpy_s(value, sizeof(value), item->valuestring, strlen(item->valuestring));
+    }
+    cJSON_Delete(root);
+
+    if (enpu_config_update_value(ENPU_CONFIG_DEFAULT_PATH, key, value) != ENPU_SUCCESS) {
+        return config_error_response(response, HTTP_STATUS_INTERNAL_ERROR, "Unable to update config file");
+    }
+    int result = ENPU_SUCCESS;
+    if (strcmp(key, "swap-pre-watermark") == 0) {
+        result = enpu_manager_set_swap_pre_watermark(mgr, atoi(value));
+    } else if (strcmp(key, "share-strategy") == 0) {
+        result = enpu_manager_set_share_strategy(mgr, value);
+    }
+    if (result != ENPU_SUCCESS) {
+        return config_error_response(response, HTTP_STATUS_INTERNAL_ERROR,
+                                     "Config saved but runtime update failed; restart required");
+    }
+    const char *format = "{\"result\":0,\"restart_required\":%s}";
+    (void)snprintf_s(response, REST_RESPONSE_SIZE, REST_RESPONSE_SIZE - 1, format, immediate ? "false" : "true");
+    return HTTP_STATUS_OK;
+}
+
 static int route_request(rest_api_server_t *server, const char *method, const char *path, const char *body,
                          char *response)
 {
+    /* 配置更新与比例调整共用文件，串行覆盖保存、应用和失败恢复全过程。 */
+    static pthread_mutex_t config_update_lock = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_lock(&server->lock);
     enpu_manager_t *mgr = server->manager;
     pthread_mutex_unlock(&server->lock);
@@ -776,6 +969,19 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
                          "{\"error\":\"Manager not initialized\",\"result\":%d}", ENPU_FAIL);
         CHECK_COND_LOG_(ret < 0, "snprintf_s response failed.");
         return HTTP_STATUS_INTERNAL_ERROR;
+    }
+
+    if (strcmp(path, "/api/v1/config") == 0) {
+        if (strcmp(method, "GET") == 0) {
+            return get_config_route(response);
+        }
+        if (strcmp(method, "PUT") != 0) {
+            return config_error_response(response, HTTP_STATUS_METHOD_NOT_ALLOWED, "GET or PUT required");
+        }
+        pthread_mutex_lock(&config_update_lock);
+        int status = update_config_route(mgr, body, response);
+        pthread_mutex_unlock(&config_update_lock);
+        return status;
     }
 
     if (strcmp(method, "GET") == 0 && strcmp(path, "/api/v1/devices") == 0) {
@@ -814,15 +1020,14 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
     }
 
     if (strcmp(method, "POST") == 0 && strcmp(path, "/api/v1/config/oversub-ratio") == 0) {
-        static pthread_mutex_t ratio_config_lock = PTHREAD_MUTEX_INITIALIZER;
-        pthread_mutex_lock(&ratio_config_lock);
+        pthread_mutex_lock(&config_update_lock);
         /* body: {"phy_id":3,"ratio":2.0} */
         int phy_id = -1;
         double ratio = -1.0;
         if (parse_ratio_request(body, MAX_NPU_PER_NODE, &phy_id, &ratio) != 0) {
             snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE)-1,
                        "{\"error\":\"Invalid phy_id or ratio\",\"result\":%d}", ENPU_INVALID_PARAM);
-            pthread_mutex_unlock(&ratio_config_lock);
+            pthread_mutex_unlock(&config_update_lock);
             return HTTP_STATUS_BAD_REQUEST;
         }
 
@@ -833,7 +1038,7 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
             device_count > MAX_NPU_PER_NODE) {
             snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE)-1,
                        "{\"error\":\"Failed to read physical devices\",\"result\":%d}", ENPU_FAIL);
-            pthread_mutex_unlock(&ratio_config_lock);
+            pthread_mutex_unlock(&config_update_lock);
             return HTTP_STATUS_INTERNAL_ERROR;
         }
         int phy_id_span = 0;
@@ -843,7 +1048,7 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
             if (id < 0 || id >= MAX_NPU_PER_NODE) {
                 snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE)-1,
                            "{\"error\":\"Invalid physical device topology\",\"result\":%d}", ENPU_FAIL);
-                pthread_mutex_unlock(&ratio_config_lock);
+                pthread_mutex_unlock(&config_update_lock);
                 return HTTP_STATUS_INTERNAL_ERROR;
             }
             if (id + 1 > phy_id_span)
@@ -854,7 +1059,7 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
         if (!phy_exists) {
             snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE)-1,
                        "{\"error\":\"Invalid phy_id or ratio\",\"result\":%d}", ENPU_INVALID_PARAM);
-            pthread_mutex_unlock(&ratio_config_lock);
+            pthread_mutex_unlock(&config_update_lock);
             return HTTP_STATUS_BAD_REQUEST;
         }
 
@@ -864,7 +1069,7 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
         if (enpu_manager_get_oversub_ratio(mgr, ratios) != ENPU_SUCCESS) {
             snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE)-1,
                        "{\"error\":\"Failed to read current oversub ratios\",\"result\":%d}", ENPU_FAIL);
-            pthread_mutex_unlock(&ratio_config_lock);
+            pthread_mutex_unlock(&config_update_lock);
             return HTTP_STATUS_INTERNAL_ERROR;
         }
         ratios[phy_id] = ratio;
@@ -876,7 +1081,7 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
         if (wret != ENPU_SUCCESS) {
             snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE)-1,
                        "{\"error\":\"Failed to write config\",\"result\":%d}", wret);
-            pthread_mutex_unlock(&ratio_config_lock);
+            pthread_mutex_unlock(&config_update_lock);
             return HTTP_STATUS_INTERNAL_ERROR;
         }
 
@@ -911,13 +1116,13 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
             }
             snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE)-1, "{\"error\":\"%s\",\"result\":%d}", err,
                        result);
-            pthread_mutex_unlock(&ratio_config_lock);
+            pthread_mutex_unlock(&config_update_lock);
             return (result == ENPU_BUSY || result == ENPU_INVALID_PARAM) ? HTTP_STATUS_BAD_REQUEST :
                                                                            HTTP_STATUS_INTERNAL_ERROR;
         }
 
         snprintf_s(response, REST_RESPONSE_SIZE, (REST_RESPONSE_SIZE)-1, "{\"result\":0}");
-        pthread_mutex_unlock(&ratio_config_lock);
+        pthread_mutex_unlock(&config_update_lock);
         return HTTP_STATUS_OK;
     }
 

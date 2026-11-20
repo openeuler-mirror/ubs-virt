@@ -47,6 +47,8 @@ extern "C" {
 
 enpu_config_t *enpu_config_load(const char *config_path);
 int enpu_config_destroy(enpu_config_t *config);
+/* Atomically replace one supported setting while preserving other file contents. */
+int enpu_config_update_value(const char *path, const char *key, const char *value);
 
 int enpu_config_write_oversub_ratio(const char *path, const double per_die_ratio[MAX_NPU_PER_NODE], int phy_id_span);
 

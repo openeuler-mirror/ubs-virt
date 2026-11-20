@@ -42,6 +42,7 @@ extern "C" {
 swap_resolver_t *swap_resolver_create(npu_allocator_t *allocator, swap_buffer_manager_t *swap_buf_mgr,
                                       double pre_swap_threshold, uint64_t idle_threshold_ns);
 int swap_resolver_destroy(swap_resolver_t *resolver);
+int swap_resolver_set_pre_swap_watermark(swap_resolver_t *resolver, int percent);
 
 watermark_level_t swap_resolver_check_watermark(swap_resolver_t *resolver, int phy_id);
 int swap_resolver_get_idle_models(swap_resolver_t *resolver, int phy_id, swap_candidate_t *candidates, int max_count,

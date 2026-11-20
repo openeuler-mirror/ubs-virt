@@ -62,6 +62,7 @@ extern "C" {
 
 npu_allocator_t *npu_allocator_create(const allocator_config_t *config);
 int npu_allocator_init(npu_allocator_t *alloc);
+int npu_allocator_set_share_strategy(npu_allocator_t *alloc, const char *strategy);
 int npu_allocator_destroy(npu_allocator_t *alloc);
 
 int npu_allocator_allocate(npu_allocator_t *alloc, alloc_request_t *req, alloc_response_t *resp);
