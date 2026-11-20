@@ -136,6 +136,30 @@ int get_mem_used(size_t *used)
     return ENPU_SUCCESS;
 }
 
+uint64_t get_vnpu_swapped_size(void)
+{
+    shm_state_t *state = get_shm_state();
+    if (state == NULL) {
+        return 0;
+    }
+    vnpu_shm_entry_t *entry = shm_get_entry(state, get_vnpu_id());
+    if (entry == NULL) {
+        return 0;
+    }
+
+    /* 汇总本 vNPU 当前已换出到主机内存的字节数. 仅统计 swapped==true 的活跃槽位:
+     * swap_size 在换入完成后仍保留(作为 swap buffer 已分配标记), 不能计入 */
+    uint64_t total = 0;
+    for (int i = 0; i < MAX_PROCESSES_PER_VNPU; i++) {
+        process_entry_t *pe = &entry->processes[i];
+        if (!atomic_load(&pe->active) || !atomic_load(&pe->swapped)) {
+            continue;
+        }
+        total += atomic_load(&pe->swap_size);
+    }
+    return total;
+}
+
 int enpu_config_info_init()
 {
     CHECK_RETURN_RANGE_INT(config.phy_npu_id, 0, MAX_NPU_ID);
@@ -294,7 +318,7 @@ int register_to_shm_state(shm_state_t *state, int vnpu_id)
     atomic_store(&entry->last_heartbeat_ns, ns_now());
     atomic_store(&entry->hbm_used, 0);
     entry->swap_offset = 0;
-    entry->swap_size = 0;
+    atomic_store(&entry->swap_size, 0);
     atomic_store(&entry->ack_pending_seq, 0); /* 新注册进程不参与注册前已下发的换出命令 */
 
     g_npu_info.vcann_rt_id = vcann_rt_id;
@@ -481,11 +505,29 @@ int update_shm_used(size_t used)
 int check_and_swap_out(size_t requested, uint8_t flag)
 {
     for (int retry = 0; retry < SWAP_OUT_MAX_RETRY; retry++) {
-        size_t freeSize = 0;
-        size_t totalSize = 0;
-        int ret = RUNTIME_HOOK_CALL(rt_library_entry, rtMemGetInfoEx, RT_MEMORYINFO_HBM, &freeSize, &totalSize);
-        LOG_DEBUG("Call rtMemGetInfoEx return:%d, free HBM size:%zu, total HBM size:%zu.", ret, freeSize, totalSize);
-        CHECK_COND_RETURN_ERROR_CODE((ret != RT_ERROR_NONE), "Get avaliable HBM size failed! ret:%d.", ret);
+        /* 腾挪判断使用物理口径(不扣 swapped): 本 vNPU 换出/换入自身数据时 used+swapped
+         * 保持不变, 若复用 rtMemGetInfoEx 扣减 swapped 后的 freeSize, 全量换出后
+         * freeSize 恒为 0, 任何换出动作都无法使其回升, 换入路径将永久失败.
+         * 分配限流(memory_check/rtMemGetInfoEx)仍保持扣减 swapped 的逻辑口径, 此处
+         * 仅评估物理可用空间, 公式形状与 rtMemGetInfoEx 同构 */
+        size_t quota = get_mem_limit_quota();
+        size_t used;
+        int ret = get_mem_used(&used);
+        CHECK_COND_RETURN_ERROR_CODE((ret != ENPU_SUCCESS), "Get mem used failed! ret:%d.", ret);
+
+        size_t dynamic_free = get_mem_dynamic_free();
+        size_t request = get_mem_request_quota();
+        size_t remain = (used >= quota) ? 0 : quota - used;
+        size_t freeSize;
+        if (request > used) {
+            size_t headroom = request - used;
+            size_t free_mem_1 = (headroom > SIZE_MAX - dynamic_free) ? SIZE_MAX : headroom + dynamic_free;
+            freeSize = (free_mem_1 < remain) ? free_mem_1 : remain;
+        } else {
+            freeSize = (dynamic_free < remain) ? dynamic_free : remain;
+        }
+        LOG_DEBUG("Physical free HBM for swap: %zu, requested:%zu, used:%zu, dynamic_free:%zu.", freeSize, requested,
+                  used, dynamic_free);
 
         if (requested <= freeSize) {
             return ENPU_SUCCESS;

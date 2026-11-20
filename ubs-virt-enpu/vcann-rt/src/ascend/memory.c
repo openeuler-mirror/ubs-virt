@@ -209,7 +209,12 @@ RUNTIME_HOOK_DEFINE(rtMemGetInfoEx, rtMemInfoType_t memInfoType, size_t *freeSiz
         LOG_ERROR("Mem used is abnormally high, exceeding the quota.");
         return RT_ERROR_INVALID_VALUE;
     }
-    size_t remain = quota - used;
+    /* 已换出到主机内存的部分仍占用本 vNPU 的 limit 口径: 换出释放的 HBM 供其他 vNPU
+     * 弹性借用, 本 vNPU 剩余额度必须扣除已换出量, 防止换出后超 limit 申请新显存.
+     * 换入过程中实际占用逐步回升, 逻辑用量可能瞬时超过 limit, 此时按剩余 0 处理 */
+    size_t swapped = (size_t)get_vnpu_swapped_size();
+    size_t logical = (used > SIZE_MAX - swapped) ? SIZE_MAX : used + swapped;
+    size_t remain = (logical >= quota) ? 0 : quota - logical;
     if (get_shm_state() == NULL || quota == get_mem_request_quota()) {
         *freeSize = remain;
         *totalSize = quota;
@@ -218,10 +223,10 @@ RUNTIME_HOOK_DEFINE(rtMemGetInfoEx, rtMemInfoType_t memInfoType, size_t *freeSiz
 
     size_t dynamic_free = get_mem_dynamic_free();
     size_t request = get_mem_request_quota();
-    if (request > used) {
-        size_t free_mem_1 = request - used + dynamic_free;
+    if (request > logical) {
+        size_t free_mem_1 = request - logical + dynamic_free;
         size_t free_mem_2 = (free_mem_1 < remain) ? free_mem_1 : remain;
-        *freeSize = (free_mem_2 > request - used) ? free_mem_2 : request - used;
+        *freeSize = (free_mem_2 > request - logical) ? free_mem_2 : request - logical;
     } else {
         *freeSize = (dynamic_free < remain) ? dynamic_free : remain;
     }
@@ -257,7 +262,11 @@ RUNTIME_HOOK_DEFINE(aclrtGetMemInfoImpl, aclrtMemAttr attr, size_t *free, size_t
         LOG_ERROR("Mem used is abnormally high, exceeding the quota.");
         return RT_ERROR_INVALID_VALUE;
     }
-    size_t remain = quota - used;
+    /* 已换出到主机内存的部分仍占用本 vNPU 的 limit 口径, 防止换出后超 limit 申请新显存;
+     * 换入过程中逻辑用量可能瞬时超过 limit, 此时按剩余 0 处理 */
+    size_t swapped = (size_t)get_vnpu_swapped_size();
+    size_t logical = (used > SIZE_MAX - swapped) ? SIZE_MAX : used + swapped;
+    size_t remain = (logical >= quota) ? 0 : quota - logical;
     *free = remain;
     *total = quota;
     return ACL_RT_SUCCESS;

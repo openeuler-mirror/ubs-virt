@@ -350,7 +350,7 @@ int shm_manager_register_vnpu(shm_manager_t *mgr, int phy_id, int vnpu_id, int a
         atomic_store(&new_entry.processes[p].hbm_used, 0);
         atomic_store(&new_entry.processes[p].last_heartbeat_ns, 0);
         new_entry.processes[p].swap_offset = 0;
-        new_entry.processes[p].swap_size = 0;
+        atomic_store(&new_entry.processes[p].swap_size, 0);
         atomic_store(&new_entry.processes[p].ack_pending_seq, 0);
     }
 
@@ -573,8 +573,8 @@ int shm_manager_get_swap_state(shm_manager_t *mgr, int phy_id, int vnpu_id, bool
         if (atomic_load(&pe->active) && !atomic_load(&pe->swapped)) {
             *swapped = false;
         }
-        *size += pe->swap_size;
-        if (*offset == 0 && pe->swap_size != 0) {
+        *size += atomic_load(&pe->swap_size);
+        if (*offset == 0 && atomic_load(&pe->swap_size) != 0) {
             *offset = pe->swap_offset;
         }
     }
@@ -1008,7 +1008,7 @@ shm_state_t *shm_state_posix_shm_create(int phy_id, const char *die_id)
             atomic_store(&state->entries[v].processes[p].hbm_used, 0);
             atomic_store(&state->entries[v].processes[p].last_heartbeat_ns, 0);
             state->entries[v].processes[p].swap_offset = 0;
-            state->entries[v].processes[p].swap_size = 0;
+            atomic_store(&state->entries[v].processes[p].swap_size, 0);
             atomic_store(&state->entries[v].processes[p].ack_pending_seq, 0);
         }
     }
@@ -1595,7 +1595,7 @@ int shm_alloc_per_process(shm_state_t *state, int vnpu_id, int slot, uint64_t si
         return -1;
 
     pe->swap_offset = off;
-    pe->swap_size = size;
+    atomic_store(&pe->swap_size, size);
     shm_print_free_block_info();
     return 0;
 }
@@ -1606,13 +1606,14 @@ int shm_free_per_process(shm_state_t *state, int vnpu_id, int slot)
         return -1;
 
     process_entry_t *pe = &state->entries[vnpu_id].processes[slot];
-    if (pe->swap_size == 0) {
+    uint64_t sz = atomic_load(&pe->swap_size);
+    if (sz == 0) {
         return 0;
     }
 
-    shm_swap_buffer_free_offset(state, pe->swap_offset, pe->swap_size);
+    shm_swap_buffer_free_offset(state, pe->swap_offset, sz);
     pe->swap_offset = 0;
-    pe->swap_size = 0;
+    atomic_store(&pe->swap_size, 0);
     shm_print_free_block_info();
     return 0;
 }

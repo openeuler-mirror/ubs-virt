@@ -101,7 +101,7 @@ static void reset_runtime_state(shm_state_t *state, vnpu_time_slice_sched_t *sch
         atomic_store(&pe->hbm_used, 0);
         atomic_store(&pe->last_heartbeat_ns, 0);
         pe->swap_offset = 0;
-        pe->swap_size = 0;
+        atomic_store(&pe->swap_size, 0);
         atomic_store(&pe->ack_pending_seq, 0);
     }
 
@@ -131,9 +131,9 @@ static void reap_dead_processes(shm_manager_t *shm_mgr, shm_state_t *state, int 
                 if (atomic_load(&pe->ack_pending_seq) != 0) {
                     (void)shm_manager_proxy_ack_process(shm_mgr, phy_id, v, i);
                 }
-                if (pe->swap_size > 0) {
+                if (atomic_load(&pe->swap_size) > 0) {
                     LOG_WARN("[POD-WATCHDOG] reclaim orphan swap buffer vnpu_id=%d slot=%d size=%llu", v, i,
-                             (unsigned long long)pe->swap_size);
+                             (unsigned long long)atomic_load(&pe->swap_size));
                     (void)shm_free_per_process(state, v, i);
                 }
                 continue;
@@ -175,7 +175,7 @@ static void reap_dead_processes(shm_manager_t *shm_mgr, shm_state_t *state, int 
 
             /* 2. 释放 swap buffer: swap_size != 0 表示 manager 已分配 buffer(可能尚未完成换出),
              * 只要求 swapped 会在"已分配未换出"时漏回收, 导致 TLSF 块永久泄漏 */
-            if (pe->swap_size > 0) {
+            if (atomic_load(&pe->swap_size) > 0) {
                 (void)shm_free_per_process(state, v, i);
             }
 

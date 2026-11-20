@@ -1311,7 +1311,7 @@ int npu_allocator_foreach_swapped_vnpu(npu_allocator_t *a, swapped_vnpu_callback
                         all_swapped = false;
                         break;
                     }
-                    total_swap_size += pe->swap_size;
+                    total_swap_size += atomic_load(&pe->swap_size);
                 }
                 if (all_swapped && total_swap_size > 0) {
                     callback(phy_id, entry->vnpu_id, total_swap_size, user_data);

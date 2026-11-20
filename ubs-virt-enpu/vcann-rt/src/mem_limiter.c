@@ -24,6 +24,10 @@ bool memory_check(size_t requested)
     size_t used = 0;
     int ret = get_mem_used(&used);
     CHECK_COND_RETURN_(ret != 0, false, "get mem used failed.");
+    /* 已换出到主机内存的部分仍占用本 vNPU 的 limit 口径, 否则换出释放 HBM 后
+     * 可绕过 limit 超额申请新显存 */
+    size_t swapped = (size_t)get_vnpu_swapped_size();
+    used = (used > SIZE_MAX - swapped) ? SIZE_MAX : used + swapped;
     size_t quota = get_mem_limit_quota();
     size_t total;
     bool result = __builtin_add_overflow(requested, used, &total);
@@ -39,6 +43,10 @@ bool memory_check_elastic(size_t requested)
     size_t used = 0;
     int ret = get_mem_used(&used);
     CHECK_COND_RETURN_(ret != 0, false, "get mem used failed.");
+    /* 已换出到主机内存的部分仍占用本 vNPU 的 limit 口径, 否则换出释放 HBM 后
+     * 可绕过 limit 超额申请新显存 */
+    size_t swapped = (size_t)get_vnpu_swapped_size();
+    used = (used > SIZE_MAX - swapped) ? SIZE_MAX : used + swapped;
 
     size_t new_total;
     bool overflow = __builtin_add_overflow(requested, used, &new_total);

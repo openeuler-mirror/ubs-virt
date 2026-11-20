@@ -150,14 +150,14 @@ int swap_hook_check_and_swap_in(swap_hook_t *hook)
 
     /* 使用本进程的换出量作为换入前的腾挪量估算 */
     process_entry_t *my_entry = &state->entries[get_vnpu_id()].processes[my_slot];
-    uint64_t swap_size = my_entry->swap_size;
+    uint64_t swap_size = atomic_load(&my_entry->swap_size);
     int ret = check_and_swap_out(swap_size, SWAP_OUT_FROM_ALL);
     CHECK_RETURN_ERROR_CODE(ret, "Check and swap out failed when swap in.");
 
     /* 恢复量取进程槽位记录的真实换出量: swap_size 在换出时写为 act_swapped, 与换出侧 clamp 扣减
      * 的 hbm_used 完全同一口径; 恢复逻辑仅对双级 hbm_used 做 atomic_fetch_add(used), 不再逐 record
      * 累加 size, 避免与实拷字节数不一致导致的偏差 */
-    uint64_t used = my_entry->swap_size;
+    uint64_t used = atomic_load(&my_entry->swap_size);
     hook->tracker->check_record_in = 0;
     for (size_t i = 0; i < hook->tracker->count; ++i) {
         memory_record_t *record = &(hook->tracker->records[i]);

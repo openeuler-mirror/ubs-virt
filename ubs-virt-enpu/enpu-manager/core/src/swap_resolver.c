@@ -408,7 +408,7 @@ int swap_resolver_check_and_swap_in(swap_resolver_t *resolver, int phy_id)
                 if (!atomic_load(&pe->active)) {
                     continue;
                 }
-                if (!atomic_load(&pe->swapped) && pe->swap_size != 0) {
+                if (!atomic_load(&pe->swapped) && atomic_load(&pe->swap_size) != 0) {
                     LOG_INFO("Free swap buffer for phy_id=%d vnpu_id=%d slot=%d.", phy_id, vnpu_id, slot);
                     int ret = shm_free_per_process(state, vnpu_id, slot);
                     if (ret != ENPU_SUCCESS) {

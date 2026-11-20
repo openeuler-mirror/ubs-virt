@@ -30,7 +30,7 @@
 #define SWAP_OUT_FROM_BORROWED 1
 #define SWAP_OUT_FROM_ALL 2
 
-#define SHM_STATE_VERSION 4 /* bump: 新增 ack_pending_seq（换出 ack 欠账标记），结构布局变化 */
+#define SHM_STATE_VERSION 5 /* bump: swap_size 改为 atomic_uint_fast64_t（跨进程无锁读），类型变化 */
 
 #define MAX_PROCESSES_PER_VNPU 64                       /* 每个 vNPU 最多注册的 vcann-rt 进程数 */
 #define PROCESS_ALIVE_TIMEOUT_NS (5ULL * 1000000000ULL) /* 进程心跳超时阈值: 5 秒 */
@@ -43,7 +43,9 @@ typedef struct process_entry {
     atomic_uint_fast64_t last_heartbeat_ns; /* 心跳时间戳 (进程存活检测) */
     atomic_uint_fast64_t hbm_used;          /* 该进程实际占用的 HBM 字节数 */
     uint64_t swap_offset;                   /* 该进程在 swap buffer 中的偏移 */
-    uint64_t swap_size;                     /* 该进程换出的数据大小 */
+    /* swap_size 会被宿主机 manager(shm_free_per_process/watchdog 回收)与本进程 swap_monitor
+     * 并发写, 且被跨进程无锁读(准入记账/故障恢复扫描), 必须保持原子访问 */
+    atomic_uint_fast64_t swap_size; /* 该进程换出的数据大小 */
     /* 换出 ack 欠账标记: 0=本槽位不欠 ack, ==swap_cmd.cmd_seq=欠当前 epoch 一次 ack.
      * 写命令时由 enpu-manager 置位, 只有真正 ack(进程自己或 watchdog 代 ack) 才清零.
      * 完成判定 = 目标 vNPU 上没有任何槽位的 ack_pending_seq 等于当前 cmd_seq. */
