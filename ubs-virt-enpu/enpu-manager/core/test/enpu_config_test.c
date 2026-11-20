@@ -39,6 +39,25 @@ int main(void)
     write_config(path, "config_dir=/tmp/enpu\n");
     assert(enpu_config_load(path) == NULL);
 
+    write_config(path, "# keep this comment\nshare-strategy = compact # old value\nlog_level=info\n");
+    assert(enpu_config_update_value(path, "share-strategy", "anti-fragment") == ENPU_SUCCESS);
+    assert(enpu_config_update_value(path, "swap-pre-watermark", "85") == ENPU_SUCCESS);
+    assert(enpu_config_update_value(path, "unknown", "1") == ENPU_INVALID_PARAM);
+    config = enpu_config_load(path);
+    assert(config != NULL);
+    assert(strcmp(config->share_strategy, "anti-fragment") == 0);
+    assert(config->swap_pre_watermark == 85);
+    assert(strcmp(config->log_level, "info") == 0);
+    assert(enpu_config_destroy(config) == ENPU_SUCCESS);
+    FILE *updated = fopen(path, "r");
+    assert(updated != NULL);
+    char contents[256] = {0};
+    assert(fread(contents, 1, sizeof(contents) - 1, updated) > 0);
+    assert(strstr(contents, "# keep this comment") != NULL);
+    assert(strstr(contents, "share-strategy=anti-fragment") != NULL);
+    assert(strstr(contents, "swap-pre-watermark=85") != NULL);
+    assert(fclose(updated) == 0);
+
     assert(unlink(path) == 0);
     return 0;
 }

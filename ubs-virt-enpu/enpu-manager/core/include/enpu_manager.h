@@ -115,7 +115,7 @@ typedef struct enpu_manager enpu_manager_t;
 typedef struct swapped_model_info {
     char pod_uid[MAX_UUID_LEN];
     int vnpu_id;
-    int die_id;
+    char die_id[DIE_ID_LEN];
     uint64_t swap_size;
 } swapped_model_info_t;
 
@@ -286,6 +286,8 @@ int enpu_manager_query_devices(enpu_manager_t *mgr, const device_query_t *query,
 int enpu_manager_query_allocations(enpu_manager_t *mgr, const allocation_query_t *query, allocation_t *allocations,
                                    int *count);
 char *enpu_manager_get_config_path(enpu_manager_t *mgr, const char *allocation_id, char *path, int path_size);
+int enpu_manager_set_swap_pre_watermark(enpu_manager_t *mgr, int percent);
+int enpu_manager_set_share_strategy(enpu_manager_t *mgr, const char *strategy);
 /* In-process, synchronous query. query=NULL selects all allocated resources without detail.
  * response must be zero-initialized or previously freed. On failure it is reset to empty.
  * ENPU_SUCCESS does not imply that every metric is available; check each metric status.

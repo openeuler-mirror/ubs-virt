@@ -4,6 +4,7 @@
  */
 
 #include "swap_resolver.h"
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,7 +21,7 @@
 struct swap_resolver {
     npu_allocator_t *allocator;
     swap_buffer_manager_t *swap_buf_mgr;
-    double pre_swap_threshold;
+    _Atomic double pre_swap_threshold;
     uint64_t idle_threshold_ns;
     double last_usage_ratio[MAX_NPU_PER_NODE];
     bool is_usage_logged[MAX_NPU_PER_NODE];
@@ -44,7 +45,7 @@ swap_resolver_t *swap_resolver_create(npu_allocator_t *allocator, swap_buffer_ma
 
     resolver->allocator = allocator;
     resolver->swap_buf_mgr = swap_buf_mgr;
-    resolver->pre_swap_threshold = pre_swap_threshold;
+    atomic_store(&resolver->pre_swap_threshold, pre_swap_threshold);
     resolver->idle_threshold_ns = idle_threshold_ns;
 
     return resolver;
@@ -57,6 +58,15 @@ int swap_resolver_destroy(swap_resolver_t *resolver)
     }
 
     free(resolver);
+    return ENPU_SUCCESS;
+}
+
+int swap_resolver_set_pre_swap_watermark(swap_resolver_t *resolver, int percent)
+{
+    if (resolver == NULL || percent < 1 || percent > 100) {
+        return ENPU_INVALID_PARAM;
+    }
+    atomic_store(&resolver->pre_swap_threshold, percent / 100.0);
     return ENPU_SUCCESS;
 }
 
@@ -103,7 +113,7 @@ watermark_level_t swap_resolver_check_watermark(swap_resolver_t *resolver, int p
         resolver->is_usage_logged[phy_id] = true;
     }
 
-    if (usage_ratio >= resolver->pre_swap_threshold) {
+    if (usage_ratio >= atomic_load(&resolver->pre_swap_threshold)) {
         return WATERMARK_PRE_SWAP;
     }
 
