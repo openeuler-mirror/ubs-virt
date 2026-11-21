@@ -41,6 +41,17 @@ int swap_hook_global_init(int vnpu_id);
 void swap_hook_global_destroy(void);
 swap_hook_t *swap_hook_get_global(void);
 
+typedef enum
+{
+    SWAP_POOL_READY,
+    SWAP_POOL_DISABLED,
+    SWAP_POOL_DEFERRED,
+    SWAP_POOL_FAILED
+} swap_pool_reload_result_t;
+
+/* 不阻塞等待 swap_in_mutex；映射未就绪时，调用方不得执行换出。 */
+swap_pool_reload_result_t swap_hook_reload_pool(void);
+
 #if defined(__cplusplus)
 }
 #endif

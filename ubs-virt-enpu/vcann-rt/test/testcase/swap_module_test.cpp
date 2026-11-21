@@ -261,6 +261,7 @@ protected:
         create_swap_buffer_shm();
         state_shm_ = create_state_shm(kDieId, kPhyId, true);
         ASSERT_NE(state_shm_, nullptr);
+        ASSERT_EQ(strcpy_s(state_shm_->swap_pool_name, sizeof(state_shm_->swap_pool_name), SHM_SWAP_BUFFER_NAME), 0);
         /* 固定本进程的 vNPU/shm_id, 使 get_vnpu_id() 与本套件构造的 state 一致 */
         config.phy_npu_id = kPhyId;
         config.vnpu_id = kVnpuId;
@@ -563,12 +564,36 @@ TEST_F(SwapModuleTest, VnpuSwappedSizeMultiSlotAggregation)
 
 TEST_F(SwapModuleTest, SwapBufferAttachDetach)
 {
-    void *base = swap_buffer_shm_attach();
-    ASSERT_NE(base, nullptr);
-    EXPECT_EQ(swap_buffer_shm_detach(base), ENPU_SUCCESS);
-    /* detach 后记录大小已清零, 再次 detach 同一基址按失败处理 */
-    EXPECT_EQ(swap_buffer_shm_detach(base), ENPU_FAIL);
-    EXPECT_EQ(swap_buffer_shm_detach(nullptr), ENPU_SUCCESS);
+    const long pageSize = sysconf(_SC_PAGESIZE);
+    ASSERT_GT(pageSize, 0);
+    ASSERT_LT(static_cast<size_t>(pageSize), kSwapBufferSize);
+    char smallName[DIE_ID_LEN];
+    ASSERT_GT(sprintf_s(smallName, sizeof(smallName), "/swap_test_small_%ld", static_cast<long>(getpid())), 0);
+    int fd = shm_open(smallName, O_CREAT | O_EXCL | O_RDWR, 0600);
+    ASSERT_GE(fd, 0);
+    EXPECT_EQ(ftruncate(fd, pageSize), 0);
+    EXPECT_EQ(close(fd), 0);
+
+    swap_buffer_mapping_t large = {};
+    swap_buffer_mapping_t small = {};
+    EXPECT_EQ(swap_buffer_shm_try_attach_by_name(nullptr, &small), ENPU_FAIL);
+    EXPECT_EQ(swap_buffer_shm_try_attach_by_name("", &small), ENPU_FAIL);
+    EXPECT_EQ(swap_buffer_shm_attach_by_name(SHM_SWAP_BUFFER_NAME, &large), ENPU_SUCCESS);
+    EXPECT_EQ(swap_buffer_shm_try_attach_by_name(smallName, &small), ENPU_SUCCESS);
+    EXPECT_EQ(shm_unlink(smallName), 0);
+    EXPECT_EQ(large.size, kSwapBufferSize);
+    EXPECT_EQ(small.size, static_cast<size_t>(pageSize));
+    if (large.base != nullptr && small.base != nullptr) {
+        auto *lastPage = static_cast<char *>(large.base) + kSwapBufferSize - pageSize;
+        unsigned char resident = 0;
+        EXPECT_EQ(swap_buffer_shm_detach(&large), ENPU_SUCCESS);
+        EXPECT_EQ(mincore(lastPage, static_cast<size_t>(pageSize), &resident), -1);
+        EXPECT_EQ(mincore(small.base, static_cast<size_t>(pageSize), &resident), 0);
+    }
+    EXPECT_EQ(swap_buffer_shm_detach(&large), ENPU_SUCCESS);
+    EXPECT_EQ(swap_buffer_shm_detach(&small), ENPU_SUCCESS);
+    EXPECT_EQ(swap_buffer_shm_try_attach_by_name(smallName, &small), ENPU_FAIL);
+    EXPECT_EQ(small.base, nullptr);
 }
 
 /* ---------------- swap_monitor_thread: 参数校验与起停 ---------------- */
@@ -643,6 +668,27 @@ TEST_F(SwapModuleTest, SwapHookGlobalInitSuccess)
     /* 上面的 destroy 已注销本进程, 重新注册以恢复进程级换出槽位供后续用例使用 */
     ASSERT_EQ(register_to_shm_state(get_shm_state(), kVnpuId), ENPU_SUCCESS);
     ASSERT_GE(get_registry_slot(), 0);
+
+    /* 模拟 EN 发布新代次，验证 RT 重挂失败、禁用及恢复后的状态。 */
+    shm_state_t *state = get_shm_state();
+    ASSERT_NE(state, nullptr);
+    char missingName[DIE_ID_LEN];
+    ASSERT_GT(sprintf_s(missingName, sizeof(missingName), "/swap_test_missing_%ld", static_cast<long>(getpid())), 0);
+    ASSERT_EQ(swap_hook_reload_pool(), SWAP_POOL_READY);
+
+    EXPECT_EQ(strcpy_s(state->swap_pool_name, sizeof(state->swap_pool_name), missingName), 0);
+    state->swap_pool_generation.fetch_add(1);
+    EXPECT_EQ(swap_hook_reload_pool(), SWAP_POOL_FAILED);
+    EXPECT_EQ(swap_hook_reload_pool(), SWAP_POOL_FAILED);
+
+    state->swap_pool_name[0] = '\0';
+    state->swap_pool_generation.fetch_add(1);
+    EXPECT_EQ(swap_hook_reload_pool(), SWAP_POOL_DISABLED);
+    EXPECT_EQ(swap_hook_reload_pool(), SWAP_POOL_DISABLED);
+
+    EXPECT_EQ(strcpy_s(state->swap_pool_name, sizeof(state->swap_pool_name), SHM_SWAP_BUFFER_NAME), 0);
+    state->swap_pool_generation.fetch_add(1);
+    EXPECT_EQ(swap_hook_reload_pool(), SWAP_POOL_READY);
 }
 
 TEST_F(SwapModuleTest, SwapHookMallocAndMapMem)
