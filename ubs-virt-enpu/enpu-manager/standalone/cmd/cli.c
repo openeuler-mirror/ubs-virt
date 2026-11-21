@@ -243,7 +243,7 @@ static void print_usage(const char *prog)
     printf("                           -c:           container_name (optional metadata)\n");
     printf("                           --swap-order: 0 first, 1 default, 2 last\n");
     printf("                           --vnpu-priority: 0 normal (default), 1 high\n");
-    printf("                           Normal priority requires -n and -p; high priority uses AI Core 0 and policy 3\n");
+    printf("                           Normal needs -n and -p; high priority uses AI Core 0 and policy 3\n");
     printf("  release -a <allocation_id> | -u <pod_uid> -c <container>\n");
     printf("                           Release vNPU\n");
     printf("  status                   Show allocation status\n");
