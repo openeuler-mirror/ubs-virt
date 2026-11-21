@@ -6,32 +6,26 @@
 #ifndef __SWAP_BUFFER_SHM_H__
 #define __SWAP_BUFFER_SHM_H__
 
-#include <stdint.h>
+#include <stddef.h>
 #include "common.h"
 
-/*
- * mmap 同一个全局 POSIX shm 文件 /shm_swap_buffer（由 enpu-manager 创建, 
- * 所有物理 NPU 共用一个内存池）, 获取本进程有效的虚拟地址. 
- * 映射大小由 fstat 动态获取
- */
 #define SHM_SWAP_BUFFER_NAME "/shm_swap_buffer"
+
+typedef struct {
+    void *base;
+    size_t size;
+} swap_buffer_mapping_t;
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-/*
- * 映射 /shm_swap_buffer 到本进程地址空间. 
- * 返回: 成功返回 mmap 映射基址, 失败返回 NULL. 
- */
-void *swap_buffer_shm_attach(void);
-
-/*
- * 解除 swap_buffer_shm_attach 返回的映射. 
- * 仅 munmap, 不 shm_unlink（enpu-manager 负责销毁）. 
- * 返回: ENPU_SUCCESS / ENPU_FAIL. 
- */
-int swap_buffer_shm_detach(void *base);
+/* 挂载成功后填充映射；调用者传入空映射。 */
+int swap_buffer_shm_attach_by_name(const char *shm_name, swap_buffer_mapping_t *mapping);
+/* 供命令监控线程使用：仅尝试一次，不进行重试休眠。 */
+int swap_buffer_shm_try_attach_by_name(const char *shm_name, swap_buffer_mapping_t *mapping);
+/* 解除本地映射；共享内存段由 enpu-manager 管理。 */
+int swap_buffer_shm_detach(swap_buffer_mapping_t *mapping);
 
 #if defined(__cplusplus)
 }

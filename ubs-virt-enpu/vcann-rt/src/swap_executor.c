@@ -17,6 +17,7 @@
 
 struct swap_executor {
     void *swap_buffer_base;
+    void **base_ref;
 };
 
 swap_executor_t *swap_executor_create(void *swap_buffer_base)
@@ -31,6 +32,7 @@ swap_executor_t *swap_executor_create(void *swap_buffer_base)
     }
 
     executor->swap_buffer_base = swap_buffer_base;
+    executor->base_ref = &executor->swap_buffer_base;
 
     return executor;
 }
@@ -48,7 +50,8 @@ int swap_executor_destroy(swap_executor_t *executor)
 int swap_executor_swap_out(swap_executor_t *executor, memory_tracker_t *tracker, memory_record_t **records, int count,
                            uint64_t swap_offset, uint64_t *act_swapped)
 {
-    if (executor == NULL || records == NULL || count <= 0) {
+    if (executor == NULL || executor->base_ref == NULL || *executor->base_ref == NULL || records == NULL ||
+        count <= 0) {
         return ENPU_FAIL;
     }
 
@@ -61,7 +64,7 @@ int swap_executor_swap_out(swap_executor_t *executor, memory_tracker_t *tracker,
             continue;
         }
 
-        void *dst = (void *)((uintptr_t)executor->swap_buffer_base + current_offset);
+        void *dst = (void *)((uintptr_t)(*executor->base_ref) + current_offset);
         if (record->is_physical) {
             void *va;
             int rc = memory_tracker_get_map_va(tracker, record->ptr, &va);
@@ -135,7 +138,11 @@ int swap_executor_swap_out(swap_executor_t *executor, memory_tracker_t *tracker,
 int swap_executor_swap_in(swap_executor_t *executor, void **ptr, uint64_t offset, uint64_t *size,
                           rtDrvMemHandle *new_handle, uint8_t flag)
 {
-    if (executor == NULL || ptr == NULL || size == 0 || new_handle == NULL) {
+    if (executor == NULL || ptr == NULL || size == NULL || new_handle == NULL) {
+        return ENPU_FAIL;
+    }
+    /* 普通内存申请不读取换出池；真正换入时须在申请设备内存前确认映射有效。 */
+    if (flag != NOT_MEMCPY_FLAG && (executor->base_ref == NULL || *executor->base_ref == NULL)) {
         return ENPU_FAIL;
     }
 
@@ -173,7 +180,7 @@ int swap_executor_swap_in(swap_executor_t *executor, void **ptr, uint64_t offset
     if (flag == NOT_MEMCPY_FLAG) {
         return ENPU_SUCCESS;
     }
-    void *src = (void *)((uintptr_t)executor->swap_buffer_base + offset);
+    void *src = (void *)((uintptr_t)(*executor->base_ref) + offset);
     ret = RUNTIME_HOOK_CALL(rt_library_entry, rtMemcpy, *ptr, alignedSize, src, alignedSize, RT_MEMCPY_HOST_TO_DEVICE);
     if (ret != ACL_RT_SUCCESS) {
         LOG_ERROR("Swap in memcpy failed.");
@@ -188,7 +195,7 @@ int swap_executor_swap_in(swap_executor_t *executor, void **ptr, uint64_t offset
 int swap_executor_swap_in_physical(swap_executor_t *executor, memory_tracker_t *tracker, rtDrvMemHandle handle,
                                    uint64_t offset, uint64_t *size, rtDrvMemHandle *new_handle)
 {
-    if (executor == NULL || handle == NULL) {
+    if (executor == NULL || executor->base_ref == NULL || *executor->base_ref == NULL || handle == NULL) {
         return ENPU_FAIL;
     }
 
@@ -232,7 +239,7 @@ int swap_executor_swap_in_physical(swap_executor_t *executor, memory_tracker_t *
         return ENPU_FAIL;
     }
 
-    void *src = (void *)((uintptr_t)executor->swap_buffer_base + offset);
+    void *src = (void *)((uintptr_t)(*executor->base_ref) + offset);
     ret = RUNTIME_HOOK_CALL(rt_library_entry, rtMemcpy, va, *size, src, *size, RT_MEMCPY_HOST_TO_DEVICE);
     if (ret != ACL_RT_SUCCESS) {
         LOG_ERROR("Swap in memcpy failed.");
@@ -249,4 +256,19 @@ int swap_executor_swap_in_physical(swap_executor_t *executor, memory_tracker_t *
     }
 
     return ENPU_SUCCESS;
+}
+swap_executor_t *swap_executor_create_ref(void **base_ref)
+{
+    if (base_ref == NULL) {
+        return NULL;
+    }
+
+    swap_executor_t *executor = (swap_executor_t *)calloc(1, sizeof(swap_executor_t));
+    if (executor == NULL) {
+        return NULL;
+    }
+
+    executor->base_ref = base_ref;
+
+    return executor;
 }

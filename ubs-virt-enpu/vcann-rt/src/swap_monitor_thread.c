@@ -12,6 +12,9 @@
 #include "log.h"
 #include "npu_manager.h"
 #include "shm_manager.h"
+#include "swap_hook.h"
+
+#define SWAP_POOL_CMD_MAX_ATTEMPTS 5
 
 swap_monitor_thread_t *g_swap_monitor_thread = NULL;
 
@@ -33,10 +36,9 @@ static void swap_ack_and_decrement(swap_monitor_thread_t *mon_thread, int32_t cm
     }
 
     if (remain == 0) {
-        LOG_INFO("swap_monitor_thread: last process, swap_out completed for vnpu_id=%d seq=%lu", cmd_vnpu_id,
-                 (unsigned long)seq);
+        LOG_INFO("swap_monitor_thread: all processes acknowledged vnpu_id=%d seq=%lu", cmd_vnpu_id, (unsigned long)seq);
     } else {
-        LOG_INFO("swap_monitor_thread: swap_out done, refcount %d->%d, waiting for others", remain + 1, remain);
+        LOG_INFO("swap_monitor_thread: command acknowledged, refcount %d->%d, waiting for others", remain + 1, remain);
     }
 }
 
@@ -56,7 +58,12 @@ static void *swap_monitor_thread_func(void *arg)
     process_entry_t *my_entry = &mon_thread->shm_state->entries[mon_thread->vnpu_id].processes[my_slot];
     atomic_store(&my_entry->swapped, false);
 
+    uint64_t retry_seq = 0;
+    unsigned int pool_attempts = 0;
     while (atomic_load(&mon_thread->running)) {
+        /* 先检测 EM 重建并重挂 swap buffer，再处理 swap 命令（先挂后用） */
+        swap_pool_reload_result_t pool_result = swap_hook_reload_pool();
+
         int32_t cmd_vnpu_id = 0;
         int32_t action = SWAP_ACTION_NONE;
 
@@ -89,9 +96,27 @@ static void *swap_monitor_thread_func(void *arg)
                 usleep(mon_thread->poll_interval_ms * 1000);
                 continue;
             }
-            set_last_seen_cmd_seq(current_seq);
+            bool already_swapped = atomic_load(&my_entry->swapped);
+            if (!already_swapped && pool_result != SWAP_POOL_READY) {
+                if (retry_seq != current_seq) {
+                    retry_seq = current_seq;
+                    pool_attempts = 0;
+                }
+                if (pool_result != SWAP_POOL_DISABLED && ++pool_attempts < SWAP_POOL_CMD_MAX_ATTEMPTS) {
+                    usleep(mon_thread->poll_interval_ms * 1000);
+                    continue;
+                }
+                /* 等待方可能持有换入锁。重试用尽后结束本次命令，保留原有显存记账。 */
+                LOG_WARN("swap_monitor_thread: swap out skipped, pool unavailable, vnpu_id=%d, slot=%d, result=%d",
+                         cmd_vnpu_id, my_slot, pool_result);
+                set_last_seen_cmd_seq(current_seq);
+                swap_ack_and_decrement(mon_thread, cmd_vnpu_id, current_seq);
+                usleep(mon_thread->poll_interval_ms * 1000);
+                continue;
+            }
 
-            if (!atomic_load(&my_entry->swapped)) {
+            set_last_seen_cmd_seq(current_seq);
+            if (!already_swapped) {
                 LOG_INFO("swap_monitor_thread: detected swap_cmd action=%d for vnpu_id=%d, starting swap_out", action,
                          cmd_vnpu_id);
 

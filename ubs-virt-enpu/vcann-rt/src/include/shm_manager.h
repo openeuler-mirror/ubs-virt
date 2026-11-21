@@ -13,9 +13,11 @@
 #define __SHM_MANAGER_H__
 
 #include "common.h"
+#include "swap_pool_shm_abi.h"
 
 #if defined(__cplusplus)
 #include <atomic>
+using atomic_uint_fast32_t = std::atomic<uint_fast32_t>;
 using atomic_uint_fast64_t = std::atomic<uint_fast64_t>;
 using atomic_bool = std::atomic<bool>;
 using atomic_int = std::atomic<int>;
@@ -23,7 +25,7 @@ using atomic_int = std::atomic<int>;
 #include <stdatomic.h>
 #endif
 
-#define SHM_STATE_VERSION 5 /* bump: swap_size 改为 atomic_uint_fast64_t（跨进程无锁读），类型变化 */
+#define SHM_STATE_VERSION 6 /* 原子 swap_size 协议增加按卡池名和代次 */
 #define SWAP_ACTION_NONE 0
 #define SWAP_ACTION_OUT 1
 #define SWAP_ACTION_IN 2
@@ -100,6 +102,8 @@ typedef struct shm_state {
     pthread_mutex_t swap_in_mutex;
     atomic_int next_vcann_rt_id; /* vcann_rt_id 自增计数器（0 表示未分配） */
     uint8_t reserved[64];
+    char swap_pool_name[SWAP_POOL_NAME_LEN];
+    atomic_uint_fast32_t swap_pool_generation;
 } shm_state_t;
 
 shm_state_t *shm_state_posix_shm_attach(int phy_id, const char *die_id);
