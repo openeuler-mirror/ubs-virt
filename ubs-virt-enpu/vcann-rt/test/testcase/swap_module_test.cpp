@@ -26,6 +26,7 @@
 #include <cstring>
 #include <iostream>
 #include <mockcpp/mockcpp.hpp>
+#include "core_limiter.h"
 #include "dcmi_wrapper.h"
 #include "log.h"
 #include "memory_tracker.h"
@@ -46,9 +47,12 @@ rtError_t rtMapMem(void *devPtr, size_t size, size_t offset, rtDrvMemHandle hand
 rtError_t rtUnmapMem(void *devPtr);
 rtError_t rtMemcpy(void *dst, uint64_t destMax, const void *src, uint64_t cnt, rtMemcpyKind_t kind);
 rtError_t rtsPointerGetAttributes(const void *ptr, rtPtrAttributes_t *attributes);
+rtError_t rtPointerGetAttributes(rtPointerAttributes_t *attributes, const void *ptr);
+rtError_t aclrtPointerGetAttributesImpl(const void *ptr, aclrtPtrAttributes *attributes);
 rtError_t rtMemcpyAsync(void *dst, uint64_t destMax, const void *src, uint64_t cnt, rtMemcpyKind_t kind,
                         rtStream_t stm);
 rtError_t rtsCheckMemType(void **addrs, uint32_t size, uint32_t memType, uint32_t *checkResult, uint32_t reserve);
+rtError_t aclrtCheckMemTypeImpl(void **addrs, uint32_t size, uint32_t memType, uint32_t *checkResult, uint32_t reserve);
 rtError_t rtMemcpyAsyncEx(void *dst, uint64_t destMax, const void *src, uint64_t cnt, rtMemcpyKind_t kind,
                           rtStream_t stm, rtMemcpyConfig_t *memcpyConfig);
 rtError_t rtsMemcpyBatch(void **dsts, void **srcs, size_t *sizes, size_t count, rtMemcpyBatchAttr *attrs,
@@ -127,6 +131,22 @@ rtError_t stub_swap_ok_no_arg(void)
     return RT_ERROR_NONE;
 }
 
+/* CheckMemType 族入参捕获桩: 校验 RSVD 补偿后的 memType 原样透传给真实实现 */
+uint32_t g_captured_mem_type = 0;
+uint32_t g_captured_addr_size = 0;
+rtError_t stub_swap_check_mem_type(void **addrs, uint32_t size, uint32_t memType, uint32_t *checkResult,
+                                   uint32_t reserve)
+{
+    (void)addrs;
+    (void)reserve;
+    g_captured_mem_type = memType;
+    g_captured_addr_size = size;
+    if (checkResult != nullptr) {
+        *checkResult = 1;
+    }
+    return RT_ERROR_NONE;
+}
+
 rtError_t stub_swap_rt_free(void *devPtr)
 {
     (void)devPtr;
@@ -184,8 +204,11 @@ void fill_swap_rt_entries()
     rt_library_entry[HOOK_rtsMemcpyBatchAsync].func_ptr = (void *)stub_swap_ok_no_arg;
     rt_library_entry[HOOK_rtsMemcpyAsyncWithDesc].func_ptr = (void *)stub_swap_ok_no_arg;
     rt_library_entry[HOOK_rtsSetMemcpyDesc].func_ptr = (void *)stub_swap_ok_no_arg;
-    rt_library_entry[HOOK_rtsCheckMemType].func_ptr = (void *)stub_swap_ok_no_arg;
+    rt_library_entry[HOOK_rtsCheckMemType].func_ptr = (void *)stub_swap_check_mem_type;
+    rt_library_entry[HOOK_aclrtCheckMemTypeImpl].func_ptr = (void *)stub_swap_check_mem_type;
     rt_library_entry[HOOK_rtsPointerGetAttributes].func_ptr = (void *)stub_swap_ok_no_arg;
+    rt_library_entry[HOOK_rtPointerGetAttributes].func_ptr = (void *)stub_swap_ok_no_arg;
+    rt_library_entry[HOOK_aclrtPointerGetAttributesImpl].func_ptr = (void *)stub_swap_ok_no_arg;
     rt_library_entry[HOOK_rtMemset].func_ptr = (void *)stub_swap_ok_no_arg;
     rt_library_entry[HOOK_rtMemsetAsync].func_ptr = (void *)stub_swap_ok_no_arg;
     rt_library_entry[HOOK_rtMemPrefetchToDevice].func_ptr = (void *)stub_swap_ok_no_arg;
@@ -879,6 +902,138 @@ TEST_F(SwapModuleTest, MemoryInterceptPassthrough)
     EXPECT_EQ(rtMemGetInfoEx(RT_MEMORYINFO_HBM, &freeSize, nullptr), RT_ERROR_INVALID_VALUE);
     EXPECT_EQ(aclrtGetMemInfoImpl(0, nullptr, &totalSize), RT_ERROR_INVALID_VALUE);
     EXPECT_EQ(aclrtGetMemInfoImpl(0, &freeSize, nullptr), RT_ERROR_INVALID_VALUE);
+}
+
+/* ---------------- CheckMemType 族: vmm 地址 RSVD 类型补偿 ---------------- */
+
+/* DEV 查询且 tracker 命中时补偿 RT_MEM_MASK_RSVD_TYPE; 未命中/非 DEV 查询/空列表原样透传 */
+TEST_F(SwapModuleTest, CheckMemTypeRsvdCompensation)
+{
+    constexpr uint32_t kDevType = 0x2U;  /* RT_MEM_MASK_DEV_TYPE */
+    constexpr uint32_t kDvppType = 0x8U; /* RT_MEM_MASK_DVPP_TYPE */
+    swap_hook_t *hook = swap_hook_get_global();
+    ASSERT_NE(hook, nullptr);
+    void *tracked = (void *)(intptr_t)0x6000;
+    ASSERT_EQ(memory_tracker_add(hook->tracker, tracked, 256, (rtDrvMemHandle)(intptr_t)0x3600, false), ENPU_SUCCESS);
+
+    uint32_t checkResult = 0;
+    /* 命中: 补偿 RSVD 位 */
+    void *hit[1] = {tracked};
+    g_captured_mem_type = 0;
+    EXPECT_EQ(rtsCheckMemType(hit, 1, kDevType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDevType | RT_MEM_MASK_RSVD_TYPE);
+    /* 未命中: 原样转发 */
+    void *miss[1] = {(void *)(intptr_t)0x7777};
+    g_captured_mem_type = 0;
+    EXPECT_EQ(rtsCheckMemType(miss, 1, kDevType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDevType);
+    /* 混合列表: 任一命中即补偿 */
+    void *mixed[2] = {(void *)(intptr_t)0x7777, tracked};
+    g_captured_mem_type = 0;
+    EXPECT_EQ(rtsCheckMemType(mixed, 2, kDevType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDevType | RT_MEM_MASK_RSVD_TYPE);
+    EXPECT_EQ(g_captured_addr_size, 2U);
+    /* 分配区间内偏移地址命中, 区间结束地址不命中 */
+    void *offset[1] = {(void *)(intptr_t)0x6001};
+    g_captured_mem_type = 0;
+    EXPECT_EQ(rtsCheckMemType(offset, 1, kDevType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDevType | RT_MEM_MASK_RSVD_TYPE);
+    offset[0] = (void *)(intptr_t)0x60ff;
+    g_captured_mem_type = 0;
+    EXPECT_EQ(rtsCheckMemType(offset, 1, kDevType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDevType | RT_MEM_MASK_RSVD_TYPE);
+    void *end[1] = {(void *)(intptr_t)0x6100};
+    g_captured_mem_type = 0;
+    EXPECT_EQ(rtsCheckMemType(end, 1, kDevType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDevType);
+    /* physical handle 不参与地址区间兜底 */
+    void *physical = (void *)(intptr_t)0x7000;
+    ASSERT_EQ(memory_tracker_add(hook->tracker, physical, 256, (rtDrvMemHandle)physical, true), ENPU_SUCCESS);
+    void *physicalOffset[1] = {(void *)(intptr_t)0x7080};
+    g_captured_mem_type = 0;
+    EXPECT_EQ(rtsCheckMemType(physicalOffset, 1, kDevType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDevType);
+    EXPECT_EQ(memory_tracker_remove(hook->tracker, physical), ENPU_SUCCESS);
+    /* 非 DEV 查询及空掩码: 即使命中 tracker 也原样转发 */
+    g_captured_mem_type = 0;
+    EXPECT_EQ(rtsCheckMemType(hit, 1, kDvppType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDvppType);
+    g_captured_mem_type = 0;
+    EXPECT_EQ(rtsCheckMemType(hit, 1, 0, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, 0U);
+    /* addrs 为 NULL / size 为 0: 不补偿且不崩溃 */
+    g_captured_mem_type = 0;
+    EXPECT_EQ(rtsCheckMemType(nullptr, 1, kDevType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDevType);
+    g_captured_mem_type = 0;
+    EXPECT_EQ(rtsCheckMemType(hit, 0, kDevType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDevType);
+
+    EXPECT_EQ(memory_tracker_remove(hook->tracker, tracked), ENPU_SUCCESS);
+}
+
+/* aclrt 开关关闭时纯透传; 使能后仅 DEV 查询且命中 tracker 时补偿 RSVD 位 */
+TEST_F(SwapModuleTest, AclrtCheckMemTypeImplGateAndCompensation)
+{
+    constexpr uint32_t kDevType = 0x2U;  /* RT_MEM_MASK_DEV_TYPE */
+    constexpr uint32_t kDvppType = 0x8U; /* RT_MEM_MASK_DVPP_TYPE */
+    swap_hook_t *hook = swap_hook_get_global();
+    ASSERT_NE(hook, nullptr);
+    void *tracked = (void *)(intptr_t)0x6100;
+    ASSERT_EQ(memory_tracker_add(hook->tracker, tracked, 128, (rtDrvMemHandle)(intptr_t)0x3700, false), ENPU_SUCCESS);
+
+    const bool enabled = get_aclrt_impl_hook_enable();
+    uint32_t checkResult = 0;
+    void *hit[1] = {tracked};
+
+    /* 开关关闭: 纯透传, 不做补偿 */
+    set_aclrt_impl_hook_enable(false);
+    g_captured_mem_type = 0;
+    EXPECT_EQ(aclrtCheckMemTypeImpl(hit, 1, kDevType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDevType);
+
+    /* 开关使能: 命中地址补偿 RSVD 位 */
+    set_aclrt_impl_hook_enable(true);
+    g_captured_mem_type = 0;
+    EXPECT_EQ(aclrtCheckMemTypeImpl(hit, 1, kDevType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDevType | RT_MEM_MASK_RSVD_TYPE);
+    void *offset[1] = {(void *)(intptr_t)0x6101};
+    g_captured_mem_type = 0;
+    EXPECT_EQ(aclrtCheckMemTypeImpl(offset, 1, kDevType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDevType | RT_MEM_MASK_RSVD_TYPE);
+    void *end[1] = {(void *)(intptr_t)0x6180};
+    g_captured_mem_type = 0;
+    EXPECT_EQ(aclrtCheckMemTypeImpl(end, 1, kDevType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDevType);
+    g_captured_mem_type = 0;
+    EXPECT_EQ(aclrtCheckMemTypeImpl(hit, 1, kDvppType, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, kDvppType);
+    g_captured_mem_type = 0;
+    EXPECT_EQ(aclrtCheckMemTypeImpl(hit, 1, 0, &checkResult, 0), RT_ERROR_NONE);
+    EXPECT_EQ(g_captured_mem_type, 0U);
+
+    set_aclrt_impl_hook_enable(enabled);
+    EXPECT_EQ(memory_tracker_remove(hook->tracker, tracked), ENPU_SUCCESS);
+}
+
+/* ---------------- 查询属性族: rtPointerGetAttributes/aclrtPointerGetAttributesImpl 拦截透传 ---------------- */
+
+TEST_F(SwapModuleTest, PointerGetAttributesHooks)
+{
+    uint8_t hostBuf[16] = {0};
+    /* shm 已挂载: rt 侧无使能开关, 完成初始化/换入检查后透传 */
+    rtPointerAttributes_t rtAttr = {};
+    EXPECT_EQ(rtPointerGetAttributes(&rtAttr, hostBuf), RT_ERROR_NONE);
+
+    const bool enabled = get_aclrt_impl_hook_enable();
+    aclrtPtrAttributes aclAttr = {};
+    /* 开关使能: 走初始化/换入检查后透传 */
+    set_aclrt_impl_hook_enable(true);
+    EXPECT_EQ(aclrtPointerGetAttributesImpl(hostBuf, &aclAttr), RT_ERROR_NONE);
+    /* 开关关闭: 直接透传 */
+    set_aclrt_impl_hook_enable(false);
+    EXPECT_EQ(aclrtPointerGetAttributesImpl(hostBuf, &aclAttr), RT_ERROR_NONE);
+    set_aclrt_impl_hook_enable(enabled);
 }
 
 TEST_F(SwapModuleTest, GlobalInitPostAndQuotaApi)

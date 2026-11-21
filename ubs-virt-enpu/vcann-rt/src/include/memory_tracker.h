@@ -64,6 +64,7 @@ int memory_tracker_expand(memory_tracker_t *tracker, size_t new_capacity);
 int memory_tracker_add(memory_tracker_t *tracker, void *ptr, uint64_t size, rtDrvMemHandle handle, bool is_physical);
 int memory_tracker_remove(memory_tracker_t *tracker, void *ptr);
 memory_record_t *memory_tracker_find(memory_tracker_t *tracker, void *ptr);
+memory_record_t *memory_tracker_find_containing(memory_tracker_t *tracker, void *ptr);
 
 int memory_tracker_iterate(memory_tracker_t *tracker, void (*callback)(memory_record_t *record, void *ctx), void *ctx);
 

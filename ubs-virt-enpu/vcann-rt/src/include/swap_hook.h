@@ -24,6 +24,14 @@ typedef struct swap_hook {
 extern "C" {
 #endif
 
+#ifndef RT_MEM_MASK_DEV_TYPE
+#define RT_MEM_MASK_DEV_TYPE (0x2U)
+#endif
+
+#ifndef RT_MEM_MASK_RSVD_TYPE
+#define RT_MEM_MASK_RSVD_TYPE (0x20U)
+#endif
+
 swap_hook_t *swap_hook_create(int vnpu_id, void *executor, void *tracker);
 int swap_hook_destroy(swap_hook_t *hook);
 

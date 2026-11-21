@@ -396,6 +396,7 @@ RUNTIME_HOOK_DEFINE(rtsPointerGetAttributes, const void *ptr, rtPtrAttributes_t 
     enpu_global_init();
     CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
                        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
+    LOG_DEBUG("Hook mem rtsPointerGetAttributes.");
 
     if (get_shm_state() == NULL) {
         return RUNTIME_HOOK_CALL(rt_library_entry, rtsPointerGetAttributes, ptr, attributes);
@@ -406,6 +407,51 @@ RUNTIME_HOOK_DEFINE(rtsPointerGetAttributes, const void *ptr, rtPtrAttributes_t 
     CHECK_RETURN_ERROR_CODE(ret, "Swap hook check failed when rtsPointerGetAttributes.");
 
     return RUNTIME_HOOK_CALL(rt_library_entry, rtsPointerGetAttributes, ptr, attributes);
+}
+
+RUNTIME_HOOK_DEFINE(rtPointerGetAttributes, rtPointerAttributes_t *attributes, const void *ptr)
+{
+    int res = log_init();
+    CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
+    pre_rt_init();
+    enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+                       "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
+    LOG_DEBUG("Hook mem rtPointerGetAttributes.");
+
+    if (get_shm_state() == NULL) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, rtPointerGetAttributes, attributes, ptr);
+    }
+
+    swap_hook_t *swap_hook = swap_hook_get_global();
+    int ret = swap_hook_check_and_swap_in(swap_hook);
+    CHECK_RETURN_ERROR_CODE(ret, "Swap hook check failed when rtPointerGetAttributes.");
+
+    return RUNTIME_HOOK_CALL(rt_library_entry, rtPointerGetAttributes, attributes, ptr);
+}
+
+RUNTIME_HOOK_DEFINE(aclrtPointerGetAttributesImpl, const void *ptr, aclrtPtrAttributes *attributes)
+{
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtPointerGetAttributesImpl, ptr, attributes);
+    }
+    int res = log_init();
+    CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
+    pre_rt_init();
+    enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+                       "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
+    LOG_DEBUG("Hook mem aclrtPointerGetAttributesImpl.");
+
+    if (get_shm_state() == NULL) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtPointerGetAttributesImpl, ptr, attributes);
+    }
+
+    swap_hook_t *swap_hook = swap_hook_get_global();
+    int ret = swap_hook_check_and_swap_in(swap_hook);
+    CHECK_RETURN_ERROR_CODE(ret, "Swap hook check failed when aclrtPointerGetAttributesImpl.");
+
+    return RUNTIME_HOOK_CALL(rt_library_entry, aclrtPointerGetAttributesImpl, ptr, attributes);
 }
 
 RUNTIME_HOOK_DEFINE(rtMemcpyAsync, void *dst, uint64_t destMax, const void *src, uint64_t cnt, rtMemcpyKind_t kind,
@@ -436,14 +482,56 @@ RUNTIME_HOOK_DEFINE(rtsCheckMemType, void **addrs, uint32_t size, uint32_t memTy
     enpu_global_init();
     CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
                        "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
+    LOG_DEBUG("Hook mem rtsCheckMemType.");
 
     if (get_shm_state() != NULL) {
         swap_hook_t *swap_hook = swap_hook_get_global();
         int ret = swap_hook_check_and_swap_in(swap_hook);
         CHECK_RETURN_ERROR_CODE(ret, "Swap hook check failed when rtsCheckMemType.");
+        if ((memType & RT_MEM_MASK_DEV_TYPE) != 0U && swap_hook != NULL && swap_hook->tracker != NULL &&
+            addrs != NULL) {
+            for (uint32_t i = 0; i < size; i++) {
+                if (addrs[i] != NULL && memory_tracker_find_containing(swap_hook->tracker, addrs[i]) != NULL) {
+                    memType |= RT_MEM_MASK_RSVD_TYPE;
+                    break;
+                }
+            }
+        }
     }
 
     return RUNTIME_HOOK_CALL(rt_library_entry, rtsCheckMemType, addrs, size, memType, checkResult, reserve);
+}
+
+RUNTIME_HOOK_DEFINE(aclrtCheckMemTypeImpl, void **addrs, uint32_t size, uint32_t memType, uint32_t *checkResult,
+                    uint32_t reserve)
+{
+    if (!get_aclrt_impl_hook_enable()) {
+        return RUNTIME_HOOK_CALL(rt_library_entry, aclrtCheckMemTypeImpl, addrs, size, memType, checkResult, reserve);
+    }
+
+    int res = log_init();
+    CHECK_COND_RETURN_((res != ENPU_SUCCESS), res, "Failed to init log module, res:%d.", res);
+    pre_rt_init();
+    enpu_global_init();
+    CHECK_COND_RETURN_(!check_init_success(), ACL_ERROR_UNINITIALIZE,
+                       "Failed to initialize vcann-rt, please check the config file in %s.", NPU_CONFIG_PATH);
+    LOG_DEBUG("Hook mem aclrtCheckMemTypeImpl.");
+
+    if (get_shm_state() != NULL) {
+        swap_hook_t *swap_hook = swap_hook_get_global();
+        int ret = swap_hook_check_and_swap_in(swap_hook);
+        CHECK_RETURN_ERROR_CODE(ret, "Swap hook check failed when aclrtCheckMemTypeImpl.");
+        if ((memType & RT_MEM_MASK_DEV_TYPE) != 0U && swap_hook != NULL && swap_hook->tracker != NULL &&
+            addrs != NULL) {
+            for (uint32_t i = 0; i < size; i++) {
+                if (addrs[i] != NULL && memory_tracker_find_containing(swap_hook->tracker, addrs[i]) != NULL) {
+                    memType |= RT_MEM_MASK_RSVD_TYPE;
+                    break;
+                }
+            }
+        }
+    }
+    return RUNTIME_HOOK_CALL(rt_library_entry, aclrtCheckMemTypeImpl, addrs, size, memType, checkResult, reserve);
 }
 
 RUNTIME_HOOK_DEFINE(rtMemcpyAsyncEx, void *dst, uint64_t destMax, const void *src, uint64_t cnt, rtMemcpyKind_t kind,

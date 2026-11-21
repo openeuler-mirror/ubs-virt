@@ -106,6 +106,26 @@ static const int ACL_ERROR_INVALID_RESOURCE_HANDLE = 200005;
 static const int ACL_ERROR_FEATURE_UNSUPPORTED = 200006;
 static const int ACL_ERROR_PROF_MODULES_UNSUPPORTED = 200007;
 
+typedef enum aclrtMemLocationType
+{
+    ACL_MEM_LOCATION_TYPE_HOST = 0,
+    ACL_MEM_LOCATION_TYPE_DEVICE,
+    ACL_MEM_LOCATION_TYPE_UNREGISTERED,
+    ACL_MEM_LOCATION_TYPE_MANAGED,
+    ACL_MEM_LOCATION_TYPE_HOST_NUMA = 4,
+} aclrtMemLocationType;
+
+typedef struct aclrtMemLocation {
+    uint32_t id;
+    aclrtMemLocationType type;
+} aclrtMemLocation;
+
+typedef struct aclrtPtrAttributes {
+    aclrtMemLocation location;
+    uint32_t pageSize;
+    uint32_t rsv[4];
+} aclrtPtrAttributes;
+
 static const int ACL_ERROR_STORAGE_OVER_LIMIT = 300000;
 
 static const int ACL_ERROR_INTERNAL_ERROR = 500000;
