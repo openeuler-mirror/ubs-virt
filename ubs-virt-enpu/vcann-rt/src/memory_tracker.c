@@ -239,6 +239,38 @@ memory_record_t *memory_tracker_find(memory_tracker_t *tracker, void *ptr)
     return result;
 }
 
+memory_record_t *memory_tracker_find_containing(memory_tracker_t *tracker, void *ptr)
+{
+    if (tracker == NULL || ptr == NULL) {
+        return NULL;
+    }
+
+    pthread_mutex_lock(&tracker->lock);
+
+    void *value_ptr = NULL;
+    int ret = hashmap_get_ptr(tracker->map, ptr, &value_ptr);
+    if (ret == 0 && value_ptr != NULL) {
+        pthread_mutex_unlock(&tracker->lock);
+        return (memory_record_t *)value_ptr;
+    }
+
+    const uintptr_t addr = (uintptr_t)ptr;
+    for (size_t i = 0; i < tracker->count; ++i) {
+        memory_record_t *record = &tracker->records[i];
+        if (record->is_physical || record->ptr == NULL) {
+            continue;
+        }
+        const uintptr_t base = (uintptr_t)record->ptr;
+        if (addr >= base && addr - base < record->size) {
+            pthread_mutex_unlock(&tracker->lock);
+            return record;
+        }
+    }
+
+    pthread_mutex_unlock(&tracker->lock);
+    return NULL;
+}
+
 int memory_tracker_iterate(memory_tracker_t *tracker, void (*callback)(memory_record_t *record, void *ctx), void *ctx)
 {
     (void)tracker;
