@@ -456,13 +456,15 @@ static int shm_apply_vnpu_locked(npu_allocator_t *a, int32_t phy_id, const char 
         return ret;
     }
 
-    /* 2) 初始化 shm_state 的 hbm_total */
-    shm_manager_init_state(a->shm_mgr, phy_id, hbm_total);
+    /* 2) 初始化 shm_state 的 hbm_total。swap 命令状态是 die 级共享的, 同卡已有活跃
+     *    vNPU 时不能重置 completed, 否则会冲掉其在途 swap_out_cmd(与恢复路径同一契约) */
+    shm_state_t *state = shm_manager_get_state(a->shm_mgr, phy_id);
+    bool reset_runtime = (state == NULL) || !shm_state_has_active_vnpu(state);
+    shm_manager_init_state(a->shm_mgr, phy_id, hbm_total, reset_runtime);
 
     /* 3) 若 (phy_id, vnpu_id) 已存在 entry, 先彻底释放
      *    Docker 路径 evaluator 保证 vnpu_id 全新, 此分支不会触发
      *    K8s 路径处理 mindcluster 重写 npu_info.config 的场景 */
-    shm_state_t *state = shm_manager_get_state(a->shm_mgr, phy_id);
     if (state != NULL && vnpu_bitmap_test(state->vnpu_bitmap, entry->vnpu_id)) {
         /* 进程粒度: swap 偏移/大小位于各 processes[slot] 上, shm_free 遍历释放所有进程的 buffer */
         shm_free(state, entry->vnpu_id);
@@ -1012,6 +1014,7 @@ int npu_allocator_recover(npu_allocator_t *a)
     }
 
     int recovered_count = 0;
+    bool state_initialized[MAX_NPU_PER_NODE] = {false};
     for (int i = 0; i < count; i++) {
         allocation_t *alloc = &allocs[i];
 
@@ -1044,7 +1047,14 @@ int npu_allocator_recover(npu_allocator_t *a)
             atomic_store(&sched->vnpu_priority[alloc->vnpu_id], (uint8_t)alloc->vnpu_priority);
         }
         if (state != NULL) {
-            shm_manager_init_state(a->shm_mgr, alloc->phy_id, npu_node_get_total_memory(node));
+            /* swap_cmd 是 die 级状态：每张卡只在首次恢复时决定是否重置，
+             * 避免后续不活跃 vNPU 覆盖同卡活跃 vNPU 的在途命令。 */
+            if (!state_initialized[alloc->phy_id]) {
+                bool reset_runtime = !shm_state_has_active_vnpu(state);
+                shm_manager_init_state(a->shm_mgr, alloc->phy_id, npu_node_get_total_memory(node), reset_runtime);
+                state_initialized[alloc->phy_id] = true;
+            }
+            bool alive = shm_state_vnpu_alive(state, alloc->vnpu_id);
             vnpu_bitmap_set(state->vnpu_bitmap, alloc->vnpu_id);
             state->entries[alloc->vnpu_id].vnpu_id = alloc->vnpu_id;
             state->entries[alloc->vnpu_id].hbm_request = alloc->hbm_quota;
@@ -1052,7 +1062,13 @@ int npu_allocator_recover(npu_allocator_t *a)
             state->entries[alloc->vnpu_id].sched_policy = alloc->sched_policy;
             state->entries[alloc->vnpu_id].swap_order = alloc->swap_order;
             state->entries[alloc->vnpu_id].swap_enabled = true;
-            atomic_store(&state->entries[alloc->vnpu_id].hbm_used, 0);
+            if (alive) {
+                LOG("Recover: preserve active vnpu phy=%d vnpu=%d hbm_used=%llu swap_out_completed=%d", alloc->phy_id,
+                    alloc->vnpu_id, (unsigned long long)atomic_load(&state->entries[alloc->vnpu_id].hbm_used),
+                    atomic_load(&state->swap_out_cmd.completed) ? 1 : 0);
+            } else {
+                atomic_store(&state->entries[alloc->vnpu_id].hbm_used, 0);
+            }
         }
 
         /* 重写 npu_info.config */
@@ -1078,6 +1094,16 @@ int npu_allocator_recover(npu_allocator_t *a)
     pthread_mutex_unlock(&a->lock);
     LOG("Recovered %d allocations", recovered_count);
     return ENPU_SUCCESS;
+}
+
+bool npu_allocator_has_active_vnpu(npu_allocator_t *a)
+{
+    if (a == NULL)
+        return false;
+    pthread_mutex_lock(&a->lock);
+    bool active = shm_manager_has_active_vnpu(a->shm_mgr);
+    pthread_mutex_unlock(&a->lock);
+    return active;
 }
 
 int npu_allocator_checkpoint(npu_allocator_t *a)

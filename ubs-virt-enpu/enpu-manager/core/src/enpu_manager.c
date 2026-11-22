@@ -197,7 +197,12 @@ static int recover_unused_swap_pools(npu_allocator_t *allocator, const bool phy_
         char reason[128] = {0};
         result = npu_allocator_reconfig_begin(allocator, phy_id, &idle, reason, sizeof(reason));
         if (result == ENPU_SUCCESS) {
-            result = shm_swap_buffer_recover_orphans(state, phy_id, idle);
+            if (idle) {
+                result = shm_swap_buffer_recover_orphans(state, phy_id, true);
+            } else {
+                /* 卡上仍有存活 vNPU：残留池可能保存着它们的换出数据，必须保留待复用 */
+                LOG_INFO("[ENPU-MGR] phy=%d still in use (%s), keep residual swap pools for reuse", phy_id, reason);
+            }
             npu_allocator_reconfig_end(allocator);
         }
         if (result != ENPU_SUCCESS) {
@@ -396,7 +401,7 @@ enpu_manager_t *enpu_manager_create(const enpu_manager_config_t *config)
              * shm_manager_init_state() 会写；建池时该 die 上还没有容器，若不在此补齐，
              * resolver 每 10ms 就会打一条 "hbm_total=0"。恢复路径写入的非 0 值不覆盖。 */
             if (state->hbm_total == 0) {
-                shm_manager_init_state(shm_mgr, phy_id, (uint64_t)((double)die_hbm_mb[phy_id] * MB_TO_BYTES));
+                shm_manager_init_state(shm_mgr, phy_id, (uint64_t)((double)die_hbm_mb[phy_id] * MB_TO_BYTES), true);
             }
             uint64_t per_size = 0;
             swap_pool_size(die_hbm_mb[phy_id], mgr->allocator->oversub_ratio[phy_id], &per_size);
@@ -417,6 +422,13 @@ enpu_manager_t *enpu_manager_create(const enpu_manager_config_t *config)
             mgr->allocator = NULL;
             free(mgr);
             return NULL;
+        }
+
+        /* 池已就绪、resolver/watchdog 线程未启动：按残留换出记录重建 TLSF 台账，
+         * 防止重启后把仍被容器占用的区间重复分配出去。 */
+        if (shm_swap_buffer_recover(npu_allocator_get_shm_manager(mgr->allocator)) != ENPU_SUCCESS) {
+            LOG_WARN("[ENPU-MGR] swap ledger rebuild lost some residual regions, they will be reclaimed by "
+                     "swap-in/watchdog");
         }
 
         /* per-die 起 swap_resolver_thread，按 phy_id 索引存放 */
@@ -905,9 +917,11 @@ static void destroy_all_swap_pools(npu_allocator_t *allocator)
     if (allocator == NULL) {
         return;
     }
+    /* 仍有活跃 vNPU 时保留共享段：容器继续使用池中的换出数据，重启后按名复用 */
+    bool keep_shared = npu_allocator_has_active_vnpu(allocator);
     for (int i = 0; i < MAX_NPU_PER_NODE; i++) {
         if (shm_swap_buffer_pool_is_inited(i)) {
-            shm_swap_buffer_pool_deinit(npu_allocator_get_shm_state(allocator, i), i);
+            shm_swap_buffer_pool_deinit(npu_allocator_get_shm_state(allocator, i), i, keep_shared);
         }
     }
 }
@@ -1123,7 +1137,7 @@ static int set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio, cons
     /* 在线首次启用时 state 是刚建的，hbm_total 仍为 0；同启动路径一并补齐 */
     if (state != NULL && state->hbm_total == 0 && die_hbm_mb[phy_id] > 0) {
         shm_manager_init_state(npu_allocator_get_shm_manager(mgr->allocator), phy_id,
-                               (uint64_t)((double)die_hbm_mb[phy_id] * MB_TO_BYTES));
+                               (uint64_t)((double)die_hbm_mb[phy_id] * MB_TO_BYTES), true);
     }
 
     swap_resolver_thread_t *old_thread = mgr->swap_resolver_threads[phy_id];

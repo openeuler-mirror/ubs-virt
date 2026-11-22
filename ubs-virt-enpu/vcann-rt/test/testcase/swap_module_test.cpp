@@ -408,11 +408,11 @@ TEST_F(SwapModuleTest, TrackerMapAndHandleRecords)
 
     /* map 记录: 增/查/删 */
     EXPECT_EQ(memory_tracker_add_map_record(tracker, (void *)(intptr_t)0x5000, 4096, 256,
-                                            (rtDrvMemHandle)(intptr_t)0x3000, 0x11),
+                                            (rtDrvMemHandle)(intptr_t)0x3000, 0x11, 1),
               ENPU_SUCCESS);
-    EXPECT_EQ(memory_tracker_add_map_record(nullptr, nullptr, 0, 0, nullptr, 0), ENPU_FAIL);
+    EXPECT_EQ(memory_tracker_add_map_record(nullptr, nullptr, 0, 0, nullptr, 0, 0), ENPU_FAIL);
     void *va = nullptr;
-    EXPECT_EQ(memory_tracker_get_map_va(tracker, (rtDrvMemHandle)(intptr_t)0x3000, &va), ENPU_SUCCESS);
+    EXPECT_EQ(memory_tracker_get_map_va(tracker, (rtDrvMemHandle)(intptr_t)0x3000, 1, &va), ENPU_SUCCESS);
     EXPECT_EQ(va, (void *)(intptr_t)0x5000);
     size_t size = 0;
     size_t offset = 0;
@@ -422,12 +422,12 @@ TEST_F(SwapModuleTest, TrackerMapAndHandleRecords)
     EXPECT_EQ(offset, (size_t)256);
     EXPECT_EQ(flags, (uint64_t)0x11);
     EXPECT_EQ(memory_tracker_get_map_prop(tracker, (void *)(intptr_t)0x6000, &size, &offset, &flags), ENPU_FAIL);
-    EXPECT_EQ(memory_tracker_get_map_va(tracker, (rtDrvMemHandle)(intptr_t)0x9999, &va), ENPU_SUCCESS);
+    EXPECT_EQ(memory_tracker_get_map_va(tracker, (rtDrvMemHandle)(intptr_t)0x9999, 1, &va), ENPU_SUCCESS);
     EXPECT_EQ(va, nullptr);
-    EXPECT_EQ(memory_tracker_get_map_va(nullptr, nullptr, &va), ENPU_FAIL);
+    EXPECT_EQ(memory_tracker_get_map_va(nullptr, nullptr, 0, &va), ENPU_FAIL);
     EXPECT_EQ(memory_tracker_get_map_prop(nullptr, nullptr, &size, &offset, &flags), ENPU_FAIL);
     EXPECT_EQ(memory_tracker_remove_map_record(tracker, (void *)(intptr_t)0x5000), ENPU_SUCCESS);
-    EXPECT_EQ(memory_tracker_get_map_va(tracker, (rtDrvMemHandle)(intptr_t)0x3000, &va), ENPU_SUCCESS);
+    EXPECT_EQ(memory_tracker_get_map_va(tracker, (rtDrvMemHandle)(intptr_t)0x3000, 1, &va), ENPU_SUCCESS);
     EXPECT_EQ(va, nullptr);
     EXPECT_EQ(memory_tracker_remove_map_record(tracker, (void *)(intptr_t)0x5000), ENPU_SUCCESS);
     EXPECT_EQ(memory_tracker_remove_map_record(nullptr, nullptr), ENPU_FAIL);
@@ -458,6 +458,40 @@ TEST_F(SwapModuleTest, TrackerMapAndHandleRecords)
     EXPECT_EQ(memory_tracker_remove_handle_record(tracker, (rtDrvMemHandle)(intptr_t)0x3000), ENPU_SUCCESS);
     EXPECT_EQ(memory_tracker_remove_handle_record(nullptr, nullptr), ENPU_FAIL);
 
+    EXPECT_EQ(memory_tracker_destroy(tracker), ENPU_SUCCESS);
+}
+
+/* 驱动在 rtFreePhysical 后复用同一 handle 值给新分配: 仅按 handle 匹配会命中上一代
+ * map record 造成串块, (handle, gen) 双键应各自命中本代 VA */
+TEST_F(SwapModuleTest, TrackerMapRecordGenerationIsolation)
+{
+    memory_tracker_t *tracker = memory_tracker_create(8);
+    ASSERT_NE(tracker, nullptr);
+    rtDrvMemHandle handle = (rtDrvMemHandle)(intptr_t)0x4f5f4eb0;
+
+    ASSERT_EQ(memory_tracker_add(tracker, handle, 4096, handle, true), ENPU_SUCCESS);
+    uint64_t genA = memory_tracker_find(tracker, handle)->gen;
+    ASSERT_EQ(memory_tracker_add_map_record(tracker, (void *)(intptr_t)0x10000, 4096, 0, handle, 0, genA),
+              ENPU_SUCCESS);
+    ASSERT_EQ(memory_tracker_remove(tracker, handle), ENPU_SUCCESS);
+
+    /* 第二代分配复用同一 handle 值 */
+    ASSERT_EQ(memory_tracker_add(tracker, handle, 4096, handle, true), ENPU_SUCCESS);
+    uint64_t genB = memory_tracker_find(tracker, handle)->gen;
+    ASSERT_NE(genA, genB);
+    ASSERT_EQ(memory_tracker_add_map_record(tracker, (void *)(intptr_t)0x20000, 4096, 0, handle, 0, genB),
+              ENPU_SUCCESS);
+
+    void *va = nullptr;
+    EXPECT_EQ(memory_tracker_get_map_va(tracker, handle, genA, &va), ENPU_SUCCESS);
+    EXPECT_EQ(va, (void *)(intptr_t)0x10000);
+    EXPECT_EQ(memory_tracker_get_map_va(tracker, handle, genB, &va), ENPU_SUCCESS);
+    EXPECT_EQ(va, (void *)(intptr_t)0x20000);
+
+    /* 删除上一代 VA 不影响本代匹配 */
+    EXPECT_EQ(memory_tracker_remove_map_record(tracker, (void *)(intptr_t)0x10000), ENPU_SUCCESS);
+    EXPECT_EQ(memory_tracker_get_map_va(tracker, handle, genB, &va), ENPU_SUCCESS);
+    EXPECT_EQ(va, (void *)(intptr_t)0x20000);
     EXPECT_EQ(memory_tracker_destroy(tracker), ENPU_SUCCESS);
 }
 
@@ -738,7 +772,9 @@ TEST_F(SwapModuleTest, SwapHookMallocAndMapMem)
     rtDrvMemHandle mapHandle = handle;
     EXPECT_EQ(swap_hook_map_mem(hook, (void *)(intptr_t)0x8000, 4096, 0, &mapHandle, 0x33), ENPU_SUCCESS);
     void *va = nullptr;
-    EXPECT_EQ(memory_tracker_get_map_va(hook->tracker, mapHandle, &va), ENPU_SUCCESS);
+    EXPECT_EQ(
+        memory_tracker_get_map_va(hook->tracker, mapHandle, memory_tracker_find(hook->tracker, mapHandle)->gen, &va),
+        ENPU_SUCCESS);
     EXPECT_EQ(va, (void *)(intptr_t)0x8000);
 
     /* 未记录的 handle: 视为非 Device 内存, 直接成功 */
@@ -752,6 +788,41 @@ TEST_F(SwapModuleTest, SwapHookMallocAndMapMem)
     EXPECT_EQ(swap_hook_free_mem(hook, (void *)(intptr_t)0x7777), ENPU_FAIL);
     /* free_physical: 未记录的 handle -> 透传底层返回 */
     EXPECT_EQ(swap_hook_free_physical_mem(hook, (rtDrvMemHandle)(intptr_t)0x8888), RT_ERROR_NONE);
+}
+
+/* 部分换入成功后释放该记录: 其字节尚未加回 hbm_used, free 不得再扣一次 */
+TEST_F(SwapModuleTest, SwapHookFreePendingRestoreNoUnderflow)
+{
+    swap_hook_t *hook = swap_hook_get_global();
+    ASSERT_NE(hook, nullptr);
+    shm_state_t *state = get_shm_state();
+    ASSERT_NE(state, nullptr);
+    int slot = get_registry_slot();
+    ASSERT_GE(slot, 0);
+    process_entry_t *myEntry = &state->entries[kVnpuId].processes[slot];
+    vnpu_shm_entry_t *vnpuEntry = &state->entries[kVnpuId];
+
+    rtDrvMemHandle handle = (rtDrvMemHandle)(intptr_t)0x4500;
+    rtDrvMemProp_t prop;
+    (void)memset_s(&prop, sizeof(prop), 0, sizeof(prop));
+    prop.side = ACL_MEM_LOCATION_TYPE_DEVICE;
+    const uint64_t size = 4096;
+    ASSERT_EQ(swap_hook_malloc_physical_mem(hook, handle, size, &prop, 0), ENPU_SUCCESS);
+
+    /* 模拟: 该块已随换出扣减 hbm_used, 本轮换入成功但尚未把字节加回 */
+    myEntry->hbm_used.fetch_sub(size);
+    vnpuEntry->hbm_used.fetch_sub(size);
+    memory_record_t *record = memory_tracker_find(hook->tracker, handle);
+    ASSERT_NE(record, nullptr);
+    record->restore_pending = true;
+    hook->tracker->pending_restore_bytes += size;
+
+    uint64_t procBefore = myEntry->hbm_used.load();
+    uint64_t vnpuBefore = vnpuEntry->hbm_used.load();
+    ASSERT_EQ(swap_hook_free_physical_mem(hook, handle), ENPU_SUCCESS);
+    EXPECT_EQ(myEntry->hbm_used.load(), procBefore);
+    EXPECT_EQ(vnpuEntry->hbm_used.load(), vnpuBefore);
+    EXPECT_EQ(hook->tracker->pending_restore_bytes, (uint64_t)0);
 }
 
 /* 进程级 hbm 记账: malloc/free 前后 processes[slot].hbm_used 与 vNPU 级 hbm_used 同步增减 */
@@ -803,7 +874,8 @@ TEST_F(SwapModuleTest, SwapHookDeepSwapIn)
     (void)memset_s(&prop, sizeof(prop), 0, sizeof(prop));
     prop.side = ACL_MEM_LOCATION_TYPE_DEVICE;
     ASSERT_EQ(memory_tracker_add_handle_record(hook->tracker, handleB, 1024, prop, 0), ENPU_SUCCESS);
-    ASSERT_EQ(memory_tracker_add_map_record(hook->tracker, (void *)(intptr_t)0x8100, 1024, 0, handleB, 0),
+    ASSERT_EQ(memory_tracker_add_map_record(hook->tracker, (void *)(intptr_t)0x8100, 1024, 0, handleB, 0,
+                                            memory_tracker_find(hook->tracker, ptrB)->gen),
               ENPU_SUCCESS);
 
     /* 单容器多进程: 标记本进程槽位已换出, 触发换入全流程.
@@ -817,9 +889,9 @@ TEST_F(SwapModuleTest, SwapHookDeepSwapIn)
     EXPECT_EQ(swap_hook_check_and_swap_in(hook), ENPU_SUCCESS);
     EXPECT_FALSE(memory_tracker_find(hook->tracker, ptrA)->is_swapped);
     EXPECT_FALSE(memory_tracker_find(hook->tracker, ptrB)->is_swapped);
-    /* swap_size=0 时不清 swapped 标志(仅 used!=0 才恢复并清除), 保持原值 */
-    EXPECT_TRUE(shm_get_process_swapped(state, kVnpuId, slot));
-    EXPECT_EQ(state->entries[kVnpuId].hbm_used.load(), usedBefore);
+    /* 恢复量按实际换入成功的记录大小累加(2048 + 1024), 完成后加回 hbm_used 并清除换出标志 */
+    EXPECT_FALSE(shm_get_process_swapped(state, kVnpuId, slot));
+    EXPECT_EQ(state->entries[kVnpuId].hbm_used.load(), usedBefore + 3072);
     /* 显式复位, 隔离后续用例 */
     shm_set_process_swapped(state, kVnpuId, slot, false);
 

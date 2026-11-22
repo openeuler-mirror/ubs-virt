@@ -67,7 +67,7 @@ int swap_executor_swap_out(swap_executor_t *executor, memory_tracker_t *tracker,
         void *dst = (void *)((uintptr_t)(*executor->base_ref) + current_offset);
         if (record->is_physical) {
             void *va;
-            int rc = memory_tracker_get_map_va(tracker, record->ptr, &va);
+            int rc = memory_tracker_get_map_va(tracker, record->ptr, record->gen, &va);
             bool flag = false;
             if (rc != ENPU_SUCCESS || va == NULL) {
                 rc = RUNTIME_HOOK_CALL(rt_library_entry, rtReserveMemAddress, &va, record->size, 0, NULL, 0);
@@ -193,7 +193,7 @@ int swap_executor_swap_in(swap_executor_t *executor, void **ptr, uint64_t offset
 }
 
 int swap_executor_swap_in_physical(swap_executor_t *executor, memory_tracker_t *tracker, rtDrvMemHandle handle,
-                                   uint64_t offset, uint64_t *size, rtDrvMemHandle *new_handle)
+                                   uint64_t gen, uint64_t offset, uint64_t *size, rtDrvMemHandle *new_handle)
 {
     if (executor == NULL || executor->base_ref == NULL || *executor->base_ref == NULL || handle == NULL) {
         return ENPU_FAIL;
@@ -214,7 +214,7 @@ int swap_executor_swap_in_physical(swap_executor_t *executor, memory_tracker_t *
     CHECK_COND_RETURN_ERROR_CODE(ret != ACL_RT_SUCCESS, "Malloc physical failed.");
 
     void *va;
-    ret = memory_tracker_get_map_va(tracker, handle, &va);
+    ret = memory_tracker_get_map_va(tracker, handle, gen, &va);
     bool flag = false;
     if (ret != ENPU_SUCCESS || va == NULL) {
         ret = RUNTIME_HOOK_CALL(rt_library_entry, rtReserveMemAddress, &va, *size, 0, NULL, 0);
