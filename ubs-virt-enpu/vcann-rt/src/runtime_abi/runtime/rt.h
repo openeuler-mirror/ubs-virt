@@ -95,7 +95,6 @@ typedef int aclDataType;
 typedef int aclrtMemAttr;
 typedef struct aclrtRandomNumTaskInfo aclrtRandomNumTaskInfo;
 typedef struct aclrtTaskUpdateInfo aclrtTaskUpdateInfo;
-typedef struct aclrtPhysicalMemProp aclrtPhysicalMemProp;
 
 typedef struct aclrtLaunchKernelCfg {
     int reserved;
@@ -194,6 +193,152 @@ typedef enum tagRtMemInfoType
     RT_MEMORYINFO_HBM_P2P_HUGE1G, // 1G HugePage memory of HBM
 } rtMemInfoType_t;
 
+/* mem-swap 扩展拦截所需类型: 与 test/stub/mem_base.h 共享守卫, 先被包含者生效 */
+#ifndef RT_MEM_TYPES_STUB_DEFINED
+#define RT_MEM_TYPES_STUB_DEFINED
+typedef enum
+{
+    RT_MEMCPY_KIND_HOST_TO_HOST = 0,
+    RT_MEMCPY_KIND_HOST_TO_DEVICE,
+    RT_MEMCPY_KIND_DEVICE_TO_HOST,
+    RT_MEMCPY_KIND_DEVICE_TO_DEVICE,
+    RT_MEMCPY_KIND_DEFAULT,
+    RT_MEMCPY_KIND_HOST_TO_BUF_TO_DEVICE,
+    RT_MEMCPY_KIND_INNER_DEVICE_TO_DEVICE,
+    RT_MEMCPY_KIND_INTER_DEVICE_TO_DEVICE,
+    RT_MEMCPY_KIND_MAX,
+} rtMemcpyKind;
+
+#ifndef ACL_MEM_LOCATION_TYPE_DEVICE
+#define ACL_MEM_LOCATION_TYPE_DEVICE 1
+#endif
+
+typedef enum
+{
+    RT_MEMCPY_HOST_TO_DEVICE = 0x00,
+    RT_MEMCPY_DEVICE_TO_HOST = 0x01,
+    RT_MEMCPY_DEVICE_TO_DEVICE = 0x02,
+} rtMemcpyKind_t;
+
+typedef enum
+{
+    RT_MEMORY_LOC_HOST = 0,
+    RT_MEMORY_LOC_DEVICE,
+    RT_MEMORY_LOC_UNREGISTERED,
+    RT_MEMORY_LOC_MANAGED,
+    RT_MEMORY_LOC_HOST_NUMA,
+    RT_MEMORY_LOC_MAX,
+    RT_MEMORY_LOC_UVM_MANAGED,
+} rtMemLocationType;
+
+typedef struct {
+    uint32_t id;
+    rtMemLocationType type;
+} rtMemLocation;
+
+typedef struct {
+    rtMemLocation location;
+    uint32_t pageSize;
+    uint32_t rsv[4];
+} rtPtrAttributes_t;
+
+typedef void *rtMemcpyDesc_t;
+
+typedef enum
+{
+    RT_MEMORY_TYPE_HOST = 1,
+    RT_MEMORY_TYPE_DEVICE = 2,
+    RT_MEMORY_TYPE_SVM = 3,
+    RT_MEMORY_TYPE_DVPP = 4,
+    RT_MEMORY_TYPE_USER = 5
+} rtMemoryType_t;
+
+typedef struct tagRtPointerAttributes {
+    rtMemoryType_t memoryType;
+    rtMemLocationType locationType;
+    uint32_t deviceID;
+    uint32_t pageSize;
+} rtPointerAttributes_t;
+
+typedef struct {
+    rtMemLocation dstLoc;
+    rtMemLocation srcLoc;
+    uint8_t rsv[16];
+} rtMemcpyBatchAttr;
+
+typedef struct {
+    void *dst;
+    uint64_t destMax;
+    const void *src;
+    uint64_t count;
+    rtMemcpyKind kind;
+} rtMemcpyConfig_t;
+#endif
+
+/* mem-swap 扩展拦截所需 aclrt 侧类型 */
+typedef int aclrtMemcpyKind;
+typedef int aclrtCmoType;
+typedef rtMemcpyBatchAttr aclrtMemcpyBatchAttr;
+
+/* 与真实 acl_rt.h 对齐的 aclrtMemAttr / 页表类型 / 内存类型枚举值 */
+enum
+{
+    ACL_DDR_MEM = 0,
+    ACL_HBM_MEM,
+    ACL_DDR_MEM_HUGE,
+    ACL_DDR_MEM_NORMAL,
+    ACL_HBM_MEM_HUGE,
+    ACL_HBM_MEM_NORMAL,
+    ACL_DDR_MEM_P2P_HUGE,
+    ACL_DDR_MEM_P2P_NORMAL,
+    ACL_HBM_MEM_P2P_HUGE,
+    ACL_HBM_MEM_P2P_NORMAL,
+    ACL_HBM_MEM_HUGE1G,
+    ACL_HBM_MEM_P2P_HUGE1G,
+    ACL_MEM_NORMAL,
+    ACL_MEM_HUGE,
+    ACL_MEM_HUGE1G,
+    ACL_MEM_P2P_NORMAL,
+    ACL_MEM_P2P_HUGE,
+    ACL_MEM_P2P_HUGE1G,
+};
+
+enum
+{
+    NORMAL_PAGE_TYPE = 0U,
+    HUGE_PAGE_TYPE,
+    HUGE1G_PAGE_TYPE,
+};
+
+enum
+{
+    HBM_TYPE = 0U,
+    DDR_TYPE,
+    P2P_HBM_TYPE,
+    P2P_DDR_TYPE,
+};
+
+typedef struct aclrtPhysicalMemProp {
+    int handleType;
+    int allocationType;
+    aclrtMemAttr memAttr;
+    aclrtMemLocation location;
+    uint64_t reserve;
+} aclrtPhysicalMemProp;
+
+typedef struct {
+    rtMemLocation location;
+    uint64_t flags;
+} rtMemAccessDesc;
+
+typedef struct {
+    aclrtMemLocation location;
+    uint64_t flags;
+} aclrtMemAccessDesc;
+
+typedef int rtCmoOpCode;
+typedef void *rtCmoDesc_t;
+
 #define RUNTIME_FUNCTION_LIST                                                                                          \
     RUNTIME_FUNCTION_ENTRY(rtSetDevice, int32_t devId)                                                                 \
     RUNTIME_FUNCTION_ENTRY(rtSetDeviceEx, int32_t devId)                                                               \
@@ -210,6 +355,20 @@ typedef enum tagRtMemInfoType
     RUNTIME_FUNCTION_ENTRY(rtMallocPhysical, rtDrvMemHandle *handle, size_t size, rtDrvMemProp_t *prop,                \
                            uint64_t flags)                                                                             \
     RUNTIME_FUNCTION_ENTRY(rtMemGetInfoEx, rtMemInfoType_t memInfoType, size_t *freeSize, size_t *totalSize)           \
+    RUNTIME_FUNCTION_ENTRY(rtMemsetD32, void *dst, uint64_t destMax, uint32_t value, uint64_t count)                   \
+    RUNTIME_FUNCTION_ENTRY(rtMemsetD32Async, void *dst, uint64_t destMax, uint32_t value, uint64_t count,              \
+                           rtStream_t stm)                                                                             \
+    RUNTIME_FUNCTION_ENTRY(rtMemSetAccess, void *virPtr, size_t size, rtMemAccessDesc *desc, size_t count)             \
+    RUNTIME_FUNCTION_ENTRY(rtMemGetAccess, void *virPtr, rtMemLocation *location, uint64_t *flags)                     \
+    RUNTIME_FUNCTION_ENTRY(rtMemRetainAllocationHandle, void *virPtr, rtDrvMemHandle *handle)                          \
+    RUNTIME_FUNCTION_ENTRY(rtMemGetAddressRange, void *ptr, void **pbase, size_t *psize)                               \
+    RUNTIME_FUNCTION_ENTRY(rtMemMapSelectedLink, void *virPtrDst, size_t size, void *virPtrSrc, uint32_t linkIdx)      \
+    RUNTIME_FUNCTION_ENTRY(rtCmoAsync, void *srcAddrPtr, size_t srcLen, rtCmoOpCode_t cmoType, rtStream_t stm)         \
+    RUNTIME_FUNCTION_ENTRY(rtsCmoAsync, void *srcAddrPtr, size_t srcLen, rtCmoOpCode cmoType, rtStream_t stm)          \
+    RUNTIME_FUNCTION_ENTRY(rtsCmoAsyncWithBarrier, void *srcAddrPtr, size_t srcLen, rtCmoOpCode cmoType,               \
+                           uint32_t logicId, rtStream_t stm)                                                           \
+    RUNTIME_FUNCTION_ENTRY(rtsLaunchCmoAddrTask, rtCmoDesc_t cmoDesc, rtStream_t stm, rtCmoOpCode cmoOpCode,           \
+                           const void *reserve)                                                                        \
     RUNTIME_FUNCTION_ENTRY(rtKernelLaunch, const void *stubFunc, uint32_t blockDim, void *args, uint32_t argsSize,     \
                            rtSmDesc_t *smDesc, rtStream_t stm)                                                         \
     RUNTIME_FUNCTION_ENTRY(rtKernelLaunchWithHandle, void *hdl, const uint64_t tilingKey, uint32_t blockDim,           \
@@ -310,6 +469,64 @@ typedef enum tagRtMemInfoType
     RUNTIME_FUNCTION_ENTRY(aclrtMemAllocManagedImpl, void **ptr, uint64_t size, uint32_t flag)                         \
     RUNTIME_FUNCTION_ENTRY(aclrtMallocPhysicalImpl, aclrtDrvMemHandle *handle, size_t size,                            \
                            const aclrtPhysicalMemProp *prop, uint64_t flags)                                           \
+    RUNTIME_FUNCTION_ENTRY(aclrtFreePhysicalImpl, aclrtDrvMemHandle handle)                                            \
+    RUNTIME_FUNCTION_ENTRY(aclrtMapMemImpl, void *virPtr, size_t size, size_t offset, aclrtDrvMemHandle handle,        \
+                           uint64_t flags)                                                                             \
+    RUNTIME_FUNCTION_ENTRY(aclrtUnmapMemImpl, void *devPtr)                                                            \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemcpyImpl, void *dst, size_t destMax, const void *src, size_t count,                  \
+                           aclrtMemcpyKind kind)                                                                       \
+    RUNTIME_FUNCTION_ENTRY(aclrtPointerGetAttributesImpl, const void *ptr, aclrtPtrAttributes *attributes)             \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemcpyAsyncImpl, void *dst, size_t destMax, const void *src, size_t count,             \
+                           aclrtMemcpyKind kind, aclrtStream stream)                                                   \
+    RUNTIME_FUNCTION_ENTRY(aclrtFreeImpl, void *devPtr)                                                                \
+    RUNTIME_FUNCTION_ENTRY(aclrtCheckMemTypeImpl, void **addrList, uint32_t size, uint32_t memType,                    \
+                           uint32_t *checkResult, uint32_t reserve)                                                    \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemcpyAsyncWithConditionImpl, void *dst, size_t destMax, const void *src,              \
+                           size_t count, aclrtMemcpyKind kind, aclrtStream stream)                                     \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemcpyBatchImpl, void **dsts, size_t *destMaxs, void **srcs, size_t *sizes,            \
+                           size_t numBatches, aclrtMemcpyBatchAttr *attrs, size_t *attrsIndexes, size_t numAttrs,      \
+                           size_t *failIndex)                                                                          \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemcpyBatchV2Impl, void **dsts, size_t *destMaxs, void **srcs, size_t *sizes,          \
+                           size_t numBatches, aclrtMemcpyBatchAttr *attrs, size_t *attrsIndexes, size_t numAttrs)      \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemcpyBatchAsyncImpl, void **dsts, size_t *destMaxs, void **srcs, size_t *sizes,       \
+                           size_t numBatches, aclrtMemcpyBatchAttr *attrs, size_t *attrsIndexes, size_t numAttrs,      \
+                           size_t *failIndex, aclrtStream stream)                                                      \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemcpyBatchAsyncV2Impl, void **dsts, size_t *destMaxs, void **srcs, size_t *sizes,     \
+                           size_t numBatches, aclrtMemcpyBatchAttr *attrs, size_t *attrsIndexes, size_t numAttrs,      \
+                           aclrtStream stream)                                                                         \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemcpy2dImpl, void *dst, size_t dpitch, const void *src, size_t spitch, size_t width,  \
+                           size_t height, aclrtMemcpyKind kind)                                                        \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemcpy2dAsyncImpl, void *dst, size_t dpitch, const void *src, size_t spitch,           \
+                           size_t width, size_t height, aclrtMemcpyKind kind, aclrtStream stream)                      \
+    RUNTIME_FUNCTION_ENTRY(aclrtSetMemcpyDescImpl, void *desc, aclrtMemcpyKind kind, void *srcAddr, void *dstAddr,     \
+                           size_t count, void *config)                                                                 \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemcpyAsyncWithDescImpl, void *desc, aclrtMemcpyKind kind, aclrtStream stream)         \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemcpyAsyncWithOffsetImpl, void **dst, size_t destMax, size_t dstDataOffset,           \
+                           const void **src, size_t count, size_t srcDataOffset, aclrtMemcpyKind kind,                 \
+                           aclrtStream stream)                                                                         \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemsetImpl, void *devPtr, size_t maxCount, int32_t value, size_t count)                \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemsetAsyncImpl, void *devPtr, size_t maxCount, int32_t value, size_t count,           \
+                           aclrtStream stream)                                                                         \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemsetD32Impl, void *ptr, size_t memSize, uint32_t value, size_t N)                    \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemsetD32AsyncImpl, void *ptr, size_t memSize, uint32_t value, size_t N,               \
+                           aclrtStream stream)                                                                         \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemP2PMapImpl, void *devPtr, size_t size, int32_t dstDevId, uint64_t flags)            \
+    RUNTIME_FUNCTION_ENTRY(aclrtIpcMemGetExportKeyImpl, void *devPtr, size_t size, char *key, size_t len,              \
+                           uint64_t flags)                                                                             \
+    RUNTIME_FUNCTION_ENTRY(aclrtIpcMemImportByKeyImpl, void **devPtr, const char *key, uint64_t flags)                 \
+    RUNTIME_FUNCTION_ENTRY(aclrtValueWriteImpl, void *devAddr, uint64_t value, uint32_t flag, aclrtStream stream)      \
+    RUNTIME_FUNCTION_ENTRY(aclrtValueWaitImpl, void *devAddr, uint64_t value, uint32_t flag, aclrtStream stream)       \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemSetAccessImpl, void *virPtr, size_t size, aclrtMemAccessDesc *desc, size_t count)   \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemGetAccessImpl, void *virPtr, aclrtMemLocation *location, uint64_t *flag)            \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemRetainAllocationHandleImpl, void *virPtr, aclrtDrvMemHandle *handle)                \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemGetAddressRangeImpl, void *ptr, void **pbase, size_t *psize)                        \
+    RUNTIME_FUNCTION_ENTRY(aclrtMemMapSelectedLinkImpl, void *virPtrDst, size_t size, void *virPtrSrc,                 \
+                           uint32_t linkIdx)                                                                           \
+    RUNTIME_FUNCTION_ENTRY(aclrtCmoAsyncImpl, void *src, size_t size, aclrtCmoType cmoType, aclrtStream stream)        \
+    RUNTIME_FUNCTION_ENTRY(aclrtCmoAsyncWithBarrierImpl, void *src, size_t size, aclrtCmoType cmoType,                 \
+                           uint32_t barrierId, aclrtStream stream)                                                     \
+    RUNTIME_FUNCTION_ENTRY(aclrtCmoAsyncWithDescImpl, void *cmoDesc, aclrtCmoType cmoType, aclrtStream stream,         \
+                           const void *reserve)                                                                        \
     RUNTIME_FUNCTION_ENTRY(aclrtGetMemInfoImpl, aclrtMemAttr attr, size_t *free, size_t *total)                        \
     RUNTIME_FUNCTION_ENTRY(aclmdlRIExecuteAsyncImpl, aclmdlRI modelRI, aclrtStream stream)                             \
     RUNTIME_FUNCTION_ENTRY(aclmdlRIExecuteImpl, aclmdlRI modelRI, int32_t timeout)                                     \
@@ -372,88 +589,6 @@ typedef enum tagRtMemInfoType
 
 #define RUNTIME_FUNCTION_ENTRY(name, ...) rtError_t name(__VA_ARGS__);
 RUNTIME_FUNCTION_LIST
-
-#ifndef RT_MEM_TYPES_STUB_DEFINED
-#define RT_MEM_TYPES_STUB_DEFINED
-/* mem-swap 扩展拦截所需类型: 与 test/stub/mem_base.h 共享守卫, 先被包含者生效 */
-typedef enum
-{
-    RT_MEMCPY_KIND_HOST_TO_HOST = 0,
-    RT_MEMCPY_KIND_HOST_TO_DEVICE,
-    RT_MEMCPY_KIND_DEVICE_TO_HOST,
-    RT_MEMCPY_KIND_DEVICE_TO_DEVICE,
-    RT_MEMCPY_KIND_DEFAULT,
-    RT_MEMCPY_KIND_HOST_TO_BUF_TO_DEVICE,
-    RT_MEMCPY_KIND_INNER_DEVICE_TO_DEVICE,
-    RT_MEMCPY_KIND_INTER_DEVICE_TO_DEVICE,
-    RT_MEMCPY_KIND_MAX,
-} rtMemcpyKind;
-
-typedef void *rtMemcpyDesc_t;
-
-#ifndef ACL_MEM_LOCATION_TYPE_DEVICE
-#define ACL_MEM_LOCATION_TYPE_DEVICE 1
-#endif
-
-typedef enum
-{
-    RT_MEMCPY_HOST_TO_DEVICE = 0x00,
-    RT_MEMCPY_DEVICE_TO_HOST = 0x01,
-    RT_MEMCPY_DEVICE_TO_DEVICE = 0x02,
-} rtMemcpyKind_t;
-
-typedef enum
-{
-    RT_MEMORY_LOC_HOST = 0,
-    RT_MEMORY_LOC_DEVICE,
-    RT_MEMORY_LOC_UNREGISTERED,
-    RT_MEMORY_LOC_MANAGED,
-    RT_MEMORY_LOC_HOST_NUMA,
-    RT_MEMORY_LOC_MAX,
-    RT_MEMORY_LOC_UVM_MANAGED,
-} rtMemLocationType;
-
-typedef struct {
-    uint32_t id;
-    rtMemLocationType type;
-} rtMemLocation;
-
-typedef struct {
-    rtMemLocation location;
-    uint32_t pageSize;
-    uint32_t rsv[4];
-} rtPtrAttributes_t;
-
-typedef enum
-{
-    RT_MEMORY_TYPE_HOST = 1,
-    RT_MEMORY_TYPE_DEVICE = 2,
-    RT_MEMORY_TYPE_SVM = 3,
-    RT_MEMORY_TYPE_DVPP = 4,
-    RT_MEMORY_TYPE_USER = 5
-} rtMemoryType_t;
-
-typedef struct tagRtPointerAttributes {
-    rtMemoryType_t memoryType;
-    rtMemLocationType locationType;
-    uint32_t deviceID;
-    uint32_t pageSize;
-} rtPointerAttributes_t;
-
-typedef struct {
-    rtMemLocation dstLoc;
-    rtMemLocation srcLoc;
-    uint8_t rsv[16];
-} rtMemcpyBatchAttr;
-
-typedef struct {
-    void *dst;
-    uint64_t destMax;
-    const void *src;
-    uint64_t count;
-    rtMemcpyKind kind;
-} rtMemcpyConfig_t;
-#endif
 
 #if defined(__cplusplus)
 }
