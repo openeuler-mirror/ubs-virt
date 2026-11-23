@@ -427,8 +427,8 @@ enpu_manager_t *enpu_manager_create(const enpu_manager_config_t *config)
         /* 池已就绪、resolver/watchdog 线程未启动：按残留换出记录重建 TLSF 台账，
          * 防止重启后把仍被容器占用的区间重复分配出去。 */
         if (shm_swap_buffer_recover(npu_allocator_get_shm_manager(mgr->allocator)) != ENPU_SUCCESS) {
-            LOG_WARN("[ENPU-MGR] swap ledger rebuild lost some residual regions, they will be reclaimed by "
-                     "swap-in/watchdog");
+            LOG_WARN("[ENPU-MGR] swap ledger rebuild lost residual regions; they may be overwritten by later "
+                     "swap-out, check swap buffer status");
         }
 
         /* per-die 起 swap_resolver_thread，按 phy_id 索引存放 */
