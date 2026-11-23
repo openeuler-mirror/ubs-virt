@@ -17,24 +17,14 @@ CORE_DIR="${SCRIPT_DIR}/../core"
 CORE_LIB="${CORE_DIR}/build/output/libenpu_manager.so"
 OUTPUT_DIR="${SCRIPT_DIR}/build/output"
 
-if [ -z "$ASCEND_HOME_PATH" ]; then
-    echo "[ERROR] ASCEND_HOME_PATH is not set!"
-    exit 1
-fi
-
 CC=${CC:-gcc}
 CFLAGS=(-Wall -O2 -fPIC)
-CANN_PATH=${ASCEND_HOME_PATH}
-DRIVER_PATH=${ENPU_ASCEND_DRIVER_PATH:-/usr/local/Ascend}
+RUNPATH=${ENPU_MANAGER_RUNPATH:-'$ORIGIN/../../../core/build/output'}
 
-INCLUDES=(-I"${CORE_DIR}/include" -I"${SCRIPT_DIR}/api" -I"${SCRIPT_DIR}/../../common/include"
-    -I"${CANN_PATH}/include" -I"${CANN_PATH}/include/experiment")
+INCLUDES=(-I"${CORE_DIR}/include" -I"${SCRIPT_DIR}/api" -I"${SCRIPT_DIR}/../../common/include")
 LDFLAGS=(-L"${CORE_DIR}/build/output"
-    -L"${CANN_PATH}/lib64"
-    -L"${DRIVER_PATH}/driver/lib64"
-    -L"${DRIVER_PATH}/driver/lib64/driver"
-    '-Wl,-rpath,$ORIGIN/../../../core/build/output'
-    -lenpu_manager -lascendcl -ldcmi -lcjson -lpthread)
+    -Wl,-rpath,"${RUNPATH}"
+    -lenpu_manager -lcjson -lpthread)
 
 if [[ ! -f "${CORE_LIB}" ]]; then
     echo "[ERROR] Core library not found: ${CORE_LIB}"
@@ -44,8 +34,8 @@ fi
 
 # Reuse the exact securec header/library selected by the core CMake build.
 CORE_CACHE="${CORE_DIR}/build/CMakeCache.txt"
-SECUREC_INCLUDE=$(sed -n 's/^C_SEC_INCLUDE:PATH=//p' "${CORE_CACHE}")
-SECUREC_LIBRARY=$(sed -n 's/^C_SEC_SHARED_LIBRARY:FILEPATH=//p' "${CORE_CACHE}")
+SECUREC_INCLUDE=$(sed -n 's/^C_SEC_BOUNDSCHECK_INCLUDE:PATH=//p' "${CORE_CACHE}")
+SECUREC_LIBRARY=$(sed -n 's/^C_SEC_BOUNDSCHECK_LIBRARY:FILEPATH=//p' "${CORE_CACHE}")
 if [[ ! -f "${SECUREC_INCLUDE}/securec.h" || ! -f "${SECUREC_LIBRARY}" ]]; then
     echo "[ERROR] securec dependency is missing; configure and build core first"
     exit 1

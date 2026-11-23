@@ -90,6 +90,7 @@ constexpr size_t kSwapBufferSize = 1UL * 1024 * 1024;
 constexpr uint64_t kTestRequestMb = 1024; /* request != limit, 使能 swap */
 constexpr uint64_t kTestLimitMb = 2048;
 const char *kDieId = "AAAAAAAA-BBBBBBBB-CCCCCCCC-DDDDDDDD-EEEEEEEE"; /* 与桩配置一致 */
+rtMemcpyDesc_t g_forwardedMemcpyDesc = nullptr;
 
 /* RUNTIME_FUNCTION_LIST 未覆盖的 swap 拦截符号, 测试进程内补齐函数表项.
  * 输出参数由桩写入, 保证 swap_executor 的换入换出路径可完整执行. */
@@ -128,6 +129,18 @@ rtError_t stub_swap_reserve_address(void **ptr, size_t size, uint32_t offset, vo
 
 rtError_t stub_swap_ok_no_arg(void)
 {
+    return RT_ERROR_NONE;
+}
+
+rtError_t stub_swap_set_memcpy_desc(rtMemcpyDesc_t desc, rtMemcpyKind, void *, void *, size_t, rtMemcpyConfig_t *)
+{
+    g_forwardedMemcpyDesc = desc;
+    return RT_ERROR_NONE;
+}
+
+rtError_t stub_swap_memcpy_async_with_desc(rtMemcpyDesc_t desc, rtMemcpyKind, rtMemcpyConfig_t *, rtStream_t)
+{
+    g_forwardedMemcpyDesc = desc;
     return RT_ERROR_NONE;
 }
 
@@ -202,8 +215,8 @@ void fill_swap_rt_entries()
     rt_library_entry[HOOK_rtMemcpyAsyncWithOffset].func_ptr = (void *)stub_swap_ok_no_arg;
     rt_library_entry[HOOK_rtsMemcpyBatch].func_ptr = (void *)stub_swap_ok_no_arg;
     rt_library_entry[HOOK_rtsMemcpyBatchAsync].func_ptr = (void *)stub_swap_ok_no_arg;
-    rt_library_entry[HOOK_rtsMemcpyAsyncWithDesc].func_ptr = (void *)stub_swap_ok_no_arg;
-    rt_library_entry[HOOK_rtsSetMemcpyDesc].func_ptr = (void *)stub_swap_ok_no_arg;
+    rt_library_entry[HOOK_rtsMemcpyAsyncWithDesc].func_ptr = (void *)stub_swap_memcpy_async_with_desc;
+    rt_library_entry[HOOK_rtsSetMemcpyDesc].func_ptr = (void *)stub_swap_set_memcpy_desc;
     rt_library_entry[HOOK_rtsCheckMemType].func_ptr = (void *)stub_swap_check_mem_type;
     rt_library_entry[HOOK_aclrtCheckMemTypeImpl].func_ptr = (void *)stub_swap_check_mem_type;
     rt_library_entry[HOOK_rtsPointerGetAttributes].func_ptr = (void *)stub_swap_ok_no_arg;
@@ -918,9 +931,14 @@ TEST_F(SwapModuleTest, MemoryInterceptPassthrough)
     EXPECT_EQ(rtMemcpy2d(hostBuf, 8, hostBuf, 8, 8, 1, RT_MEMCPY_DEVICE_TO_HOST), RT_ERROR_NONE);
     EXPECT_EQ(rtMemcpy2dAsync(hostBuf, 8, hostBuf, 8, 8, 1, RT_MEMCPY_DEVICE_TO_HOST, nullptr), RT_ERROR_NONE);
     const rtMemcpyKind kKindDeviceToHost = RT_MEMCPY_KIND_DEVICE_TO_HOST;
-    rtMemcpyDesc_t desc = {};
+    uint8_t descriptorStorage = 0;
+    rtMemcpyDesc_t desc = &descriptorStorage;
+    g_forwardedMemcpyDesc = nullptr;
     EXPECT_EQ(rtsSetMemcpyDesc(desc, kKindDeviceToHost, hostBuf, hostBuf, 8, nullptr), RT_ERROR_NONE);
+    EXPECT_EQ(g_forwardedMemcpyDesc, desc);
+    g_forwardedMemcpyDesc = nullptr;
     EXPECT_EQ(rtsMemcpyAsyncWithDesc(desc, kKindDeviceToHost, nullptr, nullptr), RT_ERROR_NONE);
+    EXPECT_EQ(g_forwardedMemcpyDesc, desc);
     const void *srcList[1] = {hostBuf};
     EXPECT_EQ(rtMemcpyAsyncWithOffset((void **)hostBuf, sizeof(hostBuf), 0, srcList, 8, 0, kKindDeviceToHost, nullptr),
               RT_ERROR_NONE);

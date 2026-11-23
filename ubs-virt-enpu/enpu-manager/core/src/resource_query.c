@@ -9,8 +9,8 @@
 #include <string.h>
 #include <time.h>
 #include "allocation_id.h"
-#include "dcmi_interface_api.h"
 #include "dcmi_wrapper.h"
+#include "enpu_dcmi.h"
 #include "log.h"
 #include "securec.h"
 #include "vnpu_metrics_reader.h"

@@ -48,15 +48,8 @@ echo "============================================"
 
 echo ""
 echo "[STEP 0] Checking environment..."
-# CANN path: must be set for build
-if [ -z "${ASCEND_HOME_PATH:-}" ]; then
-    echo "[ERROR] ASCEND_HOME_PATH is not set!"
-    echo "  Please set it before building, e.g.:"
-    echo "  export ASCEND_HOME_PATH=/usr/local/Ascend/cann"
-    exit 1
-fi
+# Driver runtime path for the packaged service
 ENPU_ASCEND_DRIVER_PATH="${ENPU_ASCEND_DRIVER_PATH:-/usr/local/Ascend}"
-echo "[INFO] ASCEND_HOME_PATH=${ASCEND_HOME_PATH}"
 echo "[INFO] ENPU_ASCEND_DRIVER_PATH=${ENPU_ASCEND_DRIVER_PATH}"
 
 # Check required tools
@@ -95,7 +88,7 @@ mkdir -p "${DEB_BUILD_DIR}/${PROJECT_NAME}-${VERSION}/debian"
 cp -r "${SCRIPT_DIR}/debian/"* "${DEB_BUILD_DIR}/${PROJECT_NAME}-${VERSION}/debian/"
 
 # Generate service file with proper LD_LIBRARY_PATH
-LD_PATH="${ASCEND_HOME_PATH}/lib64:${ENPU_ASCEND_DRIVER_PATH}/driver/lib64/driver"
+LD_PATH="${ASCEND_HOME_PATH:-/usr/local/Ascend/cann}/lib64:${ENPU_ASCEND_DRIVER_PATH}/driver/lib64/driver"
 sed -i "s|^\(Environment=LD_LIBRARY_PATH=\).*|\1${LD_PATH}|" \
     "${DEB_BUILD_DIR}/${PROJECT_NAME}-${VERSION}/enpu-manager/deploy/enpu-manager.service"
 echo "[INFO] LD_LIBRARY_PATH set to: ${LD_PATH}"
@@ -103,9 +96,6 @@ echo "[INFO] LD_LIBRARY_PATH set to: ${LD_PATH}"
 echo ""
 echo "[STEP 3] Building Debian package..."
 cd "${DEB_BUILD_DIR}/${PROJECT_NAME}-${VERSION}"
-
-export ASCEND_HOME_PATH
-export ENPU_ASCEND_DRIVER_PATH
 
 # Build the package with dpkg-buildpackage
 dpkg-buildpackage \

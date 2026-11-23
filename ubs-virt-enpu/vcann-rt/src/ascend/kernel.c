@@ -12,9 +12,6 @@
 #include "core_limiter.h"
 #include "log.h"
 #include "npu_manager.h"
-#include "rts_kernel.h"
-#include "rts_model.h"
-#include "rts_stars.h"
 #include "runtime_hook.h"
 #include "vnpu_stats.h"
 

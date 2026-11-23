@@ -5,14 +5,11 @@
 #ifndef __RTS_MEM_H__
 #define __RTS_MEM_H__
 
+#include <runtime/rt.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include "mem_base.h"
 
-#ifndef RT_ERROR_NONE
-#define RT_ERROR_NONE 0
-#endif
 #ifndef RT_ERROR_INVALID_VALUE
 #define RT_ERROR_INVALID_VALUE 1
 #endif

@@ -13,8 +13,8 @@
 #ifndef __DCMI_WRAPPER_H__
 #define __DCMI_WRAPPER_H__
 
-#include <dcmi_interface_api.h>
 #include "common.h"
+#include "enpu_dcmi.h"
 
 #if defined(__cplusplus)
 extern "C" {

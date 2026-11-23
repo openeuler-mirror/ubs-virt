@@ -43,18 +43,12 @@ echo "============================================"
 
 echo ""
 echo "[STEP 0] Generating service file from environment..."
-# CANN path: must be set for build
-if [ -z "${ASCEND_HOME_PATH:-}" ]; then
-    echo "[ERROR] ASCEND_HOME_PATH is not set!"
-    echo "  Please set it before building, e.g.:"
-    echo "  export ASCEND_HOME_PATH=/usr/local/Ascend/cann"
-    exit 1
-fi
+# Driver runtime path for the packaged service
 ENPU_ASCEND_DRIVER_PATH="${ENPU_ASCEND_DRIVER_PATH:-/usr/local/Ascend}"
 echo "[INFO] ENPU_ASCEND_DRIVER_PATH set to: ${ENPU_ASCEND_DRIVER_PATH}"
 
 # Override LD_LIBRARY_PATH in service file (save/restore to avoid dirty git tree)
-LD_PATH="${ASCEND_HOME_PATH}/lib64:${ENPU_ASCEND_DRIVER_PATH}/driver/lib64/driver"
+LD_PATH="${ASCEND_HOME_PATH:-/usr/local/Ascend/cann}/lib64:${ENPU_ASCEND_DRIVER_PATH}/driver/lib64/driver"
 SERVICE_FILE="${SCRIPT_DIR}/enpu-manager.service"
 cp "${SERVICE_FILE}" "${SERVICE_FILE}.bak"
 trap 'mv -f "${SERVICE_FILE}.bak" "${SERVICE_FILE}" 2>/dev/null || true' EXIT INT TERM
@@ -69,11 +63,12 @@ echo ""
 echo "[STEP 2] Creating source tarball..."
 TARBALL="${RPMBUILD_DIR}/SOURCES/${PROJECT_NAME}-${VERSION}.tar.gz"
 
-# Keep enpu-manager/ and common/ as siblings so their relative build paths work.
+# Keep enpu-manager/, vcann-rt/ and common/ as siblings for relative build paths.
 # Include new working-tree sources, but never recursively archive build outputs.
-git -C "${SOURCE_ROOT}" ls-files --cached --others --exclude-standard -z -- enpu-manager common \
+git -C "${SOURCE_ROOT}" ls-files --cached --others --exclude-standard -z -- enpu-manager vcann-rt common \
     ':(exclude)enpu-manager/rpmbuild/**' ':(exclude)enpu-manager/debbuild/**' \
-    ':(exclude)enpu-manager/core/build/**' ':(exclude)enpu-manager/standalone/build/**' | \
+    ':(exclude)enpu-manager/core/build/**' ':(exclude)enpu-manager/standalone/build/**' \
+    ':(exclude)vcann-rt/build/**' ':(exclude)vcann-rt/__build/**' | \
     tar -czf "${TARBALL}" --transform "s|^|${PROJECT_NAME}-${VERSION}/|" \
         -C "${SOURCE_ROOT}" --null -T -
 
@@ -92,7 +87,7 @@ echo "[STEP 4] Building RPM..."
 RPMBUILD_OPTS=(
     -bb
     --define "_topdir ${RPMBUILD_DIR}"
-    --define "_ascend_home_path ${ASCEND_HOME_PATH}"
+    --define "_ascend_home_path ${ASCEND_HOME_PATH:-/usr/local/Ascend/cann}"
     --define "_enpu_ascend_driver_path ${ENPU_ASCEND_DRIVER_PATH}"
     --target "${ARCH}"
     "${RPMBUILD_DIR}/SPECS/${PROJECT_NAME}.spec"

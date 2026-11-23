@@ -204,7 +204,7 @@ TEST_F(MemoryTest, rtMallocPhysicalNonDeviceSide)
 {
     rtDrvMemHandle handle = nullptr;
     rtDrvMemProp_t prop;
-    prop.side = 1; // non-device, skip swap path
+    prop.side = 0; // non-device, skip swap path
     uint64_t size = 0;
     uint64_t flags = 1;
     rtError_t error = rtMallocPhysical(&handle, size, &prop, flags);

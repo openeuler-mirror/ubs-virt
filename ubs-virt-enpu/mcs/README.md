@@ -90,11 +90,7 @@ cd ubs-virt-enpu/mcs
 
 ## 编译
 
-编译前先加载所选 CANN 版本的环境。以下路径请替换为实际安装路径：
-
-```bash
-source /path/to/cann/set_env.sh
-```
+编译需要系统提供 libboundscheck 的头文件和链接库。
 
 `MCS`在代码仓中提供了统一的编译构建脚本（即`make_build.sh`文件），可以直接执行该脚本文件进行编译构建。
 
@@ -187,7 +183,6 @@ docker run -it --name=${container_name} \
 | `MCS_CONFIG` | 运行 | `/etc/enpu/mcs/mcs_config.config` | vNPU配置文件路径。 |
 | `ENPU_LOG_LEVEL` | 运行 | `3` | 日志级别，FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。 |
 | `MCS_STARVATION_LIMIT` | 运行 | `300` | 反饿死突发上限，高优先级vNPU累计发射指定数量的kernel后，每个普通优先级vNPU可分别放行一个launch，需配置为>=1的整数。 |
-| `ASCEND_HOME_PATH` | 编译 | `/usr/local/Ascend/cann` | CANN安装路径，提供libboundscheck头文件与库，可通过`source /path/to/cann/set_env.sh`设置。 |
 
 ## 约束
 

@@ -1,23 +1,16 @@
-if (C_SEC_FOUND)
+if (TARGET c_sec)
     message(STATUS "Package c_sec has been found.")
     return()
 endif()
 
 find_path(
-    C_SEC_INCLUDE
+    C_SEC_BOUNDSCHECK_INCLUDE
     NAMES securec.h
-    PATHS
-        $ENV{ASCEND_HOME_PATH}/include
-        /usr/include
 )
 
 find_library(
-    C_SEC_SHARED_LIBRARY
-    NAMES libc_sec.so libboundscheck.so
-    PATHS
-        $ENV{ASCEND_HOME_PATH}
-        /usr/lib64
-    PATH_SUFFIXES lib64
+    C_SEC_BOUNDSCHECK_LIBRARY
+    NAMES boundscheck
 )
 
 include(FindPackageHandleStandardArgs)
@@ -25,27 +18,27 @@ find_package_handle_standard_args(c_sec
     FOUND_VAR
         C_SEC_FOUND
     REQUIRED_VARS
-        C_SEC_INCLUDE
-        C_SEC_SHARED_LIBRARY
+        C_SEC_BOUNDSCHECK_INCLUDE
+        C_SEC_BOUNDSCHECK_LIBRARY
 )
 
 if(C_SEC_FOUND)
-    set(C_SEC_INCLUDE_DIR ${C_SEC_INCLUDE})
-    get_filename_component(C_SEC_LIBRARY_DIR ${C_SEC_SHARED_LIBRARY} DIRECTORY)
+    set(C_SEC_BOUNDSCHECK_INCLUDE_DIR ${C_SEC_BOUNDSCHECK_INCLUDE})
+    get_filename_component(C_SEC_LIBRARY_DIR ${C_SEC_BOUNDSCHECK_LIBRARY} DIRECTORY)
 
     include(CMakePrintHelpers)
     message(STATUS "Variables in c_sec module:")
-    cmake_print_variables(C_SEC_INCLUDE)
+    cmake_print_variables(C_SEC_BOUNDSCHECK_INCLUDE)
     cmake_print_variables(C_SEC_LIBRARY_DIR)
-    cmake_print_variables(C_SEC_SHARED_LIBRARY)
+    cmake_print_variables(C_SEC_BOUNDSCHECK_LIBRARY)
 
     add_library(c_sec_headers INTERFACE IMPORTED)
-    target_include_directories(c_sec_headers INTERFACE ${C_SEC_INCLUDE})
+    target_include_directories(c_sec_headers INTERFACE ${C_SEC_BOUNDSCHECK_INCLUDE})
 
     add_library(c_sec SHARED IMPORTED)
     set_target_properties(c_sec PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${C_SEC_INCLUDE}"
-        IMPORTED_LOCATION             "${C_SEC_SHARED_LIBRARY}"
+        INTERFACE_INCLUDE_DIRECTORIES "${C_SEC_BOUNDSCHECK_INCLUDE}"
+        IMPORTED_LOCATION             "${C_SEC_BOUNDSCHECK_LIBRARY}"
     )
 else()
     message(FATAL_ERROR

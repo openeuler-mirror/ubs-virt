@@ -10,6 +10,7 @@ message(STATUS "Building enpu-manager")
 file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS src/*.c)
 list(APPEND SRC_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common/src/allocation_id.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../common/src/enpu_dcmi.c
     ${CMAKE_CURRENT_SOURCE_DIR}/../../common/src/vnpu_metrics_reader.c)
 file(GLOB_RECURSE HEADER_FILES include/*.h)
 
@@ -22,37 +23,7 @@ set(COMPILE_OPTIONS
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmake/securec.cmake)
 
-set(LINK_LIBS pthread rt dl cjson ascendcl c_sec)
-
-if(DEFINED ENV{ASCEND_HOME_PATH})
-    message(STATUS "CANN environment detected: $ENV{ASCEND_HOME_PATH}")
-    list(APPEND INCLUDE_DIRS
-        $ENV{ASCEND_HOME_PATH}/include
-        $ENV{ASCEND_HOME_PATH}/include/experiment
-        $ENV{ASCEND_HOME_PATH}/pkg_inc/
-        $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime
-    )
-    list(APPEND LINK_DIRS
-        $ENV{ASCEND_HOME_PATH}/lib64
-        $ENV{ASCEND_HOME_PATH}/lib64/drv
-        $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/lib64
-        $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/lib64/driver
-    )
-    find_library(DCMI_LIB dcmi
-        PATHS ${LINK_DIRS}
-        NO_DEFAULT_PATH)
-    if(DCMI_LIB)
-        message(STATUS "Found libdcmi: ${DCMI_LIB}")
-        list(APPEND LINK_LIBS ${DCMI_LIB})
-    else()
-        message(WARNING "libdcmi.so not found in known paths, falling back to -ldcmi")
-        list(APPEND LINK_LIBS dcmi)
-    endif()
-    set(CANN_ENABLED ON)
-else()
-    message(STATUS "CANN environment not detected, building without DCMI")
-    set(CANN_ENABLED OFF)
-endif()
+set(LINK_LIBS pthread rt dl cjson c_sec)
 
 add_library(enpu_manager SHARED ${SRC_FILES})
 set_target_properties(enpu_manager PROPERTIES
@@ -68,13 +39,6 @@ target_include_directories(enpu_manager
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../common/include>
         $<INSTALL_INTERFACE:include>
 )
-if(CANN_ENABLED)
-    target_include_directories(enpu_manager SYSTEM PRIVATE ${INCLUDE_DIRS})
-    target_link_directories(enpu_manager PRIVATE ${LINK_DIRS})
-    set(ENPU_CANN_INCLUDE_DIRS "${INCLUDE_DIRS}" CACHE INTERNAL "CANN include dirs for tests")
-    set(ENPU_CANN_LINK_DIRS "${LINK_DIRS}" CACHE INTERNAL "CANN link dirs for tests")
-    set(ENPU_CANN_LINK_LIBS "${LINK_LIBS}" CACHE INTERNAL "CANN link libs for tests")
-endif()
 
 target_link_libraries(enpu_manager PRIVATE ${LINK_LIBS})
 target_compile_options(enpu_manager PRIVATE ${COMPILE_OPTIONS})
@@ -97,7 +61,8 @@ if(BUILD_TESTS)
             add_executable(enpu_manager_test ${TEST_FILES} ${SRC_FILES})
             target_include_directories(enpu_manager_test PRIVATE 
                 ${CMAKE_CURRENT_SOURCE_DIR}/include
-                ${CMAKE_CURRENT_SOURCE_DIR}/internal)
+                ${CMAKE_CURRENT_SOURCE_DIR}/internal
+                ${CMAKE_CURRENT_SOURCE_DIR}/../../common/include)
             target_link_libraries(enpu_manager_test PRIVATE ${LINK_LIBS})
             if(ENABLE_COVERAGE)
                 target_compile_options(enpu_manager_test PRIVATE --coverage -fprofile-arcs -ftest-coverage)

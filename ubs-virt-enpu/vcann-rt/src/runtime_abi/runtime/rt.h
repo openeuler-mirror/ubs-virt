@@ -389,17 +389,10 @@ typedef enum
     RT_MEMCPY_KIND_MAX,
 } rtMemcpyKind;
 
-typedef struct {
-    void *dst;
-    uint64_t destMax;
-    const void *src;
-    uint64_t count;
-    rtMemcpyKind kind;
-    uint32_t flag;
-} rtMemcpyDesc_t;
+typedef void *rtMemcpyDesc_t;
 
 #ifndef ACL_MEM_LOCATION_TYPE_DEVICE
-#define ACL_MEM_LOCATION_TYPE_DEVICE 0
+#define ACL_MEM_LOCATION_TYPE_DEVICE 1
 #endif
 
 typedef enum

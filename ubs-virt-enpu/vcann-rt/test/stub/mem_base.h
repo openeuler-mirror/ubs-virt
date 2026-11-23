@@ -66,14 +66,7 @@ typedef struct {
     rtMemcpyKind kind;
 } rtMemcpyConfig_t;
 
-typedef struct {
-    void *dst;
-    uint64_t destMax;
-    const void *src;
-    uint64_t count;
-    rtMemcpyKind kind;
-    uint32_t flag;
-} rtMemcpyDesc_t;
+typedef void *rtMemcpyDesc_t;
 
 #define ACL_MEM_LOCATION_TYPE_DEVICE 0
 #endif

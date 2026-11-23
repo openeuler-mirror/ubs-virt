@@ -4,6 +4,7 @@
 
 %global _hardened_build 1
 %define debug_package %{nil}
+%global enpu_manager_dir /opt/enpu/enpu-manager
 
 # ====================================================================
 # Package Information
@@ -19,8 +20,10 @@ Source0:        %{name}-%{version}.tar.gz
 
 BuildRequires:  cmake >= 3.15
 BuildRequires:  gcc >= 9.3
+BuildRequires:  gcc-c++ >= 9.3
 BuildRequires:  systemd
 BuildRequires:  cjson-devel
+BuildRequires:  libboundscheck
 Requires:       cjson
 Requires(post): systemd
 Requires(preun): systemd
@@ -37,14 +40,6 @@ memory swapping, and both Kubernetes and standalone deployment scenarios.
 %setup -q
 
 %build
-# Validate required macros
-%{!?_ascend_home_path: %{error: "_ascend_home_path must be defined. Use --define '_ascend_home_path /path/to/cann'"}}
-%{!?_enpu_ascend_driver_path: %{error: "_enpu_ascend_driver_path must be defined. Use --define '_enpu_ascend_driver_path /path/to/ascend'"}}
-
-# Set CANN environment
-export ASCEND_HOME_PATH="%{_ascend_home_path}"
-export ENPU_ASCEND_DRIVER_PATH="%{_enpu_ascend_driver_path}"
-
 # Step 1: Build core shared library
 pushd enpu-manager/core
 bash make_build.sh
@@ -53,22 +48,34 @@ popd
 # Step 2: Build standalone binaries (enpu-manager + enpu-cli)
 pushd enpu-manager/standalone
 echo "[INFO] Building standalone binaries..."
-bash build.sh
+ENPU_MANAGER_RUNPATH='$ORIGIN/../lib' bash build.sh
+popd
+
+# Step 3: Build vcann-rt (libvruntime.so + enpu-monitor)
+pushd vcann-rt
+echo "[INFO] Building vcann-rt..."
+bash make_build.sh
 popd
 
 %install
-install -D enpu-manager/standalone/build/output/enpu-manager %{buildroot}%{_bindir}/enpu-manager
-install -D enpu-manager/standalone/build/output/enpu-cli %{buildroot}%{_bindir}/enpu-cli
+install -D enpu-manager/standalone/build/output/enpu-manager %{buildroot}%{enpu_manager_dir}/bin/enpu-manager
+install -D enpu-manager/standalone/build/output/enpu-cli %{buildroot}%{enpu_manager_dir}/bin/enpu-cli
 
 # Shared library — versioned and soversion symlinks
-install -D enpu-manager/core/build/output/libenpu_manager.so.1.0.0 %{buildroot}%{_libdir}/libenpu_manager.so.1.0.0
-ln -sf libenpu_manager.so.1.0.0 %{buildroot}%{_libdir}/libenpu_manager.so.1
+install -D enpu-manager/core/build/output/libenpu_manager.so.1.0.0 %{buildroot}%{enpu_manager_dir}/lib/libenpu_manager.so.1.0.0
+ln -sf libenpu_manager.so.1.0.0 %{buildroot}%{enpu_manager_dir}/lib/libenpu_manager.so.1
 
 # Configuration file
 install -D enpu-manager/config/enpu-manager.conf %{buildroot}%{_sysconfdir}/enpu/enpu-manager.conf
 
 # Systemd service unit
 install -D enpu-manager/deploy/enpu-manager.service %{buildroot}%{_unitdir}/enpu-manager.service
+sed -i 's|^ExecStart=[^[:space:]]*|ExecStart=%{enpu_manager_dir}/bin/enpu-manager|' \
+    %{buildroot}%{_unitdir}/enpu-manager.service
+
+# vcann-rt runtime library and monitor (for LD_PRELOAD into containers)
+install -D vcann-rt/build/libvruntime.so %{buildroot}/opt/enpu/vcann-rt/lib/libvruntime.so
+install -D vcann-rt/build/enpu-monitor   %{buildroot}/opt/enpu/vcann-rt/tools/enpu-monitor
 
 # State / log / data directories
 install -d %{buildroot}%{_localstatedir}/lib/enpu-manager
@@ -80,13 +87,14 @@ install -d %{buildroot}/opt/enpu
 # ====================================================================
 
 %pre
-# Verify CANN runtime dependency
-if [ ! -f "%{_ascend_home_path}/lib64/libascendcl.so" ]; then
+CANN_RUNTIME_PATH="%{?_ascend_home_path}"
+if [ ! -f "${CANN_RUNTIME_PATH:-/usr/local/Ascend/cann}/lib64/libascendcl.so" ]; then
     echo "[WARNING] libascendcl.so not found. Please install Ascend CANN Toolkit."
 fi
 
 # Verify NPU driver runtime dependency
-if [ ! -f "%{_enpu_ascend_driver_path}/driver/lib64/driver/libdcmi.so" ]; then
+DRIVER_RUNTIME_PATH="%{?_enpu_ascend_driver_path}"
+if [ ! -f "${DRIVER_RUNTIME_PATH:-/usr/local/Ascend}/driver/lib64/driver/libdcmi.so" ]; then
     echo "[WARNING] libdcmi.so not found. Please install Ascend NPU Driver."
 fi
 
@@ -112,11 +120,14 @@ fi
 %files
 %doc enpu-manager/README.md
 
-%attr(0500, root, root) %{_bindir}/enpu-manager
-%attr(0500, root, root) %{_bindir}/enpu-cli
+%dir %{enpu_manager_dir}
+%dir %{enpu_manager_dir}/bin
+%dir %{enpu_manager_dir}/lib
+%attr(0500, root, root) %{enpu_manager_dir}/bin/enpu-manager
+%attr(0500, root, root) %{enpu_manager_dir}/bin/enpu-cli
 
-%{_libdir}/libenpu_manager.so.1
-%attr(0500, root, root) %{_libdir}/libenpu_manager.so.1.0.0
+%{enpu_manager_dir}/lib/libenpu_manager.so.1
+%attr(0500, root, root) %{enpu_manager_dir}/lib/libenpu_manager.so.1.0.0
 
 %config(noreplace) %attr(0400, root, root) %{_sysconfdir}/enpu/enpu-manager.conf
 
@@ -124,7 +135,14 @@ fi
 
 %attr(0700, root, root) %dir %{_localstatedir}/lib/enpu-manager
 %attr(0700, root, root) %dir %{_localstatedir}/log/enpu-manager
-%attr(0700, root, root) %dir /opt/enpu
+%attr(0755, root, root) %dir /opt/enpu
+
+# vcann-rt runtime library and monitor
+%attr(0755, root, root) %dir /opt/enpu/vcann-rt
+%attr(0755, root, root) %dir /opt/enpu/vcann-rt/lib
+%attr(0755, root, root) %dir /opt/enpu/vcann-rt/tools
+%attr(0555, root, root) /opt/enpu/vcann-rt/lib/libvruntime.so
+%attr(0500, root, root) /opt/enpu/vcann-rt/tools/enpu-monitor
 
 %changelog
 * Sun Jul 19 2026 enpu-manager maintainer <maintainer@enpu-manager> - 1.0.0-1

@@ -12,7 +12,7 @@
 
 <span id="version"></span>
 
-支持的 CANN 版本因硬件产品而异，请以对应硬件的软件版本表为准，并保持编译环境与业务容器中的 CANN 版本一致。
+支持的 CANN 运行时版本因硬件产品而异，请以对应硬件的软件版本表为准。
 
 #### Atlas A2 推理系列产品
 
@@ -160,21 +160,27 @@ cd ubs-virt-enpu/vcann-rt
 
 ## 编译
 
-vCANN-RT支持两种方式编译：
+> **常规部署无需执行本节**：`vCANN-RT` 已与 `enpu-manager` 打入同一个 RPM 包，安装后 `libvruntime.so` 与 `enpu-monitor` 直接位于 `/opt/enpu/vcann-rt/` 下。仅开发调试、或使用 DEB / 纯源码部署场景才需要自行编译。
+>
+> 版本要求：使用 RPM 部署时，容器内 `libvruntime.so` 和宿主机 `enpu-manager` 应取自同一个 RPM。使用 DEB 或源码部署时，两者应从同一源码版本构建，以保持共享内存结构一致。
 
-### 方式一：基于物理机/业务容器CANN环境编译
+### 方式一：随 enpu-manager 一体化 RPM 交付（推荐）
 
-在编译vCANN-RT源码前，用户根据物理机/业务容器的CANN环境设置CANN的环境变量。如果驱动安装在非默认路径，还需要设置驱动路径环境变量。
-
-编译前先加载所选 CANN 版本的环境。以下路径请替换为实际安装路径：
+按 [enpu-manager 打包与部署说明](../enpu-manager/README.md#部署)生成并安装一体化 RPM。安装后可检查两个文件的位置：
 
 ```shell
-source /path/to/cann/set_env.sh
+rpm -ql enpu-manager | grep vcann-rt
+# /opt/enpu/vcann-rt/lib/libvruntime.so
+# /opt/enpu/vcann-rt/tools/enpu-monitor
 ```
 
-若驱动安装在非默认路径，还需执行`export ENPU_ASCEND_DRIVER_PATH=/path/to/Ascend`，其中路径应为实际包含`driver`目录的 Ascend 安装目录。
+安装后这两个文件即就位，可直接跳到[部署](#部署)章节。
 
-`vCANN-RT`提供统一的编译构建脚本`make_build.sh`，通过`ASCEND_HOME_PATH`读取 CANN 安装路径。加载 CANN 环境后，执行以下命令：
+### 方式二：在 Linux 环境编译
+
+编译需要编译工具和系统 libboundscheck 开发文件。运行模型或 `enpu-monitor` 时，需要对应的 CANN Runtime 和昇腾 Driver，并确保进程的动态库搜索路径能找到 `libdcmi.so` 及其依赖。
+
+`vCANN-RT`提供统一的编译构建脚本`make_build.sh`，执行以下命令：
 
 ```shell
 bash make_build.sh
@@ -182,7 +188,7 @@ bash make_build.sh
 
 编译完成之后，会在`build`目录下面产生相应的编译产物。
 
-### 方式二：基于预编译镜像环境编译
+### 方式三：基于预编译镜像环境编译
 
 下载预编译镜像，预编译镜像中已安装`vCANN-RT`编译所需依赖，基于预编译镜像编译`vCANN-RT`可节省环境准备时间。
 
@@ -190,7 +196,7 @@ bash make_build.sh
 docker pull swr.cn-north-4.myhuaweicloud.com/ubscore/ubs-virt:oe2403-v1
 ```
 
-启动容器，需要将物理机的驱动挂着到容器内,示例如下
+启动编译容器
 
 ```shell
 docker run -it --name=enpu swr.cn-north-4.myhuaweicloud.com/ubscore/ubs-virt:oe2403-v1 /bin/bash 
@@ -200,19 +206,10 @@ docker run -it --name=enpu swr.cn-north-4.myhuaweicloud.com/ubscore/ubs-virt:oe2
 
 ```shell
 git clone https://gitcode.com/openeuler/ubs-virt.git
-cd ubs-virt-enpu/vcann-rt
+cd ubs-virt/ubs-virt-enpu/vcann-rt
 ```
 
-在编译vCANN-RT源码前，用户需要根据实际业务场景选择CANN版本并设置环境变量，预编译镜像中的CANN安装路径为`/usr/local/Ascend/cann-xxx`。软切分支持的CANN版本可见[软件版本](#version)。
-
-下例使用 CANN 9.1.0；若使用其他受支持的 CANN 版本，请替换为对应的安装路径，并加载该版本的环境变量。
-
-```shell
-# 以CANN 9.1.0为例，具体环境变量设置命令请参考CANN官方文档
-source /usr/local/Ascend/cann-9.1.0/set_env.sh
-```
-
-加载所选 CANN 版本的环境后，执行统一构建命令：
+执行统一构建命令
 
 ```shell
 bash make_build.sh
@@ -222,7 +219,21 @@ bash make_build.sh
 
 ## 部署
 
-用户可以选择将软切分动态库`libvruntime.so`和检测工具`enpu-monitor`分别拷贝到`/opt/enpu/vcann-rt/lib`和`/opt/enpu/vcann-rt/tools`目录。（如果选择不拷贝，则需要在后面的流程中修改相应的路径。）
+`vCANN-RT` 的运行时文件随 **enpu-manager 一体化 RPM** 安装，装好后即位于以下位置，**无需手工拷贝**：
+
+**安装路径**
+
+| 文件 | 宿主路径 | 权限 | 说明 |
+|:---|:---|:---|:---|
+| `libvruntime.so` | `/opt/enpu/vcann-rt/lib/libvruntime.so` | 0500 | 需挂载进容器并由 `ld.so.preload` 预加载 |
+| `enpu-monitor` | `/opt/enpu/vcann-rt/tools/enpu-monitor` | 0500 | 容器内资源与显存监测工具 |
+
+```shell
+# 确认安装结果（安装 enpu-manager RPM 后执行）
+rpm -ql enpu-manager | grep vcann-rt
+```
+
+若采用 DEB 或源码方式部署，则需自行编译，并把 `build/libvruntime.so`、`build/enpu-monitor` 放到上述路径（或在后续容器挂载命令中改为实际路径）。
 
 ### 配置preload文件
 
@@ -619,8 +630,6 @@ vCANN-RT支持两种方式启动业务容器：
 
 | 环境变量 | 范围 | 默认值 | 说明 |
 |-|-|-|-|
-| `ASCEND_HOME_PATH` | 编译 | `/usr/local/Ascend/cann` | CANN安装路径，可通过 `source /path/to/cann/set_env.sh` 设置。 |
-| `ENPU_ASCEND_DRIVER_PATH` | 编译 | `/usr/local/Ascend` | HDK driver安装路径。 |
 | `ENPU_LOG_LEVEL` | 运行 | `3` | 日志级别，FATAL(0), ERROR(1), WARN(2), INFO(3), DEBUG(4)。 |
 | `ENPU_ENABLE` | 运行 | `True` | vCANN-RT启动成功之后设置的进程级环境变量。 |
 
@@ -682,7 +691,6 @@ export ENPU_LOG_LEVEL=4
 - 由于硬件设备的限制(可以参考昇腾社区[使用约束](https://www.hiascend.com/document/detail/zh/canncommercial/850/appdevg/acldevg/aclcppdevg_000222.html))，建议vCANN-RT最大切分数量不超过单个device支持的最大用户进程数。
 - 普通优先级用户对aicore算力资源的配额设置不能超过100%；高优先级使用 `aicore-quota=0`、`scheduling-policy=3`。HBM显存资源的配额设置不能超过当前物理卡的可用显存资源总量，否则可能在容器拉起或者业务运行时出现异常。例如：HBM配额设置超限之后，可能会在业务运行时出现OOM异常报错。
 - 采用docker方式部署时，同一个device上的普通优先级容器需设置为同一种调度策略；高优先级容器使用策略3，不参与普通优先级的策略一致性约束。
-- 若用户通过源码自行编译软切分动态库，则需要保证主机侧的CANN版本和容器镜像中的CANN版本保持一致。
 - 建议通过k8s的部署方式使用软切分能力，由MindCluster统一提供资源调度和管理能力。
 - 若不具备k8s部署条件，可以通过docker部署方式使用软切分能力，但需要管理员统一规划普通优先级容器的aicore配额和各容器的HBM配额，且单device上的普通优先级容器仅允许配置单种调度策略。如若未按照上述约束配置，可能出现以下业务影响:
   - 若多个普通优先级容器配置的aicore总量超出100%，各容器无法按照原先设定的资源使用。
@@ -698,7 +706,7 @@ export ENPU_LOG_LEVEL=4
 
     为兼容不同 CANN 版本，vCANN-RT 启动时会尝试加载多个版本的 runtime API。部分接口仅在高版本 CANN 中新增，低版本中不存在，因此可能出现`Can not find function ... because the runtime version ...`的 WARN 日志。
 
-    在符合[软件版本](#version)支持范围的环境中，缺少未使用的高版本新增接口属于正常的版本差异提示；业务运行正常时无需处理。若同时出现业务调用失败，请确认编译环境与业务容器中的 CANN 版本一致。
+    在符合[软件版本](#version)支持范围的环境中，缺少未使用的高版本新增接口属于正常的版本差异提示；业务运行正常时无需处理。若同时出现业务调用失败，请确认业务容器使用受支持的 CANN Runtime 版本。
 
 2. 容器启动或者业务运行时报错`GLIBC_xxx not found`:
     

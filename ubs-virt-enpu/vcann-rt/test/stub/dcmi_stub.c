@@ -10,8 +10,8 @@
  * See the Mulan PSL v2 for more details.
  */
 
-#include <dcmi_interface_api.h>
 #include <stdio.h>
+#include "enpu_dcmi.h"
 
 int dcmi_init(void)
 {
