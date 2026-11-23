@@ -62,50 +62,93 @@ cd ubs-virt-enpu/enpu-manager
 > [!NOTE] 说明
 > 仅**源码部署**需要执行本节；若使用 RPM / DEB 包安装可跳过本节，直接参见[部署](#部署)章节。
 
-编译前需要设置 CANN 环境变量:
+当前发布形式为**一体化 RPM**：宿主机侧 `enpu-manager` 与容器侧 `vCANN-RT`（`libvruntime.so` + `enpu-monitor`）打入同一个包，保证两侧版本严格一致，推荐优先使用。
+
+编译需要系统 cJSON 和 libboundscheck 开发文件及编译工具。运行服务时，动态加载器需要能找到 CANN 的 `libascendcl.so`、昇腾 Driver 的 `libdcmi.so` 及其依赖。
+
+### 方式一：构建一体化 RPM 包（推荐）
 
 ```shell
-source /usr/local/Ascend/cann/set_env.sh
+sudo dnf install cmake gcc gcc-c++ cjson-devel libboundscheck rpm-build
 
+cd deploy
+bash build_rpm.sh
+```
+
+该脚本在 Git 工作区中归档 `enpu-manager`、`vcann-rt` 和 `common`，依次编译 `core`、`standalone` 和 `vcann-rt`，并将产物打进同一个 RPM。需要自定义部署路径时，请参见[自定义打包路径](#package-paths)。
+
+产物：`rpmbuild/RPMS/<arch>/enpu-manager-<version>-<release>.<arch>.rpm`。
+
+### 方式二：源码分步编译（开发调试）
+
+```shell
 # 构建核心库
 cd core
 bash make_build.sh
 
-# 构建独立部署二进制（enpu-manager 主进程）
+# 构建独立部署二进制（enpu-manager 主进程 + enpu-cli）
 cd ../standalone
 bash build.sh
+
+# （可选）单独构建 vCANN-RT 运行时
+cd ../../vcann-rt
+bash make_build.sh
 ```
 
-构建产物位于：
+**编译产物**
 
-- `standalone/build/output/enpu-manager`：管理服务进程。
-- `standalone/build/output/enpu-cli`：通过 Unix Socket 调用管理服务的命令行客户端。
+| 组件 | 产物路径 |
+|:---|:---|
+| 核心库 | `core/build/output/libenpu_manager.so.1.0.0` |
+| 主进程 / CLI | `standalone/build/output/enpu-manager`、`standalone/build/output/enpu-cli` |
+| vCANN-RT 运行时 | `vcann-rt/build/libvruntime.so`、`vcann-rt/build/enpu-monitor` |
 
 ## 部署
 
-### 方式一：RPM 包安装（openEuler）
+<a id="package-paths"></a>
 
-- 获取或构建 RPM 包后执行：
+### 自定义 RPM / DEB 打包路径（可选）
 
-    ```shell
-    sudo rpm -ivh enpu-manager-*.rpm
-    ```
+从源码打包时，`ASCEND_HOME_PATH` 和 `ENPU_ASCEND_DRIVER_PATH` 分别指定写入 systemd 服务配置的 CANN 和 Driver 路径。未设置时分别使用 `/usr/local/Ascend/cann` 和 `/usr/local/Ascend`。这些路径在服务启动时使用，打包机器可以没有对应的安装目录。
 
-    RPM 安装会自动完成：
-    
-    - 把 `enpu-manager` 二进制部署到 `/usr/bin/`
-    - 把 `enpu-cli` 二进制部署到 `/usr/bin/`
-    - 把默认配置文件部署到 `/etc/enpu/enpu-manager.conf`
-    - 把 systemd service 部署到 `/usr/lib/systemd/system/enpu-manager.service`
-    - **无需手动配置 `LD_LIBRARY_PATH`**
+例如，在 `enpu-manager` 目录下执行以下命令，为 RPM 配置 CANN 9.1.0 和非默认 Driver 路径。打包 DEB 时，将命令中的 `build_rpm.sh` 换成 `build_deb.sh`。
 
-- 如需从源码自行构建 RPM 包：
+```shell
+cd deploy
+ASCEND_HOME_PATH=/usr/local/Ascend/cann-9.1.0 \
+  ENPU_ASCEND_DRIVER_PATH=/opt/Ascend \
+  bash build_rpm.sh
+```
 
-    ```shell
-    sudo dnf install cmake gcc gcc-c++ cjson-devel rpm-build
-    cd deploy && bash build_rpm.sh
-    # 产物位于 rpmbuild/RPMS/
-    ```
+打包脚本会把 `${ASCEND_HOME_PATH}/lib64` 和 `${ENPU_ASCEND_DRIVER_PATH}/driver/lib64/driver` 写入服务的 `LD_LIBRARY_PATH`。部署机器上的路径有差异时，可在安装后按[指定 CANN 运行时版本](#select-cann-runtime)覆盖服务的库路径。
+
+### 方式一：RPM 包安装（openEuler，推荐）
+
+安装包为**一体化包**，同时包含宿主机侧 `enpu-manager` 与容器侧 `vCANN-RT` 运行时：
+
+**包内文件与安装位置**
+
+| 包内文件 | 安装位置 | 权限 |
+|:---|:---|:---|
+| `enpu-manager`、`enpu-cli` | `/opt/enpu/enpu-manager/bin/` | 0500 |
+| `libenpu_manager.so.1.0.0`（含 `.so.1` 软链） | `/opt/enpu/enpu-manager/lib/` | 0500 |
+| `enpu-manager.conf` | `/etc/enpu/` | 0400，`%config(noreplace)` |
+| `enpu-manager.service` | `/usr/lib/systemd/system/` | 0400 |
+| `libvruntime.so` | `/opt/enpu/vcann-rt/lib/` | 0500 |
+| `enpu-monitor` | `/opt/enpu/vcann-rt/tools/` | 0500 |
+| 状态 / 日志目录 | `/var/lib/enpu-manager/`、`/var/log/enpu-manager/` | 0700 |
+
+RPM 中的 `enpu-manager` 主程序内置 `$ORIGIN/../lib` 搜索路径，会从相邻的 `lib/` 目录加载核心库，安装后无需为核心库单独配置 `LD_LIBRARY_PATH`。
+
+```shell
+sudo dnf install enpu-manager-*.rpm
+# 或
+sudo rpm -ivh enpu-manager-*.rpm
+```
+
+RPM 安装会部署上表中的文件，并通过 `%systemd_post` 和 `ldconfig` 处理服务注册和库缓存。部署环境与包内路径一致时，无需手动设置 `LD_LIBRARY_PATH`。如需选择其他版本，请参见[指定 CANN 运行时版本](#select-cann-runtime)。
+
+如需从源码自行打包，请参见[构建一体化 RPM 包](#编译)。
 
 ### 方式二：DEB 包安装（Ubuntu/Debian）
 
@@ -116,8 +159,7 @@ bash build.sh
     sudo apt-get install -f    # 自动补齐依赖
     ```
 
-    > [!NOTE] 说明
-    > DEB 安装的能力与 RPM 一致。
+> **注意**：当前 `build_deb.sh` 只打包 `enpu-manager` 本体（`enpu-manager`、`enpu-cli`、`libenpu_manager.so`、配置与 service），**不包含** `vCANN-RT`。使用 DEB 部署时需按 [vCANN-RT 使用说明](../vcann-rt/README.md#编译) 单独编译，并把 `libvruntime.so`、`enpu-monitor` 部署到 `/opt/enpu/vcann-rt/` 对应目录。
 
 - 如需从源码自行构建 DEB 包：
 
@@ -136,6 +178,11 @@ sudo cp standalone/build/output/enpu-manager /usr/bin/
 sudo cp standalone/build/output/enpu-cli /usr/bin/
 sudo cp config/enpu-manager.conf /etc/enpu/
 sudo cp deploy/enpu-manager.service /usr/lib/systemd/system
+
+# 若需要使用显存超分，还需部署 vCANN-RT 运行时
+sudo install -D -m 0500 ../vcann-rt/build/libvruntime.so /opt/enpu/vcann-rt/lib/libvruntime.so
+sudo install -D -m 0500 ../vcann-rt/build/enpu-monitor /opt/enpu/vcann-rt/tools/enpu-monitor
+
 sudo systemctl daemon-reload
 ```
 
@@ -181,6 +228,34 @@ systemctl status enpu-manager.service
 journalctl -u enpu-manager.service -n 100
 ```
 
+<a id="select-cann-runtime"></a>
+
+#### 指定 CANN 运行时版本（可选）
+
+使用默认路径打包的 RPM 安装后，服务从 `/usr/local/Ascend/cann/lib64` 查找 CANN 运行时库。如果同一台机器安装了多个 CANN 版本，可以通过 systemd 的服务覆盖配置指定目标版本的 `lib64` 目录。
+
+先查看当前服务配置中的 `LD_LIBRARY_PATH`，再打开覆盖配置：
+
+```shell
+systemctl cat enpu-manager.service
+sudo systemctl edit enpu-manager.service
+```
+
+在覆盖配置的 `[Service]` 段添加以下内容。将 `/usr/local/Ascend/cann-9.1.0/lib64` 替换为实际安装的目标版本库目录。`Environment=` 会覆盖原有的 `LD_LIBRARY_PATH`，请保留原配置中的 Driver 库目录。RPM 服务使用 `ExecStart=/opt/enpu/enpu-manager/bin/enpu-manager`。从旧 RPM 升级时，若已有 drop-in 覆盖了 `ExecStart`，请核对实际启动路径。
+
+```ini
+[Service]
+Environment="LD_LIBRARY_PATH=/usr/local/Ascend/cann-9.1.0/lib64:/usr/local/Ascend/driver/lib64/driver"
+```
+
+保存后重启服务，检查生效的库路径和启动命令：
+
+```shell
+sudo systemctl restart enpu-manager.service
+systemctl show enpu-manager.service -p Environment -p ExecStart
+systemctl status enpu-manager.service --no-pager
+```
+
 ### 方式二：手动启动
 
 ```shell
@@ -189,6 +264,15 @@ enpu-manager
 ```
 
 使用自定义 socket 路径时，先创建其父目录，并确保运行用户具有写权限。
+
+手动启动时，在命令前设置 `LD_LIBRARY_PATH` 即可为这次启动指定 CANN 运行时库目录。以下以 RPM 安装的二进制和 CANN 9.1.0 为例：
+
+```shell
+LD_LIBRARY_PATH="/usr/local/Ascend/cann-9.1.0/lib64:/usr/local/Ascend/driver/lib64/driver" \
+  /opt/enpu/enpu-manager/bin/enpu-manager
+```
+
+请按实际安装位置替换 CANN 和 Driver 库目录。如果使用 DEB，请执行 `/usr/bin/enpu-manager`。如果直接运行源码编译产物，请使用 `standalone/build/output/enpu-manager` 的实际路径。手动部署的 `libenpu_manager.so` 或 `libcjson.so.1` 位于动态加载器的搜索路径之外时，请在 `LD_LIBRARY_PATH` 中加入对应目录。
 
 启动后通过下方 UDS 请求确认服务可用。
 
@@ -237,6 +321,8 @@ enpu-manager
 
 `enpu-cli` 是 enpu-manager REST API 的命令行客户端，通过 Unix Domain Socket 访问已经运行的
 enpu-manager。默认连接 `/run/enpu/enpu-manager.sock`，调用用户需要具有该 socket 的连接权限。
+
+通过 RPM 安装时，可直接执行 `/opt/enpu/enpu-manager/bin/enpu-cli`，或将 `/opt/enpu/enpu-manager/bin` 加入当前终端的 `PATH` 后运行下方示例。
 
 ```bash
 enpu-cli --help
@@ -1139,17 +1225,18 @@ vNPU 分配成功后，enpu-manager 会在宿主机侧生成 vCANN-RT 所需的�
 
 业务容器启动时需要把这个文件挂载到容器内的固定路径 `/etc/enpu/vcann-rt/npu_info.config`，vCANN-RT 据此完成算力切分与显存控制。高优先级请求即使显式填写其他 AICore 配额或策略，生成文件中仍写入生效值 `0` 和 `3`；若绕过 enpu-manager 直接编写配置文件，则必须自行满足高优先级配置约束。具体挂载方式参见 [vCANN-RT 使用说明](../vcann-rt/README.md)。
 
+容器内预加载的软切分动态库应直接使用 RPM 安装路径 `/opt/enpu/vcann-rt/lib/libvruntime.so`，它与宿主机 `enpu-manager` 来自同一个包，共享内存结构天然匹配；混用不同版本可能报 `Invalid stats shm size` 或导致进程启动后异常退出。
+
 ## 环境变量汇总
 
 **表 10 环境变量列表**
 
-| 环境变量                  | 范围 | 默认值             | 说明                                                                                          |
-|:--------------------------|:-----|:-------------------|:----------------------------------------------------------------------------------------------|
-| `ASCEND_HOME_PATH`        | 编译 | /usr/local/Ascend/cann | CANN 安装路径，可通过 `source /path/to/cann/set_env.sh` 设置。                                  |
-| `ENPU_ASCEND_DRIVER_PATH` | 编译 | /usr/local/Ascend  | HDK driver 安装路径。                                                                          |
+| 环境变量 | 范围 | 默认值 | 说明 |
+|:---------|:-----|:-------|:-----|
+| `ENPU_ASCEND_DRIVER_PATH` | RPM / DEB 打包 | `/usr/local/Ascend` | 部署机器上包含 `driver` 子目录的目录，用于生成包内服务的 Driver 库路径。 |
+| `ASCEND_HOME_PATH` | RPM / DEB 打包 | `/usr/local/Ascend/cann` | 可选。指定 CANN 安装目录，打包脚本使用其 `lib64` 目录生成包内服务的 CANN 库路径。 |
 
-> [!NOTE] 说明
-> 通过 RPM 或 DEB 包安装的用户无需配置 `LD_LIBRARY_PATH`，运行时依赖已在包安装时部署到系统标准路径。仅在手动安装方式下需确保 `libenpu_manager.so`、`libcjson.so.1` 等可被加载。
+> 通过 RPM / DEB 包安装并使用默认 CANN 路径时，无需手动配置 `LD_LIBRARY_PATH`。如需选择其他版本，请参见[指定 CANN 运行时版本](#select-cann-runtime)。手动安装时需自行保证 `libenpu_manager.so`、`libcjson.so.1` 等可被加载。
 
 ## 约束
 
@@ -1197,3 +1284,7 @@ vNPU 分配成功后，enpu-manager 会在宿主机侧生成 vCANN-RT 所需的�
    # clean 会释放节点上所有 vNPU 分配，包括正在运行业务的分配
    curl --unix-socket /run/enpu/enpu-manager.sock -X DELETE http://localhost/api/v1/allocations/5d861bbe-0c3e-4b10-84ab-4c60c53ad2d4
    ```
+
+7. **启动日志提示 Driver 间接依赖缺失**
+
+   如果日志提示找不到 `libc_sec.so`、`libmmpa.so` 等库，先确认它们是否位于实际的 `driver/lib64/common` 目录。确认后，按[指定 CANN 运行时版本](#select-cann-runtime)编辑服务的 `LD_LIBRARY_PATH`，保留现有 CANN 和 Driver 库目录，追加该目录，再重启服务。

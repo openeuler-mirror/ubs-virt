@@ -13,7 +13,6 @@
 #include "core_limiter.h"
 #include "log.h"
 #include "npu_manager.h"
-#include "rts_event.h"
 #include "runtime_hook.h"
 #include "stream_drain.h"
 

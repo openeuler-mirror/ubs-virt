@@ -5,7 +5,7 @@
 
 #include <securec.h>
 
-#include <acl/acl.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <pthread.h>
 #include <stdarg.h>
@@ -13,8 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "dcmi_interface_api.h"
 #include "dcmi_wrapper.h"
+#include "enpu_dcmi.h"
 #include "log.h"
 
 /* dcmi_get_device_utilization_rate 的input_type取值 */
@@ -28,15 +28,29 @@
 static pthread_mutex_t g_dcmi_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int g_dcmi_initialized = 0;
 static soc_version_t g_soc_version = SOC_VERSION_NOT_ASCEND_950;
+static const enpu_dcmi_api_t *g_dcmi;
 
 soc_version_t dcmi_wrapper_get_soc_version(void)
 {
     return g_soc_version;
 }
 
-static void detect_soc_version(void)
+static int detect_soc_version(void)
 {
-    const char *soc_name = aclrtGetSocName();
+    void *acl = dlopen("libascendcl.so", RTLD_NOW | RTLD_LOCAL);
+    if (acl == NULL) {
+        LOG_ERROR("[DCMI] Failed to load libascendcl.so: %s", dlerror());
+        return ENPU_FAIL;
+    }
+
+    const char *(*get_soc_name)(void) = (const char *(*)(void))dlsym(acl, "aclrtGetSocName");
+    if (get_soc_name == NULL) {
+        LOG_ERROR("[DCMI] Failed to resolve aclrtGetSocName: %s", dlerror());
+        dlclose(acl);
+        return ENPU_FAIL;
+    }
+
+    const char *soc_name = get_soc_name();
     if (soc_name != NULL && strstr(soc_name, "Ascend950") != NULL) {
         g_soc_version = SOC_VERSION_ASCEND_950;
     } else {
@@ -44,6 +58,8 @@ static void detect_soc_version(void)
     }
     LOG_DEBUG("[DCMI] Detected SoC: name=%s, soc_version=%d (0=A5, 1=A2A3)", soc_name ? soc_name : "(null)",
               g_soc_version);
+    dlclose(acl);
+    return ENPU_SUCCESS;
 }
 
 #define CHECK_PARAM_NULL(param, ret)                               \
@@ -62,25 +78,37 @@ static void detect_soc_version(void)
         }                                                     \
     } while (0)
 
-static bool dcmi_v2_symbols_available(void)
+static bool dcmi_symbols_available(void)
 {
     bool available = true;
-#define CHECK_DCMI_V2_SYMBOL(symbol)                                                    \
-    do {                                                                                \
-        if ((symbol) == NULL) {                                                         \
-            LOG_ERROR("[DCMI] Ascend950 requires missing DCMI v2 symbol: %s", #symbol); \
-            available = false;                                                          \
-        }                                                                               \
+#define CHECK_DCMI_SYMBOL(symbol)                                        \
+    do {                                                                 \
+        if (g_dcmi->symbol == NULL) {                                    \
+            LOG_ERROR("[DCMI] Required symbol is missing: %s", #symbol); \
+            available = false;                                           \
+        }                                                                \
     } while (0)
 
-    CHECK_DCMI_V2_SYMBOL(dcmiv2_init);
-    CHECK_DCMI_V2_SYMBOL(dcmiv2_get_all_device_count);
-    CHECK_DCMI_V2_SYMBOL(dcmiv2_get_device_list);
-    CHECK_DCMI_V2_SYMBOL(dcmiv2_get_device_hbm_info);
-    CHECK_DCMI_V2_SYMBOL(dcmiv2_get_device_chip_info);
-    CHECK_DCMI_V2_SYMBOL(dcmiv2_get_device_die_id);
-    CHECK_DCMI_V2_SYMBOL(dcmiv2_get_device_proc_mem_info);
-#undef CHECK_DCMI_V2_SYMBOL
+    if (g_soc_version == SOC_VERSION_ASCEND_950) {
+        CHECK_DCMI_SYMBOL(dcmiv2_init);
+        CHECK_DCMI_SYMBOL(dcmiv2_get_all_device_count);
+        CHECK_DCMI_SYMBOL(dcmiv2_get_device_list);
+        CHECK_DCMI_SYMBOL(dcmiv2_get_device_hbm_info);
+        CHECK_DCMI_SYMBOL(dcmiv2_get_device_chip_info);
+        CHECK_DCMI_SYMBOL(dcmiv2_get_device_die_id);
+        CHECK_DCMI_SYMBOL(dcmiv2_get_device_proc_mem_info);
+    } else {
+        CHECK_DCMI_SYMBOL(dcmi_init);
+        CHECK_DCMI_SYMBOL(dcmi_get_all_device_count);
+        CHECK_DCMI_SYMBOL(dcmi_get_card_id_device_id_from_logicid);
+        CHECK_DCMI_SYMBOL(dcmi_get_device_logic_id);
+        CHECK_DCMI_SYMBOL(dcmi_get_device_die_v2);
+        CHECK_DCMI_SYMBOL(dcmi_get_device_hbm_info);
+        CHECK_DCMI_SYMBOL(dcmi_get_device_chip_info_v2);
+        CHECK_DCMI_SYMBOL(dcmi_get_device_resource_info);
+        CHECK_DCMI_SYMBOL(dcmi_get_device_utilization_rate);
+    }
+#undef CHECK_DCMI_SYMBOL
     return available;
 }
 
@@ -93,21 +121,24 @@ int dcmi_wrapper_init(void)
         return ENPU_SUCCESS;
     }
 
-    detect_soc_version();
-
-    int ret;
-    if (g_soc_version == SOC_VERSION_ASCEND_950) {
-        /* Validate required v2 operations before publishing initialized=true.
-         * Utilization is optional and guarded at its call sites. Never fall
-         * back to legacy IDs on 950. */
-        if (!dcmi_v2_symbols_available()) {
-            pthread_mutex_unlock(&g_dcmi_mutex);
-            return ENPU_FAIL;
-        }
-        ret = dcmiv2_init();
-    } else {
-        ret = dcmi_init();
+    if (detect_soc_version() != ENPU_SUCCESS) {
+        pthread_mutex_unlock(&g_dcmi_mutex);
+        return ENPU_FAIL;
     }
+
+    const char *error;
+    g_dcmi = enpu_dcmi_get_api(&error);
+    if (g_dcmi == NULL) {
+        LOG_ERROR("[DCMI] Failed to load libdcmi.so: %s", error);
+        pthread_mutex_unlock(&g_dcmi_mutex);
+        return ENPU_FAIL;
+    }
+    /* Validate the selected interface family before publishing initialized. */
+    if (!dcmi_symbols_available()) {
+        pthread_mutex_unlock(&g_dcmi_mutex);
+        return ENPU_FAIL;
+    }
+    int ret = g_soc_version == SOC_VERSION_ASCEND_950 ? g_dcmi->dcmiv2_init() : g_dcmi->dcmi_init();
     if (ret != 0) {
         pthread_mutex_unlock(&g_dcmi_mutex);
         LOG_ERROR("[DCMI] Failed to init libdcmi.so: %s returned %d",
@@ -137,9 +168,9 @@ int dcmi_get_device_count(int *count)
 
     int ret;
     if (g_soc_version == SOC_VERSION_ASCEND_950) {
-        ret = dcmiv2_get_all_device_count(count);
+        ret = g_dcmi->dcmiv2_get_all_device_count(count);
     } else {
-        ret = dcmi_get_all_device_count(count);
+        ret = g_dcmi->dcmi_get_all_device_count(count);
     }
     if (ret != 0) {
         LOG_ERROR("[DCMI] get_all_device_count failed: %d (soc_version=%d)", ret, g_soc_version);
@@ -162,7 +193,7 @@ int dcmi_get_device_list(int *logic_ids, int max_count, int *actual_count)
     }
 
     if (g_soc_version == SOC_VERSION_ASCEND_950) {
-        int ret = dcmiv2_get_device_list(logic_ids, actual_count, max_count);
+        int ret = g_dcmi->dcmiv2_get_device_list(logic_ids, actual_count, max_count);
         if (ret != 0) {
             LOG_ERROR("[DCMI] dcmiv2_get_device_list failed: %d", ret);
             return ENPU_FAIL;
@@ -172,7 +203,7 @@ int dcmi_get_device_list(int *logic_ids, int max_count, int *actual_count)
     }
 
     int total = 0;
-    int ret = dcmi_get_all_device_count(&total);
+    int ret = g_dcmi->dcmi_get_all_device_count(&total);
     if (ret != 0) {
         LOG_ERROR("[DCMI] dcmi_get_all_device_count failed: %d", ret);
         return ENPU_FAIL;
@@ -202,7 +233,7 @@ int dcmi_get_device_info(int logic_id, dcmi_device_info_t *info)
         info->card_id = DCMI_INVALID_CARD_ID;
 
         struct dcmi_hbm_info hbm = {0};
-        int ret = dcmiv2_get_device_hbm_info(logic_id, &hbm);
+        int ret = g_dcmi->dcmiv2_get_device_hbm_info(logic_id, &hbm);
         if (ret != 0) {
             LOG_ERROR("[DCMI] dcmiv2_get_device_hbm_info(dev_id=%d) failed: %d", logic_id, ret);
             return ENPU_FAIL;
@@ -210,7 +241,7 @@ int dcmi_get_device_info(int logic_id, dcmi_device_info_t *info)
         info->total_memory = hbm.memory_size;
 
         struct dcmi_chip_info_v2 chip = {0};
-        ret = dcmiv2_get_device_chip_info(logic_id, &chip);
+        ret = g_dcmi->dcmiv2_get_device_chip_info(logic_id, &chip);
         if (ret != 0) {
             LOG_DEBUG("[DCMI] dcmiv2_get_device_chip_info failed=%d", ret);
         }
@@ -224,14 +255,14 @@ int dcmi_get_device_info(int logic_id, dcmi_device_info_t *info)
         return ENPU_SUCCESS;
     }
 
-    int ret = dcmi_get_card_id_device_id_from_logicid(&info->card_id, &info->device_id, (unsigned int)logic_id);
+    int ret = g_dcmi->dcmi_get_card_id_device_id_from_logicid(&info->card_id, &info->device_id, (unsigned int)logic_id);
     if (ret != 0) {
         LOG_ERROR("[DCMI] logic_id=%d -> card/device failed: %d", logic_id, ret);
         return ENPU_FAIL;
     }
 
     struct dcmi_hbm_info hbm = {0};
-    ret = dcmi_get_device_hbm_info(info->card_id, info->device_id, &hbm);
+    ret = g_dcmi->dcmi_get_device_hbm_info(info->card_id, info->device_id, &hbm);
     if (ret != 0) {
         LOG_ERROR("[DCMI] dcmi_get_device_hbm_info(card=%d, device=%d) failed: %d", info->card_id, info->device_id,
                   ret);
@@ -240,7 +271,7 @@ int dcmi_get_device_info(int logic_id, dcmi_device_info_t *info)
     info->total_memory = hbm.memory_size;
 
     struct dcmi_chip_info_v2 chip = {0};
-    ret = dcmi_get_device_chip_info_v2(info->card_id, info->device_id, &chip);
+    ret = g_dcmi->dcmi_get_device_chip_info_v2(info->card_id, info->device_id, &chip);
     if (ret != 0) {
         LOG_DEBUG("[DCMI] dcmi_get_device_chip_info_v2 failed=%d", ret);
     }
@@ -267,7 +298,7 @@ int dcmi_get_card_info(int logic_id, int *card_id, int *device_id)
         return ENPU_SUCCESS;
     }
 
-    int ret = dcmi_get_card_id_device_id_from_logicid(card_id, device_id, (unsigned int)logic_id);
+    int ret = g_dcmi->dcmi_get_card_id_device_id_from_logicid(card_id, device_id, (unsigned int)logic_id);
     if (ret != 0) {
         LOG_ERROR("[DCMI] dcmi_get_card_id_device_id_from_logicid(logic_id=%d) failed: %d", logic_id, ret);
         return ENPU_FAIL;
@@ -286,7 +317,7 @@ int dcmi_get_logic_id(int card_id, int device_id, int *logic_id)
         return ENPU_SUCCESS;
     }
 
-    int ret = dcmi_get_device_logic_id(logic_id, card_id, device_id);
+    int ret = g_dcmi->dcmi_get_device_logic_id(logic_id, card_id, device_id);
     if (ret != 0) {
         LOG_ERROR("[DCMI] dcmi_get_device_logic_id(card=%d, device=%d) failed: %d", card_id, device_id, ret);
         return ENPU_FAIL;
@@ -306,7 +337,7 @@ int dcmi_get_die_info(int logic_id, dcmi_die_info_t *die_info)
         die_info->device_id = logic_id;
 
         struct dcmi_die_id did = {0};
-        int ret = dcmiv2_get_device_die_id(logic_id, DDIE, &did);
+        int ret = g_dcmi->dcmiv2_get_device_die_id(logic_id, DDIE, &did);
         if (ret != 0) {
             LOG_ERROR("[DCMI] dcmiv2_get_device_die_id(dev=%d, DDIE) failed: %d", logic_id, ret);
             return ENPU_FAIL;
@@ -327,14 +358,14 @@ int dcmi_get_die_info(int logic_id, dcmi_die_info_t *die_info)
     }
 
     int card_id = 0, device_id = 0;
-    int ret = dcmi_get_card_id_device_id_from_logicid(&card_id, &device_id, (unsigned int)logic_id);
+    int ret = g_dcmi->dcmi_get_card_id_device_id_from_logicid(&card_id, &device_id, (unsigned int)logic_id);
     if (ret != 0) {
         LOG_ERROR("[DCMI] logic_id=%d -> card/device failed: %d", logic_id, ret);
         return ENPU_FAIL;
     }
 
     struct dcmi_die_id did = {0};
-    ret = dcmi_get_device_die_v2(card_id, device_id, VDIE, &did);
+    ret = g_dcmi->dcmi_get_device_die_v2(card_id, device_id, VDIE, &did);
     if (ret != 0) {
         LOG_ERROR("[DCMI] dcmi_get_device_die_v2(card=%d, device=%d, VDIE) failed: %d", card_id, device_id, ret);
         return ENPU_FAIL;
@@ -406,14 +437,14 @@ int dcmi_query_resource_metrics(int logic_id, dcmi_resource_metrics_t *metrics)
     }
     CHECK_INIT();
     bool v2 = g_soc_version == SOC_VERSION_ASCEND_950;
-    if (v2 && dcmiv2_get_device_utilization_rate == NULL) {
+    if (v2 && g_dcmi->dcmiv2_get_device_utilization_rate == NULL) {
         LOG_WARN("[DCMI] Resource metrics unavailable: logic=%d optional v2 utilization symbol missing", logic_id);
         return ENPU_FAIL;
     }
     int card_id = DCMI_INVALID_CARD_ID;
     int device_id = logic_id;
     if (!v2) {
-        int ret = dcmi_get_card_id_device_id_from_logicid(&card_id, &device_id, (unsigned int)logic_id);
+        int ret = g_dcmi->dcmi_get_card_id_device_id_from_logicid(&card_id, &device_id, (unsigned int)logic_id);
         if (ret != DCMI_OK) {
             for (size_t i = 0; i < count; ++i) {
                 fields[i]->source_result = ret;
@@ -426,8 +457,8 @@ int dcmi_query_resource_metrics(int logic_id, dcmi_resource_metrics_t *metrics)
               card_id, device_id);
     for (size_t i = 0; i < count; ++i) {
         unsigned int value = 0;
-        int ret = v2 ? dcmiv2_get_device_utilization_rate(logic_id, types[i], &value) :
-                       dcmi_get_device_utilization_rate(card_id, device_id, types[i], &value);
+        int ret = v2 ? g_dcmi->dcmiv2_get_device_utilization_rate(logic_id, types[i], &value) :
+                       g_dcmi->dcmi_get_device_utilization_rate(card_id, device_id, types[i], &value);
         dcmi_metric_t *metric = fields[i];
         metric->source_result = ret;
         if (ret == DCMI_OK) {
@@ -468,7 +499,7 @@ int dcmi_get_utilization(int logic_id, dcmi_utilization_t *utilization)
     }
 
     int card_id = 0, device_id = 0;
-    int ret = dcmi_get_card_id_device_id_from_logicid(&card_id, &device_id, (unsigned int)logic_id);
+    int ret = g_dcmi->dcmi_get_card_id_device_id_from_logicid(&card_id, &device_id, (unsigned int)logic_id);
     if (ret != 0) {
         LOG_ERROR("[DCMI] logic_id=%d -> card/device failed: %d", logic_id, ret);
         return ENPU_FAIL;
@@ -483,22 +514,24 @@ int dcmi_get_utilization_by_card(int card_id, int device_id, dcmi_utilization_t 
 
     int ret = 0;
     if (g_soc_version == SOC_VERSION_ASCEND_950) {
-        if (dcmiv2_get_device_utilization_rate == NULL) {
+        if (g_dcmi->dcmiv2_get_device_utilization_rate == NULL) {
             LOG_WARN("[DCMI] Optional DCMI v2 utilization symbol is missing: device=%d", device_id);
             return ENPU_FAIL;
         }
         int dev_id = device_id;
-        ret |=
-            dcmiv2_get_device_utilization_rate(dev_id, NPU_UTILIZATION_TYPE_AICORE, &utilization->aicore_utilization);
-        ret |= dcmiv2_get_device_utilization_rate(dev_id, NPU_UTILIZATION_TYPE_AICPU, &utilization->aicpu_utilization);
-        ret |= dcmiv2_get_device_utilization_rate(dev_id, NPU_UTILIZATION_TYPE_TOTAL, &utilization->total_utilization);
+        ret |= g_dcmi->dcmiv2_get_device_utilization_rate(dev_id, NPU_UTILIZATION_TYPE_AICORE,
+                                                          &utilization->aicore_utilization);
+        ret |= g_dcmi->dcmiv2_get_device_utilization_rate(dev_id, NPU_UTILIZATION_TYPE_AICPU,
+                                                          &utilization->aicpu_utilization);
+        ret |= g_dcmi->dcmiv2_get_device_utilization_rate(dev_id, NPU_UTILIZATION_TYPE_TOTAL,
+                                                          &utilization->total_utilization);
     } else {
-        ret |= dcmi_get_device_utilization_rate(card_id, device_id, NPU_UTILIZATION_TYPE_AICORE,
-                                                &utilization->aicore_utilization);
-        ret |= dcmi_get_device_utilization_rate(card_id, device_id, NPU_UTILIZATION_TYPE_AICPU,
-                                                &utilization->aicpu_utilization);
-        ret |= dcmi_get_device_utilization_rate(card_id, device_id, NPU_UTILIZATION_TYPE_TOTAL,
-                                                &utilization->total_utilization);
+        ret |= g_dcmi->dcmi_get_device_utilization_rate(card_id, device_id, NPU_UTILIZATION_TYPE_AICORE,
+                                                        &utilization->aicore_utilization);
+        ret |= g_dcmi->dcmi_get_device_utilization_rate(card_id, device_id, NPU_UTILIZATION_TYPE_AICPU,
+                                                        &utilization->aicpu_utilization);
+        ret |= g_dcmi->dcmi_get_device_utilization_rate(card_id, device_id, NPU_UTILIZATION_TYPE_TOTAL,
+                                                        &utilization->total_utilization);
     }
 
     if (ret != 0) {
@@ -513,9 +546,12 @@ int dcmi_get_memory_info(int logic_id, dcmi_memory_info_t *mem_info)
 {
     CHECK_PARAM_NULL(mem_info, ENPU_INVALID_PARAM);
     CHECK_INIT();
+    if (g_soc_version == SOC_VERSION_ASCEND_950) {
+        return dcmi_get_memory_info_by_card(DCMI_INVALID_CARD_ID, logic_id, mem_info);
+    }
 
     int card_id = 0, device_id = 0;
-    int ret = dcmi_get_card_id_device_id_from_logicid(&card_id, &device_id, (unsigned int)logic_id);
+    int ret = g_dcmi->dcmi_get_card_id_device_id_from_logicid(&card_id, &device_id, (unsigned int)logic_id);
     if (ret != 0) {
         LOG_ERROR("[DCMI] logic_id=%d -> card/device failed: %d", logic_id, ret);
         return ENPU_FAIL;
@@ -535,9 +571,9 @@ int dcmi_get_memory_info_by_card(int card_id, int device_id, dcmi_memory_info_t 
 
     struct dcmi_hbm_info hbm = {0};
     if (g_soc_version == SOC_VERSION_ASCEND_950) {
-        ret = dcmiv2_get_device_hbm_info(device_id, &hbm);
+        ret = g_dcmi->dcmiv2_get_device_hbm_info(device_id, &hbm);
     } else {
-        ret = dcmi_get_device_hbm_info(card_id, device_id, &hbm);
+        ret = g_dcmi->dcmi_get_device_hbm_info(card_id, device_id, &hbm);
     }
 
     if (ret != 0) {
@@ -562,9 +598,9 @@ int dcmi_get_process_memory(int card_id, int device_id, uint64_t *used)
 
     int ret;
     if (g_soc_version == SOC_VERSION_ASCEND_950) {
-        ret = dcmiv2_get_device_proc_mem_info(device_id, proc_info, &proc_num);
+        ret = g_dcmi->dcmiv2_get_device_proc_mem_info(device_id, proc_info, &proc_num);
     } else {
-        ret = dcmi_get_device_resource_info(card_id, device_id, proc_info, &proc_num);
+        ret = g_dcmi->dcmi_get_device_resource_info(card_id, device_id, proc_info, &proc_num);
     }
 
     if (ret != 0) {

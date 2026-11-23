@@ -4,11 +4,6 @@ set -e
 echo "[DEBUG] Building tests..."
 echo "[DEBUG] $(pwd)"
 
-if [ -z "$ASCEND_HOME_PATH" ]; then
-    echo "[ERROR] ASCEND_HOME_PATH is not set!"
-    exit 1
-fi
-
 mkdir -p __build
 cd __build
 

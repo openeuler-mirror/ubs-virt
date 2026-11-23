@@ -10,7 +10,9 @@ file(GLOB SRC_LIST
     src/utils/*.c
 )
 list(FILTER SRC_LIST EXCLUDE REGEX ".*/src/tools/monitor\\.c$")
-list(APPEND SRC_LIST ${CMAKE_CURRENT_SOURCE_DIR}/../common/src/allocation_id.c)
+list(APPEND SRC_LIST
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/src/allocation_id.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/../common/src/enpu_dcmi.c)
 
 set(SECURE_COMPILE_OPTIONS
     -O2
@@ -29,26 +31,8 @@ set(SECURE_COMPILE_OPTIONS
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/scripts/cmake/securec.cmake)
 
-set(INCLUDE_DIRS
-    $ENV{ASCEND_HOME_PATH}/include
-    $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime
-    $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime/runtime
-    $ENV{ASCEND_HOME_PATH}/pkg_inc/runtime/runtime/rts
-    $ENV{ASCEND_HOME_PATH}/pkg_inc/profiling
-    $ENV{ASCEND_HOME_PATH}/pkg_inc/
-    $ENV{ASCEND_HOME_PATH}/pkg_inc/msprof
-    $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/include
-    $ENV{ASCEND_HOME_PATH}/include/experiment/runtime
-    $ENV{ASCEND_HOME_PATH}/include/experiment/msprof
-)
-
-set(LINK_DIRS
-    $ENV{ASCEND_HOME_PATH}/runtime
-    $ENV{ASCEND_HOME_PATH}/lib64
-    $ENV{ENPU_ASCEND_DRIVER_PATH}/driver/lib64/driver
-)
-
-set(LINK_LIBS dcmi)
+set(LINK_LIBS pthread dl rt)
+set(RUNTIME_ABI_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/runtime_abi")
 
 message(STATUS "CMakeList build start")
 add_library(vruntime SHARED src/ascend/hook.c ${SRC_LIST})
@@ -66,10 +50,9 @@ target_link_options(vruntime PRIVATE
 target_include_directories(vruntime PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
+    ${RUNTIME_ABI_INCLUDE_DIR}
 )
-target_include_directories(vruntime SYSTEM PRIVATE ${INCLUDE_DIRS})
-target_link_directories(vruntime PRIVATE ${LINK_DIRS})
-target_link_libraries(vruntime PRIVATE ${LINK_LIBS} c_sec pthread dl rt)
+target_link_libraries(vruntime PRIVATE ${LINK_LIBS} c_sec)
 target_compile_options(vruntime PRIVATE ${SECURE_COMPILE_OPTIONS})
 target_compile_definitions(vruntime PRIVATE _GLIBCXX_USE_CXX11_ABI=0)
 
@@ -88,10 +71,9 @@ target_link_options(enpu-monitor PRIVATE
 target_include_directories(enpu-monitor PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
+    ${RUNTIME_ABI_INCLUDE_DIR}
 )
-target_include_directories(enpu-monitor SYSTEM PRIVATE ${INCLUDE_DIRS})
-target_link_directories(enpu-monitor PRIVATE ${LINK_DIRS})
-target_link_libraries(enpu-monitor PRIVATE ${LINK_LIBS} c_sec pthread dl rt)
+target_link_libraries(enpu-monitor PRIVATE ${LINK_LIBS} c_sec)
 target_compile_options(enpu-monitor PRIVATE ${SECURE_COMPILE_OPTIONS})
 target_compile_definitions(enpu-monitor PRIVATE _GLIBCXX_USE_CXX11_ABI=0)
 

@@ -77,6 +77,7 @@ add_executable(vnpu_test
 target_include_directories(vnpu_test PRIVATE
     ${PROJECT_SOURCE_DIR}/src/include
     ${PROJECT_SOURCE_DIR}/../common/include
+    ${RUNTIME_ABI_INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/stub
 )
 
@@ -99,6 +100,7 @@ endforeach()
 target_compile_definitions(vnpu_test
     PRIVATE
     _GNU_SOURCE
+    ENPU_DCMI_TEST_STUBS
 )
 
 target_compile_options(vnpu_test PRIVATE
@@ -137,6 +139,7 @@ foreach(swap_test memory_tracker_test swap_executor_test swap_hook_test)
     target_include_directories(${swap_test} PRIVATE
         ${PROJECT_SOURCE_DIR}/src/include
         ${PROJECT_SOURCE_DIR}/../common/include
+        ${RUNTIME_ABI_INCLUDE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/stub
     )
     target_link_libraries(${swap_test} PRIVATE
@@ -145,7 +148,7 @@ foreach(swap_test memory_tracker_test swap_executor_test swap_hook_test)
         dl
         c_sec
     )
-    target_compile_definitions(${swap_test} PRIVATE _GNU_SOURCE)
+    target_compile_definitions(${swap_test} PRIVATE _GNU_SOURCE ENPU_DCMI_TEST_STUBS)
     target_compile_options(${swap_test} PRIVATE -Wall -Wextra -Wno-unused-parameter -fPIC -O1)
     if(ENABLE_COVERAGE)
         # 编译插桩由全局 add_compile_options 覆盖, 此处补链接 gcov 运行时, 否则缺 __gcov_init 等符号

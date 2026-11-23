@@ -11,31 +11,17 @@ ENPU_SOURCE_DIR = $(CURDIR)/enpu-manager
 	dh $@
 
 override_dh_auto_configure:
-	# CANN path: must be set for build
-	if [ -z "$${ASCEND_HOME_PATH}" ]; then \
-		echo "[ERROR] ASCEND_HOME_PATH is not set!"; \
-		echo "  Please set it before building, e.g.:"; \
-		echo "  export ASCEND_HOME_PATH=/usr/local/Ascend/cann"; \
-		exit 1; \
-	fi
-	@echo "[INFO] ASCEND_HOME_PATH=$${ASCEND_HOME_PATH}"
-	@echo "[INFO] ENPU_ASCEND_DRIVER_PATH=$${ENPU_ASCEND_DRIVER_PATH:-/usr/local/Ascend}"
+	# The build scripts configure each target.
 
 override_dh_auto_build:
 	# Step 1: Build core shared library
-	cd $(ENPU_SOURCE_DIR)/core && \
-		ASCEND_HOME_PATH="$${ASCEND_HOME_PATH}" \
-		ENPU_ASCEND_DRIVER_PATH="$${ENPU_ASCEND_DRIVER_PATH:-/usr/local/Ascend}" \
-		bash make_build.sh
+	cd $(ENPU_SOURCE_DIR)/core && bash make_build.sh
 
 	# Verify core build output
 	test -f $(ENPU_SOURCE_DIR)/core/build/output/libenpu_manager.so.1.0.0 || { echo "[ERROR] core build output not found"; exit 1; }
 
 	# Step 2: Build standalone binaries (enpu-manager + enpu-cli)
-	cd $(ENPU_SOURCE_DIR)/standalone && \
-		ASCEND_HOME_PATH="$${ASCEND_HOME_PATH}" \
-		ENPU_ASCEND_DRIVER_PATH="$${ENPU_ASCEND_DRIVER_PATH:-/usr/local/Ascend}" \
-		bash build.sh
+	cd $(ENPU_SOURCE_DIR)/standalone && bash build.sh
 
 	# Verify standalone build output
 	test -f $(ENPU_SOURCE_DIR)/standalone/build/output/enpu-manager || { echo "[ERROR] standalone build output not found"; exit 1; }

@@ -12,8 +12,6 @@ compute (AI Core) and memory (HBM) resource quotas based on configured allocatio
 
 ```shell
 # Prerequisites: Set environment variables
-export ASCEND_HOME_PATH=/usr/local/Ascend/ascend-toolkit/latest
-export ENPU_ASCEND_DRIVER_PATH=/usr/local/Ascend  # optional, default
 
 # Release build (produces libvruntime.so + enpu-monitor in build/)
 bash make_build.sh
@@ -50,8 +48,7 @@ Coverage threshold: **80% line coverage** (enforced by `coverage.sh`).
 ## Dev Environment Tips
 
 - Default build type is Release; tests auto-switch to Debug for coverage
-- `ASCEND_HOME_PATH` must be set to CANN toolkit path
-- `ENPU_ASCEND_DRIVER_PATH` defaults to `/usr/local/Ascend`
+- `libboundscheck` headers and library are required to build
 - `compile_commands.json` is in `build/` (release) or `__build/` (test)
 - Point your LSP to the correct build directory for your configuration
 - Build artifacts: `libvruntime.so` (hook library) and `enpu-monitor` (monitoring tool)
