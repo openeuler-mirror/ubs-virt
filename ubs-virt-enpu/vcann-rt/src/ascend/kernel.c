@@ -41,7 +41,7 @@ RUNTIME_HOOK_DEFINE(rtKernelLaunch, const void *stubFunc, uint32_t blockDim, voi
                     rtSmDesc_t *smDesc, rtStream_t stm)
 {
     LOG_DEBUG("Hook init rtKernelLaunch.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, blockDim);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -57,7 +57,7 @@ RUNTIME_HOOK_DEFINE(rtKernelLaunchWithHandle, void *hdl, const uint64_t tilingKe
                     rtArgsEx_t *argsInfo, rtSmDesc_t *smDesc, rtStream_t stm, const void *kernelInfo)
 {
     LOG_DEBUG("Hook init rtKernelLaunchWithHandle.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, blockDim);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -74,7 +74,7 @@ RUNTIME_HOOK_DEFINE(rtKernelLaunchWithHandleV2, void *hdl, const uint64_t tiling
                     rtArgsEx_t *argsInfo, rtSmDesc_t *smDesc, rtStream_t stm, const rtTaskCfgInfo_t *cfgInfo)
 {
     LOG_DEBUG("Hook init rtKernelLaunchWithHandleV2.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, blockDim);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -91,7 +91,7 @@ RUNTIME_HOOK_DEFINE(rtKernelLaunchWithFlag, const void *stubFunc, uint32_t block
                     rtSmDesc_t *smDesc, rtStream_t stm, uint32_t flags)
 {
     LOG_DEBUG("Hook init rtKernelLaunchWithFlag.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, blockDim);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -108,7 +108,7 @@ RUNTIME_HOOK_DEFINE(rtKernelLaunchWithFlagV2, const void *stubFunc, uint32_t blo
                     rtSmDesc_t *smDesc, rtStream_t stm, uint32_t flags, const rtTaskCfgInfo_t *cfgInfo)
 {
     LOG_DEBUG("Hook init rtKernelLaunchWithFlagV2.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, blockDim);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -124,7 +124,7 @@ RUNTIME_HOOK_DEFINE(rtKernelLaunchWithFlagV2, const void *stubFunc, uint32_t blo
 RUNTIME_HOOK_DEFINE(rtKernelLaunchEx, void *args, uint32_t argsSize, uint32_t flags, rtStream_t stm)
 {
     LOG_DEBUG("Hook init rtKernelLaunchEx.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -139,7 +139,7 @@ RUNTIME_HOOK_DEFINE(rtKernelLaunchFwk, const char_t *opName, void *args, uint32_
                     rtStream_t rtStream)
 {
     LOG_DEBUG("Hook init rtKernelLaunchFwk.");
-    core_limiter(rtStream, NULL, NULL);
+    CORE_LIMITER_LAUNCH(rtStream);
     launch_stats_dispatch(rtStream, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(rtStream);
@@ -154,7 +154,7 @@ RUNTIME_HOOK_DEFINE(rtCpuKernelLaunchWithFlag, const void *soName, const void *k
                     const rtArgsEx_t *argsInfo, rtSmDesc_t *smDesc, rtStream_t stm, uint32_t flags)
 {
     LOG_DEBUG("Hook init rtCpuKernelLaunchWithFlag.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, blockDim);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -171,7 +171,7 @@ RUNTIME_HOOK_DEFINE(rtAicpuKernelLaunchWithFlag, const rtKernelLaunchNames_t *la
                     const rtArgsEx_t *argsInfo, rtSmDesc_t *smDesc, rtStream_t stm, uint32_t flags)
 {
     LOG_DEBUG("Hook init rtAicpuKernelLaunchWithFlag.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, blockDim);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -189,7 +189,7 @@ RUNTIME_HOOK_DEFINE(rtAicpuKernelLaunchExWithArgs, const uint32_t kernelType, co
                     const rtStream_t stm, const uint32_t flags)
 {
     LOG_DEBUG("Hook init rtAicpuKernelLaunchExWithArgs.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, blockDim);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -206,7 +206,7 @@ RUNTIME_HOOK_DEFINE(rtLaunchKernelByFuncHandle, rtFuncHandle funcHandle, uint32_
                     rtLaunchArgsHandle argsHandle, rtStream_t stm)
 {
     LOG_DEBUG("Hook init rtLaunchKernelByFuncHandle.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, blockDim);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -222,7 +222,7 @@ RUNTIME_HOOK_DEFINE(rtLaunchKernelByFuncHandleV2, rtFuncHandle funcHandle, uint3
                     rtLaunchArgsHandle argsHandle, rtStream_t stm, const rtTaskCfgInfo_t *cfgInfo)
 {
     LOG_DEBUG("Hook init rtLaunchKernelByFuncHandleV2.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, blockDim);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -239,7 +239,7 @@ RUNTIME_HOOK_DEFINE(rtLaunchKernelByFuncHandleV3, rtFuncHandle funcHandle, uint3
                     const rtArgsEx_t *const argsInfo, rtStream_t stm, const rtTaskCfgInfo_t *const cfgInfo)
 {
     LOG_DEBUG("Hook init rtLaunchKernelByFuncHandleV3.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, blockDim);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -260,7 +260,7 @@ RUNTIME_HOOK_DEFINE(aclrtLaunchKernelImpl, aclrtFuncHandle funcHandle, uint32_t 
                                  stream);
     }
     LOG_DEBUG("Hook init aclrtLaunchKernelImpl.");
-    core_limiter(stream, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stream);
     launch_stats_dispatch(stream, numBlocks);
     if (is_random_sampling()) {
         sampling_begin(stream);
@@ -277,7 +277,7 @@ RUNTIME_HOOK_DEFINE(rtVectorCoreKernelLaunchWithHandle, void *hdl, const uint64_
                     rtArgsEx_t *argsInfo, rtSmDesc_t *smDesc, rtStream_t stm, const rtTaskCfgInfo_t *cfgInfo)
 {
     LOG_DEBUG("Hook init rtVectorCoreKernelLaunchWithHandle.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, blockDim);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -294,7 +294,7 @@ RUNTIME_HOOK_DEFINE(rtVectorCoreKernelLaunch, const void *stubFunc, uint32_t blo
                     rtSmDesc_t *smDesc, rtStream_t stm, uint32_t flags, const rtTaskCfgInfo_t *cfgInfo)
 {
     LOG_DEBUG("Hook init rtVectorCoreKernelLaunch.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, blockDim);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -312,7 +312,7 @@ RUNTIME_HOOK_DEFINE(rtsLaunchKernelWithHostArgs, rtFuncHandle funcHandle, uint32
                     uint32_t placeHolderNum)
 {
     LOG_DEBUG("Hook init rtsLaunchKernelWithHostArgs.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, numBlocks);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -334,7 +334,7 @@ RUNTIME_HOOK_DEFINE(aclrtLaunchKernelWithHostArgsImpl, aclrtFuncHandle funcHandl
                                  cfg, hostArgs, argsSize, placeHolderArray, placeHolderNum);
     }
     LOG_DEBUG("Hook init aclrtLaunchKernelWithHostArgsImpl.");
-    core_limiter(stream, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stream);
     launch_stats_dispatch(stream, numBlocks);
     if (is_random_sampling()) {
         sampling_begin(stream);
@@ -351,7 +351,7 @@ RUNTIME_HOOK_DEFINE(rtsLaunchKernelWithConfig, rtFuncHandle funcHandle, uint32_t
                     rtKernelLaunchCfg_t *cfg, rtArgsHandle argsHandle, void *reserve)
 {
     LOG_DEBUG("Hook init rtsLaunchKernelWithConfig.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, numBlocks);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -372,7 +372,7 @@ RUNTIME_HOOK_DEFINE(aclrtLaunchKernelWithConfigImpl, aclrtFuncHandle funcHandle,
                                  argsHandle, reserve);
     }
     LOG_DEBUG("Hook init aclrtLaunchKernelWithConfigImpl.");
-    core_limiter(stream, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stream);
     launch_stats_dispatch(stream, numBlocks);
     if (is_random_sampling()) {
         sampling_begin(stream);
@@ -389,7 +389,7 @@ RUNTIME_HOOK_DEFINE(rtsLaunchKernelWithDevArgs, rtFuncHandle funcHandle, uint32_
                     rtKernelLaunchCfg_t *cfg, const void *args, uint32_t argsSize, void *reserve)
 {
     LOG_DEBUG("Hook init rtsLaunchKernelWithDevArgs.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, numBlocks);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -410,7 +410,7 @@ RUNTIME_HOOK_DEFINE(aclrtLaunchKernelV2Impl, aclrtFuncHandle funcHandle, uint32_
                                  cfg, stream);
     }
     LOG_DEBUG("Hook init aclrtLaunchKernelV2Impl.");
-    core_limiter(stream, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stream);
     launch_stats_dispatch(stream, numBlocks);
     if (is_random_sampling()) {
         sampling_begin(stream);
@@ -426,7 +426,7 @@ RUNTIME_HOOK_DEFINE(aclrtLaunchKernelV2Impl, aclrtFuncHandle funcHandle, uint32_
 RUNTIME_HOOK_DEFINE(rtsLaunchRandomNumTask, const rtRandomNumTaskInfo_t *taskInfo, const rtStream_t stm, void *reserve)
 {
     LOG_DEBUG("Hook init rtsLaunchRandomNumTask.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -444,7 +444,7 @@ RUNTIME_HOOK_DEFINE(aclrtRandomNumAsyncImpl, const aclrtRandomNumTaskInfo *taskI
         return RUNTIME_HOOK_CALL(rt_library_entry, aclrtRandomNumAsyncImpl, taskInfo, stream, reserve);
     }
     LOG_DEBUG("Hook init aclrtRandomNumAsyncImpl.");
-    core_limiter(stream, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stream);
     launch_stats_dispatch(stream, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stream);
@@ -459,7 +459,7 @@ RUNTIME_HOOK_DEFINE(rtsLaunchReduceAsyncTask, const rtReduceInfo_t *reduceInfo, 
                     const void *reserve)
 {
     LOG_DEBUG("Hook init rtsLaunchReduceAsyncTask.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -477,7 +477,7 @@ RUNTIME_HOOK_DEFINE(aclrtReduceAsyncImpl, void *dst, const void *src, uint64_t c
         return RUNTIME_HOOK_CALL(rt_library_entry, aclrtReduceAsyncImpl, dst, src, count, kind, type, stream, reserve);
     }
     LOG_DEBUG("Hook init aclrtReduceAsyncImpl.");
-    core_limiter(stream, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stream);
     launch_stats_dispatch(stream, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stream);
@@ -493,7 +493,7 @@ RUNTIME_HOOK_DEFINE(rtsLaunchUpdateTask, rtStream_t destStm, uint32_t destTaskId
                     rtTaskUpdateCfg_t *cfg)
 {
     LOG_DEBUG("Hook init rtsLaunchUpdateTask.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -511,7 +511,7 @@ RUNTIME_HOOK_DEFINE(aclrtTaskUpdateAsyncImpl, aclrtStream taskStream, uint32_t t
         return RUNTIME_HOOK_CALL(rt_library_entry, aclrtTaskUpdateAsyncImpl, taskStream, taskId, info, execStream);
     }
     LOG_DEBUG("Hook init aclrtTaskUpdateAsyncImpl.");
-    core_limiter(execStream, NULL, NULL);
+    CORE_LIMITER_LAUNCH(execStream);
     launch_stats_dispatch(execStream, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(execStream);
@@ -527,7 +527,7 @@ RUNTIME_HOOK_DEFINE(rtLaunchKernelWithArgsArray, void *func, uint32_t numBlocks,
                     rtKernelLaunchCfg_t *cfg, void **args)
 {
     LOG_DEBUG("Hook init rtLaunchKernelWithArgsArray.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, numBlocks);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -547,7 +547,7 @@ RUNTIME_HOOK_DEFINE(aclrtLaunchKernelWithArgsArrayImpl, void *func, uint32_t num
                                  args);
     }
     LOG_DEBUG("Hook init aclrtLaunchKernelWithArgsArrayImpl.");
-    core_limiter(stream, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stream);
     launch_stats_dispatch(stream, numBlocks);
     if (is_random_sampling()) {
         sampling_begin(stream);
@@ -564,7 +564,7 @@ RUNTIME_HOOK_DEFINE(rtLaunchSIMTKernelWithHostArgs, void *func, rtDim3 gridDim, 
                     rtPlaceHolderInfo_t *placeHolderArray, uint32_t placeHolderNum)
 {
     LOG_DEBUG("Hook init rtLaunchSIMTKernelWithHostArgs.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -586,7 +586,7 @@ RUNTIME_HOOK_DEFINE(aclrtLaunchSIMTKernelWithHostArgsImpl, void *func, dim3 grid
                                  dynUbufSize, stream, cfg, hostArgs, argsSize, placeHolderArray, placeHolderNum);
     }
     LOG_DEBUG("Hook init aclrtLaunchSIMTKernelWithHostArgsImpl.");
-    core_limiter(stream, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stream);
     launch_stats_dispatch(stream, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stream);
@@ -604,7 +604,7 @@ RUNTIME_HOOK_DEFINE(rtLaunchSIMTKernelWithArgsArray, void *func, rtDim3 gridDim,
                     rtStream_t stm, rtKernelLaunchCfg_t *cfg, void **args)
 {
     LOG_DEBUG("Hook init rtLaunchSIMTKernelWithArgsArray.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -625,7 +625,7 @@ RUNTIME_HOOK_DEFINE(aclrtLaunchSIMTKernelWithArgsArrayImpl, void *func, dim3 gri
                                  dynUbufSize, stream, cfg, args);
     }
     LOG_DEBUG("Hook init aclrtLaunchSIMTKernelWithArgsArrayImpl.");
-    core_limiter(stream, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stream);
     launch_stats_dispatch(stream, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stream);

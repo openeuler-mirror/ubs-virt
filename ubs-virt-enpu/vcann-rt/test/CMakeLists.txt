@@ -18,6 +18,7 @@ include(${PROJECT_SOURCE_DIR}/scripts/cmake/mockcpp.cmake)
 set(VNPU_SRC_FILES
     ${PROJECT_SOURCE_DIR}/../common/src/allocation_id.c
     ${PROJECT_SOURCE_DIR}/src/core_limiter.c
+    ${PROJECT_SOURCE_DIR}/src/launch_budget.c
     ${PROJECT_SOURCE_DIR}/src/hbm_sampler.c
     ${PROJECT_SOURCE_DIR}/src/stream_drain.c
     ${PROJECT_SOURCE_DIR}/src/mem_limiter.c
@@ -55,6 +56,7 @@ set(VNPU_TESTCASE_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/utils/hash_map_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/npu_manager_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/core_limiter_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/testcase/launch_budget_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/log_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/mem_limiter_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/testcase/mem_limiter_elastic_test.cpp

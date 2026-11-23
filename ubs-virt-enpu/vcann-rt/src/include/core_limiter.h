@@ -23,6 +23,7 @@ using atomic_int = std::atomic<int>;
 #include <inttypes.h>
 #include <pthread.h>
 #include <runtime/rt.h>
+#include "launch_budget.h"
 #include "vnpu_sched_shm_abi.h"
 
 #if defined(__cplusplus)
@@ -70,6 +71,16 @@ extern bool get_vnpu_stats_enable(void);
 extern void set_vnpu_stats_enable(bool enable);
 extern int aicore_limiter_initialize(void);
 extern void core_limiter(rtStream_t stream, core_function func, void *param);
+extern launch_budget_ticket_t core_limiter_launch(rtStream_t stream);
+extern launch_budget_ticket_t core_limiter_model_launch(rtStream_t stream, core_function func, void *param,
+                                                        rtModel_t model);
+
+#define CORE_LIMITER_LAUNCH(stream)              \
+    launch_budget_ticket_t _launch_budget_ticket \
+        __attribute__((cleanup(launch_budget_complete))) = core_limiter_launch(stream)
+#define CORE_LIMITER_MODEL_LAUNCH(stream, func, param, model) \
+    launch_budget_ticket_t _launch_budget_ticket              \
+        __attribute__((cleanup(launch_budget_complete))) = core_limiter_model_launch(stream, func, param, model)
 extern void set_stream_capture(void *param, rtStream_t stream);
 extern void set_event_create_status(void *evt);
 extern void set_event_wait_status(void *evt, rtStream_t stm);
