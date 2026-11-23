@@ -33,7 +33,7 @@ int swap_executor_swap_in(swap_executor_t *executor, void **ptr, uint64_t offset
                           rtDrvMemHandle *new_handle, uint8_t flag);
 
 int swap_executor_swap_in_physical(swap_executor_t *executor, memory_tracker_t *tracker, rtDrvMemHandle handle,
-                                   uint64_t offset, uint64_t *size, rtDrvMemHandle *new_handle);
+                                   uint64_t gen, uint64_t offset, uint64_t *size, rtDrvMemHandle *new_handle);
 
 swap_executor_t *swap_executor_create_ref(void **base_ref);
 

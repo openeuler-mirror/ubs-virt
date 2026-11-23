@@ -90,6 +90,8 @@ int npu_allocator_write_swap_cmd(npu_allocator_t *alloc, int32_t phy_id, const c
 
 int npu_allocator_recover(npu_allocator_t *alloc);
 int npu_allocator_checkpoint(npu_allocator_t *alloc);
+/* 任一 die 上仍有存活 vNPU 进程（用于退出时决定是否保留共享 swap 段） */
+bool npu_allocator_has_active_vnpu(npu_allocator_t *alloc);
 
 allocation_registry_t *npu_allocator_get_registry(npu_allocator_t *alloc);
 

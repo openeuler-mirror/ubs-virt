@@ -4,11 +4,15 @@
  */
 
 #include "memory_tracker.h"
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include "securec.h"
+
+/* 进程内全局分配代次: 隔离驱动复用同一 handle 值产生的跨代记录 */
+static atomic_uint_fast64_t g_alloc_gen = 0;
 
 static uint64_t get_time_ns(void)
 {
@@ -153,6 +157,8 @@ int memory_tracker_add(memory_tracker_t *tracker, void *ptr, uint64_t size, rtDr
     record->is_physical = is_physical;
     record->swap_offset = 0;
     record->alloc_time_ns = get_time_ns();
+    record->gen = atomic_fetch_add(&g_alloc_gen, 1);
+    record->restore_pending = false;
 
     int ret = hashmap_put(tracker->map, ptr, record, false);
     if (ret != 0) {
@@ -173,6 +179,50 @@ int memory_tracker_add(memory_tracker_t *tracker, void *ptr, uint64_t size, rtDr
 
     pthread_mutex_unlock(&tracker->lock);
     return ENPU_SUCCESS;
+}
+
+static void memory_tracker_cancel_pending_locked(memory_tracker_t *tracker, uint64_t size)
+{
+    uint64_t pending = tracker->pending_restore_bytes;
+    tracker->pending_restore_bytes = size < pending ? pending - size : 0;
+}
+
+static int memory_tracker_remove_at_locked(memory_tracker_t *tracker, size_t index)
+{
+    void *ptr = tracker->records[index].ptr;
+
+    /* 该记录换入后尚未把字节加回 hbm_used, 删除时同步核销 pending, 避免残留量在
+     * 后续换入完成时被重复加回 */
+    if (tracker->records[index].restore_pending) {
+        memory_tracker_cancel_pending_locked(tracker, tracker->records[index].size);
+    }
+
+    for (size_t i = index; i < tracker->count - 1; i++) {
+        tracker->records[i] = tracker->records[i + 1];
+        int ret = hashmap_put(tracker->map, tracker->records[i].ptr, &tracker->records[i], false);
+        if (ret != ENPU_SUCCESS) {
+            LOG_ERROR("Failed to move records, record index=%u.", i);
+            return ENPU_FAIL;
+        }
+    }
+
+    tracker->count--;
+
+    /* handle/VA 可能被驱动复用: 若 records[] 中仍有同 ptr 记录, 把 key 指回幸存记录;
+     * 直接删 key 会让幸存记录变成 find() 查不到的孤儿, 而 swap 遍历仍会看到它 */
+    for (size_t i = 0; i < tracker->count; i++) {
+        if (tracker->records[i].ptr == ptr) {
+            int ret = hashmap_put(tracker->map, ptr, &tracker->records[i], false);
+            if (ret != ENPU_SUCCESS) {
+                LOG_ERROR("Failed to rebind map key for surviving record, index=%u.", i);
+                return ENPU_FAIL;
+            }
+            return ENPU_SUCCESS;
+        }
+    }
+
+    int ret = hashmap_remove(tracker->map, ptr);
+    return ret == 0 ? ENPU_SUCCESS : ENPU_FAIL;
 }
 
 int memory_tracker_remove(memory_tracker_t *tracker, void *ptr)
@@ -197,23 +247,30 @@ int memory_tracker_remove(memory_tracker_t *tracker, void *ptr)
         return ENPU_SUCCESS;
     }
 
-    for (size_t i = found_index; i < tracker->count - 1; i++) {
-        tracker->records[i] = tracker->records[i + 1];
-        int ret = hashmap_put(tracker->map, tracker->records[i].ptr, &tracker->records[i], false);
-        if (ret != ENPU_SUCCESS) {
-            LOG_ERROR("Failed to move records, record index=%u.", i);
-            pthread_mutex_unlock(&tracker->lock);
-            return ENPU_FAIL;
-        }
-    }
+    int ret = memory_tracker_remove_at_locked(tracker, (size_t)found_index);
+    pthread_mutex_unlock(&tracker->lock);
+    return ret;
+}
 
-    int ret = hashmap_remove(tracker->map, ptr);
-    if (ret != 0) {
-        pthread_mutex_unlock(&tracker->lock);
+int memory_tracker_take(memory_tracker_t *tracker, void *ptr, memory_record_t *record, bool *found)
+{
+    if (tracker == NULL || ptr == NULL || record == NULL || found == NULL) {
         return ENPU_FAIL;
     }
 
-    tracker->count--;
+    pthread_mutex_lock(&tracker->lock);
+
+    *found = false;
+    for (size_t i = 0; i < tracker->count; i++) {
+        if (tracker->records[i].ptr != ptr) {
+            continue;
+        }
+        *record = tracker->records[i];
+        *found = true;
+        int ret = memory_tracker_remove_at_locked(tracker, i);
+        pthread_mutex_unlock(&tracker->lock);
+        return ret;
+    }
 
     pthread_mutex_unlock(&tracker->lock);
     return ENPU_SUCCESS;
@@ -287,6 +344,19 @@ int memory_record_mark_swapped(memory_record_t *record, uint64_t offset)
 
     record->is_swapped = true;
     record->swap_offset = offset;
+
+    return ENPU_SUCCESS;
+}
+
+int memory_record_mark_active(memory_record_t *record, rtDrvMemHandle new_handle)
+{
+    if (record == NULL) {
+        return ENPU_FAIL;
+    }
+
+    record->is_swapped = false;
+    record->handle = new_handle;
+    record->swap_offset = 0;
 
     return ENPU_SUCCESS;
 }
@@ -397,7 +467,7 @@ uint64_t get_record_size(memory_tracker_t *tracker, void *ptr, uint64_t size)
 }
 
 int memory_tracker_add_map_record(memory_tracker_t *tracker, void *ptr, size_t size, size_t offset,
-                                  rtDrvMemHandle handle, uint64_t flags)
+                                  rtDrvMemHandle handle, uint64_t flags, uint64_t gen)
 {
     if (tracker == NULL) {
         return ENPU_FAIL;
@@ -411,6 +481,7 @@ int memory_tracker_add_map_record(memory_tracker_t *tracker, void *ptr, size_t s
 
     new_node->va = ptr;
     new_node->handle = handle;
+    new_node->gen = gen;
     new_node->size = size;
     new_node->offset = offset;
     new_node->flags = flags;
@@ -488,7 +559,7 @@ int memory_tracker_remove_handle_record(memory_tracker_t *tracker, rtDrvMemHandl
     return ENPU_SUCCESS;
 }
 
-int memory_tracker_get_map_va(memory_tracker_t *tracker, rtDrvMemHandle handle, void **va)
+int memory_tracker_get_map_va(memory_tracker_t *tracker, rtDrvMemHandle handle, uint64_t gen, void **va)
 {
     if (tracker == NULL) {
         return ENPU_FAIL;
@@ -497,7 +568,8 @@ int memory_tracker_get_map_va(memory_tracker_t *tracker, rtDrvMemHandle handle, 
     MapRecordNode *record = tracker->map_record_head;
     while (record->next) {
         record = record->next;
-        if (record->handle == handle) {
+        /* (handle, gen) 双键匹配: 仅同代记录可命中, 避免复用 handle 值时串到上一代 VA */
+        if (record->handle == handle && record->gen == gen) {
             *va = record->va;
             pthread_mutex_unlock(&tracker->lock);
             return ENPU_SUCCESS;

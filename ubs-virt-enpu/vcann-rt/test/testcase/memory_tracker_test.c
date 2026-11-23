@@ -142,6 +142,87 @@ static void test_remove_record(void)
     memory_tracker_destroy(tracker);
 }
 
+static void test_take_record_by_ptr(void)
+{
+    memory_tracker_t *tracker = memory_tracker_create(16);
+    TEST_ASSERT_NE(tracker, NULL, "create should succeed");
+
+    memory_tracker_add(tracker, (void *)0x1000, 4096, (void *)1, false);
+    memory_tracker_add(tracker, (void *)0x2000, 4096, (void *)2, false);
+
+    memory_record_t snapshot;
+    bool found = false;
+    int ret = memory_tracker_take(tracker, (void *)0x1000, &snapshot, &found);
+    TEST_ASSERT_EQ(ret, ENPU_SUCCESS, "take should succeed");
+    TEST_ASSERT_EQ(found, true, "take should find the record");
+    TEST_ASSERT_EQ(snapshot.ptr, (void *)0x1000, "snapshot ptr should match");
+    TEST_ASSERT_EQ(memory_tracker_find(tracker, (void *)0x1000), NULL, "first record should be removed");
+    TEST_ASSERT_NE(memory_tracker_find(tracker, (void *)0x2000), NULL, "second record should remain");
+
+    ret = memory_tracker_take(tracker, (void *)0x3000, &snapshot, &found);
+    TEST_ASSERT_EQ(ret, ENPU_SUCCESS, "take nonexistent should succeed");
+    TEST_ASSERT_EQ(found, false, "take nonexistent should report not found");
+
+    memory_tracker_destroy(tracker);
+}
+
+/* 部分换入成功但尚未加回 hbm_used 的记录: 摘除时须核销 pending_restore_bytes */
+static void test_take_cancels_pending_restore(void)
+{
+    memory_tracker_t *tracker = memory_tracker_create(16);
+    TEST_ASSERT_NE(tracker, NULL, "create should succeed");
+
+    void *test_ptr = (void *)0x1000;
+    memory_tracker_add(tracker, test_ptr, 4096, (void *)1, false);
+    memory_record_t *record = memory_tracker_find(tracker, test_ptr);
+    TEST_ASSERT_NE(record, NULL, "find should succeed");
+    record->restore_pending = true;
+    tracker->pending_restore_bytes = 4096;
+
+    memory_record_t snapshot;
+    bool found = false;
+    int ret = memory_tracker_take(tracker, test_ptr, &snapshot, &found);
+    TEST_ASSERT_EQ(ret, ENPU_SUCCESS, "take should succeed");
+    TEST_ASSERT_EQ(found, true, "take should find the record");
+    TEST_ASSERT_EQ(snapshot.restore_pending, true, "snapshot should carry pending flag");
+    TEST_ASSERT_EQ(tracker->pending_restore_bytes, 0, "pending bytes should be cancelled");
+
+    memory_tracker_destroy(tracker);
+}
+
+/* 僵尸记录由 swap_hook 在 add 之前用 take 摘除, tracker 本身不再隐式删除 */
+static void test_take_drops_stale_before_add(void)
+{
+    memory_tracker_t *tracker = memory_tracker_create(16);
+    TEST_ASSERT_NE(tracker, NULL, "create should succeed");
+
+    void *reused_ptr = (void *)0x1000;
+    memory_tracker_add(tracker, reused_ptr, 4096, (void *)reused_ptr, true);
+    memory_record_t old_record;
+    bool found = false;
+    int ret = memory_tracker_take(tracker, reused_ptr, &old_record, &found);
+    TEST_ASSERT_EQ(ret, ENPU_SUCCESS, "take stale record should succeed");
+    TEST_ASSERT_EQ(found, true, "old record should be found");
+
+    /* 驱动释放后复用同一 handle: 先摘除僵尸记录, 再写入新记录, 两者不能并存 */
+    ret = memory_tracker_add(tracker, reused_ptr, 8192, (void *)reused_ptr, true);
+    TEST_ASSERT_EQ(ret, ENPU_SUCCESS, "add reused ptr should succeed");
+
+    memory_record_t *record = memory_tracker_find(tracker, reused_ptr);
+    TEST_ASSERT_NE(record, NULL, "find should return the new record");
+    TEST_ASSERT_EQ(record->size, 8192, "size should come from the new record");
+    TEST_ASSERT_NE(record->gen, old_record.gen, "gen should be refreshed");
+
+    memory_record_t **records = NULL;
+    int count = 0;
+    ret = memory_tracker_collect_records(tracker, &records, &count);
+    TEST_ASSERT_EQ(ret, ENPU_SUCCESS, "collect should succeed");
+    TEST_ASSERT_EQ(count, 1, "stale record should be dropped");
+    free(records);
+
+    memory_tracker_destroy(tracker);
+}
+
 static void test_remove_nonexistent(void)
 {
     memory_tracker_t *tracker = memory_tracker_create(16);
@@ -246,6 +327,7 @@ int main(int argc, char *argv[])
     TEST_CASE(add_find_record);
     TEST_CASE(add_multiple_records);
     TEST_CASE(find_nonexistent);
+    TEST_CASE(take_drops_stale_before_add);
     TEST_SUITE_END();
 
     TEST_SUITE_BEGIN("invalid_params");
@@ -254,6 +336,8 @@ int main(int argc, char *argv[])
 
     TEST_SUITE_BEGIN("remove");
     TEST_CASE(remove_record);
+    TEST_CASE(take_record_by_ptr);
+    TEST_CASE(take_cancels_pending_restore);
     TEST_CASE(remove_nonexistent);
     TEST_SUITE_END();
 

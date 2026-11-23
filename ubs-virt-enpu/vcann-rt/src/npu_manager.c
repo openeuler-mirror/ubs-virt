@@ -501,6 +501,24 @@ int update_shm_used(size_t used)
 
 /* 换出重试上限: 防止换出执行端异常时永久自旋, 超限后按内存不足失败返回 */
 #define SWAP_OUT_MAX_RETRY 10
+/* manager 故障期间换出请求无人消费, 限时等待后按失败返回, 请求标志保留在 shm
+ * 不回滚: manager 恢复后 resolver 仍会异步消费该请求并最终完成腾挪. */
+#define SWAP_OUT_WAIT_TIMEOUT_NS (30ULL * 1000000000ULL)
+#define SWAP_OUT_WAIT_INTERVAL_NS (10ULL * 1000000ULL)
+
+static bool wait_swap_out_completed(atomic_bool *completed)
+{
+    uint64_t deadline = ns_now() + SWAP_OUT_WAIT_TIMEOUT_NS;
+    while (!atomic_load(completed)) {
+        uint64_t now = ns_now();
+        if (now >= deadline) {
+            return false;
+        }
+        uint64_t remain = deadline - now;
+        ns_sleep(remain < SWAP_OUT_WAIT_INTERVAL_NS ? remain : SWAP_OUT_WAIT_INTERVAL_NS);
+    }
+    return true;
+}
 
 int check_and_swap_out(size_t requested, uint8_t flag)
 {
@@ -534,10 +552,17 @@ int check_and_swap_out(size_t requested, uint8_t flag)
         }
 
         shm_state_t *state = get_shm_state();
-        bool completed = true;
-        do {
-            completed = atomic_load(&state->swap_out_cmd.completed);
-        } while (!completed);
+        if (state == NULL) {
+            LOG_ERROR("check_and_swap_out: shm state unavailable, requested=%zu.", requested);
+            return ENPU_FAIL;
+        }
+        if (!wait_swap_out_completed(&state->swap_out_cmd.completed)) {
+            LOG_WARN("check_and_swap_out: previous swap-out request not completed in 30s, action=%d, completed=%d, "
+                     "requested=%zu.",
+                     atomic_load(&state->swap_out_cmd.action), (int)atomic_load(&state->swap_out_cmd.completed),
+                     requested);
+            return ENPU_FAIL;
+        }
 
         /* 多进程并置请求：取"并集"。已有更高优先级请求则不覆盖（仅设置请求标志，
          * 由 enpu-manager 写 swap_cmd 触发所有相关进程各自换出） */
@@ -548,9 +573,13 @@ int check_and_swap_out(size_t requested, uint8_t flag)
             atomic_store(&state->swap_out_cmd.completed, false);
         }
 
-        do {
-            completed = atomic_load(&state->swap_out_cmd.completed);
-        } while (!completed);
+        if (!wait_swap_out_completed(&state->swap_out_cmd.completed)) {
+            LOG_WARN("check_and_swap_out: swap-out request not consumed in 30s, action=%d, completed=%d, "
+                     "requested=%zu, keep request for later recovery.",
+                     atomic_load(&state->swap_out_cmd.action), (int)atomic_load(&state->swap_out_cmd.completed),
+                     requested);
+            return ENPU_FAIL;
+        }
     }
 
     LOG_ERROR("check_and_swap_out: free HBM still insufficient after %d retries, requested=%zu.", SWAP_OUT_MAX_RETRY,

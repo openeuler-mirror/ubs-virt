@@ -133,6 +133,29 @@ static inline void vnpu_bitmap_clear(atomic_uint_fast64_t bitmap[2], int vnpu_id
     atomic_fetch_and(&bitmap[idx], ~(1ULL << bit));
 }
 
+/* 该 vNPU 是否仍有存活进程（任一进程槽位 active） */
+static inline bool shm_state_vnpu_alive(const shm_state_t *state, int vnpu_id)
+{
+    if (state == NULL || vnpu_id < 0 || vnpu_id >= MAX_VNPU_PER_DIE)
+        return false;
+    for (int slot = 0; slot < MAX_PROCESSES_PER_VNPU; slot++) {
+        if (atomic_load(&state->entries[vnpu_id].processes[slot].active))
+            return true;
+    }
+    return false;
+}
+
+static inline bool shm_state_has_active_vnpu(const shm_state_t *state)
+{
+    if (state == NULL)
+        return false;
+    for (int vnpu_id = 0; vnpu_id < MAX_VNPU_PER_DIE; vnpu_id++) {
+        if (shm_state_vnpu_alive(state, vnpu_id))
+            return true;
+    }
+    return false;
+}
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -156,7 +179,10 @@ shm_state_t *shm_manager_get_state(shm_manager_t *mgr, int phy_id);
 
 int shm_manager_add_entry(shm_manager_t *mgr, int phy_id, vnpu_shm_entry_t *entry);
 int shm_manager_remove_entry(shm_manager_t *mgr, int phy_id, int vnpu_id);
-int shm_manager_init_state(shm_manager_t *mgr, int phy_id, uint64_t hbm_total);
+/* reset_runtime=false 用于故障重启：保留在途 swap 命令状态，避免覆盖存活 vNPU 的请求 */
+int shm_manager_init_state(shm_manager_t *mgr, int phy_id, uint64_t hbm_total, bool reset_runtime);
+/* 任一已 attach 的 die 上仍有存活 vNPU 进程 */
+bool shm_manager_has_active_vnpu(shm_manager_t *mgr);
 
 int shm_manager_set_swap_state(shm_manager_t *mgr, int phy_id, int vnpu_id, uint64_t offset, uint64_t size);
 int shm_manager_get_swap_state(shm_manager_t *mgr, int phy_id, int vnpu_id, bool *swapped, uint64_t *offset,
@@ -201,8 +227,11 @@ void shm_print_free_block_info(void);
 
 #define SHM_SWAP_BUFFER_NAME_PREFIX "/swap_buffer_"
 int shm_swap_buffer_pool_init(shm_state_t *state, int phy_id, uint64_t size);
-int shm_swap_buffer_pool_deinit(shm_state_t *state, int phy_id);
+/* keep_shared=true 仅释放本进程映射和 TLSF 台账，保留池文件及 RT 可见的段名/代次 */
+int shm_swap_buffer_pool_deinit(shm_state_t *state, int phy_id, bool keep_shared);
 int shm_swap_buffer_pool_replace(shm_state_t *state, int phy_id, uint64_t size);
+/* 按各 die 残留换出记录重建 TLSF 占用台账，须在建池后、resolver/watchdog 启动前调用 */
+int shm_swap_buffer_recover(shm_manager_t *mgr);
 /* 启动恢复仅回收本用户所属、空闲卡上未被锁定且无活跃映射的残留池。 */
 int shm_swap_buffer_has_pool_files(int phy_id, bool *found);
 int shm_swap_buffer_recover_orphans(shm_state_t *state, int phy_id, bool idle);

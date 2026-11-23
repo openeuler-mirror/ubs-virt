@@ -18,6 +18,25 @@ static swap_hook_t *g_global_swap_hook = NULL;
 static swap_buffer_mapping_t g_swap_buffer = {0};
 static atomic_uint_fast32_t g_pool_generation = 0;
 
+static void swap_hook_account_free(uint64_t size, bool was_swapped, bool restore_pending);
+
+/* 驱动释放后可能复用同一 handle/VA: 若映射里仍有旧记录(典型的僵尸记录), 在 add 之前
+ * 摘除并按记账口径核销, 避免 records[] 出现两条同 ptr 记录, 使后续 mark_active/remove
+ * 命中错误的那条; 先清理再 add 也能让表满时复用旧槽位而不是直接失败 */
+static void swap_hook_drop_stale_record(swap_hook_t *hook, void *ptr)
+{
+    memory_record_t stale;
+    bool found = false;
+    int ret = memory_tracker_take(hook->tracker, ptr, &stale, &found);
+    if (ret != ENPU_SUCCESS || !found) {
+        return;
+    }
+    LOG_WARN("swap_hook: ptr=%p reused, drop stale record gen=%lu, size=%lu, swapped=%d, offset=%lu", ptr, stale.gen,
+             stale.size, (int)stale.is_swapped, stale.swap_offset);
+    /* 未换出且不在 pending 中的僵尸记录仍计入 hbm_used, 必须核销, 否则额度只增不减 */
+    swap_hook_account_free(stale.size, stale.is_swapped, stale.restore_pending);
+}
+
 static int recover_swap_in_mutex(pthread_mutex_t *mutex, int rc)
 {
     if (rc == EOWNERDEAD) {
@@ -85,6 +104,7 @@ int swap_hook_malloc_mem(swap_hook_t *hook, void **ptr, uint64_t size)
     int ret = swap_executor_swap_in(hook->executor, ptr, 0, &size, &handle, NOT_MEMCPY_FLAG);
     CHECK_RETURN_ERROR_CODE(ret, "Malloc and map physical mem failed when malloc mem.");
 
+    swap_hook_drop_stale_record(hook, *ptr);
     ret = memory_tracker_add(hook->tracker, *ptr, size, handle, false);
     CHECK_RETURN_ERROR_CODE(ret, "Memory tracker add record failed when malloc mem.");
 
@@ -109,6 +129,7 @@ int swap_hook_malloc_physical_mem(swap_hook_t *hook, rtDrvMemHandle handle, uint
         return ENPU_FAIL;
     }
 
+    swap_hook_drop_stale_record(hook, handle);
     int ret = memory_tracker_add(hook->tracker, handle, size, handle, true);
     CHECK_RETURN_ERROR_CODE(ret, "Memory tracker add record failed when malloc physical mem.");
     rtDrvMemProp_t rtProp = {};
@@ -191,10 +212,18 @@ int swap_hook_check_and_swap_in(swap_hook_t *hook)
         return ret;
     }
 
-    /* 恢复量取进程槽位记录的真实换出量: swap_size 在换出时写为 act_swapped, 与换出侧 clamp 扣减
-     * 的 hbm_used 完全同一口径; 恢复逻辑仅对双级 hbm_used 做 atomic_fetch_add(used), 不再逐 record
-     * 累加 size, 避免与实拷字节数不一致导致的偏差 */
-    uint64_t used = atomic_load(&my_entry->swap_size);
+    /* 恢复量在循环内按实际换入成功的记录大小累加(pending_restore_bytes), 支持部分失败后
+     * 重试: 失败轮次不加回 hbm_used, 成功后一次性恢复, 不依赖可能被 check_and_swap_out
+     * 覆盖的 swap_size */
+    /* 以“本次进入循环时仍处于换出状态的记录数”为准, 而不是 check_record(check_and_swap_out
+     * 可能重置它, 导致重试轮次口径不一致) */
+    size_t expected_in = 0;
+    for (size_t i = 0; i < hook->tracker->count; ++i) {
+        if (hook->tracker->records[i].is_swapped) {
+            expected_in++;
+        }
+    }
+
     hook->tracker->check_record_in = 0;
     for (size_t i = 0; i < hook->tracker->count; ++i) {
         memory_record_t *record = &(hook->tracker->records[i]);
@@ -202,9 +231,10 @@ int swap_hook_check_and_swap_in(swap_hook_t *hook)
             continue;
         }
         int ret = ENPU_SUCCESS;
+        uint64_t rec_size = record->size;
         if (record->is_physical) {
-            ret = swap_executor_swap_in_physical(hook->executor, hook->tracker, record->ptr, record->swap_offset,
-                                                 &record->size, &record->handle);
+            ret = swap_executor_swap_in_physical(hook->executor, hook->tracker, record->ptr, record->gen,
+                                                 record->swap_offset, &record->size, &record->handle);
         } else {
             ret = swap_executor_swap_in(hook->executor, &record->ptr, record->swap_offset, &record->size,
                                         &record->handle, MEMCPY_FLAG);
@@ -214,21 +244,52 @@ int swap_hook_check_and_swap_in(swap_hook_t *hook)
             continue;
         }
 
-        ret = memory_tracker_mark_active(hook->tracker, record->ptr, record->handle);
+        ret = memory_record_mark_active(record, record->handle);
         if (ret != ENPU_SUCCESS) {
             LOG_ERROR("swap_hook: mark_active failed for ptr=%p, ret=%d", record->ptr, ret);
             continue;
         }
 
+        hook->tracker->pending_restore_bytes += rec_size;
+        record->restore_pending = true;
         hook->tracker->check_record_in++;
         LOG_DEBUG("swap_hook: swap_in record success for ptr=%p, offset=%lu, size=%lu", record->ptr,
                   record->swap_offset, record->size);
     }
 
-    if (hook->tracker->check_record_in != hook->tracker->check_record) {
-        LOG_WARN("swap_hook: check_record mismatch, swap_in=%zu != swap_out=%zu", hook->tracker->check_record_in,
-                 hook->tracker->check_record);
+    if (hook->tracker->check_record_in != expected_in) {
+        /* 有块没换入成功: 不能宣告换入完成. 否则进程带着未映射的 VA 继续下发,
+         * 内核访问到无效 GM 地址会直接 507035. 保留 swapped 标志等下次重试 */
+        LOG_ERROR("swap_hook: swap_in incomplete, swap_in=%zu != expected=%zu", hook->tracker->check_record_in,
+                  expected_in);
+        size_t leftover = 0;
+        for (size_t i = 0; i < hook->tracker->count; ++i) {
+            memory_record_t *record = &(hook->tracker->records[i]);
+            if (!record->is_swapped) {
+                continue;
+            }
+            if (leftover < 16) {
+                LOG_WARN("swap_hook: leftover swapped record ptr=%p, gen=%lu, size=%lu, phys=%d, offset=%lu",
+                         record->ptr, record->gen, record->size, (int)record->is_physical, record->swap_offset);
+            }
+            leftover++;
+        }
+        LOG_WARN("swap_hook: %zu record(s) still swapped out, retry on next launch", leftover);
+        pthread_mutex_unlock(&state->swap_in_mutex);
+        pthread_mutex_unlock(&hook->tracker->lock);
+        return ENPU_FAIL;
     }
+
+    /* 全部换入完成后, 把此前各轮成功恢复但未记账的字节一次性加回 */
+    uint64_t used = hook->tracker->pending_restore_bytes;
+    hook->tracker->pending_restore_bytes = 0;
+    for (size_t i = 0; i < hook->tracker->count; ++i) {
+        hook->tracker->records[i].restore_pending = false;
+    }
+
+    /* 本轮没有需要换入的记录(例如换出后应用已把记录全部 free)也必须清除 swapped 标志,
+     * 否则进程永久停留在"已换出": 既不会再被换出(超分失效), 换出池区间也无法回收 */
+    shm_set_process_swapped(state, get_vnpu_id(), my_slot, false);
 
     if (used != 0) {
         /* 进程级 + vNPU 级 hbm_used 恢复 */
@@ -237,13 +298,34 @@ int swap_hook_check_and_swap_in(swap_hook_t *hook)
         if (vnpu_entry != NULL) {
             atomic_fetch_add(&vnpu_entry->hbm_used, used);
         }
-        shm_set_process_swapped(state, get_vnpu_id(), my_slot, false);
-
-        LOG_INFO("swap_hook: swap_in completed for vnpu %d, slot %d", get_vnpu_id(), my_slot);
     }
+    LOG_INFO("swap_hook: swap_in completed for vnpu %d, slot %d, restored=%lu", get_vnpu_id(), my_slot,
+             (unsigned long)used);
     pthread_mutex_unlock(&state->swap_in_mutex);
     pthread_mutex_unlock(&hook->tracker->lock);
     return ENPU_SUCCESS;
+}
+
+/* 释放内存时的记账: 换出状态下 hbm_used 已由换出侧扣减, 且该记录不会再被换入,
+ * 因此这里不再重复扣减; 部分换入成功但尚未加回 hbm_used 的记录同理(其待恢复量已在
+ * 删除记录时从 pending_restore_bytes 核销); 其余情况按进程级 + vNPU 级扣减 hbm_used */
+static void swap_hook_account_free(uint64_t size, bool was_swapped, bool restore_pending)
+{
+    if (was_swapped || restore_pending) {
+        return;
+    }
+
+    shm_state_t *state = get_shm_state();
+    vnpu_shm_entry_t *entry = state != NULL ? shm_get_entry(state, get_vnpu_id()) : NULL;
+    if (entry == NULL) {
+        return;
+    }
+
+    int my_slot = get_registry_slot();
+    if (my_slot >= 0) {
+        atomic_fetch_sub(&entry->processes[my_slot].hbm_used, size);
+    }
+    atomic_fetch_sub(&entry->hbm_used, size);
 }
 
 int swap_hook_free_mem(swap_hook_t *hook, void *ptr)
@@ -253,32 +335,44 @@ int swap_hook_free_mem(swap_hook_t *hook, void *ptr)
         return ENPU_FAIL;
     }
 
-    int ret = RUNTIME_HOOK_CALL(rt_library_entry, rtUnmapMem, ptr);
-    CHECK_COND_RETURN_(ret != ACL_RT_SUCCESS, ret, "UnmapMem failed when free mem.");
+    /* 原子摘除记录: 查找、字段拷贝与删除都在 tracker 锁内完成。
+     * 并发删除会压缩 records[]、扩容会迁移 records[], 在锁外持有元素指针会读到无关记录 */
+    memory_record_t record;
+    bool found = false;
+    int take_ret = memory_tracker_take(hook->tracker, ptr, &record, &found);
+    CHECK_RETURN_ERROR_CODE(take_ret, "Memory tracker take record failed when free mem.");
 
-    memory_record_t *record = memory_tracker_find(hook->tracker, ptr);
-    CHECK_COND_RETURN_ERROR_CODE(record == NULL, "No record match for devPtr when free mem.");
-    uint64_t size = record->size;
-    ret = RUNTIME_HOOK_CALL(rt_library_entry, rtFreePhysical, record->handle);
-    if (ret == ACL_RT_SUCCESS) {
-        ret = RUNTIME_HOOK_CALL(rt_library_entry, rtReleaseMemAddress, ptr);
-        CHECK_COND_LOG_(ret != ACL_RT_SUCCESS, "Release va failed when free mem.");
-    } else {
-        LOG_ERROR("Free physical failed when free mem.");
+    if (!found) {
+        /* 可能是非 Device 内存, 也可能是 map key 丢失的孤儿记录: 兜底按 ptr 清一次 */
+        (void)RUNTIME_HOOK_CALL(rt_library_entry, rtUnmapMem, ptr);
+        (void)memory_tracker_remove(hook->tracker, ptr);
+        LOG_ERROR("No record match for devPtr when free mem.");
+        return ENPU_FAIL;
     }
 
-    ret = memory_tracker_remove(hook->tracker, ptr);
-    CHECK_RETURN_ERROR_CODE(ret, "Memory tracker remove record failed when free mem.");
-
-    shm_state_t *state = get_shm_state();
-    vnpu_shm_entry_t *entry = state != NULL ? shm_get_entry(state, get_vnpu_id()) : NULL;
-    int my_slot = get_registry_slot();
-    if (entry != NULL) {
-        if (my_slot >= 0) {
-            atomic_fetch_sub(&entry->processes[my_slot].hbm_used, size);
+    if (!record.is_swapped) {
+        int ret = RUNTIME_HOOK_CALL(rt_library_entry, rtUnmapMem, ptr);
+        if (ret != ACL_RT_SUCCESS) {
+            LOG_ERROR("UnmapMem failed when free mem, record already removed anyway. ret=%d", ret);
         }
-        atomic_fetch_sub(&entry->hbm_used, size);
     }
+
+    int ret = ACL_RT_SUCCESS;
+    if (record.is_swapped) {
+        /* 换出时已 unmap 并 rtFreePhysical, 不能再释放一次物理内存, 只回收 VA 预留 */
+        ret = RUNTIME_HOOK_CALL(rt_library_entry, rtReleaseMemAddress, ptr);
+        CHECK_COND_LOG_(ret != ACL_RT_SUCCESS, "Release va failed when free swapped mem.");
+    } else {
+        ret = RUNTIME_HOOK_CALL(rt_library_entry, rtFreePhysical, record.handle);
+        if (ret == ACL_RT_SUCCESS) {
+            ret = RUNTIME_HOOK_CALL(rt_library_entry, rtReleaseMemAddress, ptr);
+            CHECK_COND_LOG_(ret != ACL_RT_SUCCESS, "Release va failed when free mem.");
+        } else {
+            LOG_ERROR("Free physical failed when free mem.");
+        }
+    }
+
+    swap_hook_account_free(record.size, record.is_swapped, record.restore_pending);
 
     return ENPU_SUCCESS;
 }
@@ -290,29 +384,28 @@ int swap_hook_free_physical_mem(swap_hook_t *hook, rtDrvMemHandle handle)
         return ENPU_FAIL;
     }
 
-    memory_record_t *record = memory_tracker_find(hook->tracker, handle);
-    // record为NULL时, 表示之前mallocPhysical申请的内存非Device内存, 所以不被记录
-    if (record == NULL) {
+    memory_record_t record;
+    bool found = false;
+    int take_ret = memory_tracker_take(hook->tracker, handle, &record, &found);
+    CHECK_RETURN_ERROR_CODE(take_ret, "Memory tracker take record failed when free physical mem.");
+
+    // record不存在时, 可能是非Device内存未被记录, 也可能是 map key 丢失的孤儿记录: 兜底按 ptr 清一次
+    if (!found) {
+        (void)memory_tracker_remove(hook->tracker, handle);
         return RUNTIME_HOOK_CALL(rt_library_entry, rtFreePhysical, handle);
     }
-    uint64_t size = record->size;
-    int ret = RUNTIME_HOOK_CALL(rt_library_entry, rtFreePhysical, record->handle);
-    CHECK_COND_LOG_(ret != ACL_RT_SUCCESS, "Free physical failed when free physical mem.");
 
-    ret = memory_tracker_remove(hook->tracker, record->ptr);
-    CHECK_RETURN_ERROR_CODE(ret, "Memory tracker remove record failed when free physical mem.");
+    int ret = ACL_RT_SUCCESS;
+    /* 换出时已 rtFreePhysical, 这里不能再释放一次物理内存 */
+    if (!record.is_swapped) {
+        ret = RUNTIME_HOOK_CALL(rt_library_entry, rtFreePhysical, record.handle);
+        CHECK_COND_LOG_(ret != ACL_RT_SUCCESS, "Free physical failed when free physical mem.");
+    }
+
     ret = memory_tracker_remove_handle_record(hook->tracker, handle);
     CHECK_RETURN_ERROR_CODE(ret, "Memory tracker remove handle record failed when free physical mem.");
 
-    shm_state_t *state = get_shm_state();
-    vnpu_shm_entry_t *entry = state != NULL ? shm_get_entry(state, get_vnpu_id()) : NULL;
-    int my_slot = get_registry_slot();
-    if (entry != NULL) {
-        if (my_slot >= 0) {
-            atomic_fetch_sub(&entry->processes[my_slot].hbm_used, size);
-        }
-        atomic_fetch_sub(&entry->hbm_used, size);
-    }
+    swap_hook_account_free(record.size, record.is_swapped, record.restore_pending);
 
     return ENPU_SUCCESS;
 }
@@ -332,7 +425,7 @@ int swap_hook_map_mem(swap_hook_t *hook, void *devPtr, size_t size, size_t offse
     }
 
     *handle = record->handle;
-    return memory_tracker_add_map_record(hook->tracker, devPtr, size, offset, record->ptr, flags);
+    return memory_tracker_add_map_record(hook->tracker, devPtr, size, offset, record->ptr, flags, record->gen);
 }
 
 int swap_hook_unmap_mem(swap_hook_t *hook, void *devPtr)
