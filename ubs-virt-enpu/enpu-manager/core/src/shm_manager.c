@@ -104,7 +104,16 @@ int shm_struct_init(const char *shm_id, vnpu_time_slice_sched_t **sched_out)
     }
 
     vnpu_time_slice_sched_t *sched = (vnpu_time_slice_sched_t *)addr;
-    atomic_store(&sched->magic_number, VNPU_SCHED_MAGIC_INITIALIZING);
+    uint_fast32_t uninitialized = VNPU_SCHED_MAGIC_UNINITIALIZED;
+    if (!atomic_compare_exchange_strong(&sched->magic_number, &uninitialized, VNPU_SCHED_MAGIC_INITIALIZING)) {
+        /* A runtime may have initialized the same freshly created domain first. */
+        if (uninitialized == VNPU_SCHED_MAGIC_INITIALIZED) {
+            *sched_out = sched;
+            return ENPU_SUCCESS;
+        }
+        munmap(sched, size);
+        return ENPU_FAIL;
+    }
 
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
@@ -125,6 +134,7 @@ int shm_struct_init(const char *shm_id, vnpu_time_slice_sched_t **sched_out)
         atomic_store(&sched->vnpu_sync_completed[i], 0);
         atomic_store(&sched->vnpu_turn_max_sync[i], 0ULL);
         atomic_store(&sched->vnpu_timeslice_for_turn[i], 0ULL);
+        vnpu_launch_budget_init(&sched->launch_budget[i]);
     }
 
     pthread_mutex_init(&sched->npu_utilization_monitor_mutex, &attr);

@@ -13,12 +13,15 @@
 #define _GNU_SOURCE
 #endif
 #include "core_limiter.h"
+#include <limits.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include "common.h"
 #include "dcmi_wrapper.h"
 #include "hash_map.h"
+#include "launch_budget.h"
 #include "npu_manager.h"
 #include "runtime_hook.h"
-#include "stream_drain.h"
 #include "utils.h"
 #include "vnpu_stats.h"
 
@@ -60,15 +63,79 @@ typedef struct {
     uint64_t tmp_count;
 } task_grp_state_t;
 
+typedef struct {
+    launch_budget_snapshot_t snapshot;
+    bool valid;
+    bool budget_triggered;
+    bool joined;
+} launch_budget_turn_report_t;
+
+typedef struct {
+    uint64_t period_start_ns;
+    uint64_t turns;
+    uint64_t budget_triggered;
+    uint64_t time_triggered;
+    uint64_t launches;
+    uint64_t budget_total;
+    uint64_t duration_total_ns;
+    uint64_t duration_fallback_turns;
+    uint64_t model_fallbacks;
+    uint64_t drain_incomplete;
+} launch_budget_observer_t;
+
+static launch_budget_observer_t g_launch_budget_observer;
+
 static HashMap *task_grp_state_map = NULL;
 static HashMap *taskGroup_map = NULL;
 static pthread_mutex_t g_stats_map_mutex;
+
+static bool stream_is_capturing_locked(rtStream_t stm);
 
 uint64_t ns_now(void)
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (uint64_t)ts.tv_sec * NS_PER_S + (uint64_t)ts.tv_nsec;
+}
+
+static void launch_budget_observe_turn(const launch_budget_turn_report_t *report, bool drain_complete)
+{
+    if (report == NULL || !report->valid) {
+        return;
+    }
+
+    uint64_t now = ns_now();
+    if (g_launch_budget_observer.period_start_ns == 0) {
+        g_launch_budget_observer.period_start_ns = now;
+    }
+    g_launch_budget_observer.turns++;
+    g_launch_budget_observer.budget_triggered += report->budget_triggered ? 1 : 0;
+    g_launch_budget_observer.time_triggered += report->budget_triggered ? 0 : 1;
+    g_launch_budget_observer.launches += report->snapshot.launch_count;
+    g_launch_budget_observer.budget_total += report->snapshot.launch_budget;
+    g_launch_budget_observer.duration_total_ns += report->snapshot.duration_ns;
+    g_launch_budget_observer.duration_fallback_turns += report->snapshot.duration_fallback ? 1 : 0;
+    g_launch_budget_observer.model_fallbacks += report->snapshot.model_fallbacks;
+    g_launch_budget_observer.drain_incomplete += drain_complete ? 0 : 1;
+
+    if (now - g_launch_budget_observer.period_start_ns < NS_PER_S) {
+        return;
+    }
+
+    uint64_t turns = g_launch_budget_observer.turns;
+    uint64_t fallback = g_launch_budget_observer.duration_fallback_turns + g_launch_budget_observer.model_fallbacks;
+    LOG_DEBUG("[LAUNCH-BUDGET] vnpu=%u owner=%d turn=%u turns=%llu budget_triggered=%llu "
+              "time_triggered=%llu launches=%llu budget_avg=%llu duration_avg_ns=%llu fallback=%llu "
+              "drain_incomplete=%llu",
+              g_vnpu_id, atomic_load(&g_vnpu_sched_context->owner), report->snapshot.turn_id, (unsigned long long)turns,
+              (unsigned long long)g_launch_budget_observer.budget_triggered,
+              (unsigned long long)g_launch_budget_observer.time_triggered,
+              (unsigned long long)g_launch_budget_observer.launches,
+              (unsigned long long)(g_launch_budget_observer.budget_total / turns),
+              (unsigned long long)(g_launch_budget_observer.duration_total_ns / turns), (unsigned long long)fallback,
+              (unsigned long long)g_launch_budget_observer.drain_incomplete);
+
+    g_launch_budget_observer = (launch_budget_observer_t){.period_start_ns = now};
 }
 
 /// The input must be less than 1000000000.
@@ -194,7 +261,8 @@ static void add_stream_locked(rtStream_t stream)
     restore_streams_locked(stream);
 }
 
-void core_limiter(rtStream_t stream, core_function func, void *param)
+static void core_limiter_internal(rtStream_t stream, core_function func, void *param, uint64_t launch_weight,
+                                  bool model_fallback, launch_budget_ticket_t *ticket)
 {
     // Best-effort skips scheduling, not capture/event/task-group bookkeeping.
     if (!is_core_limit()) {
@@ -231,6 +299,21 @@ void core_limiter(rtStream_t stream, core_function func, void *param)
             ns_sleep(WAITING_SLEEP_PERIOD);
             continue;
         }
+        /* Capture only records tasks into the model; the device executes them later at model launch. */
+        bool capture_launch = ticket != NULL && stream_is_capturing_locked(stream);
+        if ((ticket == NULL || capture_launch) && !launch_budget_gate_open()) {
+            pthread_mutex_unlock(&g_sched_mutex);
+            ns_sleep(WAITING_SLEEP_PERIOD);
+            continue;
+        }
+        if (!capture_launch && ticket != NULL && !launch_budget_try_admit_weighted(launch_weight, ticket)) {
+            pthread_mutex_unlock(&g_sched_mutex);
+            ns_sleep(WAITING_SLEEP_PERIOD);
+            continue;
+        }
+        if (!capture_launch && model_fallback) {
+            launch_budget_record_model_fallback();
+        }
         // The delivered stream needs to be recorded because the execution time needs to be collected later.
         restore_streams(stream);
         if (func != NULL) {
@@ -243,6 +326,33 @@ void core_limiter(rtStream_t stream, core_function func, void *param)
     }
 
     return;
+}
+
+void core_limiter(rtStream_t stream, core_function func, void *param)
+{
+    core_limiter_internal(stream, func, param, 0, false, NULL);
+}
+
+launch_budget_ticket_t core_limiter_launch(rtStream_t stream)
+{
+    launch_budget_ticket_t ticket = {0};
+    core_limiter_internal(stream, NULL, NULL, 1, false, &ticket);
+    return ticket;
+}
+
+launch_budget_ticket_t core_limiter_model_launch(rtStream_t stream, core_function func, void *param, rtModel_t model)
+{
+    launch_budget_ticket_t ticket = {0};
+    int task_count = get_kernel_count(model);
+    if (task_count <= 0) {
+        uint64_t captured_count = 0;
+        if (model_stats_get(model, NULL, &captured_count) == 0 && captured_count > 0 && captured_count <= INT_MAX) {
+            task_count = (int)captured_count;
+        }
+    }
+    uint64_t weight = task_count > 0 ? (uint64_t)task_count : 1;
+    core_limiter_internal(stream, func, param, weight, task_count <= 0, &ticket);
+    return ticket;
 }
 
 bool check_timeout(atomic_uint_fast64_t *timestamp, uint64_t timeout_period)
@@ -322,102 +432,102 @@ void set_vnpu_and_idle(int vnpu_id, int next_vnpu_id)
     atomic_store(&g_vnpu_sched_context->owner, next_vnpu_id);
 }
 
-/* Keep Runtime synchronization off the scheduler and allow dependent launches
- * during this bounded drain phase. The worker never changes shared turn state. */
+/* Comparison path: restore scheduler-thread synchronization before the bounded
+ * worker drain change. Admission stays closed until every stream completes.
+ * Runtime/model waits intentionally have no timeout and may block rotation. */
 uint64_t scheduler_drain_turn(uint8_t turn, bool *complete)
 {
     *complete = false;
     uint64_t begin = ns_now();
-    uint64_t deadline = begin + SYNC_WAIT_TIMEOUT_NS;
     if (atomic_load(&g_vnpu_sched_context->owner) != g_vnpu_id ||
         atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]) != turn) {
         return 0;
     }
-    bool submitted = false;
-    if (stream_drain_finished() && pthread_mutex_trylock(&g_sched_mutex) == 0) {
-        cache_streams_t snapshot = {0};
-        for (int i = 0; i < g_cache_streams.num_streams; ++i) {
-            rtStream_t stream = g_cache_streams.streams[i];
-            if (!stream_is_capturing(stream)) {
-                snapshot.streams[snapshot.num_streams++] = stream;
-            }
-        }
-        submitted = stream_drain_submit(snapshot.streams, snapshot.num_streams, turn);
-        if (submitted) {
-            int remaining = 0;
-            for (int i = 0; i < g_cache_streams.num_streams; ++i) {
-                rtStream_t stream = g_cache_streams.streams[i];
-                if (stream_is_capturing(stream)) {
-                    g_cache_streams.streams[remaining++] = stream;
-                } else {
-                    (void)hashmap_remove(stream_map, stream);
-                }
-            }
-            g_cache_streams.num_streams = remaining;
-        }
-        pthread_mutex_unlock(&g_sched_mutex);
-    }
-    atomic_store(&g_sched_locking, false);
-    while (!g_terminate && !stream_drain_finished() && ns_now() < deadline &&
-           atomic_load(&g_vnpu_sched_context->owner) == g_vnpu_id &&
-           atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]) == turn) {
+    atomic_store(&g_sched_locking, true);
+    LOG_DEBUG("[DRAIN] synchronous begin: owner=%d vnpu=%u turn=%u models=%d",
+              atomic_load(&g_vnpu_sched_context->owner), g_vnpu_id, turn, atomic_load(&hasModelExecuteSync));
+    while (atomic_load(&hasModelExecuteSync) > 0) {
         ns_sleep(WAITING_SLEEP_PERIOD);
     }
-    atomic_store(&g_sched_locking, true);
-    *complete = submitted && stream_drain_succeeded();
-    uint64_t elapsed = ns_now() - begin;
-    static uint64_t last_warning_ns = 0;
-    if (!*complete && ns_now() - last_warning_ns >= NS_PER_S) {
-        last_warning_ns = ns_now();
-        LOG_WARN("[DRAIN] incomplete: owner=%d vnpu=%u turn=%u stream=%p locking=%d models=%d "
-                 "expected=%d completed=%d elapsed_ns=%llu; continue rotation",
-                 atomic_load(&g_vnpu_sched_context->owner), g_vnpu_id, turn, stream_drain_current_stream(),
-                 atomic_load(&g_sched_locking), atomic_load(&hasModelExecuteSync),
-                 atomic_load(&g_vnpu_sched_context->vnpu_sync_expected[g_vnpu_id]),
-                 atomic_load(&g_vnpu_sched_context->vnpu_sync_completed[g_vnpu_id]), (unsigned long long)elapsed);
+    int rc = pthread_mutex_lock(&g_sched_mutex);
+    if (rc != 0) {
+        LOG_WARN("[DRAIN] Failed to lock stream cache, rc=%d.", rc);
+        return ns_now() - begin;
     }
-    return elapsed;
+    bool succeeded = true;
+    int remaining = 0;
+    for (int i = 0; i < g_cache_streams.num_streams; ++i) {
+        rtStream_t stream = g_cache_streams.streams[i];
+        if (stream_is_capturing_locked(stream)) {
+            g_cache_streams.streams[remaining++] = stream;
+            continue;
+        }
+        uint64_t sync_begin = ns_now();
+        LOG_DEBUG("[DRAIN] synchronous enter: vnpu=%u turn=%u stream=%p locking=%d", g_vnpu_id, turn, stream,
+                  atomic_load(&g_sched_locking));
+        rtError_t result = RUNTIME_HOOK_CALL(rt_library_entry, rtStreamSynchronize, stream);
+        LOG_DEBUG("[DRAIN] synchronous exit: vnpu=%u turn=%u stream=%p result=%d elapsed_ns=%llu", g_vnpu_id, turn,
+                  stream, result, (unsigned long long)(ns_now() - sync_begin));
+        if (result != ACL_RT_SUCCESS) {
+            succeeded = false;
+            LOG_WARN("[DRAIN] Runtime sync failed: vnpu=%u turn=%u stream=%p result=%d", g_vnpu_id, turn, stream,
+                     result);
+        }
+        if (hashmap_remove(stream_map, stream) != 0) {
+            succeeded = false;
+        }
+    }
+    g_cache_streams.num_streams = remaining;
+    pthread_mutex_unlock(&g_sched_mutex);
+    launch_budget_snapshot_t snapshot;
+    launch_budget_get_snapshot(&snapshot);
+    *complete = succeeded && snapshot.in_flight_launches == 0;
+    return ns_now() - begin;
 }
 
 // wait to finish parallel stream synchronization with all sibling processes of vNPU.
-static void wait_for_sibling_sync(uint8_t vnpu_id, uint8_t turn_id)
+static bool wait_for_sibling_sync(uint8_t vnpu_id, uint64_t epoch)
 {
     uint64_t wait_deadline = ns_now() + SYNC_WAIT_TIMEOUT_NS;
     while (ns_now() < wait_deadline) {
         // re-check turn
-        if (atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[vnpu_id]) != turn_id) {
-            LOG_DEBUG("vNPU %d pid %d: wait detected turn advanced (turn_id=%u), exit early.", vnpu_id, (int)getpid(),
-                      turn_id);
-            return;
+        if (atomic_load(&g_vnpu_sched_context->launch_budget[vnpu_id].epoch) != epoch) {
+            return false;
         }
         int expected = atomic_load(&g_vnpu_sched_context->vnpu_sync_expected[vnpu_id]);
         int completed = atomic_load(&g_vnpu_sched_context->vnpu_sync_completed[vnpu_id]);
         if (completed >= expected) {
-            return;
+            return true;
         }
         ns_sleep(WAITING_SLEEP_PERIOD);
     }
     int expected = atomic_load(&g_vnpu_sched_context->vnpu_sync_expected[vnpu_id]);
     int completed = atomic_load(&g_vnpu_sched_context->vnpu_sync_completed[vnpu_id]);
-    LOG_WARN("vNPU %d pid %d: sync wait timeout, completed=%d expected=%d. "
-             "Slow sibling's sync not counted in debt this turn.",
-             vnpu_id, (int)getpid(), completed, expected);
+    LOG_WARN("[LAUNCH-BUDGET] sibling timeout vnpu=%u epoch=%llu completed=%d expected=%d; no refund or feedback",
+             vnpu_id, (unsigned long long)epoch, completed, expected);
+    return false;
 }
 
 // multiple processes fetch and consume time slices from shared memory
-uint64_t add_and_consume_time_slice(uint8_t *turn_id, int *next_vnpu_id)
+uint64_t add_and_consume_time_slice(uint8_t *turn_id, int *next_vnpu_id, launch_budget_turn_report_t *report)
 {
+    if (report != NULL) {
+        *report = (launch_budget_turn_report_t){0};
+    }
     // processes of the same vNPU cannot inject quota/deport timeslice concurrently
-    int rc = pthread_mutex_lock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
-    if (rc == EOWNERDEAD) {
-        LOG_INFO("Consumer mutex owner died; taking over for vNPU %d.", g_vnpu_id);
-        pthread_mutex_consistent(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
-    } else if (rc != 0) {
+    int rc = launch_budget_lock();
+    if (rc != 0) {
         LOG_WARN("Failed to lock vnpu_schedule_mutex, rc=%d.", rc);
         *turn_id = atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]);
         *next_vnpu_id = -1;
         return 0;
     }
+
+    if (atomic_load(&g_vnpu_sched_context->owner) != g_vnpu_id) {
+        launch_budget_unlock();
+        return 0;
+    }
+    vnpu_launch_budget_t *budget = &g_vnpu_sched_context->launch_budget[g_vnpu_id];
 
     uint8_t cur_turn = atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]);
 
@@ -438,30 +548,68 @@ uint64_t add_and_consume_time_slice(uint8_t *turn_id, int *next_vnpu_id)
         // for multi processes: record the current round's time slice quota into the shared memory
         atomic_store(&g_vnpu_sched_context->vnpu_timeslice_for_turn[g_vnpu_id], ts);
         atomic_store(&g_vnpu_sched_context->vnpu_quota_injected_for_turn[g_vnpu_id], cur_turn);
+        launch_budget_prepare_turn(cur_turn, ts, get_sched_policy(), vnpu_stats_get_avg_duration_ns(g_vnpu_id));
 
         LOG_DEBUG("Quota %llu ns injected for vNPU %d turn %u; timeslice=%llu ns.", (unsigned long long)quota,
                   g_vnpu_id, cur_turn, (unsigned long long)ts);
     }
 
-    atomic_fetch_add(&g_vnpu_sched_context->vnpu_sync_expected[g_vnpu_id], 1);
-
     *turn_id = cur_turn;
     int owner = atomic_load(&g_vnpu_sched_context->owner);
     *next_vnpu_id = select_next_owner(owner);
-
-    // multiple processes consume time slices in parallel
-    pthread_mutex_unlock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
     uint64_t ts = atomic_load(&g_vnpu_sched_context->vnpu_timeslice_for_turn[g_vnpu_id]);
+    uint64_t end = atomic_load(&budget->deadline_ns);
+    bool joined = launch_budget_join_turn(ns_now());
+    if (report != NULL) {
+        launch_budget_get_snapshot(&report->snapshot);
+        report->valid = true;
+        report->joined = joined;
+    }
+    LOG_DEBUG("[LAUNCH-BUDGET] join vnpu=%u pid=%d turn=%u epoch=%llu joined=%d expected=%d deadline_ns=%llu",
+              g_vnpu_id, (int)getpid(), cur_turn, (unsigned long long)atomic_load(&budget->epoch), joined,
+              atomic_load(&g_vnpu_sched_context->vnpu_sync_expected[g_vnpu_id]), (unsigned long long)end);
+    /* A late joiner can recover an abandoned turn, but must not reopen admission. */
+    if (!joined) {
+        launch_budget_close_turn(atomic_load(&budget->epoch), ns_now());
+        launch_budget_unlock();
+        return ts;
+    }
+    launch_budget_unlock();
     if (ts > 0) {
         atomic_store(&g_sched_locking, false);
-        uint64_t end = ns_now() + ts;
         while (ns_now() < end && !g_terminate) {
             if (atomic_load(&g_vnpu_sched_context->owner) != g_vnpu_id) {
                 break;
             }
+            if (launch_budget_should_yield(cur_turn)) {
+                break;
+            }
             ns_sleep(WAITING_SLEEP_PERIOD);
         }
-        atomic_store(&g_sched_locking, true);
+    }
+    atomic_store(&g_sched_locking, true);
+    rc = launch_budget_lock();
+    if (rc == 0) {
+        uint64_t epoch = report != NULL ? report->snapshot.epoch : atomic_load(&budget->epoch);
+        int phase = atomic_load(&budget->phase);
+        if (atomic_load(&budget->epoch) == epoch && atomic_load(&g_vnpu_sched_context->owner) == g_vnpu_id &&
+            atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]) == cur_turn &&
+            (phase == VNPU_LAUNCH_OPEN || phase == VNPU_LAUNCH_DRAIN)) {
+            if (g_terminate) {
+                atomic_store(&budget->failed, 1);
+            }
+            launch_budget_close_turn(epoch, ns_now());
+            if (report != NULL) {
+                launch_budget_get_snapshot(&report->snapshot);
+                report->budget_triggered = report->snapshot.yield_requested;
+            }
+        } else if (report != NULL) {
+            report->valid = false;
+        }
+        launch_budget_unlock();
+    } else if (report != NULL) {
+        report->valid = false;
+        LOG_WARN("Failed to close launch budget turn, rc=%d.", rc);
     }
 
     return ts;
@@ -609,9 +757,11 @@ void check_and_borrow_timeslice(int owner)
             pthread_detach(thread);
         }
     } else if (slide_window_check(owner)) { // Check and borrow timeslice
+        launch_budget_set_borrowing(true);
         atomic_store(&g_sched_locking, false);
         ns_sleep(BORROW_TIMESLICE_LENGTH); // borrow BORROW_TIMESLICE_LENGTH ns every time
         atomic_store(&g_sched_locking, true);
+        launch_budget_set_borrowing(false);
     }
 }
 
@@ -623,6 +773,11 @@ void *vnpu_scheduler_thread(void *arg)
     int next_vnpu_id = -1;
     uint64_t last_avg_update_ns = 0; /* avg_duration 每 VNPU_STATS_WINDOW_NS 刷一次 */
     // g_sched_locking = true : user can not launch task by core_limiter
+    launch_budget_reset();
+    g_launch_budget_observer = (launch_budget_observer_t){0};
+    LOG_INFO("[LAUNCH-BUDGET] shared budget initialized vnpu=%u policy=%d enabled=%d min=%llu max=%llu alpha_max=%llu",
+             g_vnpu_id, get_sched_policy(), is_core_limit(), (unsigned long long)LAUNCH_BUDGET_MIN,
+             (unsigned long long)LAUNCH_BUDGET_MAX, (unsigned long long)LAUNCH_BUDGET_ALPHA_MAX);
     atomic_store(&g_sched_locking, true);
     while (!g_terminate) {
         /* Average publication is independent of owner and limiting policy. */
@@ -656,17 +811,28 @@ void *vnpu_scheduler_thread(void *arg)
         }
 
         // Consumption time slice. The lock is released to the user process within the specified time.
-        uint64_t timeslice = add_and_consume_time_slice(&turn_id, &next_vnpu_id);
+        launch_budget_turn_report_t budget_report = {0};
+        uint64_t timeslice = add_and_consume_time_slice(&turn_id, &next_vnpu_id, &budget_report);
+        if (!budget_report.valid) {
+            ns_sleep(WAITING_SLEEP_PERIOD);
+            continue;
+        }
+        uint64_t epoch = budget_report.snapshot.epoch;
+        vnpu_launch_budget_t *budget = &g_vnpu_sched_context->launch_budget[g_vnpu_id];
 
-        if (timeslice > 0) {
-            // without locks, multiple processes are executed in parallel.
-            bool drained;
-            uint64_t my_sync_ns = scheduler_drain_turn(turn_id, &drained);
-            /* Completed here means the sibling finished its bounded drain phase,
-             * not that Runtime necessarily finished all device work. */
-            if (atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]) == turn_id) {
+        bool drained = true;
+        if (budget_report.joined) {
+            // Without locks, multiple processes drain in parallel; debt remains their maximum.
+            uint64_t my_sync_ns = timeslice > 0 ? scheduler_drain_turn(turn_id, &drained) : 0;
+            /* Count siblings that returned from drain; failures separately disable refund. */
+            int rc = launch_budget_lock();
+            if (rc != 0) {
+                LOG_WARN("Failed to publish drain completion, rc=%d.", rc);
+                continue;
+            }
+            if (atomic_load(&budget->epoch) == epoch && atomic_load(&budget->phase) == VNPU_LAUNCH_DRAIN) {
                 atomic_fetch_max_uint64(&g_vnpu_sched_context->vnpu_turn_max_sync[g_vnpu_id], my_sync_ns);
-                atomic_fetch_add(&g_vnpu_sched_context->vnpu_sync_completed[g_vnpu_id], 1);
+                (void)launch_budget_report_drain(epoch, drained);
                 LOG_DEBUG("[DRAIN] phase done: owner=%d vnpu=%u turn=%u locking=%d drained=%d "
                           "expected=%d completed=%d elapsed_ns=%llu",
                           atomic_load(&g_vnpu_sched_context->owner), g_vnpu_id, turn_id, atomic_load(&g_sched_locking),
@@ -675,29 +841,35 @@ void *vnpu_scheduler_thread(void *arg)
                           (unsigned long long)my_sync_ns);
             } else {
                 // this process flow synchronization timeout, data discarded
+                launch_budget_unlock();
+                launch_budget_observe_turn(&budget_report, drained);
                 LOG_WARN("vNPU %d pid %d: sync took %llu ns, turn changed during sync (stale, skip).", g_vnpu_id,
                          (int)getpid(), (unsigned long long)my_sync_ns);
                 continue;
             }
-        } else {
-            atomic_fetch_add(&g_vnpu_sched_context->vnpu_sync_completed[g_vnpu_id], 1);
+            launch_budget_unlock();
         }
+        launch_budget_observe_turn(&budget_report, drained);
 
         // wait to finish parallel stream synchronization with all sibling processes of vNPU.
-        wait_for_sibling_sync(g_vnpu_id, turn_id);
+        bool siblings_complete = wait_for_sibling_sync(g_vnpu_id, epoch);
 
         // Only one thread is accepted.
-        int rc = pthread_mutex_lock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
-        if (rc == EOWNERDEAD) {
-            LOG_INFO("The scheduling process has been detected to exit, and the scheduling is being taken over.");
-            pthread_mutex_consistent(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
-        } else if (rc != 0) {
+        int rc = launch_budget_lock();
+        if (rc != 0) {
             LOG_WARN("Failed to obtain mutex lock, error code=%d.", rc);
             continue;
         }
 
-        if (atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]) == turn_id) {
-            // Only the slice of the main process is considered.
+        if (atomic_load(&budget->epoch) == epoch &&
+            atomic_load(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id]) == turn_id &&
+            atomic_load(&g_vnpu_sched_context->owner) == g_vnpu_id) {
+            uint64_t refund = launch_budget_refund_turn(epoch, siblings_complete);
+            atomic_fetch_add(&g_vnpu_sched_context->vnpu_cur_timeslice[g_vnpu_id], refund);
+            LOG_DEBUG("[LAUNCH-BUDGET] finish vnpu=%u turn=%u epoch=%llu refund_ns=%llu failed=%d drain_launches=%llu",
+                      g_vnpu_id, turn_id, (unsigned long long)epoch, (unsigned long long)refund,
+                      atomic_load(&budget->failed), (unsigned long long)atomic_load(&budget->drain_launches));
+            // Keep the original debt accounting: charge the maximum sibling drain once per turn.
             if (timeslice > 0) {
                 uint64_t debt = atomic_load(&g_vnpu_sched_context->vnpu_turn_max_sync[g_vnpu_id]);
                 (void)atomic_fetch_sub(&g_vnpu_sched_context->vnpu_cur_timeslice[g_vnpu_id], debt);
@@ -708,8 +880,9 @@ void *vnpu_scheduler_thread(void *arg)
             set_vnpu_and_idle(atomic_load(&g_vnpu_sched_context->owner), next_vnpu_id);
             atomic_store(&g_vnpu_sched_context->vnpu_schedule_turn[g_vnpu_id], turn_id + 1);
         }
-        pthread_mutex_unlock(&g_vnpu_sched_context->vnpu_schedule_mutex[g_vnpu_id]);
+        launch_budget_unlock();
     }
+    launch_budget_reset();
     hashmap_destroy(stream_map);
     hashmap_destroy(event_map);
     return NULL;
@@ -758,7 +931,15 @@ int share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
             continue;
         }
 
-        atomic_store(&g_vnpu_sched_context->magic_number, MAGIC_INITIALIZING);
+        if (atomic_load(&g_vnpu_sched_context->magic_number) != MAGIC_UNINITIALIZED) {
+            LOG_ERROR("Scheduling shm ABI mismatch; stop old producers and recreate this scheduling domain.");
+            return ENPU_FAIL;
+        }
+
+        uint_fast32_t uninitialized = MAGIC_UNINITIALIZED;
+        if (!atomic_compare_exchange_strong(&g_vnpu_sched_context->magic_number, &uninitialized, MAGIC_INITIALIZING)) {
+            continue;
+        }
         atomic_store(&g_vnpu_sched_context->owner, -1);
 
         pthread_mutexattr_t attr;
@@ -779,6 +960,7 @@ int share_mem_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
             atomic_store(&g_vnpu_sched_context->vnpu_sync_completed[i], 0);
             atomic_store(&g_vnpu_sched_context->vnpu_turn_max_sync[i], 0ULL);
             atomic_store(&g_vnpu_sched_context->vnpu_timeslice_for_turn[i], 0ULL);
+            vnpu_launch_budget_init(&g_vnpu_sched_context->launch_budget[i]);
             int ret = pthread_mutex_init(&g_vnpu_sched_context->vnpu_schedule_mutex[i], &attr);
             if (ret != 0) {
                 LOG_ERROR("Failed to init vnpu_schedule_mutex[%d], error=%d.", i, ret);
@@ -804,6 +986,7 @@ int vnpu_scheduler_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
 {
     g_vnpu_sched_context = vnpu_sched_shm;
     g_vnpu_id = get_vnpu_id();
+    launch_budget_bind(vnpu_sched_shm, g_vnpu_id);
 
     uint8_t aicore_limit_percent = get_core_limit_quota();
     uint8_t vnpu_priority = get_vnpu_priority();
@@ -822,9 +1005,8 @@ int vnpu_scheduler_init(vnpu_time_slice_sched_t *vnpu_sched_shm)
 int vnpu_scheduler_start(void)
 {
     int rc = 0;
-    if (get_sched_policy() != SCHED_POLICY_BEST_EFFORT && stream_drain_start() != 0) {
-        LOG_ERROR("Failed to start stream drain worker.");
-        return ENPU_FAIL;
+    if (get_sched_policy() != SCHED_POLICY_BEST_EFFORT) {
+        LOG_INFO("[DRAIN] Synchronous scheduler drain enabled; Runtime/model waits have no timeout.");
     }
     pthread_t vnpu_scheduler_tid;
     rc = pthread_create(&vnpu_scheduler_tid, NULL, vnpu_scheduler_thread, NULL);
@@ -875,11 +1057,36 @@ static void destroy_all_stats_maps(void)
     }
 }
 
+static vnpu_time_slice_sched_t *map_scheduler_memory(void)
+{
+    const char *name = get_vnpu_shm_id();
+    int fd = shm_open(name, O_CREAT | O_RDWR, S_IWUSR | S_IRUSR);
+    if (fd < 0) {
+        LOG_ERROR("Failed to open scheduling shm %s, errno=%d.", name, errno);
+        return NULL;
+    }
+    struct stat st;
+    size_t size = sizeof(vnpu_time_slice_sched_t);
+    if (fstat(fd, &st) != 0 || (st.st_size != 0 && st.st_size != (off_t)size)) {
+        LOG_ERROR("Scheduling shm %s has incompatible size; stop old producers and recreate this domain.", name);
+        close(fd);
+        return NULL;
+    }
+    if (st.st_size == 0 && ftruncate(fd, size) != 0) {
+        LOG_ERROR("Failed to size scheduling shm %s, errno=%d.", name, errno);
+        close(fd);
+        return NULL;
+    }
+    void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    close(fd);
+    return addr == MAP_FAILED ? NULL : addr;
+}
+
 int aicore_limiter_initialize(void)
 {
     int rc = ENPU_FAIL;
     vnpu_time_slice_sched_t *vnpu_sched_shm = NULL;
-    vnpu_sched_shm = map_share_mem(get_vnpu_shm_id(), sizeof(vnpu_time_slice_sched_t));
+    vnpu_sched_shm = map_scheduler_memory();
     if (vnpu_sched_shm == NULL) {
         LOG_ERROR("Failed to mmap share memory.");
         return ENPU_FAIL;
@@ -956,6 +1163,8 @@ int aicore_limiter_initialize(void)
 err_destroy_maps:
     destroy_all_stats_maps();
 err_unmap:
+    /* No scheduler threads have started on this path; detach budget pointers before unmapping. */
+    launch_budget_bind(NULL, 0);
     unmap_share_mem(vnpu_sched_shm, sizeof(*vnpu_sched_shm));
     /* share_mem_init / vnpu_scheduler_init 已经把 g_vnpu_sched_context 指向了这块
      * 共享内存, unmap 之后必须置 NULL, 否则 core_limiter()、is_vnpu_alive() 等

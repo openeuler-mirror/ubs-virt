@@ -18,7 +18,7 @@
 RUNTIME_HOOK_DEFINE(rtFftsPlusTaskLaunch, rtFftsPlusTaskInfo_t *fftsPlusTaskInfo, rtStream_t stm)
 {
     LOG_DEBUG("Hook init rtFftsPlusTaskLaunch.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -32,7 +32,7 @@ RUNTIME_HOOK_DEFINE(rtFftsPlusTaskLaunch, rtFftsPlusTaskInfo_t *fftsPlusTaskInfo
 RUNTIME_HOOK_DEFINE(rtFftsPlusTaskLaunchWithFlag, rtFftsPlusTaskInfo_t *fftsPlusTaskInfo, rtStream_t stm, uint32_t flag)
 {
     LOG_DEBUG("Hook init rtFftsPlusTaskLaunchWithFlag.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -46,7 +46,7 @@ RUNTIME_HOOK_DEFINE(rtFftsPlusTaskLaunchWithFlag, rtFftsPlusTaskInfo_t *fftsPlus
 RUNTIME_HOOK_DEFINE(rtStarsTaskLaunch, const void *taskSqe, uint32_t sqeLen, rtStream_t stm)
 {
     LOG_DEBUG("Hook init rtStarsTaskLaunch.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -60,7 +60,7 @@ RUNTIME_HOOK_DEFINE(rtStarsTaskLaunch, const void *taskSqe, uint32_t sqeLen, rtS
 RUNTIME_HOOK_DEFINE(rtStarsTaskLaunchWithFlag, const void *taskSqe, uint32_t sqeLen, rtStream_t stm, uint32_t flag)
 {
     LOG_DEBUG("Hook init rtStarsTaskLaunchWithFlag.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -74,7 +74,7 @@ RUNTIME_HOOK_DEFINE(rtStarsTaskLaunchWithFlag, const void *taskSqe, uint32_t sqe
 RUNTIME_HOOK_DEFINE(rtMultipleTaskInfoLaunch, const void *taskInfo, rtStream_t stm)
 {
     LOG_DEBUG("Hook init rtMultipleTaskInfoLaunch.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_LAUNCH(stm);
     launch_stats_dispatch(stm, get_aicore_num());
     if (is_random_sampling()) {
         sampling_begin(stm);

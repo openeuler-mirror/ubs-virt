@@ -36,7 +36,7 @@ static void track_sync_model(void *param, rtStream_t stream)
 RUNTIME_HOOK_DEFINE(rtModelExecute, rtModel_t mdl, rtStream_t stm, uint32_t flag)
 {
     LOG_DEBUG("Hook init rtModelExecute.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_MODEL_LAUNCH(stm, NULL, NULL, mdl);
     record_model_execute_stats(mdl);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -54,7 +54,7 @@ RUNTIME_HOOK_DEFINE(aclmdlRIExecuteAsyncImpl, aclmdlRI modelRI, aclrtStream stre
         return RUNTIME_HOOK_CALL(rt_library_entry, aclmdlRIExecuteAsyncImpl, modelRI, stream);
     }
     LOG_DEBUG("Hook init aclmdlRIExecuteAsyncImpl.");
-    core_limiter(stream, NULL, NULL);
+    CORE_LIMITER_MODEL_LAUNCH(stream, NULL, NULL, modelRI);
     record_model_execute_stats(modelRI);
     if (is_random_sampling()) {
         sampling_begin(stream);
@@ -69,7 +69,7 @@ RUNTIME_HOOK_DEFINE(aclmdlRIExecuteAsyncImpl, aclmdlRI modelRI, aclrtStream stre
 RUNTIME_HOOK_DEFINE(rtModelExecuteAsync, rtModel_t mdl, rtStream_t stm, uint32_t flag)
 {
     LOG_DEBUG("Hook init rtModelExecuteAsync.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_MODEL_LAUNCH(stm, NULL, NULL, mdl);
     record_model_execute_stats(mdl);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -85,7 +85,7 @@ RUNTIME_HOOK_DEFINE(rtsModelExecute, rtModel_t mdl, int32_t timeout)
 {
     LOG_DEBUG("Hook init rtsModelExecute.");
     bool tracked = false;
-    core_limiter(NULL, track_sync_model, &tracked);
+    CORE_LIMITER_MODEL_LAUNCH(NULL, track_sync_model, &tracked, mdl);
     record_model_execute_stats(mdl);
     if (is_random_sampling()) {
         uint64_t begin_time = ns_now();
@@ -112,7 +112,7 @@ RUNTIME_HOOK_DEFINE(aclmdlRIExecuteImpl, aclmdlRI modelRI, int32_t timeout)
     }
     LOG_DEBUG("Hook init aclmdlRIExecuteImpl.");
     bool tracked = false;
-    core_limiter(NULL, track_sync_model, &tracked);
+    CORE_LIMITER_MODEL_LAUNCH(NULL, track_sync_model, &tracked, modelRI);
     record_model_execute_stats(modelRI);
     if (is_random_sampling()) {
         uint64_t begin_time = ns_now();
@@ -136,7 +136,7 @@ RUNTIME_HOOK_DEFINE(rtModelExecuteSync, rtModel_t mdl, rtStream_t stm, uint32_t 
 {
     LOG_DEBUG("Hook init rtModelExecuteSync.");
     bool tracked = false;
-    core_limiter(stm, track_sync_model, &tracked);
+    CORE_LIMITER_MODEL_LAUNCH(stm, track_sync_model, &tracked, mdl);
     record_model_execute_stats(mdl);
     if (is_random_sampling()) {
         sampling_begin(stm);
@@ -235,7 +235,7 @@ RUNTIME_HOOK_DEFINE(aclmdlRICaptureEndImpl, aclrtStream stream, aclmdlRI *modelR
 RUNTIME_HOOK_DEFINE(rtsModelExecuteAsync, rtModel_t mdl, rtStream_t stm)
 {
     LOG_DEBUG("Hook init rtsModelExecuteAsync.");
-    core_limiter(stm, NULL, NULL);
+    CORE_LIMITER_MODEL_LAUNCH(stm, NULL, NULL, mdl);
     record_model_execute_stats(mdl);
     if (is_random_sampling()) {
         sampling_begin(stm);
