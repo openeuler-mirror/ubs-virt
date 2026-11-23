@@ -190,25 +190,28 @@ static void test_take_cancels_pending_restore(void)
     memory_tracker_destroy(tracker);
 }
 
-static void test_add_reused_ptr_drops_stale(void)
+/* 僵尸记录由 swap_hook 在 add 之前用 take 摘除, tracker 本身不再隐式删除 */
+static void test_take_drops_stale_before_add(void)
 {
     memory_tracker_t *tracker = memory_tracker_create(16);
     TEST_ASSERT_NE(tracker, NULL, "create should succeed");
 
     void *reused_ptr = (void *)0x1000;
     memory_tracker_add(tracker, reused_ptr, 4096, (void *)reused_ptr, true);
-    memory_record_t *old_record = memory_tracker_find(tracker, reused_ptr);
-    TEST_ASSERT_NE(old_record, NULL, "old record should exist");
-    uint64_t old_gen = old_record->gen;
+    memory_record_t old_record;
+    bool found = false;
+    int ret = memory_tracker_take(tracker, reused_ptr, &old_record, &found);
+    TEST_ASSERT_EQ(ret, ENPU_SUCCESS, "take stale record should succeed");
+    TEST_ASSERT_EQ(found, true, "old record should be found");
 
-    /* 驱动释放后复用同一 handle: 新记录应替换旧记录, 不能并存 */
-    int ret = memory_tracker_add(tracker, reused_ptr, 8192, (void *)reused_ptr, true);
+    /* 驱动释放后复用同一 handle: 先摘除僵尸记录, 再写入新记录, 两者不能并存 */
+    ret = memory_tracker_add(tracker, reused_ptr, 8192, (void *)reused_ptr, true);
     TEST_ASSERT_EQ(ret, ENPU_SUCCESS, "add reused ptr should succeed");
 
     memory_record_t *record = memory_tracker_find(tracker, reused_ptr);
     TEST_ASSERT_NE(record, NULL, "find should return the new record");
     TEST_ASSERT_EQ(record->size, 8192, "size should come from the new record");
-    TEST_ASSERT_NE(record->gen, old_gen, "gen should be refreshed");
+    TEST_ASSERT_NE(record->gen, old_record.gen, "gen should be refreshed");
 
     memory_record_t **records = NULL;
     int count = 0;
@@ -324,7 +327,7 @@ int main(int argc, char *argv[])
     TEST_CASE(add_find_record);
     TEST_CASE(add_multiple_records);
     TEST_CASE(find_nonexistent);
-    TEST_CASE(add_reused_ptr_drops_stale);
+    TEST_CASE(take_drops_stale_before_add);
     TEST_SUITE_END();
 
     TEST_SUITE_BEGIN("invalid_params");

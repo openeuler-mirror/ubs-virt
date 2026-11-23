@@ -149,16 +149,6 @@ int memory_tracker_add(memory_tracker_t *tracker, void *ptr, uint64_t size, rtDr
         return ENPU_FAIL;
     }
 
-    /* 驱动释放后可能复用同一 handle/VA: 若映射里仍有旧记录(典型的僵尸记录),
-     * 先丢弃它, 避免 records[] 中出现两条同 ptr 记录, 使后续 mark_active/remove 命中错误的那条 */
-    void *stale_value = NULL;
-    if (hashmap_get_ptr(tracker->map, ptr, &stale_value) == 0 && stale_value != NULL) {
-        memory_record_t *stale = (memory_record_t *)stale_value;
-        LOG_WARN("memory_tracker_add: ptr=%p reused by gen=%lu, drop stale record gen=%lu, swapped=%d, offset=%lu", ptr,
-                 atomic_load(&g_alloc_gen), stale->gen, (int)stale->is_swapped, stale->swap_offset);
-        (void)memory_tracker_remove(tracker, ptr);
-    }
-
     memory_record_t *record = &tracker->records[tracker->count];
     record->ptr = ptr;
     record->size = size;

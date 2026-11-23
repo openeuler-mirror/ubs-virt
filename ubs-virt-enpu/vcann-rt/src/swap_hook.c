@@ -18,6 +18,25 @@ static swap_hook_t *g_global_swap_hook = NULL;
 static swap_buffer_mapping_t g_swap_buffer = {0};
 static atomic_uint_fast32_t g_pool_generation = 0;
 
+static void swap_hook_account_free(uint64_t size, bool was_swapped, bool restore_pending);
+
+/* 驱动释放后可能复用同一 handle/VA: 若映射里仍有旧记录(典型的僵尸记录), 在 add 之前
+ * 摘除并按记账口径核销, 避免 records[] 出现两条同 ptr 记录, 使后续 mark_active/remove
+ * 命中错误的那条; 先清理再 add 也能让表满时复用旧槽位而不是直接失败 */
+static void swap_hook_drop_stale_record(swap_hook_t *hook, void *ptr)
+{
+    memory_record_t stale;
+    bool found = false;
+    int ret = memory_tracker_take(hook->tracker, ptr, &stale, &found);
+    if (ret != ENPU_SUCCESS || !found) {
+        return;
+    }
+    LOG_WARN("swap_hook: ptr=%p reused, drop stale record gen=%lu, size=%lu, swapped=%d, offset=%lu", ptr, stale.gen,
+             stale.size, (int)stale.is_swapped, stale.swap_offset);
+    /* 未换出且不在 pending 中的僵尸记录仍计入 hbm_used, 必须核销, 否则额度只增不减 */
+    swap_hook_account_free(stale.size, stale.is_swapped, stale.restore_pending);
+}
+
 static int recover_swap_in_mutex(pthread_mutex_t *mutex, int rc)
 {
     if (rc == EOWNERDEAD) {
@@ -85,6 +104,7 @@ int swap_hook_malloc_mem(swap_hook_t *hook, void **ptr, uint64_t size)
     int ret = swap_executor_swap_in(hook->executor, ptr, 0, &size, &handle, NOT_MEMCPY_FLAG);
     CHECK_RETURN_ERROR_CODE(ret, "Malloc and map physical mem failed when malloc mem.");
 
+    swap_hook_drop_stale_record(hook, *ptr);
     ret = memory_tracker_add(hook->tracker, *ptr, size, handle, false);
     CHECK_RETURN_ERROR_CODE(ret, "Memory tracker add record failed when malloc mem.");
 
@@ -109,6 +129,7 @@ int swap_hook_malloc_physical_mem(swap_hook_t *hook, rtDrvMemHandle handle, uint
         return ENPU_FAIL;
     }
 
+    swap_hook_drop_stale_record(hook, handle);
     int ret = memory_tracker_add(hook->tracker, handle, size, handle, true);
     CHECK_RETURN_ERROR_CODE(ret, "Memory tracker add record failed when malloc physical mem.");
     rtDrvMemProp_t rtProp = {};
@@ -266,6 +287,10 @@ int swap_hook_check_and_swap_in(swap_hook_t *hook)
         hook->tracker->records[i].restore_pending = false;
     }
 
+    /* 本轮没有需要换入的记录(例如换出后应用已把记录全部 free)也必须清除 swapped 标志,
+     * 否则进程永久停留在"已换出": 既不会再被换出(超分失效), 换出池区间也无法回收 */
+    shm_set_process_swapped(state, get_vnpu_id(), my_slot, false);
+
     if (used != 0) {
         /* 进程级 + vNPU 级 hbm_used 恢复 */
         atomic_fetch_add(&my_entry->hbm_used, used);
@@ -273,10 +298,9 @@ int swap_hook_check_and_swap_in(swap_hook_t *hook)
         if (vnpu_entry != NULL) {
             atomic_fetch_add(&vnpu_entry->hbm_used, used);
         }
-        shm_set_process_swapped(state, get_vnpu_id(), my_slot, false);
-
-        LOG_INFO("swap_hook: swap_in completed for vnpu %d, slot %d", get_vnpu_id(), my_slot);
     }
+    LOG_INFO("swap_hook: swap_in completed for vnpu %d, slot %d, restored=%lu", get_vnpu_id(), my_slot,
+             (unsigned long)used);
     pthread_mutex_unlock(&state->swap_in_mutex);
     pthread_mutex_unlock(&hook->tracker->lock);
     return ENPU_SUCCESS;

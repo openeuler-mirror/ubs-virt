@@ -557,8 +557,9 @@ int check_and_swap_out(size_t requested, uint8_t flag)
             return ENPU_FAIL;
         }
         if (!wait_swap_out_completed(&state->swap_out_cmd.completed)) {
-            LOG_WARN("check_and_swap_out: previous swap-out request pending over 30s (manager unavailable), "
+            LOG_WARN("check_and_swap_out: previous swap-out request not completed in 30s, action=%d, completed=%d, "
                      "requested=%zu.",
+                     atomic_load(&state->swap_out_cmd.action), (int)atomic_load(&state->swap_out_cmd.completed),
                      requested);
             return ENPU_FAIL;
         }
@@ -573,8 +574,9 @@ int check_and_swap_out(size_t requested, uint8_t flag)
         }
 
         if (!wait_swap_out_completed(&state->swap_out_cmd.completed)) {
-            LOG_WARN("check_and_swap_out: swap-out request not consumed within 30s (manager unavailable), "
+            LOG_WARN("check_and_swap_out: swap-out request not consumed in 30s, action=%d, completed=%d, "
                      "requested=%zu, keep request for later recovery.",
+                     atomic_load(&state->swap_out_cmd.action), (int)atomic_load(&state->swap_out_cmd.completed),
                      requested);
             return ENPU_FAIL;
         }
