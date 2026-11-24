@@ -58,11 +58,13 @@ bash make_build.sh
 popd
 
 %install
-install -D enpu-manager/standalone/build/output/enpu-manager %{buildroot}%{enpu_manager_dir}/bin/enpu-manager
-install -D enpu-manager/standalone/build/output/enpu-cli %{buildroot}%{enpu_manager_dir}/bin/enpu-cli
+# Preserve the permissions set by the build for executable and library artifacts.
+install -d %{buildroot}%{enpu_manager_dir}/bin %{buildroot}%{enpu_manager_dir}/lib
+cp --preserve=mode enpu-manager/standalone/build/output/enpu-manager \
+    enpu-manager/standalone/build/output/enpu-cli %{buildroot}%{enpu_manager_dir}/bin/
 
 # Shared library — versioned and soversion symlinks
-install -D enpu-manager/core/build/output/libenpu_manager.so.1.0.0 %{buildroot}%{enpu_manager_dir}/lib/libenpu_manager.so.1.0.0
+cp --preserve=mode enpu-manager/core/build/output/libenpu_manager.so.1.0.0 %{buildroot}%{enpu_manager_dir}/lib/
 ln -sf libenpu_manager.so.1.0.0 %{buildroot}%{enpu_manager_dir}/lib/libenpu_manager.so.1
 
 # Configuration file
@@ -74,8 +76,9 @@ sed -i 's|^ExecStart=[^[:space:]]*|ExecStart=%{enpu_manager_dir}/bin/enpu-manage
     %{buildroot}%{_unitdir}/enpu-manager.service
 
 # vcann-rt runtime library and monitor (for LD_PRELOAD into containers)
-install -D vcann-rt/build/libvruntime.so %{buildroot}/opt/enpu/vcann-rt/lib/libvruntime.so
-install -D vcann-rt/build/enpu-monitor   %{buildroot}/opt/enpu/vcann-rt/tools/enpu-monitor
+install -d %{buildroot}/opt/enpu/vcann-rt/lib %{buildroot}/opt/enpu/vcann-rt/tools
+cp --preserve=mode vcann-rt/build/libvruntime.so %{buildroot}/opt/enpu/vcann-rt/lib/
+cp --preserve=mode vcann-rt/build/enpu-monitor %{buildroot}/opt/enpu/vcann-rt/tools/
 
 # State / log / data directories
 install -d %{buildroot}%{_localstatedir}/lib/enpu-manager
@@ -123,11 +126,11 @@ fi
 %dir %{enpu_manager_dir}
 %dir %{enpu_manager_dir}/bin
 %dir %{enpu_manager_dir}/lib
-%attr(0500, root, root) %{enpu_manager_dir}/bin/enpu-manager
-%attr(0500, root, root) %{enpu_manager_dir}/bin/enpu-cli
+%attr(-, root, root) %{enpu_manager_dir}/bin/enpu-manager
+%attr(-, root, root) %{enpu_manager_dir}/bin/enpu-cli
 
 %{enpu_manager_dir}/lib/libenpu_manager.so.1
-%attr(0500, root, root) %{enpu_manager_dir}/lib/libenpu_manager.so.1.0.0
+%attr(-, root, root) %{enpu_manager_dir}/lib/libenpu_manager.so.1.0.0
 
 %config(noreplace) %attr(0400, root, root) %{_sysconfdir}/enpu/enpu-manager.conf
 
@@ -141,8 +144,8 @@ fi
 %attr(0755, root, root) %dir /opt/enpu/vcann-rt
 %attr(0755, root, root) %dir /opt/enpu/vcann-rt/lib
 %attr(0755, root, root) %dir /opt/enpu/vcann-rt/tools
-%attr(0555, root, root) /opt/enpu/vcann-rt/lib/libvruntime.so
-%attr(0500, root, root) /opt/enpu/vcann-rt/tools/enpu-monitor
+%attr(-, root, root) /opt/enpu/vcann-rt/lib/libvruntime.so
+%attr(-, root, root) /opt/enpu/vcann-rt/tools/enpu-monitor
 
 %changelog
 * Sun Jul 19 2026 enpu-manager maintainer <maintainer@enpu-manager> - 1.0.0-1

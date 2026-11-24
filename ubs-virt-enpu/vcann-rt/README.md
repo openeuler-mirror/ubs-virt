@@ -225,8 +225,10 @@ bash make_build.sh
 
 | 文件 | 宿主路径 | 权限 | 说明 |
 |:---|:---|:---|:---|
-| `libvruntime.so` | `/opt/enpu/vcann-rt/lib/libvruntime.so` | 0500 | 需挂载进容器并由 `ld.so.preload` 预加载 |
-| `enpu-monitor` | `/opt/enpu/vcann-rt/tools/enpu-monitor` | 0500 | 容器内资源与显存监测工具 |
+| `libvruntime.so` | `/opt/enpu/vcann-rt/lib/libvruntime.so` | 沿用编译产物权限（当前为 0400） | 需挂载进容器并由 `ld.so.preload` 预加载 |
+| `enpu-monitor` | `/opt/enpu/vcann-rt/tools/enpu-monitor` | 沿用编译产物权限（当前为 0500） | 容器内资源与显存监测工具 |
+
+按当前构建权限，RPM 安装的 `libvruntime.so` 仅 root 可读。非 root 业务进程需要通过手动部署获得可读的库。
 
 ```shell
 # 确认安装结果（安装 enpu-manager RPM 后执行）
