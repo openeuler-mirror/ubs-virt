@@ -130,13 +130,16 @@ ASCEND_HOME_PATH=/usr/local/Ascend/cann-9.1.0 \
 
 | 包内文件 | 安装位置 | 权限 |
 |:---|:---|:---|
-| `enpu-manager`、`enpu-cli` | `/opt/enpu/enpu-manager/bin/` | 0500 |
-| `libenpu_manager.so.1.0.0`（含 `.so.1` 软链） | `/opt/enpu/enpu-manager/lib/` | 0500 |
-| `enpu-manager.conf` | `/etc/enpu/` | 0400，`%config(noreplace)` |
+| `enpu-manager`、`enpu-cli` | `/opt/enpu/enpu-manager/bin/` | 沿用编译产物权限（当前为 0755） |
+| `libenpu_manager.so.1.0.0` | `/opt/enpu/enpu-manager/lib/` | 沿用编译产物权限（当前为 0500） |
+| `libenpu_manager.so.1`（软链接） | `/opt/enpu/enpu-manager/lib/` | 显示为 0777，实际访问按目标文件权限检查 |
+| `enpu-manager.conf` | `/etc/enpu/` | 0400 |
 | `enpu-manager.service` | `/usr/lib/systemd/system/` | 0400 |
-| `libvruntime.so` | `/opt/enpu/vcann-rt/lib/` | 0500 |
-| `enpu-monitor` | `/opt/enpu/vcann-rt/tools/` | 0500 |
+| `libvruntime.so` | `/opt/enpu/vcann-rt/lib/` | 沿用编译产物权限（当前为 0400） |
+| `enpu-monitor` | `/opt/enpu/vcann-rt/tools/` | 沿用编译产物权限（当前为 0500） |
 | 状态 / 日志目录 | `/var/lib/enpu-manager/`、`/var/log/enpu-manager/` | 0700 |
+
+RPM 中的 `libvruntime.so` 归 `root:root` 所有。按当前构建权限，非 root 用户无法直接预加载这份库；开发调试可使用下文的手动安装方式为业务用户提供可读的库。可用 `rpm -qplv ./enpu-manager-1.0.0-1.aarch64.rpm` 核对实际 RPM 中各文件的权限。
 
 RPM 中的 `enpu-manager` 主程序内置 `$ORIGIN/../lib` 搜索路径，会从相邻的 `lib/` 目录加载核心库，安装后无需为核心库单独配置 `LD_LIBRARY_PATH`。
 
@@ -148,7 +151,49 @@ sudo rpm -ivh enpu-manager-*.rpm
 
 RPM 安装会部署上表中的文件，并通过 `%systemd_post` 和 `ldconfig` 处理服务注册和库缓存。部署环境与包内路径一致时，无需手动设置 `LD_LIBRARY_PATH`。如需选择其他版本，请参见[指定 CANN 运行时版本](#select-cann-runtime)。
 
+离线安装时，如果依赖已经装齐，可以执行 `sudo dnf --disablerepo='*' install ./enpu-manager-1.0.0-1.aarch64.rpm`，文件名按实际包修改。该选项仅对本次命令生效，可避免等待软件源刷新。
+
 如需从源码自行打包，请参见[构建一体化 RPM 包](#编译)。
+
+#### 升级与同版本重装
+
+升级前停止使用当前 vCANN-RT 的业务。下面以 `1.0.0-2.aarch64` 为例，请替换为实际 RPM 文件名。使用 DNF 或 RPM，任选一种：
+
+```shell
+sudo dnf upgrade ./enpu-manager-1.0.0-2.aarch64.rpm
+# 或者在依赖已就绪时直接升级本地包
+sudo rpm -Uvh ./enpu-manager-1.0.0-2.aarch64.rpm
+```
+
+需要覆盖安装同版本号的本地包时，执行 `sudo rpm -Uvh --replacepkgs ./enpu-manager-1.0.0-1.aarch64.rpm`。升级时，RPM 会尝试重启原本正在运行的服务。对于单独挂载 `libvruntime.so` 文件的容器，升级后重新创建容器再启动业务，以便加载与宿主机 manager 同版本的 RT。
+
+主配置 `/etc/enpu/enpu-manager.conf` 使用 `%config(noreplace)`。如果现场配置修改过，且新版默认配置与旧版默认配置、现场配置都不同，RPM 会保留现场配置，把新版默认配置写到 `/etc/enpu/enpu-manager.conf.rpmnew`。服务仍读取正式配置，可对比后按需合并新配置项。
+
+#### 安装或升级后验证
+
+首次安装后，先按下文的 systemd 方式启动服务。检查已安装版本、服务状态和实际启动命令：
+
+```shell
+rpm -q enpu-manager
+sudo systemctl status enpu-manager.service --no-pager -l
+systemctl show enpu-manager.service -p ExecStart
+```
+
+服务应显示 `active (running)`，并运行 `/opt/enpu/enpu-manager/bin/enpu-manager`。如果启动路径不同，用 `systemctl cat enpu-manager.service` 检查是否有旧的 `ExecStart` 覆盖配置。
+
+#### 卸载与保留文件
+
+停止相关业务后，任选一种方式卸载：
+
+```shell
+sudo dnf remove enpu-manager
+# 或仅卸载该 RPM 包
+sudo rpm -e enpu-manager
+```
+
+卸载会停止服务并移除包内程序、动态库和服务文件。日志、已生成的 vNPU 分配配置、`/var/lib/enpu-manager/checkpoint.json` 和自行创建的 systemd 覆盖配置会保留（如果存在）。重装后，原来的 systemd 覆盖配置仍可能生效。
+
+如果正式配置与已安装包的默认配置一致，卸载时会移除它。如果配置改过，RPM 会将它保存为 `/etc/enpu/enpu-manager.conf.rpmsave`。已有同名 `.rpmsave` 时，新备份可能覆盖旧文件。如需保留旧备份，请在卸载前另存。
 
 ### 方式二：DEB 包安装（Ubuntu/Debian）
 
@@ -180,7 +225,7 @@ sudo cp config/enpu-manager.conf /etc/enpu/
 sudo cp deploy/enpu-manager.service /usr/lib/systemd/system
 
 # 若需要使用显存超分，还需部署 vCANN-RT 运行时
-sudo install -D -m 0500 ../vcann-rt/build/libvruntime.so /opt/enpu/vcann-rt/lib/libvruntime.so
+sudo install -D -m 0555 ../vcann-rt/build/libvruntime.so /opt/enpu/vcann-rt/lib/libvruntime.so
 sudo install -D -m 0500 ../vcann-rt/build/enpu-monitor /opt/enpu/vcann-rt/tools/enpu-monitor
 
 sudo systemctl daemon-reload
