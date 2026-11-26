@@ -466,7 +466,8 @@ static int cmd_resources(int argc, char *argv[], const char *socket_path)
     return ret;
 }
 
-typedef enum {
+typedef enum
+{
     OPT_UNKNOWN,
     OPT_SOCKET,
     OPT_ALLOCATION_ID,
@@ -542,11 +543,20 @@ static bool parse_hbm_option(const char *option, const char *value, uint64_t *ou
 static int cmd_alloc(int argc, char *argv[], const char *socket_path)
 {
     static const cli_option_t options[] = {
-        {"--socket", OPT_SOCKET}, {"--allocation-id", OPT_ALLOCATION_ID}, {"-n", OPT_AICORE},
-        {"-m", OPT_HBM_QUOTA}, {"-r", OPT_HBM_REQUEST}, {"--request", OPT_HBM_REQUEST},
-        {"-l", OPT_HBM_LIMIT}, {"--limit", OPT_HBM_LIMIT}, {"-p", OPT_POLICY}, {"-d", OPT_DEVICE},
-        {"--vnpu-priority", OPT_PRIORITY}, {"--swap-order", OPT_SWAP_ORDER},
-        {"-u", OPT_POD_UID}, {"-c", OPT_CONTAINER},
+        {"--socket", OPT_SOCKET},
+        {"--allocation-id", OPT_ALLOCATION_ID},
+        {"-n", OPT_AICORE},
+        {"-m", OPT_HBM_QUOTA},
+        {"-r", OPT_HBM_REQUEST},
+        {"--request", OPT_HBM_REQUEST},
+        {"-l", OPT_HBM_LIMIT},
+        {"--limit", OPT_HBM_LIMIT},
+        {"-p", OPT_POLICY},
+        {"-d", OPT_DEVICE},
+        {"--vnpu-priority", OPT_PRIORITY},
+        {"--swap-order", OPT_SWAP_ORDER},
+        {"-u", OPT_POD_UID},
+        {"-c", OPT_CONTAINER},
     };
     int aicore = 0;
     bool aicore_present = false;
@@ -576,80 +586,81 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
             return 1;
         }
         switch (id) {
-        case OPT_SOCKET:
-            break; /* Validated by cli_main. */
-        case OPT_ALLOCATION_ID:
-            if (!allocation_id_normalize(val, allocation_id)) {
-                fprintf(stderr, "Error: --allocation-id requires a UUID\n");
+            case OPT_SOCKET:
+                break; /* Validated by cli_main. */
+            case OPT_ALLOCATION_ID:
+                if (!allocation_id_normalize(val, allocation_id)) {
+                    fprintf(stderr, "Error: --allocation-id requires a UUID\n");
+                    return 1;
+                }
+                break;
+            case OPT_AICORE:
+                if (!parse_int_option(option, val, &aicore)) {
+                    return 1;
+                }
+                aicore_present = true;
+                break;
+            case OPT_HBM_QUOTA:
+                if (!parse_hbm_option(option, val, &hbm_request, &hbm_quota_present)) {
+                    return 1;
+                }
+                break;
+            case OPT_HBM_REQUEST:
+                if (!parse_hbm_option(option, val, &hbm_request, &hbm_request_present)) {
+                    return 1;
+                }
+                break;
+            case OPT_HBM_LIMIT:
+                if (!parse_hbm_option(option, val, &hbm_limit, &hbm_limit_present)) {
+                    return 1;
+                }
+                break;
+            case OPT_POLICY:
+                if (strcmp(val, "fixed-share") == 0) {
+                    policy = 1;
+                } else if (strcmp(val, "elastic") == 0) {
+                    policy = 2;
+                } else if (strcmp(val, "best-effort") == 0) {
+                    policy = 3;
+                } else if (!parse_int_option(option, val, &policy)) {
+                    return 1;
+                }
+                policy_present = true;
+                break;
+            case OPT_DEVICE:
+                if (!parse_int_option(option, val, &phy_id)) {
+                    return 1;
+                }
+                break;
+            case OPT_PRIORITY:
+                if (strlen(val) != 1 || (val[0] != '0' && val[0] != '1')) {
+                    fprintf(stderr, "Error: --vnpu-priority requires 0 or 1\n");
+                    return 1;
+                }
+                vnpu_priority = val[0] - '0';
+                break;
+            case OPT_SWAP_ORDER:
+                if (strlen(val) != 1 || val[0] < '0' || val[0] > '2') {
+                    fprintf(stderr, "Error: --swap-order requires 0, 1 or 2\n");
+                    return 1;
+                }
+                swap_order = val[0] - '0';
+                break;
+            case OPT_POD_UID:
+                if (strlen(val) >= sizeof(pod_uid) || strncpy_s(pod_uid, sizeof(pod_uid), val, strlen(val)) != 0) {
+                    fprintf(stderr, "Error: Failed to copy pod_uid\n");
+                    return 1;
+                }
+                break;
+            case OPT_CONTAINER:
+                if (strlen(val) >= sizeof(container) ||
+                    strncpy_s(container, sizeof(container), val, strlen(val)) != 0) {
+                    fprintf(stderr, "Error: Failed to copy container\n");
+                    return 1;
+                }
+                break;
+            default:
                 return 1;
-            }
-            break;
-        case OPT_AICORE:
-            if (!parse_int_option(option, val, &aicore)) {
-                return 1;
-            }
-            aicore_present = true;
-            break;
-        case OPT_HBM_QUOTA:
-            if (!parse_hbm_option(option, val, &hbm_request, &hbm_quota_present)) {
-                return 1;
-            }
-            break;
-        case OPT_HBM_REQUEST:
-            if (!parse_hbm_option(option, val, &hbm_request, &hbm_request_present)) {
-                return 1;
-            }
-            break;
-        case OPT_HBM_LIMIT:
-            if (!parse_hbm_option(option, val, &hbm_limit, &hbm_limit_present)) {
-                return 1;
-            }
-            break;
-        case OPT_POLICY:
-            if (strcmp(val, "fixed-share") == 0) {
-                policy = 1;
-            } else if (strcmp(val, "elastic") == 0) {
-                policy = 2;
-            } else if (strcmp(val, "best-effort") == 0) {
-                policy = 3;
-            } else if (!parse_int_option(option, val, &policy)) {
-                return 1;
-            }
-            policy_present = true;
-            break;
-        case OPT_DEVICE:
-            if (!parse_int_option(option, val, &phy_id)) {
-                return 1;
-            }
-            break;
-        case OPT_PRIORITY:
-            if (strlen(val) != 1 || (val[0] != '0' && val[0] != '1')) {
-                fprintf(stderr, "Error: --vnpu-priority requires 0 or 1\n");
-                return 1;
-            }
-            vnpu_priority = val[0] - '0';
-            break;
-        case OPT_SWAP_ORDER:
-            if (strlen(val) != 1 || val[0] < '0' || val[0] > '2') {
-                fprintf(stderr, "Error: --swap-order requires 0, 1 or 2\n");
-                return 1;
-            }
-            swap_order = val[0] - '0';
-            break;
-        case OPT_POD_UID:
-            if (strlen(val) >= sizeof(pod_uid) || strncpy_s(pod_uid, sizeof(pod_uid), val, strlen(val)) != 0) {
-                fprintf(stderr, "Error: Failed to copy pod_uid\n");
-                return 1;
-            }
-            break;
-        case OPT_CONTAINER:
-            if (strlen(val) >= sizeof(container) || strncpy_s(container, sizeof(container), val, strlen(val)) != 0) {
-                fprintf(stderr, "Error: Failed to copy container\n");
-                return 1;
-            }
-            break;
-        default:
-            return 1;
         }
     }
 
@@ -830,7 +841,7 @@ static int cmd_release(int argc, char *argv[], const char *socket_path)
 {
     static const cli_option_t options[] = {
         {"--socket", OPT_SOCKET}, {"-a", OPT_ALLOCATION_ID}, {"--allocation-id", OPT_ALLOCATION_ID},
-        {"-u", OPT_POD_UID}, {"-c", OPT_CONTAINER},
+        {"-u", OPT_POD_UID},      {"-c", OPT_CONTAINER},
     };
     char allocation_id[ALLOCATION_ID_LEN] = "";
     char pod_uid[128] = "";
@@ -848,28 +859,29 @@ static int cmd_release(int argc, char *argv[], const char *socket_path)
             return 1;
         }
         switch (id) {
-        case OPT_SOCKET:
-            break; /* Validated by cli_main. */
-        case OPT_ALLOCATION_ID:
-            if (!allocation_id_normalize(val, allocation_id)) {
-                fprintf(stderr, "Error: %s requires a UUID\n", option);
+            case OPT_SOCKET:
+                break; /* Validated by cli_main. */
+            case OPT_ALLOCATION_ID:
+                if (!allocation_id_normalize(val, allocation_id)) {
+                    fprintf(stderr, "Error: %s requires a UUID\n", option);
+                    return 1;
+                }
+                break;
+            case OPT_POD_UID:
+                if (strlen(val) >= sizeof(pod_uid) || strncpy_s(pod_uid, sizeof(pod_uid), val, strlen(val)) != 0) {
+                    fprintf(stderr, "Error: Failed to copy pod_uid\n");
+                    return 1;
+                }
+                break;
+            case OPT_CONTAINER:
+                if (strlen(val) >= sizeof(container) ||
+                    strncpy_s(container, sizeof(container), val, strlen(val)) != 0) {
+                    fprintf(stderr, "Error: Failed to copy container\n");
+                    return 1;
+                }
+                break;
+            default:
                 return 1;
-            }
-            break;
-        case OPT_POD_UID:
-            if (strlen(val) >= sizeof(pod_uid) || strncpy_s(pod_uid, sizeof(pod_uid), val, strlen(val)) != 0) {
-                fprintf(stderr, "Error: Failed to copy pod_uid\n");
-                return 1;
-            }
-            break;
-        case OPT_CONTAINER:
-            if (strlen(val) >= sizeof(container) || strncpy_s(container, sizeof(container), val, strlen(val)) != 0) {
-                fprintf(stderr, "Error: Failed to copy container\n");
-                return 1;
-            }
-            break;
-        default:
-            return 1;
         }
     }
 
