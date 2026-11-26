@@ -369,7 +369,7 @@ enpu-cli list
 
 ```text
 enpu-cli alloc [--allocation-id <UUID>] [-n <aicore_percent>]
-  (-r <hbm_request> -l <hbm_limit> | -m <hbm_quota>)
+  (-r <hbm_request> [-l <hbm_limit>] | -m <hbm_quota>)
   [-p <policy>] [--vnpu-priority 0|1] [-d <phy_id>] [--swap-order 0|1|2]
   [-u <pod_uid>] [-c <container_name>]
 ```
@@ -378,9 +378,9 @@ enpu-cli alloc [--allocation-id <UUID>] [-n <aicore_percent>]
 |:---|:---|:---|
 | `--allocation-id <UUID>` | 否 | 指定 allocation ID；省略时由 manager 生成。重复使用已有 ID 返回冲突。 |
 | `-n <aicore_percent>` | 普通优先级必填 | AI Core 配额百分比，具体约束由服务端按调度策略校验。高优先级实际使用 `0`。 |
-| `-r/--request <MiB>` | 与 `-l` 成对使用 | HBM Request，单位 MiB。 |
-| `-l/--limit <MiB>` | 与 `-r` 成对使用 | HBM Limit，单位 MiB。 |
-| `-m <MiB>` | 与 `-r/-l` 二选一 | 同时将 HBM Request 和 Limit 设置为相同值。 |
+| `-r/--request <MiB>` | 与 `-m` 二选一 | HBM Request，单位 MiB，必须大于 0。 |
+| `-l/--limit <MiB>` | 否，配合 `-r` 使用 | HBM Limit，单位 MiB，不得小于 Request。省略时默认等于 Request。 |
+| `-m <MiB>` | 与 `-r` 二选一 | 同时将 HBM Request 和 Limit 设置为相同的正数。 |
 | `-p <policy>` | 普通优先级必填 | `fixed-share`、`elastic`、`best-effort`，也可使用 `1/2/3`。高优先级实际使用 `3`。 |
 | `--vnpu-priority 0|1` | 否 | `0` 普通优先级（默认），`1` 高优先级；仅接受单个字符 `0` 或 `1`。 |
 | `-d <phy_id>` | 否 | 指定物理卡；省略或传 `-1` 时由 manager 自动选择。 |
@@ -1191,11 +1191,11 @@ enpu_allocation_info{job="enpu", pod_uid="pod-a"}
 | 类别             | 约束                                                                                                                                                                                                |
 |:-----------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | AICore          | 普通优先级的 `aicore_quota` ∈ [1, 100]；策略 `3`（best-effort）下仍需提供该值，但 vCANN-RT 不按此值限制算力。高优先级的生效值固定为 `0`。                                                     |
-| HBM 基础        | `0 ≤ hbm_request ≤ hbm_limit`。                                                                                                                                                                     |
+| HBM 基础        | `0 < hbm_request ≤ hbm_limit`。                                                                                                                                                                     |
 | HBM 上限        | `hbm_limit` 不得超过单 DIE HBM 总量。                                                                                                                                                                |
 | DIE 超分        | 同 DIE 上所有 vNPU 的 `hbm_limit` 之和 ≤ `(1 + oversub_ratio[phy_id]) × die_hbm_total`。                                                                                                            |
 | 调度策略        | `sched_policy=1`（fixed-share）：要求 `hbm_request > 0` 且 `hbm_request == hbm_limit`，**不支持显存超分**。                                                                                            |
-| 调度策略        | `sched_policy=2`（elastic）/ `sched_policy=3`（best-effort）：允许任意 `0 ≤ hbm_request ≤ hbm_limit` 组合，**支持显存超分**。                                                                                  |
+| 调度策略        | `sched_policy=2`（elastic）/ `sched_policy=3`（best-effort）：允许 `0 < hbm_request ≤ hbm_limit`，**支持显存超分**。                                                                                  |
 | 同卡策略一致性  | 同一 DIE 上的普通优先级 vNPU 必须使用相同 `sched_policy`；高优先级固定使用 `3`，不参与普通优先级策略一致性校验。                                                                                       |
 | 超分 die 匹配   | vNPU 需要超分（`hbm_request < hbm_limit`）时，**只能**分配到 `oversub_ratio > 0` 的 die。                                                                                                            |
 | 非超分优先      | vNPU 不需要超分（`hbm_request == hbm_limit`）时，**优先**分配到 `oversub_ratio == 0` 的 die；非超分 die 资源不足时才会回退到超分 die。                                                                          |

@@ -466,12 +466,50 @@ static int cmd_resources(int argc, char *argv[], const char *socket_path)
     return ret;
 }
 
+static const char *required_option_value(int argc, char *argv[], int index)
+{
+    const char *value = index + 1 < argc ? argv[index + 1] : NULL;
+    if (value == NULL || value[0] == '\0' || (value[0] == '-' && (value[1] < '0' || value[1] > '9'))) {
+        fprintf(stderr, "Error: %s requires a value\n", argv[index]);
+        return NULL;
+    }
+    return value;
+}
+
+static bool parse_int_option(const char *option, const char *value, int *output)
+{
+    char *end = NULL;
+    errno = 0;
+    long number = strtol(value, &end, 10);
+    if (errno != 0 || end == value || *end != '\0' || number < INT_MIN || number > INT_MAX) {
+        fprintf(stderr, "Error: %s requires an integer\n", option);
+        return false;
+    }
+    *output = (int)number;
+    return true;
+}
+
+static bool parse_hbm_option(const char *option, const char *value, uint64_t *output)
+{
+    char *end = NULL;
+    errno = 0;
+    unsigned long long number = strtoull(value, &end, 10);
+    if (value[0] < '0' || value[0] > '9' || errno != 0 || *end != '\0' || number > UINT64_MAX) {
+        fprintf(stderr, "Error: %s requires a non-negative integer\n", option);
+        return false;
+    }
+    *output = (uint64_t)number;
+    return true;
+}
+
 static int cmd_alloc(int argc, char *argv[], const char *socket_path)
 {
     int aicore = -1;
-    uint64_t hbm = 0;
     uint64_t hbm_request = 0;
     uint64_t hbm_limit = 0;
+    bool hbm_present = false;
+    bool hbm_request_present = false;
+    bool hbm_limit_present = false;
     int policy = 0;
     int phy_id = -1;
     int swap_order = 1;
@@ -480,67 +518,79 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
     char pod_uid[128] = "";
     char container[64] = "";
 
-    int i = 2;
-    while (i < argc) {
-        const char *val = (i + 1 < argc) ? argv[i + 1] : NULL;
-        int has_val = (val != NULL);
-
-        if (strcmp(argv[i], "--allocation-id") == 0) {
-            if (!has_val || !allocation_id_normalize(val, allocation_id)) {
+    for (int i = 2; i < argc; i += 2) {
+        const char *option = argv[i];
+        const char *val = required_option_value(argc, argv, i);
+        if (val == NULL) {
+            return 1;
+        }
+        if (strcmp(option, "--socket") == 0) {
+            continue; /* Validated by cli_main. */
+        }
+        if (strcmp(option, "--allocation-id") == 0) {
+            if (!allocation_id_normalize(val, allocation_id)) {
                 fprintf(stderr, "Error: --allocation-id requires a UUID\n");
                 return 1;
             }
-        } else if (strcmp(argv[i], "-n") == 0 && has_val) {
-            aicore = atoi(val);
-        } else if (strcmp(argv[i], "-m") == 0 && has_val) {
-            hbm = strtoull(val, NULL, 10);
-        } else if (strcmp(argv[i], "-r") == 0 && has_val) {
-            hbm_request = strtoull(val, NULL, 10);
-        } else if (strcmp(argv[i], "-l") == 0 && has_val) {
-            hbm_limit = strtoull(val, NULL, 10);
-        } else if (strcmp(argv[i], "--request") == 0 && has_val) {
-            hbm_request = strtoull(val, NULL, 10);
-        } else if (strcmp(argv[i], "--limit") == 0 && has_val) {
-            hbm_limit = strtoull(val, NULL, 10);
-        } else if (strcmp(argv[i], "-p") == 0 && has_val) {
+        } else if (strcmp(option, "-n") == 0) {
+            if (!parse_int_option(option, val, &aicore)) {
+                return 1;
+            }
+        } else if (strcmp(option, "-m") == 0) {
+            if (!parse_hbm_option(option, val, &hbm_request)) {
+                return 1;
+            }
+            hbm_present = true;
+        } else if (strcmp(option, "-r") == 0 || strcmp(option, "--request") == 0) {
+            if (!parse_hbm_option(option, val, &hbm_request)) {
+                return 1;
+            }
+            hbm_request_present = true;
+        } else if (strcmp(option, "-l") == 0 || strcmp(option, "--limit") == 0) {
+            if (!parse_hbm_option(option, val, &hbm_limit)) {
+                return 1;
+            }
+            hbm_limit_present = true;
+        } else if (strcmp(option, "-p") == 0) {
             if (strcmp(val, "fixed-share") == 0) {
                 policy = 1;
             } else if (strcmp(val, "elastic") == 0) {
                 policy = 2;
             } else if (strcmp(val, "best-effort") == 0) {
                 policy = 3;
-            } else {
-                policy = atoi(val);
+            } else if (!parse_int_option(option, val, &policy)) {
+                return 1;
             }
-        } else if (strcmp(argv[i], "-d") == 0 && has_val) {
-            phy_id = atoi(val);
-        } else if (strcmp(argv[i], "--vnpu-priority") == 0) {
-            if (!has_val || strlen(val) != 1 || (val[0] != '0' && val[0] != '1')) {
+        } else if (strcmp(option, "-d") == 0) {
+            if (!parse_int_option(option, val, &phy_id)) {
+                return 1;
+            }
+        } else if (strcmp(option, "--vnpu-priority") == 0) {
+            if (strlen(val) != 1 || (val[0] != '0' && val[0] != '1')) {
                 fprintf(stderr, "Error: --vnpu-priority requires 0 or 1\n");
                 return 1;
             }
             vnpu_priority = val[0] - '0';
-        } else if (strcmp(argv[i], "--swap-order") == 0) {
-            if (!has_val || strlen(val) != 1 || val[0] < '0' || val[0] > '2') {
+        } else if (strcmp(option, "--swap-order") == 0) {
+            if (strlen(val) != 1 || val[0] < '0' || val[0] > '2') {
                 fprintf(stderr, "Error: --swap-order requires 0, 1 or 2\n");
                 return 1;
             }
             swap_order = val[0] - '0';
-        } else if (strcmp(argv[i], "-u") == 0 && has_val) {
-            if (strncpy_s(pod_uid, sizeof(pod_uid), val, strnlen(val, sizeof(pod_uid) - 1)) != 0) {
+        } else if (strcmp(option, "-u") == 0) {
+            if (strlen(val) >= sizeof(pod_uid) || strncpy_s(pod_uid, sizeof(pod_uid), val, strlen(val)) != 0) {
                 fprintf(stderr, "Error: Failed to copy pod_uid\n");
                 return 1;
             }
-        } else if (strcmp(argv[i], "-c") == 0 && has_val) {
-            if (strncpy_s(container, sizeof(container), val, strnlen(val, sizeof(container) - 1)) != 0) {
+        } else if (strcmp(option, "-c") == 0) {
+            if (strlen(val) >= sizeof(container) || strncpy_s(container, sizeof(container), val, strlen(val)) != 0) {
                 fprintf(stderr, "Error: Failed to copy container\n");
                 return 1;
             }
         } else {
-            has_val = 0;
+            fprintf(stderr, "Error: Unknown alloc option '%s'\n", option);
+            return 1;
         }
-
-        i += has_val ? 2 : 1;
     }
 
     if (vnpu_priority == 1) {
@@ -554,8 +604,12 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
         return 1;
     }
 
-    if (hbm_request == 0 && hbm_limit == 0 && hbm == 0) {
-        fprintf(stderr, "Error: -r/--request and -l/--limit or -m <hbm> are required\n");
+    if (hbm_present && (hbm_request_present || hbm_limit_present)) {
+        fprintf(stderr, "Error: -m cannot be combined with -r/--request or -l/--limit\n");
+        return 1;
+    }
+    if (!hbm_present && !hbm_request_present) {
+        fprintf(stderr, "Error: -r/--request or -m <hbm> is required\n");
         return 1;
     }
 
@@ -564,7 +618,7 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
                                        "\"allocation_id\":\"%s\",", allocation_id) < 0) {
         return 1;
     }
-    if (hbm_request > 0 && hbm_limit > 0) {
+    if (hbm_limit_present) {
         char body[512];
         int body_len = snprintf_s(body, sizeof(body), sizeof(body) - 1,
                                   "{%s\"aicore_quota\":%d,\"hbm_request\":%lu,\"hbm_limit\":%lu,"
@@ -629,11 +683,6 @@ static int cmd_alloc(int argc, char *argv[], const char *socket_path)
         printf("  SHM ID:       %s\n", shm_id);
         printf("  Minor:        %s\n", minor_name);
         return 0;
-    }
-
-    if (hbm > 0) {
-        hbm_request = hbm;
-        hbm_limit = hbm;
     }
 
     char body[512];
@@ -718,35 +767,42 @@ static int cmd_release(int argc, char *argv[], const char *socket_path)
     char pod_uid[128] = "";
     char container[64] = "";
 
-    int i = 2;
-    while (i < argc) {
-        const char *val = (i + 1 < argc) ? argv[i + 1] : NULL;
-        int has_val = (val != NULL);
-
-        if ((strcmp(argv[i], "-a") == 0 || strcmp(argv[i], "--allocation-id") == 0) && has_val) {
+    for (int i = 2; i < argc; i += 2) {
+        const char *option = argv[i];
+        const char *val = required_option_value(argc, argv, i);
+        if (val == NULL) {
+            return 1;
+        }
+        if (strcmp(option, "--socket") == 0) {
+            continue; /* Validated by cli_main. */
+        }
+        if (strcmp(option, "-a") == 0 || strcmp(option, "--allocation-id") == 0) {
             if (strlen(val) >= sizeof(allocation_id) ||
                 strncpy_s(allocation_id, sizeof(allocation_id), val, strlen(val)) != 0) {
                 fprintf(stderr, "Error: Failed to copy allocation_id\n");
                 return 1;
             }
-        } else if (strcmp(argv[i], "-u") == 0 && has_val) {
+        } else if (strcmp(option, "-u") == 0) {
             if (strlen(val) >= sizeof(pod_uid) || strncpy_s(pod_uid, sizeof(pod_uid), val, strlen(val)) != 0) {
                 fprintf(stderr, "Error: Failed to copy pod_uid\n");
                 return 1;
             }
-        } else if (strcmp(argv[i], "-c") == 0 && has_val) {
+        } else if (strcmp(option, "-c") == 0) {
             if (strlen(val) >= sizeof(container) || strncpy_s(container, sizeof(container), val, strlen(val)) != 0) {
                 fprintf(stderr, "Error: Failed to copy container\n");
                 return 1;
             }
         } else {
-            has_val = 0;
+            fprintf(stderr, "Error: Unknown release option '%s'\n", option);
+            return 1;
         }
-
-        i += has_val ? 2 : 1;
     }
 
     int by_id = allocation_id[0] != '\0';
+    if (by_id && (pod_uid[0] != '\0' || container[0] != '\0')) {
+        fprintf(stderr, "Error: -a/--allocation-id cannot be combined with -u or -c\n");
+        return 1;
+    }
     if (!by_id && (pod_uid[0] == '\0' || container[0] == '\0')) {
         fprintf(stderr, "Error: -a <allocation_id> or both -u <pod_uid> and -c <container> are required\n");
         return 1;
