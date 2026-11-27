@@ -237,6 +237,8 @@ sudo systemctl daemon-reload
 
 配置文件路径：`/etc/enpu/enpu-manager.conf`。
 
+> enpu-manager 运行期间，请通过[对应的配置接口](#更新服务配置)修改配置。请勿手动编辑 `.conf` 文件。接口会校验请求并保存配置。运行期间直接修改文件不会更新服务内存中的配置，后续接口保存时可能覆盖手工修改的值。
+
 **表 4 配置文件字段**
 
 | 字段                       | 类型     | 默认值       | 是否可修改 | 说明                                                                                                                                                          |
@@ -628,6 +630,7 @@ enpu-manager 通过 HTTP over Unix Domain Socket 接收请求，默认 socket �
 | `/api/v1/clean`                       | DELETE | 清理当前所有 vNPU 分配。                    |
 | `/api/v1/config`                       | GET    | 查询 `/etc/enpu/enpu-manager.conf` 中的全部配置项。 |
 | `/api/v1/config`                       | PUT    | 按 `key` 更新配置项；水线和分配策略立即生效，日志级别重启后生效。 |
+| `/api/v1/config/oversub-ratio`          | POST   | 在线调整指定物理卡的超分比例并保存配置。 |
 
 ### 更新服务配置
 
@@ -643,7 +646,14 @@ curl --unix-socket /run/enpu/enpu-manager.sock -X PUT http://localhost/api/v1/co
   -H 'Content-Type: application/json' -d '{"key":"log_level","value":"debug"}'
 ```
 
-`key` 只接受 `swap-pre-watermark`、`share-strategy` 或 `log_level`，不支持的键返回 HTTP 400。水线值只接受 1～100 的整数；分配策略只接受 `compact` 或 `anti-fragment`；日志级别只接受 `debug`、`info`、`warn`、`error` 或 `fatal`。成功响应包含 `result=0` 和 `restart_required`：水线及分配策略为 `false`，日志级别为 `true`。修改日志级别后需重启服务。其他配置项继续通过配置文件及服务重启修改。
+`key` 只接受 `swap-pre-watermark`、`share-strategy` 或 `log_level`，不支持的键返回 HTTP 400。水线值只接受 1～100 的整数；分配策略只接受 `compact` 或 `anti-fragment`；日志级别只接受 `debug`、`info`、`warn`、`error` 或 `fatal`。成功响应包含 `result=0` 和 `restart_required`：水线及分配策略为 `false`，日志级别为 `true`。修改日志级别后需重启服务。没有对应接口的启动项，请在服务停止后配置，并在下次启动时生效。
+
+按卡调整超分比例使用专用接口。下面的命令将物理卡 1 的比例设为 `0.5`。
+
+```bash
+curl --unix-socket /run/enpu/enpu-manager.sock -X POST http://localhost/api/v1/config/oversub-ratio \
+  -H 'Content-Type: application/json' -d '{"phy_id":1,"ratio":0.5}'
+```
 
 `GET /api/v1/config` 返回 `{"result":0,"config":{...}}`。`config` 包含配置文件中所有未注释的键值；`swap-pre-watermark`、`log_max_size`、`log_max_backups`、`log_max_age`、`log_console` 返回 JSON 整数，其他值按配置文件中的字符串返回（包括 `oversub-ratio` 的 CSV 原值）。查询直接读取文件，不叠加环境变量，也不表示尚需重启的配置已经在运行时生效。文件无法读取或内容无法解析时返回 HTTP 500。
 
@@ -1300,7 +1310,7 @@ vNPU 分配成功后，enpu-manager 会在宿主机侧生成 vCANN-RT 所需的�
 
 2. **启动报错 `configured oversub-ratio too large`**
 
-   配置的 `oversub-ratio` 计算出的 swap buffer 超过了宿主机 `MemFree`。请编辑 `/etc/enpu/enpu-manager.conf` 调小 `oversub-ratio` 后重启。
+   配置的 `oversub-ratio` 计算出的 swap buffer 超过了宿主机 `MemFree`。服务未能启动时，请在停机状态调小启动配置中的 `oversub-ratio`，然后重新启动服务。
 
 3. **分配 vNPU 返回 `card X rejected: sched_policy=N conflicts with existing vNPUs on the DIE`**
 

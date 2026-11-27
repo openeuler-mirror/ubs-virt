@@ -1114,8 +1114,18 @@ static int set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio, cons
                             !old_inited :
                             (old_inited && old_size == new_size && mgr->swap_resolver_threads[phy_id] != NULL);
     if (ratio == cur_ratio[phy_id] && pool_matches) {
-        int result = save_oversub_ratio(&save);
+        bool ready = false;
+        char reason[128] = {0};
+        int result = npu_allocator_reconfig_begin(mgr->allocator, phy_id, &ready, reason, sizeof(reason));
+        if (result == ENPU_SUCCESS) {
+            npu_allocator_reconfig_end(mgr->allocator);
+            result = ready ? save_oversub_ratio(&save) : ENPU_BUSY;
+        }
         pthread_mutex_unlock(&mgr->reconfig_lock);
+        if (result != ENPU_SUCCESS) {
+            LOG_WARN("[ENPU-MGR] ratio update rejected for phy=%d, ret=%d, reason=%s", phy_id, result, reason);
+            return result;
+        }
         LOG_INFO("[ENPU-MGR] set_oversub_ratio: phy_id=%d ratio=%.2f unchanged, no-op", phy_id, ratio);
         return result;
     }
