@@ -854,6 +854,11 @@ static int cmd_release(int argc, char *argv[], const char *socket_path)
             fprintf(stderr, "Error: Unknown release option '%s'\n", option);
             return 1;
         }
+        if ((id == OPT_ALLOCATION_ID && allocation_id[0] != '\0') || (id == OPT_POD_UID && pod_uid[0] != '\0') ||
+            (id == OPT_CONTAINER && container[0] != '\0')) {
+            fprintf(stderr, "Error: Duplicate release option '%s'\n", option);
+            return 1;
+        }
         const char *val = required_option_value(argc, argv, i);
         if (val == NULL) {
             return 1;
