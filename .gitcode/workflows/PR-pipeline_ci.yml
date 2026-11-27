@@ -101,6 +101,7 @@ stages:
             with:
               name: ci-result-pre-commit
               path: .ci-results/pre-commit
+              overwrite: true
 
       build_x86_64:
         name: Build_x86-64
@@ -182,6 +183,7 @@ stages:
             with:
               name: ci-result-x86-64
               path: .ci-results/x86_64
+              overwrite: true
 
       build_aarch64:
         name: Build_aarch64
@@ -295,6 +297,7 @@ stages:
             with:
               name: ci-result-aarch64
               path: .ci-results/aarch64
+              overwrite: true
 
       ut:
         name: UT_ubs-virt
@@ -479,6 +482,7 @@ stages:
             with:
               name: ubs-virt-dt
               path: .ci-results/dt-reports/
+              overwrite: true
 
           - name: Save result
             if: ${{ always() }}
@@ -500,3 +504,4 @@ stages:
             with:
               name: ci-result-dt
               path: .ci-results/DT
+              overwrite: true
