@@ -1102,8 +1102,8 @@ static int set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio, cons
         char reason[128] = {0};
         int result = npu_allocator_reconfig_begin(mgr->allocator, phy_id, &ready, reason, sizeof(reason));
         if (result == ENPU_SUCCESS) {
-            result = ready ? save_oversub_ratio(&save) : ENPU_BUSY;
             npu_allocator_reconfig_end(mgr->allocator);
+            result = ready ? save_oversub_ratio(&save) : ENPU_BUSY;
         }
         pthread_mutex_unlock(&mgr->reconfig_lock);
         if (result != ENPU_SUCCESS) {
