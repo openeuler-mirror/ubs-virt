@@ -1082,7 +1082,7 @@ static int route_request(rest_api_server_t *server, const char *method, const ch
                     err = "Invalid phy_id or ratio";
                     break;
                 case ENPU_NO_RESOURCE:
-                    err = "Swap buffer growth exceeds available host memory";
+                    err = "Total swap buffer capacity for expansion must be less than host MemFree";
                     break;
                 default:
                     err = "Failed to rebuild swap pool; see enpu-manager log";

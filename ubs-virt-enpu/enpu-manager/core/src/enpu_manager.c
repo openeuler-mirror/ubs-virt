@@ -175,6 +175,8 @@ static bool swap_pool_size(uint64_t hbm_mb, double ratio, uint64_t *size)
     return true;
 }
 
+static bool read_host_mem_free_bytes(uint64_t *free_bytes);
+
 static int recover_unused_swap_pools(npu_allocator_t *allocator, const bool phy_present[MAX_NPU_PER_NODE])
 {
     for (int phy_id = 0; phy_id < MAX_NPU_PER_NODE; phy_id++) {
@@ -315,28 +317,19 @@ enpu_manager_t *enpu_manager_create(const enpu_manager_config_t *config)
         return NULL;
     }
 
-    /* MemFree 校验：swap_buf_size 不能超过节点空闲内存 */
+    /* 启动时检查全节点换出池容量是否低于宿主机 MemFree。 */
     if (any_swap_enabled) {
-        uint64_t mem_free_bytes = 0;
-        FILE *fp = fopen("/proc/meminfo", "r");
-        if (fp != NULL) {
-            char line[256];
-            while (fgets(line, sizeof(line), fp)) {
-                unsigned long mem_free_kb = 0;
-                if (sscanf_s(line, "MemFree: %lu kB", &mem_free_kb) == 1) {
-                    mem_free_bytes = (uint64_t)mem_free_kb * 1024ULL;
-                    break;
-                }
-            }
-            fclose(fp);
+        uint64_t mem_free;
+        if (!read_host_mem_free_bytes(&mem_free)) {
+            LOG_ERROR("[ENPU-MGR] failed to read MemFree from /proc/meminfo");
+            npu_allocator_destroy(mgr->allocator);
+            free(mgr);
+            return NULL;
         }
-
-        if (mem_free_bytes == 0) {
-            LOG_WARN("[ENPU-MGR] WARNING: failed to read MemFree from /proc/meminfo, skipping oversub sanity check");
-        } else if (swap_buf_size > mem_free_bytes) {
-            LOG_ERROR("[ENPU-MGR] configured oversub-ratio too large: required swap buffer %lu bytes > host MemFree "
+        if (swap_buf_size >= mem_free) {
+            LOG_ERROR("[ENPU-MGR] configured oversub-ratio too large: total swap buffer %lu bytes >= host MemFree "
                       "%lu bytes, aborting",
-                      (unsigned long)swap_buf_size, (unsigned long)mem_free_bytes);
+                      (unsigned long)swap_buf_size, (unsigned long)mem_free);
             npu_allocator_destroy(mgr->allocator);
             free(mgr);
             return NULL;
@@ -926,32 +919,55 @@ static void destroy_all_swap_pools(npu_allocator_t *allocator)
     }
 }
 
-static bool read_host_available_bytes(uint64_t *available)
+static bool read_host_mem_free_bytes(uint64_t *free_bytes)
 {
     FILE *fp = fopen("/proc/meminfo", "r");
     if (fp == NULL)
         return false;
 
     unsigned long long mem_free_kb = 0;
-    unsigned long long mem_available_kb = 0;
     bool found_free = false;
-    bool found_available = false;
     char line[256];
     while (fgets(line, sizeof(line), fp)) {
-        if (sscanf_s(line, "MemAvailable: %llu kB", &mem_available_kb) == 1) {
-            found_available = true;
+        if (sscanf_s(line, "MemFree: %llu kB", &mem_free_kb) == 1) {
+            found_free = true;
             break;
         }
-        if (sscanf_s(line, "MemFree: %llu kB", &mem_free_kb) == 1)
-            found_free = true;
     }
     bool read_ok = !ferror(fp);
     fclose(fp);
-    unsigned long long kb = found_available ? mem_available_kb : mem_free_kb;
-    if (!read_ok || (!found_available && !found_free) || kb > UINT64_MAX / 1024ULL)
+    if (!read_ok || !found_free || mem_free_kb > UINT64_MAX / 1024ULL)
         return false;
-    *available = (uint64_t)kb * 1024ULL;
+    *free_bytes = (uint64_t)mem_free_kb * 1024ULL;
     return true;
+}
+
+static int check_swap_pool_total(const uint64_t *die_hbm_mb, const double *ratios, int phy_id, uint64_t growth)
+{
+    uint64_t total = growth;
+    for (int i = 0; i < MAX_NPU_PER_NODE; i++) {
+        if (i == phy_id || die_hbm_mb[i] == 0)
+            continue;
+        uint64_t size;
+        if (!swap_pool_size(die_hbm_mb[i], ratios[i], &size) || size > UINT64_MAX - total) {
+            LOG_ERROR("[ENPU-MGR] cannot calculate total swap pool capacity for phy_id=%d while expanding phy_id=%d", i,
+                      phy_id);
+            return ENPU_FAIL;
+        }
+        total += size;
+    }
+
+    uint64_t mem_free;
+    if (!read_host_mem_free_bytes(&mem_free)) {
+        LOG_ERROR("[ENPU-MGR] failed to read MemFree from /proc/meminfo");
+        return ENPU_FAIL;
+    }
+    if (total >= mem_free) {
+        LOG_ERROR("[ENPU-MGR] total swap pool capacity %llu must be less than host MemFree %llu for phy_id=%d",
+                  (unsigned long long)total, (unsigned long long)mem_free, phy_id);
+        return ENPU_NO_RESOURCE;
+    }
+    return ENPU_SUCCESS;
 }
 
 static void stop_die_resolver_thread(enpu_manager_t *mgr, int phy_id)
@@ -1104,15 +1120,12 @@ static int set_oversub_ratio(enpu_manager_t *mgr, int phy_id, double ratio, cons
         return result;
     }
 
-    /* 新池的数据页在写入时分配。这里只校验目标卡逻辑容量的净增量。 */
+    /* 扩容时校验其他卡的池容量与目标卡的扩容增量之和。 */
     if (new_size > old_size) {
-        uint64_t growth = new_size - old_size;
-        uint64_t available;
-        if (read_host_available_bytes(&available) && growth > available) {
+        int ret = check_swap_pool_total(die_hbm_mb, cur_ratio, phy_id, new_size - old_size);
+        if (ret != ENPU_SUCCESS) {
             pthread_mutex_unlock(&mgr->reconfig_lock);
-            LOG_ERROR("[ENPU-MGR] swap pool growth %llu exceeds available host memory %llu for phy_id=%d",
-                      (unsigned long long)growth, (unsigned long long)available, phy_id);
-            return ENPU_NO_RESOURCE;
+            return ret;
         }
     }
 
